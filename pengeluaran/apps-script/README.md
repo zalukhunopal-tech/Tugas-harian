@@ -24,7 +24,7 @@ Skrip hanya menulis kolom **B–F, H, I, J**. Kolom **A (No)** dan **G (Saldo)**
    lalu pilih semua. Di editor Apps Script, pilih semua isi `Kode.gs`, hapus, tempel, lalu simpan
    (ikon disket atau `Ctrl+S`). Beri nama proyek, misalnya *Sinkron Keuangan*.
 
-   Periksa sebelum lanjut: editor menunjukkan **272 baris**, baris 1 berisi `/**`, dan baris
+   Periksa sebelum lanjut: editor menunjukkan **378 baris**, baris 1 berisi `/**`, dan baris
    terakhir berisi `}`. Kalau muncul error *Unexpected end of input* (kode terpotong di bawah) atau
    *Illegal return statement* (bagian atas hilang atau tercampur isi lama), ulangi langkah ini.
 3. Klik **Deploy → New deployment**. Di *Select type* pilih **Web app**, lalu isi:
@@ -42,6 +42,32 @@ Skrip hanya menulis kolom **B–F, H, I, J**. Kolom **A (No)** dan **G (Saldo)**
    ditarik.
 7. (Opsional) Kalau sudah ada transaksi di browser yang belum ada di sheet, klik
    **Kirim semua data lokal**.
+
+## Sinkron dari halaman artifact Claude
+
+Halaman artifact Claude tidak boleh menghubungi Web App di atas, jadi di sana aplikasi memakai
+**konektor Google Drive** akun Claude Anda:
+
+- **Membaca**: kedua sheet dibaca langsung lewat konektor (izinkan Google Drive saat diminta).
+- **Menulis**: setiap simpan/ubah/hapus menjadi satu file kecil `op-….json` di subfolder
+  **Antrean Sinkron** di folder *Keuangan*. Fungsi `prosesAntreanDrive` di skrip ini memasukkan
+  file-file itu ke sheet **setiap menit**, lalu membuangnya ke sampah. File yang gagal diproses
+  diganti namanya menjadi `GAGAL - …` beserta alasannya dan tidak diulang.
+- Baris yang diketik langsung di sheet diberi ID otomatis dalam ±1 menit, supaya bisa diubah dan
+  dihapus dari halaman artifact (sebelum itu tombolnya nonaktif).
+
+Pasang sekali:
+
+1. Tempel kode `Code.gs` versi terbaru (378 baris) seperti langkah 2 di atas, lalu simpan.
+2. Di bilah atas editor, pilih fungsi **`pasangPemicu`**, lalu klik **▶ Jalankan**. Setujui izin
+   yang diminta (termasuk "menjalankan saat Anda tidak ada" untuk pemicu terjadwal).
+3. Log menampilkan "Pemicu terpasang…", dan subfolder **Antrean Sinkron** muncul di folder
+   *Keuangan*. Menjalankannya ulang aman; pemicu lama diganti.
+
+Karena lewat antrean, perubahan dari artifact baru terlihat di sheet setelah ±1 menit. Selama
+menunggu, aplikasi tetap menampilkannya dan label status menunjukkan "… menunggu dimasukkan Apps
+Script ke sheet". Pemicu per menit hanya membuka sheet bila ada antrean atau sheet berubah,
+sehingga kuota harian Apps Script tetap longgar.
 
 ## Membuka aplikasi lewat GitHub Pages (sekali saja)
 
@@ -67,7 +93,8 @@ setiap browser/perangkat yang dipakai; datanya sendiri akan ditarik dari sheet.
 ## Mengubah skrip
 
 Kalau `Code.gs` diperbarui, tempel ulang isinya lalu **Deploy → Manage deployments → ✎ →
-Version: New version → Deploy**. URL Web App tidak berubah.
+Version: New version → Deploy**. URL Web App tidak berubah. Pemicu `prosesAntreanDrive` otomatis
+memakai kode terbaru; `pasangPemicu` tidak perlu dijalankan ulang.
 
 ## Keamanan
 

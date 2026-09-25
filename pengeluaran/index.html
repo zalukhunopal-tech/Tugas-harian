@@ -198,15 +198,28 @@
           (<a href="apps-script/README.md" target="_blank" rel="noopener">panduan pemasangan</a>).
         </p>
         <p class="help peringatan" id="peringatan-artifact" hidden>
-          <strong>Sinkronisasi tidak bisa berjalan di halaman artifact Claude</strong> karena halaman ini dilarang
-          menghubungi situs luar. Salin kode Apps Script di bawah boleh dari sini, tetapi untuk menghubungkan ke
-          Google Sheets buka aplikasi dari
+          <strong>Konektor Google Drive belum bisa dipakai di tampilan ini.</strong> Halaman artifact Claude
+          menyinkronkan data lewat konektor Google Drive di akun Claude Anda; izin itu tidak tersedia di sini.
+          Muat ulang halaman lalu izinkan Google Drive saat diminta, atau buka aplikasi dari
           <a href="https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/" target="_blank" rel="noopener">zalukhunopal-tech.github.io/Tugas-harian/pengeluaran</a>.
         </p>
+        <div class="mode-konektor" id="mode-konektor" hidden>
+          <p class="help">
+            <strong>Mode artifact Claude.</strong> Data dibaca langsung dari kedua sheet lewat konektor
+            <strong>Google Drive</strong> akun Claude Anda (izinkan saat diminta). Perubahan ditaruh sebagai file kecil
+            di subfolder <em>Antrean Sinkron</em>, lalu Apps Script memasukkannya ke sheet setiap menit. Syaratnya:
+            kode Apps Script versi terbaru, dan fungsi <code>pasangPemicu</code> sudah dijalankan sekali di editor.
+          </p>
+          <div class="sync-buttons">
+            <button type="button" id="btn-muat-drive" class="btn-primary">Muat ulang dari Sheet</button>
+            <button type="button" id="btn-kirim-ulang" class="btn-secondary">Kirim ulang antrean</button>
+            <button type="button" id="btn-kirim-semua-drive" class="btn-secondary">Kirim semua data lokal</button>
+          </div>
+        </div>
         <div class="salin-kode">
           <p class="help">
             <strong>Kode Apps Script.</strong> Salin dengan tombol di bawah, lalu di editor Apps Script hapus
-            <em>semua</em> isi <code>Kode.gs</code> dan tempel. Kode lengkap berjumlah <span id="jumlah-baris-kode">272</span> baris:
+            <em>semua</em> isi <code>Kode.gs</code> dan tempel. Kode lengkap berjumlah <span id="jumlah-baris-kode">378</span> baris:
             baris pertama <code>/**</code>, baris terakhir <code>}</code>.
           </p>
           <div class="sync-buttons">

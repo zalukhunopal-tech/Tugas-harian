@@ -240,6 +240,12 @@ function buatItem(p) {
   hapus.textContent = "Hapus";
   hapus.addEventListener("click", () => hapusTransaksi(p.id));
 
+  if (p.tanpaId) {
+    ubah.disabled = hapus.disabled = true;
+    ubah.title = hapus.title =
+      "Baris ini diketik langsung di sheet dan belum punya ID. Apps Script memberinya ID dalam ±1 menit; muat ulang dari Sheet untuk mengubahnya.";
+  }
+
   const tombol = document.createElement("div");
   tombol.className = "expense-buttons";
   tombol.append(ubah, hapus);
@@ -493,7 +499,21 @@ btnExport.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-/* ---------- Sinkronisasi Google Sheets lewat Apps Script ---------- */
+/* ---------- Sinkronisasi Google Sheets ---------- */
+// Dua jalur:
+// - "url": halaman biasa (GitHub Pages / file lokal) memanggil Web App Apps Script secara langsung.
+// - "konektor": halaman artifact Claude tidak boleh menghubungi situs luar, jadi ia membaca sheet dan
+//   menaruh file antrean lewat konektor Google Drive akun Claude; Apps Script (prosesAntreanDrive)
+//   memasukkan antrean itu ke sheet setiap menit.
+
+const FOLDER_KEUANGAN = "1zRqAgxStMdx3Ksm_K1R8R_pec_pMg6qf";
+const NAMA_FOLDER_ANTREAN = "Antrean Sinkron";
+const SERVER_DRIVE = "Google Drive";
+const NAMA_SHEET = { "Dana Pribadi": "Keuangan Pribadi", "Dana Kegiatan": "Keuangan Kegiatan" };
+const SYNC_SENT_KEY = "keuangan-sync-terkirim";
+// Perubahan yang sudah ditaruh di antrean Drive tetap ditampilkan sampai terlihat di sheet,
+// paling lama selama ini (bila Apps Script tidak memprosesnya, ia berhenti ditimpakan).
+const BATAS_TERKIRIM = 15 * 60 * 1000;
 
 const formSync = document.getElementById("form-sync");
 const inputSyncUrl = document.getElementById("sync-url");
@@ -503,41 +523,32 @@ const btnPutus = document.getElementById("btn-putus");
 const syncStatus = document.getElementById("sync-status");
 const syncDetail = document.getElementById("sync-detail");
 const hintSync = document.getElementById("hint-sync");
+const modeKonektorEl = document.getElementById("mode-konektor");
+const peringatanArtifact = document.getElementById("peringatan-artifact");
 
 let syncUrl = bacaStorage(SYNC_URL_KEY, "");
-let antrean = [];
-try {
-  antrean = JSON.parse(bacaStorage(SYNC_QUEUE_KEY, "[]")) || [];
-} catch {
-  antrean = [];
-}
+let konektor = null;
+let cacheDrive = null;
+let timerMuatUlang = null;
+let antrean = bacaJsonStorage(SYNC_QUEUE_KEY);
+let terkirim = bacaJsonStorage(SYNC_SENT_KEY);
 let sedangSync = false;
+
+function bacaJsonStorage(kunci) {
+  try {
+    const nilai = JSON.parse(bacaStorage(kunci, "[]"));
+    return Array.isArray(nilai) ? nilai : [];
+  } catch {
+    return [];
+  }
+}
 
 function simpanAntrean() {
   tulisStorage(SYNC_QUEUE_KEY, antrean.length ? JSON.stringify(antrean) : null);
 }
 
-function setStatusSync(teks, keadaan) {
-  syncStatus.hidden = !syncUrl;
-  syncStatus.textContent = teks;
-  syncStatus.dataset.keadaan = keadaan;
-  hintSync.textContent = syncUrl ? teks : "belum terhubung";
-}
-
-function statusIdle() {
-  if (!syncUrl) return setStatusSync("Belum terhubung ke Google Sheets", "off");
-  if (antrean.length) return setStatusSync(`${antrean.length} perubahan menunggu dikirim`, "tunggu");
-  const terakhir = bacaStorage(SYNC_TIME_KEY, "");
-  setStatusSync(terakhir ? `Tersinkron dengan Google Sheets · ${terakhir}` : "Terhubung ke Google Sheets", "ok");
-}
-
-async function bacaJson(respons) {
-  const teks = await respons.text();
-  try {
-    return JSON.parse(teks);
-  } catch {
-    throw new Error("Balasan bukan JSON. Pastikan URL berakhiran /exec dan akses Web App diatur ke 'Anyone'.");
-  }
+function simpanTerkirim() {
+  tulisStorage(SYNC_SENT_KEY, terkirim.length ? JSON.stringify(terkirim) : null);
 }
 
 const ALAMAT_PAGES = "https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/";
@@ -546,6 +557,43 @@ const ALAMAT_PAGES = "https://zalukhunopal-tech.github.io/Tugas-harian/pengeluar
 // runtime-nya menyediakan window.claude.use.
 function diArtifact() {
   return typeof window.claude === "object" && window.claude !== null && typeof window.claude.use === "function";
+}
+
+function modeSync() {
+  if (konektor) return "konektor";
+  if (syncUrl && !diArtifact()) return "url";
+  return null;
+}
+
+function setStatusSync(teks, keadaan) {
+  syncStatus.hidden = !modeSync();
+  syncStatus.textContent = teks;
+  syncStatus.dataset.keadaan = keadaan;
+  // Keterangan folder dibuat ringkas; pesan lengkap ada di label status di atas form.
+  const ringkas = { gagal: "gagal — buka untuk detail", kerja: "menyinkronkan…" };
+  hintSync.textContent = modeSync() ? ringkas[keadaan] || teks : "belum terhubung";
+}
+
+function statusIdle() {
+  const mode = modeSync();
+  if (!mode) return setStatusSync("Belum terhubung ke Google Sheets", "off");
+  if (antrean.length) return setStatusSync(`${antrean.length} perubahan menunggu dikirim`, "tunggu");
+  if (mode === "konektor" && terkirim.length) {
+    return setStatusSync(`${terkirim.length} perubahan menunggu dimasukkan Apps Script ke sheet`, "tunggu");
+  }
+  const terakhir = bacaStorage(SYNC_TIME_KEY, "");
+  setStatusSync(terakhir ? `Tersinkron dengan Google Sheets · ${terakhir}` : "Terhubung ke Google Sheets", "ok");
+}
+
+/* --- Jalur "url": Web App Apps Script --- */
+
+async function bacaJson(respons) {
+  const teks = await respons.text();
+  try {
+    return JSON.parse(teks);
+  } catch {
+    throw new Error("Balasan bukan JSON. Pastikan URL berakhiran /exec dan akses Web App diatur ke 'Anyone'.");
+  }
 }
 
 // fetch hanya menolak (TypeError "Failed to fetch") bila browser memblokir permintaannya,
@@ -584,28 +632,248 @@ async function ambilDariSheet(action) {
   return hasil;
 }
 
-function antre(op) {
-  if (!syncUrl) return;
-  // Perubahan terbaru untuk id yang sama menggantikan yang lama supaya antrean tetap ringkas.
+/* --- Jalur "konektor": Google Drive lewat halaman artifact Claude --- */
+
+function pesanKonektor(err) {
+  switch (err && err.code) {
+    case "needs_reauth":
+      return "sambungan Google Drive kedaluwarsa. Sambungkan ulang di claude.ai → Settings → Connectors.";
+    case "server_not_connected":
+    case "server_not_found":
+      return "konektor Google Drive belum ada di akun Claude ini. Tambahkan di claude.ai → Settings → Connectors.";
+    case "selection_required":
+      return "ada lebih dari satu konektor Google Drive. Pilih salah satu saat diminta, lalu muat ulang.";
+    case "not_in_manifest":
+      return "izin Google Drive untuk halaman ini ditolak atau dimatikan. Aktifkan lagi dari pengaturan halaman, lalu muat ulang.";
+    case "blocked_by_policy":
+    case "approval_required":
+      return "akses Google Drive diblokir kebijakan organisasi.";
+    case "server_unavailable":
+    case "rate_limited":
+      return "Google Drive sedang tidak bisa dihubungi. Coba lagi sebentar lagi.";
+    case "tool_error":
+      return `Google Drive menolak permintaan: ${err.message}`;
+    case "not_granted":
+    case "capability_disabled":
+    case "capability_removed":
+      return "tampilan ini tidak diberi akses konektor Google Drive.";
+    default:
+      return (err && err.message) || "kesalahan tidak dikenal dari konektor Google Drive.";
+  }
+}
+
+class GagalKonektor extends Error {
+  constructor(err) {
+    super(pesanKonektor(err));
+    this.code = err && err.code;
+  }
+}
+
+// Bacaan boleh diulang sekali bila konektor menandainya retryable; tulisan tidak diulang otomatis.
+async function panggilDrive(tool, input, { baca = false } = {}) {
+  try {
+    return (await konektor.callTool(SERVER_DRIVE, tool, input, baca ? undefined : { cache: false })).payload;
+  } catch (err) {
+    if (!baca || !(err && err.retryable)) throw new GagalKonektor(err);
+    await new Promise((r) => setTimeout(r, err.retryAfterMs || 1000 + Math.random() * 1500));
+    try {
+      return (await konektor.callTool(SERVER_DRIVE, tool, input)).payload;
+    } catch (err2) {
+      throw new GagalKonektor(err2);
+    }
+  }
+}
+
+// Pencarian judul di Drive bersifat longgar, jadi kecocokan judul diperiksa di sini.
+async function cariDrive() {
+  const hasil = await panggilDrive(
+    "search_files",
+    { query: `parentId = '${FOLDER_KEUANGAN}'`, excludeContentSnippets: true, pageSize: 100 },
+    { baca: true }
+  );
+  const files = (hasil && hasil.files) || [];
+  const sheet = {};
+  for (const [dana, nama] of Object.entries(NAMA_SHEET)) {
+    const cocok = files
+      .filter((f) => f.mimeType === "application/vnd.google-apps.spreadsheet" && String(f.title || "").startsWith(nama))
+      .sort((a, b) => String(b.modifiedTime || "").localeCompare(String(a.modifiedTime || "")));
+    if (!cocok.length) throw new Error(`sheet '${nama}' tidak ditemukan di folder Drive Keuangan.`);
+    sheet[dana] = cocok[0].id;
+  }
+  const folder = files.find((f) => f.mimeType === "application/vnd.google-apps.folder" && f.title === NAMA_FOLDER_ANTREAN);
+  cacheDrive = { sheet, folderAntrean: folder ? folder.id : null };
+  return cacheDrive;
+}
+
+function dariBase64(b64) {
+  const biner = atob(b64 || "");
+  return new TextDecoder().decode(Uint8Array.from(biner, (c) => c.charCodeAt(0)));
+}
+
+function parseCsv(teks) {
+  const hasil = [];
+  let baris = [];
+  let sel = "";
+  let kutip = false;
+  for (let i = 0; i < teks.length; i++) {
+    const c = teks[i];
+    if (kutip) {
+      if (c !== '"') sel += c;
+      else if (teks[i + 1] === '"') {
+        sel += '"';
+        i++;
+      } else kutip = false;
+    } else if (c === '"') kutip = true;
+    else if (c === ",") {
+      baris.push(sel);
+      sel = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && teks[i + 1] === "\n") i++;
+      baris.push(sel);
+      hasil.push(baris);
+      baris = [];
+      sel = "";
+    } else sel += c;
+  }
+  if (sel !== "" || baris.length) {
+    baris.push(sel);
+    hasil.push(baris);
+  }
+  return hasil;
+}
+
+// Tata letak sama dengan Code.gs: header di baris 6, data mulai baris 7, kolom A–J (indeks 0).
+const KOL_SHEET = { tanggal: 1, uraian: 2, kategori: 3, pemasukan: 4, pengeluaran: 5, kaitan: 7, catatan: 8, id: 9 };
+const BARIS_DATA_SHEET = 6;
+const METODE_SHEET = {
+  tunai: "Tunai",
+  transfer: "Transfer",
+  qris: "QRIS",
+  "e-wallet": "E-wallet",
+  ewallet: "E-wallet",
+  "kartu debit/kredit": "Kartu debit/kredit",
+};
+
+function angkaSel(v) {
+  const bersih = String(v || "").replace(/[^\d-]/g, "");
+  return bersih ? Number(bersih) || 0 : 0;
+}
+
+function tanggalSel(v) {
+  const s = String(v || "").trim();
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  return dmy ? `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}` : s;
+}
+
+function barisKeTransaksi(baris, dana) {
+  const hasil = [];
+  baris.slice(BARIS_DATA_SHEET).forEach((r, i) => {
+    const sel = (k) => String(r[KOL_SHEET[k]] || "").trim();
+    if (!sel("uraian")) return;
+    const masuk = angkaSel(sel("pemasukan"));
+    const keluar = angkaSel(sel("pengeluaran"));
+    const kategori = sel("kategori");
+    const jenis = masuk > 0 || (keluar === 0 && /pemasukan|penerimaan/i.test(kategori)) ? "pemasukan" : "pengeluaran";
+    const catatanMentah = sel("catatan");
+    const m = catatanMentah.match(/^Bayar\s+([^.]+)\.\s*/i);
+    const metode = m ? METODE_SHEET[m[1].trim().toLowerCase()] || m[1].trim().replace(/^./, (h) => h.toUpperCase()) : "";
+    const id = sel("id");
+    hasil.push({
+      // Baris yang diketik manual belum ber-ID sampai Apps Script memberinya; sementara tidak bisa diubah.
+      id: id || `sheet-${dana === "Dana Kegiatan" ? "k" : "p"}-${BARIS_DATA_SHEET + i + 1}`,
+      tanpaId: !id,
+      dana,
+      jenis,
+      tanggal: tanggalSel(sel("tanggal")),
+      deskripsi: sel("uraian"),
+      kategori,
+      jumlah: jenis === "pemasukan" ? masuk : keluar,
+      metode,
+      kaitan: sel("kaitan"),
+      catatan: m ? catatanMentah.slice(m[0].length) : catatanMentah,
+    });
+  });
+  return hasil;
+}
+
+async function bacaDrive() {
+  const { sheet } = await cariDrive();
+  const semua = [];
+  for (const [dana, fileId] of Object.entries(sheet)) {
+    const hasil = await panggilDrive("download_file_content", { fileId, exportMimeType: "text/csv" }, { baca: true });
+    semua.push(...barisKeTransaksi(parseCsv(dariBase64(hasil && hasil.content)), dana));
+  }
+  return semua;
+}
+
+async function tulisDrive(op) {
+  if (!cacheDrive || !cacheDrive.folderAntrean) await cariDrive();
+  if (!cacheDrive.folderAntrean) {
+    throw new Error(
+      `folder '${NAMA_FOLDER_ANTREAN}' belum ada di folder Keuangan. Jalankan fungsi pasangPemicu sekali di editor Apps Script.`
+    );
+  }
   const idOp = op.action === "upsert" ? op.transaksi.id : op.id;
-  antrean = antrean.filter((x) => (x.action === "upsert" ? x.transaksi.id : x.id) !== idOp);
+  await panggilDrive("create_file", {
+    title: `op-${Date.now()}-${op.action}-${idOp}.json`,
+    parentId: cacheDrive.folderAntrean,
+    textContent: JSON.stringify({ ...op, dibuat: new Date().toISOString() }),
+    contentMimeType: "application/json",
+    disableConversionToGoogleType: true,
+  });
+}
+
+// Setelah file antrean terkirim, sheet dibaca ulang saat Apps Script kemungkinan sudah memprosesnya.
+function jadwalkanMuatUlang() {
+  clearTimeout(timerMuatUlang);
+  timerMuatUlang = setTimeout(() => {
+    if (modeSync() === "konektor" && !sedangSync) tarikDariSheet();
+  }, 75000);
+}
+
+/* --- Antrean bersama kedua jalur --- */
+
+function idDariOp(op) {
+  return op.action === "upsert" ? op.transaksi.id : op.id;
+}
+
+function antre(op) {
+  if (!modeSync()) return;
+  if (op.action === "upsert") {
+    const { tanpaId, ...bersih } = op.transaksi;
+    op = { action: "upsert", transaksi: bersih };
+  }
+  // Perubahan terbaru untuk id yang sama menggantikan yang lama supaya antrean tetap ringkas.
+  antrean = antrean.filter((x) => idDariOp(x) !== idDariOp(op));
   antrean.push(op);
   simpanAntrean();
   prosesAntrean();
 }
 
+async function kirimOp(op) {
+  if (modeSync() === "konektor") {
+    await tulisDrive(op);
+    terkirim = terkirim.filter((t) => idDariOp(t.op) !== idDariOp(op));
+    terkirim.push({ op, waktu: Date.now() });
+    simpanTerkirim();
+  } else {
+    await kirimKeSheet(op);
+  }
+}
+
 async function prosesAntrean() {
-  if (!syncUrl || sedangSync || antrean.length === 0) return;
+  if (!modeSync() || sedangSync || antrean.length === 0) return;
   sedangSync = true;
   setStatusSync(`Mengirim ${antrean.length} perubahan ke Google Sheets…`, "kerja");
   try {
     while (antrean.length) {
-      await kirimKeSheet(antrean[0]);
+      await kirimOp(antrean[0]);
       antrean.shift();
       simpanAntrean();
     }
     tulisStorage(SYNC_TIME_KEY, waktuSekarang());
     statusIdle();
+    if (modeSync() === "konektor") jadwalkanMuatUlang();
   } catch (err) {
     setStatusSync(`Gagal mengirim (${antrean.length} menunggu): ${err.message}`, "gagal");
   } finally {
@@ -613,16 +881,47 @@ async function prosesAntrean() {
   }
 }
 
+function tercermin(op, dariSheet) {
+  if (op.action === "delete") return !dariSheet.some((p) => p.id === op.id);
+  const t = op.transaksi;
+  const p = dariSheet.find((x) => x.id === t.id);
+  return (
+    !!p &&
+    p.dana === t.dana &&
+    p.jenis === t.jenis &&
+    p.tanggal === t.tanggal &&
+    p.deskripsi === t.deskripsi &&
+    p.kategori === t.kategori &&
+    p.jumlah === t.jumlah &&
+    (p.kaitan || "") === (t.kaitan || "")
+  );
+}
+
+function terapkanOpLokal(daftarTx, op) {
+  if (op.action === "delete") return daftarTx.filter((p) => p.id !== op.id);
+  const ada = daftarTx.some((p) => p.id === op.transaksi.id);
+  return ada ? daftarTx.map((p) => (p.id === op.transaksi.id ? normalisasi(op.transaksi) : p)) : [...daftarTx, normalisasi(op.transaksi)];
+}
+
+// Perubahan yang belum terkirim, atau sudah di antrean Drive tapi belum dimasukkan Apps Script,
+// ditimpakan di atas isi sheet supaya tidak hilang dari layar selama menunggu.
+function gabungDenganPerubahanLokal(dariSheet) {
+  terkirim = terkirim.filter((t) => Date.now() - t.waktu < BATAS_TERKIRIM && !tercermin(t.op, dariSheet));
+  simpanTerkirim();
+  return [...terkirim.map((t) => t.op), ...antrean].reduce(terapkanOpLokal, dariSheet);
+}
+
 async function tarikDariSheet() {
-  if (!syncUrl) return false;
-  if (antrean.length) {
+  const mode = modeSync();
+  if (!mode) return false;
+  if (mode === "url" && antrean.length) {
     await prosesAntrean();
     if (antrean.length) return false;
   }
   setStatusSync("Menarik data dari Google Sheets…", "kerja");
   try {
-    const hasil = await ambilDariSheet("list");
-    transaksi = hasil.transaksi.map(normalisasi);
+    const dariSheet = mode === "konektor" ? await bacaDrive() : (await ambilDariSheet("list")).transaksi;
+    transaksi = gabungDenganPerubahanLokal(dariSheet.map(normalisasi));
     simpanData(transaksi);
     tulisStorage(SYNC_TIME_KEY, waktuSekarang());
     statusIdle();
@@ -636,6 +935,31 @@ async function tarikDariSheet() {
 
 function waktuSekarang() {
   return new Date().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" });
+}
+
+async function tombolTarik() {
+  if (!modeSync()) {
+    syncDetail.textContent = "Simpan URL Web App dulu.";
+    return;
+  }
+  if (!confirm("Data di browser ini akan diganti dengan isi Google Sheets. Lanjutkan?")) return;
+  const ok = await tarikDariSheet();
+  syncDetail.textContent = ok ? `Berhasil menarik ${transaksi.length} transaksi dari sheet.` : syncStatus.textContent;
+}
+
+function tombolKirimSemua() {
+  if (!modeSync()) {
+    syncDetail.textContent = "Simpan URL Web App dulu.";
+    return;
+  }
+  const kirim = transaksi.filter((p) => !p.tanpaId);
+  if (!kirim.length) {
+    syncDetail.textContent = "Tidak ada data lokal untuk dikirim.";
+    return;
+  }
+  if (!confirm(`Kirim ${kirim.length} transaksi lokal ke Google Sheets? Baris yang sudah ada (id sama) diperbarui, sisanya ditambahkan.`)) return;
+  for (const p of kirim) antre({ action: "upsert", transaksi: p });
+  syncDetail.textContent = `${kirim.length} transaksi dimasukkan ke antrean pengiriman.`;
 }
 
 formSync.addEventListener("submit", async (e) => {
@@ -656,28 +980,17 @@ formSync.addEventListener("submit", async (e) => {
   }
 });
 
-btnTarik.addEventListener("click", async () => {
-  if (!syncUrl) {
-    syncDetail.textContent = "Simpan URL Web App dulu.";
+btnTarik.addEventListener("click", tombolTarik);
+btnKirimSemua.addEventListener("click", tombolKirimSemua);
+document.getElementById("btn-muat-drive").addEventListener("click", tombolTarik);
+document.getElementById("btn-kirim-semua-drive").addEventListener("click", tombolKirimSemua);
+document.getElementById("btn-kirim-ulang").addEventListener("click", async () => {
+  if (!antrean.length) {
+    syncDetail.textContent = "Tidak ada perubahan yang menunggu dikirim.";
     return;
   }
-  if (!confirm("Data di browser ini akan diganti dengan isi Google Sheets. Lanjutkan?")) return;
-  const ok = await tarikDariSheet();
-  syncDetail.textContent = ok ? `Berhasil menarik ${transaksi.length} transaksi dari sheet.` : syncStatus.textContent;
-});
-
-btnKirimSemua.addEventListener("click", () => {
-  if (!syncUrl) {
-    syncDetail.textContent = "Simpan URL Web App dulu.";
-    return;
-  }
-  if (!transaksi.length) {
-    syncDetail.textContent = "Tidak ada data lokal untuk dikirim.";
-    return;
-  }
-  if (!confirm(`Kirim ${transaksi.length} transaksi lokal ke Google Sheets? Baris yang sudah ada (id sama) diperbarui, sisanya ditambahkan.`)) return;
-  for (const p of transaksi) antre({ action: "upsert", transaksi: p });
-  syncDetail.textContent = `${transaksi.length} transaksi dimasukkan ke antrean pengiriman.`;
+  await prosesAntrean();
+  syncDetail.textContent = antrean.length ? syncStatus.textContent : "Antrean terkirim.";
 });
 
 btnPutus.addEventListener("click", () => {
@@ -691,6 +1004,32 @@ btnPutus.addEventListener("click", () => {
   syncDetail.textContent = "Sinkronisasi diputus.";
   statusIdle();
 });
+
+// Di halaman artifact, sinkronisasi memakai konektor Google Drive bila tampilan ini mengizinkannya.
+async function mulaiSinkron() {
+  if (!diArtifact()) {
+    if (syncUrl) tarikDariSheet();
+    return;
+  }
+  formSync.hidden = true;
+  let mcp = null;
+  try {
+    mcp = await window.claude.use("mcp");
+  } catch {
+    mcp = null;
+  }
+  if (!mcp) {
+    peringatanArtifact.hidden = false;
+    statusIdle();
+    return;
+  }
+  konektor = mcp;
+  modeKonektorEl.hidden = false;
+  statusIdle();
+  // Perubahan yang tertinggal tidak dikirim otomatis saat halaman dibuka (itu tulisan tanpa aksi
+  // pengguna); tombol "Kirim ulang antrean" atau simpan transaksi berikutnya akan mengirimnya.
+  tarikDariSheet();
+}
 
 // Salin kode Apps Script sekaligus supaya tidak terpotong saat diseleksi manual di HP.
 const KODE_GS_URL = [
@@ -765,14 +1104,16 @@ btnSalinKode.addEventListener("click", async () => {
 // Ambil kodenya saat folder dibuka supaya salinan ke clipboard langsung terjadi saat tombol ditekan
 // (beberapa browser HP menolak menyalin bila ada jeda menunggu jaringan).
 document.getElementById("folder-sync").addEventListener("toggle", (e) => {
-  if (!e.target.open) return;
-  ambilKodeGs();
-  document.getElementById("peringatan-artifact").hidden = !diArtifact();
+  if (e.target.open) ambilKodeGs();
 });
 
-window.addEventListener("online", prosesAntrean);
+// Kirim ulang otomatis hanya untuk jalur Web App; di jalur konektor tulisan hanya terjadi
+// karena aksi pengguna.
+window.addEventListener("online", () => {
+  if (modeSync() === "url") prosesAntrean();
+});
 setInterval(() => {
-  if (antrean.length) prosesAntrean();
+  if (modeSync() === "url" && antrean.length) prosesAntrean();
 }, 60000);
 
 /* ---------- Tema, karakter, dan perluasan domain ---------- */
@@ -855,4 +1196,4 @@ filterTanggal.value = hariIni();
 inputSyncUrl.value = syncUrl;
 statusIdle();
 render();
-if (syncUrl) tarikDariSheet();
+mulaiSinkron();

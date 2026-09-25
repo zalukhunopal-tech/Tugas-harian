@@ -3,6 +3,9 @@
  *
  * Dipasang sebagai Google Apps Script Web App dari akun pemilik folder Keuangan.
  * Aplikasi web mengirim transaksi ke sini (POST) dan menarik seluruh isi sheet (GET).
+ * Halaman artifact Claude tidak boleh menghubungi Web App ini, jadi ia menulis perubahan sebagai
+ * file JSON di subfolder "Antrean Sinkron" lewat konektor Google Drive; prosesAntreanDrive()
+ * (dipicu setiap menit, pasang dengan menjalankan pasangPemicu() sekali) memasukkannya ke sheet.
  * Panduan pemasangan: README.md di folder yang sama.
  *
  * Tata letak sheet (sama untuk Keuangan Pribadi dan Keuangan Kegiatan):
@@ -17,9 +20,11 @@ var NAMA_SHEET = { "Dana Pribadi": "Keuangan Pribadi", "Dana Kegiatan": "Keuanga
 var BARIS_HEADER = 6;
 var BARIS_AWAL = 7;
 var KOL = { tanggal: 2, uraian: 3, kategori: 4, pemasukan: 5, pengeluaran: 6, kaitan: 8, catatan: 9, id: 10 };
-var VERSI = 1;
+var NAMA_FOLDER_ANTREAN = "Antrean Sinkron";
+var VERSI = 2;
 
 var cacheSheet = {};
+var cacheFile = {};
 
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || "ping";
@@ -68,8 +73,8 @@ function jalankan(fn) {
 
 // File id bisa berubah kalau sheet pernah dibuat ulang, jadi cari berdasarkan nama di folder Keuangan
 // dan ambil yang paling baru diperbarui.
-function ambilSheet(dana) {
-  if (cacheSheet[dana]) return cacheSheet[dana];
+function cariFileSheet(dana) {
+  if (cacheFile[dana]) return cacheFile[dana];
   var nama = NAMA_SHEET[dana];
   if (!nama) throw new Error("Dana tidak dikenal: " + dana);
   var files = DriveApp.getFolderById(FOLDER_ID).getFiles();
@@ -81,7 +86,13 @@ function ambilSheet(dana) {
     }
   }
   if (!terbaru) throw new Error("Sheet '" + nama + "' tidak ditemukan di folder Keuangan");
-  cacheSheet[dana] = SpreadsheetApp.openById(terbaru.getId()).getSheets()[0];
+  cacheFile[dana] = terbaru;
+  return terbaru;
+}
+
+function ambilSheet(dana) {
+  if (cacheSheet[dana]) return cacheSheet[dana];
+  cacheSheet[dana] = SpreadsheetApp.openById(cariFileSheet(dana).getId()).getSheets()[0];
   return cacheSheet[dana];
 }
 
@@ -269,4 +280,99 @@ function hapusBaris(sheet, baris) {
 
 function buatId() {
   return "s" + Utilities.getUuid().replace(/-/g, "").slice(0, 10);
+}
+
+/* ---------- Antrean dari halaman artifact Claude ---------- */
+
+/**
+ * Jalankan SEKALI dari editor: pilih fungsi "pasangPemicu" di bilah atas, lalu ▶ Jalankan.
+ * Membuat subfolder "Antrean Sinkron" (bila belum ada) dan pemicu yang menjalankan
+ * prosesAntreanDrive setiap menit. Aman dijalankan ulang; pemicu lama diganti.
+ */
+function pasangPemicu() {
+  ambilFolderAntrean(true);
+  ScriptApp.getProjectTriggers().forEach(function (pemicu) {
+    if (pemicu.getHandlerFunction() === "prosesAntreanDrive") ScriptApp.deleteTrigger(pemicu);
+  });
+  ScriptApp.newTrigger("prosesAntreanDrive").timeBased().everyMinutes(1).create();
+  prosesAntreanDrive();
+  Logger.log("Pemicu terpasang: perubahan dari halaman artifact dimasukkan ke sheet setiap menit.");
+}
+
+function ambilFolderAntrean(buat) {
+  var induk = DriveApp.getFolderById(FOLDER_ID);
+  var ada = induk.getFoldersByName(NAMA_FOLDER_ANTREAN);
+  if (ada.hasNext()) return ada.next();
+  return buat ? induk.createFolder(NAMA_FOLDER_ANTREAN) : null;
+}
+
+// File antrean bernama "op-<milidetik>-...json" sehingga urutan nama = urutan kejadian.
+// Operasi upsert/hapus bersifat idempoten, jadi file ganda (kiriman ulang) tidak merusak data.
+function prosesAntreanDrive() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    var folder = ambilFolderAntrean(false);
+    var diproses = 0;
+    if (folder) {
+      var daftar = [];
+      var files = folder.getFiles();
+      while (files.hasNext()) {
+        var f = files.next();
+        if (f.getName().indexOf("op-") === 0) daftar.push(f);
+      }
+      daftar.sort(function (a, b) {
+        return a.getName() < b.getName() ? -1 : a.getName() > b.getName() ? 1 : 0;
+      });
+      daftar.forEach(function (f) {
+        try {
+          terapkanOp(JSON.parse(f.getBlob().getDataAsString()));
+          f.setTrashed(true);
+          diproses++;
+        } catch (err) {
+          // Ditandai dan dilewati supaya tidak diulang terus; isinya tetap bisa diperiksa.
+          f.setName("GAGAL - " + f.getName() + " - " + String((err && err.message) || err).slice(0, 150));
+        }
+      });
+    }
+    beriIdBarisBaru(diproses > 0);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function terapkanOp(op) {
+  if (!op || typeof op !== "object") throw new Error("Isi antrean bukan JSON objek");
+  if (op.action === "upsert") return upsert(op.transaksi);
+  if (op.action === "delete") return hapus(op.id);
+  throw new Error("Aksi tidak dikenal: " + op.action);
+}
+
+// Baris yang diketik manual di sheet diberi ID supaya bisa diubah/dihapus dari halaman artifact.
+// Sheet hanya dibuka bila berubah sejak pemeriksaan terakhir, agar pemicu per menit tetap ringan.
+function beriIdBarisBaru(paksa) {
+  var props = PropertiesService.getScriptProperties();
+  Object.keys(NAMA_SHEET).forEach(function (dana) {
+    var kunci = "idDiperiksa_" + dana;
+    var diubah = cariFileSheet(dana).getLastUpdated().getTime();
+    if (!paksa && diubah <= Number(props.getProperty(kunci) || 0)) return;
+    beriIdSheet(ambilSheet(dana));
+    props.setProperty(kunci, String(Date.now()));
+  });
+}
+
+function beriIdSheet(sheet) {
+  var n = jumlahBarisData(sheet);
+  if (!n) return 0;
+  var lebar = KOL.id - KOL.uraian + 1;
+  var nilai = sheet.getRange(BARIS_AWAL, KOL.uraian, n, lebar).getValues();
+  var jumlah = 0;
+  nilai.forEach(function (baris, i) {
+    if (String(baris[0]).trim() && !String(baris[lebar - 1]).trim()) {
+      sheet.getRange(BARIS_AWAL + i, KOL.id).setValue(buatId());
+      jumlah++;
+    }
+  });
+  if (jumlah) pastikanHeaderId(sheet);
+  return jumlah;
 }
