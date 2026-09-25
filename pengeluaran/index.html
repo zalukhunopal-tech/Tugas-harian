@@ -3,19 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catatan Pengeluaran Harian</title>
+  <title>Catatan Keuangan Harian</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="container">
     <header>
-      <h1>Catatan Pengeluaran Harian</h1>
-      <p class="subtitle">Catat setiap pengeluaran dan pantau totalnya per hari.</p>
+      <h1>Catatan Keuangan Harian</h1>
+      <p class="subtitle">Catat pemasukan dan pengeluaran, dipisah antara dana pribadi dan dana kegiatan.</p>
     </header>
 
+    <section class="balances" aria-label="Saldo per dana">
+      <div class="balance" data-dana="Dana Pribadi">
+        <span class="stat-label">Saldo Dana Pribadi</span>
+        <span class="balance-value">Rp0</span>
+        <span class="balance-flow"></span>
+      </div>
+      <div class="balance" data-dana="Dana Kegiatan">
+        <span class="stat-label">Saldo Dana Kegiatan</span>
+        <span class="balance-value">Rp0</span>
+        <span class="balance-flow"></span>
+      </div>
+    </section>
+
     <section class="card" id="kartu-form">
-      <h2 id="judul-form">Tambah Pengeluaran</h2>
-      <form id="form-pengeluaran">
+      <h2 id="judul-form">Tambah Transaksi</h2>
+      <form id="form-transaksi">
+        <fieldset class="field segmented">
+          <legend>Jenis</legend>
+          <div class="segmented-options">
+            <label><input type="radio" name="jenis" value="pengeluaran" checked><span>Pengeluaran</span></label>
+            <label><input type="radio" name="jenis" value="pemasukan"><span>Pemasukan</span></label>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="dana">Dana</label>
+          <select id="dana">
+            <option>Dana Pribadi</option>
+            <option>Dana Kegiatan</option>
+          </select>
+        </div>
         <div class="field">
           <label for="tanggal">Tanggal</label>
           <input type="date" id="tanggal" required>
@@ -26,15 +53,7 @@
         </div>
         <div class="field">
           <label for="kategori">Kategori</label>
-          <select id="kategori">
-            <option>Makanan &amp; Minuman</option>
-            <option>Transportasi</option>
-            <option>Belanja</option>
-            <option>Tagihan</option>
-            <option>Hiburan</option>
-            <option>Kesehatan</option>
-            <option>Lainnya</option>
-          </select>
+          <select id="kategori"></select>
         </div>
         <div class="field">
           <label for="jumlah">Jumlah (Rp)</label>
@@ -62,21 +81,31 @@
 
     <section class="card">
       <div class="list-header">
-        <h2>Daftar Pengeluaran</h2>
-        <div class="field inline">
-          <label for="filter-tanggal">Tampilkan tanggal</label>
-          <input type="date" id="filter-tanggal">
+        <h2>Daftar Transaksi</h2>
+        <div class="filters">
+          <div class="field inline">
+            <label for="filter-tanggal">Tanggal</label>
+            <input type="date" id="filter-tanggal">
+          </div>
+          <div class="field inline">
+            <label for="filter-dana">Dana</label>
+            <select id="filter-dana">
+              <option value="">Semua dana</option>
+              <option>Dana Pribadi</option>
+              <option>Dana Kegiatan</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <div class="summary">
         <div class="stat">
-          <span class="stat-label" id="label-total-hari">Total hari ini</span>
-          <span class="stat-value" id="total-hari">Rp0</span>
+          <span class="stat-label" id="label-masuk-hari">Pemasukan hari ini</span>
+          <span class="stat-value" id="masuk-hari">Rp0</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Total bulan ini</span>
-          <span class="stat-value" id="total-bulan">Rp0</span>
+          <span class="stat-label" id="label-keluar-hari">Pengeluaran hari ini</span>
+          <span class="stat-value" id="keluar-hari">Rp0</span>
         </div>
         <div class="stat">
           <span class="stat-label">Jumlah transaksi</span>
@@ -86,7 +115,7 @@
 
       <div class="budget">
         <form id="form-anggaran" class="budget-form">
-          <label for="anggaran">Anggaran harian (Rp)</label>
+          <label for="anggaran">Anggaran pengeluaran harian (Rp)</label>
           <input type="number" id="anggaran" min="0" step="1" placeholder="Belum diatur">
           <button type="submit" class="btn-secondary">Atur</button>
         </form>
@@ -99,7 +128,7 @@
       </div>
 
       <ul id="daftar" class="expense-list"></ul>
-      <p id="kosong" class="empty">Belum ada pengeluaran pada tanggal ini.</p>
+      <p id="kosong" class="empty">Belum ada transaksi pada tanggal ini.</p>
 
       <div class="actions">
         <button type="button" id="btn-export" class="btn-secondary">Unduh CSV</button>
@@ -108,8 +137,12 @@
 
     <section class="card">
       <h2 id="judul-kategori">Ringkasan per Kategori</h2>
-      <ul id="ringkasan-kategori" class="category-list"></ul>
-      <p id="kategori-kosong" class="empty">Belum ada pengeluaran pada bulan ini.</p>
+      <h3>Pengeluaran</h3>
+      <ul id="ringkasan-keluar" class="category-list"></ul>
+      <p id="keluar-kosong" class="empty">Belum ada pengeluaran pada bulan ini.</p>
+      <h3>Pemasukan</h3>
+      <ul id="ringkasan-masuk" class="category-list"></ul>
+      <p id="masuk-kosong" class="empty">Belum ada pemasukan pada bulan ini.</p>
     </section>
   </main>
 
