@@ -31,6 +31,11 @@
   box-sizing: border-box;
 }
 
+/* Atribut hidden harus selalu menang atas display dari kelas (mis. .sync-form, .sync-pill). */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -194,6 +199,10 @@ header h1 {
 }
 
 .folder-hint {
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.78rem;
   font-weight: 400;
   color: var(--muted);
@@ -550,6 +559,11 @@ button {
   color: var(--danger);
 }
 
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .btn-delete:hover {
   border-color: var(--danger);
 }
@@ -647,6 +661,10 @@ button {
 
 .peringatan strong {
   color: var(--danger);
+}
+
+.mode-konektor {
+  margin: 14px 0 16px;
 }
 
 .salin-kode {

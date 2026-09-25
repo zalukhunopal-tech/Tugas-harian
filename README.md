@@ -14,8 +14,9 @@ tersinkron dengan Google Sheets di folder Drive *Keuangan*.
   kategori di sheet *Keuangan Pribadi 2026* / *Keuangan Kegiatan 2026*, ditambah kolom Sumber/Tujuan atau Kaitan Kegiatan.
 - **Sinkronisasi Google Sheets**: setiap transaksi otomatis ditulis ke sheet yang sesuai, dan isi sheet ditarik saat
   halaman dibuka. Perantaranya Google Apps Script yang dipasang sekali; panduan di
-  [`pengeluaran/apps-script/README.md`](pengeluaran/apps-script/README.md). Tanpa itu, data tetap tersimpan di
-  `localStorage` browser.
+  [`pengeluaran/apps-script/README.md`](pengeluaran/apps-script/README.md). Di halaman biasa (GitHub Pages / file
+  lokal) aplikasi memanggil Web App Apps Script; di halaman artifact Claude aplikasi memakai konektor Google Drive
+  dan antrean yang diproses Apps Script setiap menit. Tanpa sinkronisasi, data tetap tersimpan di `localStorage` browser.
 - Ubah/hapus transaksi, filter per tanggal dan dana, anggaran pengeluaran harian, ringkasan per kategori, unduh CSV.
 - **Tema Jujutsu** (bawaan) dengan pilihan karakter — Gojo, Sukuna, Jogo, Nanami — yang mengubah palet warna dan
   lambang, serta efek **Perluasan Domain** (領域展開) lewat tombol di pojok kanan atas. Tema standar tetap tersedia;
