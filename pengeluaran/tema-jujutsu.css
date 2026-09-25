@@ -1,0 +1,324 @@
+/* Tema Jujutsu: nuansa "energi kutukan" ungu-biru, segel merah, dan partikel melayang.
+   Aktif saat <html data-tema="jujutsu">. */
+
+html[data-tema="jujutsu"] {
+  color-scheme: dark;
+  --bg: #0a0913;
+  --surface: #15112a;
+  --text: #ece8ff;
+  --muted: #a59fc4;
+  --border: #3a2f63;
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --danger: #f05252;
+  --track: #241d40;
+  --highlight: #2a1f4a;
+  --biru: #38bdf8;
+  --segel: #c81e3a;
+}
+
+/* Aura energi kutukan yang bergeser pelan di latar belakang.
+   Ditaruh di dalam .energi (overflow: hidden) agar tidak membuat halaman bisa digeser ke samping. */
+html[data-tema="jujutsu"] .energi::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(40% 35% at 20% 25%, rgba(139, 92, 246, 0.22), transparent 70%),
+    radial-gradient(35% 30% at 80% 70%, rgba(56, 189, 248, 0.14), transparent 70%),
+    radial-gradient(30% 25% at 70% 15%, rgba(200, 30, 58, 0.12), transparent 70%);
+  animation: aura 18s ease-in-out infinite alternate;
+}
+
+@keyframes aura {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(-4%, 3%) scale(1.08);
+  }
+}
+
+html[data-tema="jujutsu"] .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Partikel energi yang melayang naik. */
+html[data-tema="jujutsu"] .energi {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.partikel {
+  position: absolute;
+  bottom: -20px;
+  left: var(--x);
+  width: var(--ukuran);
+  height: var(--ukuran);
+  border-radius: 50%;
+  background: #a78bfa;
+  box-shadow: 0 0 8px 2px rgba(139, 92, 246, 0.7);
+  opacity: 0;
+  animation: naik var(--durasi) linear var(--jeda) infinite;
+}
+
+.partikel.biru {
+  background: #7dd3fc;
+  box-shadow: 0 0 8px 2px rgba(56, 189, 248, 0.6);
+}
+
+@keyframes naik {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(var(--goyang), -50vh) scale(1);
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(0, -105vh) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* Judul dengan cahaya berdenyut. */
+html[data-tema="jujutsu"] header h1 {
+  font-family: "Yuji Syuku", "Hiragino Mincho ProN", "Noto Serif", serif;
+  font-weight: 400;
+  font-size: 1.9rem;
+  letter-spacing: 0.02em;
+  animation: denyut-judul 4s ease-in-out infinite;
+}
+
+@keyframes denyut-judul {
+  0%,
+  100% {
+    text-shadow: 0 0 6px rgba(139, 92, 246, 0.55), 0 0 18px rgba(139, 92, 246, 0.25);
+  }
+  50% {
+    text-shadow: 0 0 10px rgba(167, 139, 250, 0.85), 0 0 28px rgba(56, 189, 248, 0.35);
+  }
+}
+
+html[data-tema="jujutsu"] .tagline {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--accent-hover);
+  letter-spacing: 0.02em;
+}
+
+/* Segel merah bergaya cap, dengan cincin putus-putus yang berputar. */
+html[data-tema="jujutsu"] .hanko {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: var(--segel);
+  color: #fff4f4;
+  font-family: "Yuji Syuku", serif;
+  font-size: 1.9rem;
+  line-height: 1;
+  transform: rotate(-8deg);
+  box-shadow: 0 0 16px rgba(200, 30, 58, 0.55);
+  /* Ruang untuk cincin berputar: kotak pembatasnya melebar saat diputar. */
+  margin: 16px 16px 6px 0;
+}
+
+html[data-tema="jujutsu"] .hanko::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1.5px dashed rgba(240, 82, 82, 0.6);
+  border-radius: 50%;
+  animation: putar 16s linear infinite;
+}
+
+@keyframes putar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Kartu dengan bingkai energi yang mengalir. */
+html[data-tema="jujutsu"] .card,
+html[data-tema="jujutsu"] .balance {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(
+        120deg,
+        rgba(139, 92, 246, 0.7),
+        rgba(56, 189, 248, 0.35),
+        rgba(200, 30, 58, 0.5),
+        rgba(139, 92, 246, 0.7)
+      )
+      border-box;
+  background-size: 100% 100%, 300% 100%;
+  animation: alir-energi 14s linear infinite;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), inset 0 0 24px rgba(139, 92, 246, 0.06);
+}
+
+@keyframes alir-energi {
+  from {
+    background-position: 0 0, 0% 0;
+  }
+  to {
+    background-position: 0 0, 300% 0;
+  }
+}
+
+html[data-tema="jujutsu"] .card h2::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 10px;
+  vertical-align: 3px;
+  background: var(--segel);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(200, 30, 58, 0.8);
+}
+
+html[data-tema="jujutsu"] .balance-value.negative {
+  text-shadow: 0 0 12px rgba(240, 82, 82, 0.45);
+}
+
+html[data-tema="jujutsu"] input,
+html[data-tema="jujutsu"] select {
+  background: #0f0c1f;
+}
+
+html[data-tema="jujutsu"] input:focus,
+html[data-tema="jujutsu"] select:focus {
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
+}
+
+/* Tombol utama dengan kilau yang menyapu saat disorot. */
+html[data-tema="jujutsu"] .btn-primary {
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(120deg, #6d28d9, #8b5cf6 55%, #4f46e5);
+  box-shadow: 0 0 14px rgba(139, 92, 246, 0.45);
+  transition: box-shadow 0.25s, transform 0.25s;
+}
+
+html[data-tema="jujutsu"] .btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+}
+
+html[data-tema="jujutsu"] .btn-primary:hover {
+  background: linear-gradient(120deg, #7c3aed, #a78bfa 55%, #6366f1);
+  box-shadow: 0 0 24px rgba(167, 139, 250, 0.7);
+  transform: translateY(-1px);
+}
+
+html[data-tema="jujutsu"] .btn-primary:hover::after {
+  animation: kilau 0.8s ease-out;
+}
+
+@keyframes kilau {
+  to {
+    left: 130%;
+  }
+}
+
+html[data-tema="jujutsu"] .btn-secondary,
+html[data-tema="jujutsu"] .btn-small {
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+html[data-tema="jujutsu"] .btn-secondary:hover,
+html[data-tema="jujutsu"] .btn-small:hover {
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.45);
+}
+
+html[data-tema="jujutsu"] .btn-delete:hover {
+  box-shadow: 0 0 12px rgba(240, 82, 82, 0.45);
+}
+
+html[data-tema="jujutsu"] .segmented-options input:checked + span {
+  color: #fff;
+  background: linear-gradient(120deg, #6d28d9, #8b5cf6);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+}
+
+/* Pemasukan bernuansa biru, pengeluaran tetap netral. */
+html[data-tema="jujutsu"] .amount-in,
+html[data-tema="jujutsu"] .badge-in {
+  color: var(--biru);
+}
+
+html[data-tema="jujutsu"] .expense-item {
+  transition: background 0.2s;
+}
+
+html[data-tema="jujutsu"] .expense-item:hover {
+  background: rgba(139, 92, 246, 0.07);
+}
+
+html[data-tema="jujutsu"] .meter-fill {
+  background: linear-gradient(90deg, #7c3aed, #8b5cf6);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+}
+
+html[data-tema="jujutsu"] .budget-status.over .meter-fill {
+  background: var(--danger);
+  animation: denyut-merah 1.6s ease-in-out infinite;
+}
+
+@keyframes denyut-merah {
+  0%,
+  100% {
+    box-shadow: 0 0 6px rgba(240, 82, 82, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(240, 82, 82, 0.95);
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-tema="jujutsu"] header h1 {
+    font-size: 1.6rem;
+  }
+
+  html[data-tema="jujutsu"] .hanko {
+    width: 44px;
+    height: 44px;
+    font-size: 1.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-tema="jujutsu"] *,
+  html[data-tema="jujutsu"] *::before,
+  html[data-tema="jujutsu"] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html[data-tema="jujutsu"] .energi {
+    display: none;
+  }
+}

@@ -1,16 +1,34 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-tema="jujutsu">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Catatan Keuangan Harian</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="tema-jujutsu.css">
+  <script>
+    try {
+      const tema = localStorage.getItem("keuangan-tema");
+      if (tema) document.documentElement.dataset.tema = tema;
+    } catch {}
+  </script>
 </head>
 <body>
+  <div class="energi" id="energi" aria-hidden="true"></div>
   <main class="container">
-    <header>
-      <h1>Catatan Keuangan Harian</h1>
-      <p class="subtitle">Catat pemasukan dan pengeluaran, dipisah antara dana pribadi dan dana kegiatan.</p>
+    <header class="page-header">
+      <div class="header-text">
+        <h1>Catatan Keuangan Harian</h1>
+        <p class="subtitle">Catat pemasukan dan pengeluaran, dipisah antara dana pribadi dan dana kegiatan.</p>
+        <p class="tagline">呪力 · Kendalikan energi kutukan… eh, keuanganmu.</p>
+      </div>
+      <div class="header-side">
+        <div class="hanko" aria-hidden="true">呪</div>
+        <button type="button" id="btn-tema" class="btn-small">Tema standar</button>
+      </div>
     </header>
 
     <section class="balances" aria-label="Saldo per dana">
