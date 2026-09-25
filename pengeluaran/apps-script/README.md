@@ -18,8 +18,15 @@ Skrip hanya menulis kolom **B–F, H, I, J**. Kolom **A (No)** dan **G (Saldo)**
 
 1. Buka <https://script.google.com> dengan akun Google pemilik folder *Keuangan*, lalu klik
    **Proyek baru** (*New project*).
-2. Hapus isi editor, tempel seluruh isi [`Code.gs`](Code.gs), lalu simpan (ikon disket atau
-   `Ctrl+S`). Beri nama proyek, misalnya *Sinkron Keuangan*.
+2. Salin seluruh isi [`Code.gs`](Code.gs). Paling aman lewat tombol **Salin kode Apps Script** di
+   folder *Sinkronisasi Google Sheets* di aplikasi (menyalin semuanya sekaligus), atau buka
+   [versi mentahnya](https://raw.githubusercontent.com/zalukhunopal-tech/Tugas-harian/main/pengeluaran/apps-script/Code.gs)
+   lalu pilih semua. Di editor Apps Script, pilih semua isi `Kode.gs`, hapus, tempel, lalu simpan
+   (ikon disket atau `Ctrl+S`). Beri nama proyek, misalnya *Sinkron Keuangan*.
+
+   Periksa sebelum lanjut: editor menunjukkan **272 baris**, baris 1 berisi `/**`, dan baris
+   terakhir berisi `}`. Kalau muncul error *Unexpected end of input* (kode terpotong di bawah) atau
+   *Illegal return statement* (bagian atas hilang atau tercampur isi lama), ulangi langkah ini.
 3. Klik **Deploy → New deployment**. Di *Select type* pilih **Web app**, lalu isi:
    - *Execute as*: **Me**
    - *Who has access*: **Anyone**

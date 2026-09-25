@@ -637,6 +637,45 @@ button {
   flex: 1 1 200px;
 }
 
+.salin-kode {
+  margin: 14px 0 16px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.salin-kode .help {
+  margin-bottom: 10px;
+}
+
+.salin-kode #info-salin {
+  margin: 8px 0 0;
+}
+
+.help code {
+  font-size: 0.85em;
+}
+
+.btn-link {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: inherit;
+}
+
+.kode-gs {
+  width: 100%;
+  margin-top: 8px;
+  font: 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  resize: vertical;
+}
+
 .theme-row {
   display: flex;
   align-items: center;
