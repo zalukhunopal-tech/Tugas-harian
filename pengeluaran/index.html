@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-tema="jujutsu">
+<html lang="id" data-tema="jujutsu" data-karakter="gojo">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,21 +13,24 @@
     try {
       const tema = localStorage.getItem("keuangan-tema");
       if (tema) document.documentElement.dataset.tema = tema;
+      const karakter = localStorage.getItem("keuangan-karakter");
+      if (karakter) document.documentElement.dataset.karakter = karakter;
     } catch {}
   </script>
 </head>
 <body>
   <div class="energi" id="energi" aria-hidden="true"></div>
+  <div class="pulsa" id="pulsa" aria-hidden="true"></div>
   <main class="container">
     <header class="page-header">
       <div class="header-text">
         <h1>Catatan Keuangan Harian</h1>
         <p class="subtitle">Catat pemasukan dan pengeluaran, dipisah antara dana pribadi dan dana kegiatan.</p>
-        <p class="tagline">呪力 · Kendalikan energi kutukan… eh, keuanganmu.</p>
+        <p class="tagline" id="tagline"></p>
       </div>
       <div class="header-side">
-        <div class="hanko" aria-hidden="true">呪</div>
-        <button type="button" id="btn-tema" class="btn-small">Tema standar</button>
+        <div class="hanko" id="hanko" aria-hidden="true">無</div>
+        <button type="button" id="btn-domain" class="btn-small btn-domain" title="Perluasan Domain">領域展開</button>
       </div>
     </header>
 
@@ -43,6 +46,8 @@
         <span class="balance-flow"></span>
       </div>
     </section>
+
+    <p class="sync-pill" id="sync-status" hidden></p>
 
     <section class="card" id="kartu-form">
       <h2 id="judul-form">Tambah Transaksi</h2>
@@ -66,8 +71,8 @@
           <input type="date" id="tanggal" required>
         </div>
         <div class="field">
-          <label for="deskripsi">Keterangan</label>
-          <input type="text" id="deskripsi" placeholder="Contoh: Makan siang" maxlength="100" required>
+          <label for="deskripsi">Uraian</label>
+          <input type="text" id="deskripsi" placeholder="Contoh: Pembelian makan siang" maxlength="150" required>
         </div>
         <div class="field">
           <label for="kategori">Kategori</label>
@@ -81,14 +86,20 @@
           <label for="metode">Metode bayar</label>
           <select id="metode">
             <option>Tunai</option>
-            <option>Transfer Bank</option>
+            <option>Transfer</option>
+            <option>QRIS</option>
             <option>E-wallet</option>
-            <option>Kartu Debit/Kredit</option>
+            <option>Kartu debit/kredit</option>
+            <option value="">Tidak dicatat</option>
           </select>
         </div>
         <div class="field">
+          <label for="kaitan" id="label-kaitan">Sumber / Tujuan</label>
+          <input type="text" id="kaitan" placeholder="Contoh: Warung Bu Sri - Tanjung Selor" maxlength="150">
+        </div>
+        <div class="field wide">
           <label for="catatan">Catatan (opsional)</label>
-          <input type="text" id="catatan" placeholder="Contoh: bersama tim" maxlength="200">
+          <input type="text" id="catatan" placeholder="Contoh: Struk 0042, bersama tim" maxlength="300">
         </div>
         <div class="form-actions">
           <button type="button" id="btn-batal" class="btn-secondary" hidden>Batal</button>
@@ -97,9 +108,13 @@
       </form>
     </section>
 
-    <section class="card">
-      <div class="list-header">
-        <h2>Daftar Transaksi</h2>
+    <details class="folder" id="folder-daftar">
+      <summary>
+        <span class="folder-icon" aria-hidden="true"></span>
+        <span class="folder-title">Daftar Transaksi</span>
+        <span class="folder-hint" id="hint-daftar"></span>
+      </summary>
+      <div class="folder-body">
         <div class="filters">
           <div class="field inline">
             <label for="filter-tanggal">Tanggal</label>
@@ -114,56 +129,130 @@
             </select>
           </div>
         </div>
-      </div>
 
-      <div class="summary">
-        <div class="stat">
-          <span class="stat-label" id="label-masuk-hari">Pemasukan hari ini</span>
-          <span class="stat-value" id="masuk-hari">Rp0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label" id="label-keluar-hari">Pengeluaran hari ini</span>
-          <span class="stat-value" id="keluar-hari">Rp0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Jumlah transaksi</span>
-          <span class="stat-value" id="jumlah-transaksi">0</span>
-        </div>
-      </div>
-
-      <div class="budget">
-        <form id="form-anggaran" class="budget-form">
-          <label for="anggaran">Anggaran pengeluaran harian (Rp)</label>
-          <input type="number" id="anggaran" min="0" step="1" placeholder="Belum diatur">
-          <button type="submit" class="btn-secondary">Atur</button>
-        </form>
-        <div id="status-anggaran" class="budget-status" hidden>
-          <div class="meter" role="progressbar" aria-labelledby="teks-anggaran" aria-valuemin="0" aria-valuemax="100">
-            <div class="meter-fill" id="meter-anggaran"></div>
+        <div class="summary">
+          <div class="stat">
+            <span class="stat-label" id="label-masuk-hari">Pemasukan hari ini</span>
+            <span class="stat-value" id="masuk-hari">Rp0</span>
           </div>
-          <p id="teks-anggaran" class="budget-text"></p>
+          <div class="stat">
+            <span class="stat-label" id="label-keluar-hari">Pengeluaran hari ini</span>
+            <span class="stat-value" id="keluar-hari">Rp0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Jumlah transaksi</span>
+            <span class="stat-value" id="jumlah-transaksi">0</span>
+          </div>
+        </div>
+
+        <div class="budget">
+          <form id="form-anggaran" class="budget-form">
+            <label for="anggaran">Anggaran pengeluaran harian (Rp)</label>
+            <input type="number" id="anggaran" min="0" step="1" placeholder="Belum diatur">
+            <button type="submit" class="btn-secondary">Atur</button>
+          </form>
+          <div id="status-anggaran" class="budget-status" hidden>
+            <div class="meter" role="progressbar" aria-labelledby="teks-anggaran" aria-valuemin="0" aria-valuemax="100">
+              <div class="meter-fill" id="meter-anggaran"></div>
+            </div>
+            <p id="teks-anggaran" class="budget-text"></p>
+          </div>
+        </div>
+
+        <ul id="daftar" class="expense-list"></ul>
+        <p id="kosong" class="empty">Belum ada transaksi pada tanggal ini.</p>
+
+        <div class="actions">
+          <button type="button" id="btn-export" class="btn-secondary">Unduh CSV</button>
         </div>
       </div>
+    </details>
 
-      <ul id="daftar" class="expense-list"></ul>
-      <p id="kosong" class="empty">Belum ada transaksi pada tanggal ini.</p>
-
-      <div class="actions">
-        <button type="button" id="btn-export" class="btn-secondary">Unduh CSV</button>
+    <details class="folder" id="folder-kategori">
+      <summary>
+        <span class="folder-icon" aria-hidden="true"></span>
+        <span class="folder-title" id="judul-kategori">Ringkasan per Kategori</span>
+      </summary>
+      <div class="folder-body">
+        <h3>Pengeluaran</h3>
+        <ul id="ringkasan-keluar" class="category-list"></ul>
+        <p id="keluar-kosong" class="empty">Belum ada pengeluaran pada bulan ini.</p>
+        <h3>Pemasukan</h3>
+        <ul id="ringkasan-masuk" class="category-list"></ul>
+        <p id="masuk-kosong" class="empty">Belum ada pemasukan pada bulan ini.</p>
       </div>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2 id="judul-kategori">Ringkasan per Kategori</h2>
-      <h3>Pengeluaran</h3>
-      <ul id="ringkasan-keluar" class="category-list"></ul>
-      <p id="keluar-kosong" class="empty">Belum ada pengeluaran pada bulan ini.</p>
-      <h3>Pemasukan</h3>
-      <ul id="ringkasan-masuk" class="category-list"></ul>
-      <p id="masuk-kosong" class="empty">Belum ada pemasukan pada bulan ini.</p>
-    </section>
+    <details class="folder" id="folder-sync">
+      <summary>
+        <span class="folder-icon" aria-hidden="true"></span>
+        <span class="folder-title">Sinkronisasi Google Sheets</span>
+        <span class="folder-hint" id="hint-sync">belum terhubung</span>
+      </summary>
+      <div class="folder-body">
+        <p class="help">
+          Setiap transaksi yang disimpan di sini otomatis ditulis ke sheet
+          <strong>Keuangan Pribadi 2026</strong> atau <strong>Keuangan Kegiatan 2026</strong> di folder Drive
+          <em>Keuangan</em>, dan data di sheet ditarik kembali saat halaman dibuka. Perantaranya adalah
+          Google Apps Script yang dipasang sekali dari akun Google Anda
+          (<a href="apps-script/README.md" target="_blank" rel="noopener">panduan pemasangan</a>).
+        </p>
+        <form id="form-sync" class="sync-form">
+          <label for="sync-url">URL Web App Apps Script</label>
+          <input type="url" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">
+          <div class="sync-buttons">
+            <button type="submit" class="btn-primary">Simpan &amp; uji koneksi</button>
+            <button type="button" id="btn-tarik" class="btn-secondary">Tarik dari Sheet</button>
+            <button type="button" id="btn-kirim-semua" class="btn-secondary">Kirim semua data lokal</button>
+            <button type="button" id="btn-putus" class="btn-secondary btn-delete">Putuskan</button>
+          </div>
+        </form>
+        <p id="sync-detail" class="help"></p>
+      </div>
+    </details>
+
+    <details class="folder" id="folder-tema">
+      <summary>
+        <span class="folder-icon" aria-hidden="true"></span>
+        <span class="folder-title">Tema &amp; Karakter</span>
+        <span class="folder-hint" id="hint-tema"></span>
+      </summary>
+      <div class="folder-body">
+        <div class="theme-row">
+          <button type="button" id="btn-tema" class="btn-small">Tema standar</button>
+          <span class="help">Pilihan tema dan karakter tersimpan di browser ini.</span>
+        </div>
+        <div class="karakter-grid" id="karakter-grid" role="radiogroup" aria-label="Pilih karakter">
+          <button type="button" class="karakter" data-karakter="gojo" role="radio">
+            <span class="karakter-lambang">無</span>
+            <span class="karakter-nama">Gojo Satoru</span>
+            <span class="karakter-teknik">Tanpa Batas · Enam Mata</span>
+            <span class="karakter-domain">領域展開: 無量空処 — Muryōkūsho</span>
+          </button>
+          <button type="button" class="karakter" data-karakter="sukuna" role="radio">
+            <span class="karakter-lambang">宿</span>
+            <span class="karakter-nama">Ryomen Sukuna</span>
+            <span class="karakter-teknik">Raja Kutukan · Tebasan</span>
+            <span class="karakter-domain">領域展開: 伏魔御廚子 — Fukuma Mizushi</span>
+          </button>
+          <button type="button" class="karakter" data-karakter="jogo" role="radio">
+            <span class="karakter-lambang">火</span>
+            <span class="karakter-nama">Jogo</span>
+            <span class="karakter-teknik">Kutukan Gunung Berapi</span>
+            <span class="karakter-domain">領域展開: 蓋棺鉄囲山 — Gaikan Tetsuisen</span>
+          </button>
+          <button type="button" class="karakter" data-karakter="nanami" role="radio">
+            <span class="karakter-lambang">七</span>
+            <span class="karakter-nama">Nanami Kento</span>
+            <span class="karakter-teknik">Teknik Rasio 7:3</span>
+            <span class="karakter-domain">Lembur berakhir. Titik lemah 7:3.</span>
+          </button>
+        </div>
+      </div>
+    </details>
   </main>
 
+  <script src="domain.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
