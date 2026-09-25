@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catatan Pengeluaran Harian</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Catatan Pengeluaran Harian</h1>
+      <p class="subtitle">Catat setiap pengeluaran dan pantau totalnya per hari.</p>
+    </header>
+
+    <section class="card">
+      <h2>Tambah Pengeluaran</h2>
+      <form id="form-pengeluaran">
+        <div class="field">
+          <label for="tanggal">Tanggal</label>
+          <input type="date" id="tanggal" required>
+        </div>
+        <div class="field">
+          <label for="deskripsi">Keterangan</label>
+          <input type="text" id="deskripsi" placeholder="Contoh: Makan siang" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="kategori">Kategori</label>
+          <select id="kategori">
+            <option>Makanan &amp; Minuman</option>
+            <option>Transportasi</option>
+            <option>Belanja</option>
+            <option>Tagihan</option>
+            <option>Hiburan</option>
+            <option>Kesehatan</option>
+            <option>Lainnya</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="jumlah">Jumlah (Rp)</label>
+          <input type="number" id="jumlah" min="1" step="1" placeholder="25000" required>
+        </div>
+        <button type="submit" class="btn-primary">Simpan</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="list-header">
+        <h2>Daftar Pengeluaran</h2>
+        <div class="field inline">
+          <label for="filter-tanggal">Tampilkan tanggal</label>
+          <input type="date" id="filter-tanggal">
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="stat">
+          <span class="stat-label">Total hari ini</span>
+          <span class="stat-value" id="total-hari">Rp0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Total bulan ini</span>
+          <span class="stat-value" id="total-bulan">Rp0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Jumlah transaksi</span>
+          <span class="stat-value" id="jumlah-transaksi">0</span>
+        </div>
+      </div>
+
+      <ul id="daftar" class="expense-list"></ul>
+      <p id="kosong" class="empty">Belum ada pengeluaran pada tanggal ini.</p>
+
+      <div class="actions">
+        <button type="button" id="btn-export" class="btn-secondary">Unduh CSV</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
