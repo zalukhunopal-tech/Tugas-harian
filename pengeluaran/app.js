@@ -406,6 +406,36 @@ btnExport.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+const TEMA_KEY = "keuangan-tema";
+const btnTema = document.getElementById("btn-tema");
+const energi = document.getElementById("energi");
+
+function terapkanTema(tema) {
+  document.documentElement.dataset.tema = tema;
+  btnTema.textContent = tema === "jujutsu" ? "Tema standar" : "Tema Jujutsu";
+}
+
+btnTema.addEventListener("click", () => {
+  const tema = document.documentElement.dataset.tema === "jujutsu" ? "standar" : "jujutsu";
+  terapkanTema(tema);
+  try {
+    localStorage.setItem(TEMA_KEY, tema);
+  } catch {}
+});
+
+// Partikel "energi kutukan" yang melayang naik di latar tema Jujutsu.
+for (let i = 0; i < 18; i++) {
+  const partikel = document.createElement("span");
+  partikel.className = i % 3 === 0 ? "partikel biru" : "partikel";
+  partikel.style.setProperty("--x", `${Math.random() * 100}vw`);
+  partikel.style.setProperty("--ukuran", `${3 + Math.random() * 5}px`);
+  partikel.style.setProperty("--durasi", `${9 + Math.random() * 10}s`);
+  partikel.style.setProperty("--jeda", `${-Math.random() * 18}s`);
+  partikel.style.setProperty("--goyang", `${(Math.random() - 0.5) * 80}px`);
+  energi.append(partikel);
+}
+
+terapkanTema(document.documentElement.dataset.tema);
 isiKategori(jenisTerpilih());
 inputTanggal.value = hariIni();
 filterTanggal.value = hariIni();

@@ -13,4 +13,5 @@ Halaman web sederhana di folder [`pengeluaran/`](pengeluaran/) untuk mencatat pe
 - Atur anggaran pengeluaran harian: tampil sisa anggaran, atau peringatan jika melebihi batas.
 - Ringkasan total per kategori (pengeluaran dan pemasukan) untuk bulan yang dipilih.
 - Unduh semua data sebagai CSV.
+- Tema **Jujutsu** (bawaan): nuansa gelap dengan aura energi ungu-biru, segel 呪, partikel melayang, dan bingkai kartu beranimasi. Tombol di pojok kanan atas mengganti ke tema standar (pilihan tersimpan). Animasi otomatis mati bila perangkat mengaktifkan *reduce motion*.
 - Data disimpan di `localStorage` browser, jadi hanya ada di browser/perangkat yang dipakai. Data lama yang dicatat sebelum ada fitur pemasukan dianggap pengeluaran Dana Pribadi.
