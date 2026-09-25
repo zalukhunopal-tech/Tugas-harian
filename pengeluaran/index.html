@@ -13,8 +13,8 @@
       <p class="subtitle">Catat setiap pengeluaran dan pantau totalnya per hari.</p>
     </header>
 
-    <section class="card">
-      <h2>Tambah Pengeluaran</h2>
+    <section class="card" id="kartu-form">
+      <h2 id="judul-form">Tambah Pengeluaran</h2>
       <form id="form-pengeluaran">
         <div class="field">
           <label for="tanggal">Tanggal</label>
@@ -40,7 +40,23 @@
           <label for="jumlah">Jumlah (Rp)</label>
           <input type="number" id="jumlah" min="1" step="1" placeholder="25000" required>
         </div>
-        <button type="submit" class="btn-primary">Simpan</button>
+        <div class="field">
+          <label for="metode">Metode bayar</label>
+          <select id="metode">
+            <option>Tunai</option>
+            <option>Transfer Bank</option>
+            <option>E-wallet</option>
+            <option>Kartu Debit/Kredit</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="catatan">Catatan (opsional)</label>
+          <input type="text" id="catatan" placeholder="Contoh: bersama tim" maxlength="200">
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-batal" class="btn-secondary" hidden>Batal</button>
+          <button type="submit" id="btn-simpan" class="btn-primary">Simpan</button>
+        </div>
       </form>
     </section>
 
@@ -55,7 +71,7 @@
 
       <div class="summary">
         <div class="stat">
-          <span class="stat-label">Total hari ini</span>
+          <span class="stat-label" id="label-total-hari">Total hari ini</span>
           <span class="stat-value" id="total-hari">Rp0</span>
         </div>
         <div class="stat">
@@ -68,12 +84,32 @@
         </div>
       </div>
 
+      <div class="budget">
+        <form id="form-anggaran" class="budget-form">
+          <label for="anggaran">Anggaran harian (Rp)</label>
+          <input type="number" id="anggaran" min="0" step="1" placeholder="Belum diatur">
+          <button type="submit" class="btn-secondary">Atur</button>
+        </form>
+        <div id="status-anggaran" class="budget-status" hidden>
+          <div class="meter" role="progressbar" aria-labelledby="teks-anggaran" aria-valuemin="0" aria-valuemax="100">
+            <div class="meter-fill" id="meter-anggaran"></div>
+          </div>
+          <p id="teks-anggaran" class="budget-text"></p>
+        </div>
+      </div>
+
       <ul id="daftar" class="expense-list"></ul>
       <p id="kosong" class="empty">Belum ada pengeluaran pada tanggal ini.</p>
 
       <div class="actions">
         <button type="button" id="btn-export" class="btn-secondary">Unduh CSV</button>
       </div>
+    </section>
+
+    <section class="card">
+      <h2 id="judul-kategori">Ringkasan per Kategori</h2>
+      <ul id="ringkasan-kategori" class="category-list"></ul>
+      <p id="kategori-kosong" class="empty">Belum ada pengeluaran pada bulan ini.</p>
     </section>
   </main>
 

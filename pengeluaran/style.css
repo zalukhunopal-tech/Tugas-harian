@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light dark;
   --bg: #f4f6f8;
   --surface: #ffffff;
   --text: #1f2933;
@@ -7,6 +8,8 @@
   --accent: #0f766e;
   --accent-hover: #115e59;
   --danger: #b42318;
+  --track: #e8edf2;
+  --highlight: #ecfdf8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +22,8 @@
     --accent: #2dd4bf;
     --accent-hover: #5eead4;
     --danger: #f97066;
+    --track: #262d36;
+    --highlight: #13302d;
   }
 }
 
@@ -110,8 +115,17 @@ button {
   padding: 10px 16px;
 }
 
-.btn-primary {
+.form-actions {
   grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions .btn-primary {
+  flex: 1;
+}
+
+.btn-primary {
   background: var(--accent);
   color: #fff;
   border: none;
@@ -205,9 +219,28 @@ button {
   overflow-wrap: anywhere;
 }
 
-.expense-cat {
+.expense-meta {
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.expense-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.expense-item.editing {
+  background: var(--highlight);
+  border-radius: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.expense-buttons {
+  display: flex;
+  gap: 6px;
 }
 
 .expense-amount {
@@ -216,12 +249,20 @@ button {
   white-space: nowrap;
 }
 
-.btn-delete {
+.btn-small {
   background: transparent;
   border: 1px solid var(--border);
-  color: var(--danger);
+  color: var(--text);
   padding: 4px 10px;
   font-size: 0.85rem;
+}
+
+.btn-small:hover {
+  border-color: var(--accent);
+}
+
+.btn-delete {
+  color: var(--danger);
 }
 
 .btn-delete:hover {
@@ -240,6 +281,98 @@ button {
   justify-content: flex-end;
 }
 
+.budget {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.budget-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.budget-form input {
+  width: 160px;
+}
+
+.budget-form button {
+  padding: 8px 14px;
+}
+
+.budget-status {
+  margin-top: 12px;
+}
+
+.meter {
+  height: 8px;
+  background: var(--track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.budget-status.over .meter-fill {
+  background: var(--danger);
+}
+
+.budget-text {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-status.over .budget-text {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+}
+
+.category-name {
+  font-weight: 600;
+}
+
+.category-value {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.category-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  background: var(--track);
+  border-radius: 4px;
+}
+
+.category-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+
 @media (max-width: 560px) {
   form {
     grid-template-columns: 1fr;
@@ -247,5 +380,17 @@ button {
 
   .summary {
     grid-template-columns: 1fr;
+  }
+
+  .expense-item {
+    flex-wrap: wrap;
+  }
+
+  .expense-info {
+    flex-basis: 100%;
+  }
+
+  .expense-amount {
+    flex: 1;
   }
 }
