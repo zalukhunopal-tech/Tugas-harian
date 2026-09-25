@@ -197,6 +197,25 @@
           Google Apps Script yang dipasang sekali dari akun Google Anda
           (<a href="apps-script/README.md" target="_blank" rel="noopener">panduan pemasangan</a>).
         </p>
+        <p class="help peringatan" id="peringatan-artifact" hidden>
+          <strong>Sinkronisasi tidak bisa berjalan di halaman artifact Claude</strong> karena halaman ini dilarang
+          menghubungi situs luar. Salin kode Apps Script di bawah boleh dari sini, tetapi untuk menghubungkan ke
+          Google Sheets buka aplikasi dari
+          <a href="https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/" target="_blank" rel="noopener">zalukhunopal-tech.github.io/Tugas-harian/pengeluaran</a>.
+        </p>
+        <div class="salin-kode">
+          <p class="help">
+            <strong>Kode Apps Script.</strong> Salin dengan tombol di bawah, lalu di editor Apps Script hapus
+            <em>semua</em> isi <code>Kode.gs</code> dan tempel. Kode lengkap berjumlah <span id="jumlah-baris-kode">272</span> baris:
+            baris pertama <code>/**</code>, baris terakhir <code>}</code>.
+          </p>
+          <div class="sync-buttons">
+            <button type="button" id="btn-salin-kode" class="btn-secondary">Salin kode Apps Script</button>
+            <a class="btn-secondary btn-link" href="apps-script/Code.gs" download="Code.gs">Unduh Code.gs</a>
+          </div>
+          <p id="info-salin" class="help" role="status"></p>
+          <textarea id="kode-gs" class="kode-gs" readonly rows="8" hidden aria-label="Kode Apps Script lengkap"></textarea>
+        </div>
         <form id="form-sync" class="sync-form">
           <label for="sync-url">URL Web App Apps Script</label>
           <input type="url" id="sync-url" placeholder="https://script.google.com/macros/s/.../exec">

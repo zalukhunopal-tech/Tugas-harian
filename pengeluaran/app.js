@@ -540,8 +540,32 @@ async function bacaJson(respons) {
   }
 }
 
+const ALAMAT_PAGES = "https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/";
+
+// Halaman artifact Claude berjalan di sandbox yang tidak boleh menghubungi situs luar;
+// runtime-nya menyediakan window.claude.use.
+function diArtifact() {
+  return typeof window.claude === "object" && window.claude !== null && typeof window.claude.use === "function";
+}
+
+// fetch hanya menolak (TypeError "Failed to fetch") bila browser memblokir permintaannya,
+// jadi pesan aslinya diganti penjelasan yang bisa ditindaklanjuti.
+async function fetchSheet(url, opsi) {
+  try {
+    return await fetch(url, opsi);
+  } catch {
+    if (diArtifact()) {
+      throw new Error(`halaman artifact Claude tidak diizinkan menghubungi Google. Buka aplikasi dari ${ALAMAT_PAGES}`);
+    }
+    throw new Error(
+      "browser tidak bisa menghubungi Apps Script. Periksa internet, pastikan URL berakhiran /exec " +
+        "dan akses Web App 'Siapa saja' (Anyone). Uji dengan membuka URL itu + ?action=ping di tab baru."
+    );
+  }
+}
+
 async function kirimKeSheet(payload) {
-  const respons = await fetch(syncUrl, {
+  const respons = await fetchSheet(syncUrl, {
     method: "POST",
     // text/plain menghindari preflight CORS; Apps Script tetap membaca isinya sebagai teks.
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -554,7 +578,7 @@ async function kirimKeSheet(payload) {
 
 async function ambilDariSheet(action) {
   const pemisah = syncUrl.includes("?") ? "&" : "?";
-  const respons = await fetch(`${syncUrl}${pemisah}action=${action}`);
+  const respons = await fetchSheet(`${syncUrl}${pemisah}action=${action}`);
   const hasil = await bacaJson(respons);
   if (!hasil.ok) throw new Error(hasil.error || "Apps Script menolak permintaan");
   return hasil;
@@ -666,6 +690,84 @@ btnPutus.addEventListener("click", () => {
   inputSyncUrl.value = "";
   syncDetail.textContent = "Sinkronisasi diputus.";
   statusIdle();
+});
+
+// Salin kode Apps Script sekaligus supaya tidak terpotong saat diseleksi manual di HP.
+const KODE_GS_URL = [
+  "apps-script/Code.gs",
+  "https://raw.githubusercontent.com/zalukhunopal-tech/Tugas-harian/main/pengeluaran/apps-script/Code.gs",
+];
+const btnSalinKode = document.getElementById("btn-salin-kode");
+const infoSalin = document.getElementById("info-salin");
+const kodeGsArea = document.getElementById("kode-gs");
+const jumlahBarisKode = document.getElementById("jumlah-baris-kode");
+let kodeGs = "";
+let muatKodeGs = null;
+
+function ambilKodeGs() {
+  if (!muatKodeGs) {
+    muatKodeGs = (async () => {
+      for (const url of KODE_GS_URL) {
+        try {
+          const respons = await fetch(url, { cache: "no-cache" });
+          const teks = respons.ok ? await respons.text() : "";
+          if (teks.includes("function doGet") && teks.includes("function doPost")) {
+            kodeGs = teks.replace(/\s+$/, "") + "\n";
+            jumlahBarisKode.textContent = kodeGs.split("\n").length - 1;
+            return kodeGs;
+          }
+        } catch {}
+      }
+      muatKodeGs = null;
+      return "";
+    })();
+  }
+  return muatKodeGs;
+}
+
+function tampilkanKodeManual() {
+  kodeGsArea.value = kodeGs;
+  kodeGsArea.hidden = false;
+  kodeGsArea.focus();
+  kodeGsArea.select();
+}
+
+btnSalinKode.addEventListener("click", async () => {
+  if (!kodeGs) {
+    infoSalin.textContent = "Mengambil kode…";
+    await ambilKodeGs();
+  }
+  if (!kodeGs) {
+    infoSalin.textContent =
+      "Kode tidak bisa diambil (periksa koneksi). Buka file pengeluaran/apps-script/Code.gs di GitHub, tombol Raw, lalu salin semuanya.";
+    return;
+  }
+  const baris = kodeGs.split("\n").length - 1;
+  try {
+    await navigator.clipboard.writeText(kodeGs);
+    kodeGsArea.hidden = true;
+    infoSalin.textContent = `✓ ${baris} baris tersalin. Di Kode.gs: pilih semua, hapus, tempel, lalu simpan.`;
+  } catch {
+    tampilkanKodeManual();
+    const ok = (() => {
+      try {
+        return document.execCommand("copy");
+      } catch {
+        return false;
+      }
+    })();
+    infoSalin.textContent = ok
+      ? `✓ ${baris} baris tersalin. Di Kode.gs: pilih semua, hapus, tempel, lalu simpan.`
+      : `Browser tidak mengizinkan salin otomatis. Kode lengkap (${baris} baris) ada di kotak di bawah: pilih semua lalu salin.`;
+  }
+});
+
+// Ambil kodenya saat folder dibuka supaya salinan ke clipboard langsung terjadi saat tombol ditekan
+// (beberapa browser HP menolak menyalin bila ada jeda menunggu jaringan).
+document.getElementById("folder-sync").addEventListener("toggle", (e) => {
+  if (!e.target.open) return;
+  ambilKodeGs();
+  document.getElementById("peringatan-artifact").hidden = !diArtifact();
 });
 
 window.addEventListener("online", prosesAntrean);
