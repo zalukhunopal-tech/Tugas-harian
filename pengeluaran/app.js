@@ -540,8 +540,32 @@ async function bacaJson(respons) {
   }
 }
 
+const ALAMAT_PAGES = "https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/";
+
+// Halaman artifact Claude berjalan di sandbox yang tidak boleh menghubungi situs luar;
+// runtime-nya menyediakan window.claude.use.
+function diArtifact() {
+  return typeof window.claude === "object" && window.claude !== null && typeof window.claude.use === "function";
+}
+
+// fetch hanya menolak (TypeError "Failed to fetch") bila browser memblokir permintaannya,
+// jadi pesan aslinya diganti penjelasan yang bisa ditindaklanjuti.
+async function fetchSheet(url, opsi) {
+  try {
+    return await fetch(url, opsi);
+  } catch {
+    if (diArtifact()) {
+      throw new Error(`halaman artifact Claude tidak diizinkan menghubungi Google. Buka aplikasi dari ${ALAMAT_PAGES}`);
+    }
+    throw new Error(
+      "browser tidak bisa menghubungi Apps Script. Periksa internet, pastikan URL berakhiran /exec " +
+        "dan akses Web App 'Siapa saja' (Anyone). Uji dengan membuka URL itu + ?action=ping di tab baru."
+    );
+  }
+}
+
 async function kirimKeSheet(payload) {
-  const respons = await fetch(syncUrl, {
+  const respons = await fetchSheet(syncUrl, {
     method: "POST",
     // text/plain menghindari preflight CORS; Apps Script tetap membaca isinya sebagai teks.
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -554,7 +578,7 @@ async function kirimKeSheet(payload) {
 
 async function ambilDariSheet(action) {
   const pemisah = syncUrl.includes("?") ? "&" : "?";
-  const respons = await fetch(`${syncUrl}${pemisah}action=${action}`);
+  const respons = await fetchSheet(`${syncUrl}${pemisah}action=${action}`);
   const hasil = await bacaJson(respons);
   if (!hasil.ok) throw new Error(hasil.error || "Apps Script menolak permintaan");
   return hasil;
@@ -741,7 +765,9 @@ btnSalinKode.addEventListener("click", async () => {
 // Ambil kodenya saat folder dibuka supaya salinan ke clipboard langsung terjadi saat tombol ditekan
 // (beberapa browser HP menolak menyalin bila ada jeda menunggu jaringan).
 document.getElementById("folder-sync").addEventListener("toggle", (e) => {
-  if (e.target.open) ambilKodeGs();
+  if (!e.target.open) return;
+  ambilKodeGs();
+  document.getElementById("peringatan-artifact").hidden = !diArtifact();
 });
 
 window.addEventListener("online", prosesAntrean);

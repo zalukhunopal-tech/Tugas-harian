@@ -637,6 +637,18 @@ button {
   flex: 1 1 200px;
 }
 
+.peringatan {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.peringatan strong {
+  color: var(--danger);
+}
+
 .salin-kode {
   margin: 14px 0 16px;
   padding: 12px;

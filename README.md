@@ -6,7 +6,8 @@ Memuat kode automasi untuk tugas harian
 Halaman web sederhana di folder [`pengeluaran/`](pengeluaran/) untuk mencatat pemasukan dan pengeluaran harian,
 tersinkron dengan Google Sheets di folder Drive *Keuangan*.
 
-- Buka `pengeluaran/index.html` langsung di browser (tanpa instalasi).
+- Buka di <https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/> (GitHub Pages, perlu diaktifkan sekali:
+  *Settings → Pages → Deploy from a branch → main / (root)*), atau buka `pengeluaran/index.html` langsung di browser.
 - **Tampilan depan** hanya memuat saldo **Dana Pribadi** dan **Dana Kegiatan** serta form tambah transaksi.
   Bagian lain (daftar transaksi, ringkasan kategori, sinkronisasi, tema) dilipat seperti folder dan terbuka saat diklik.
 - Transaksi **pemasukan** atau **pengeluaran** dicatat ke salah satu dana. Kategorinya persis sama dengan panel
