@@ -33,7 +33,7 @@ Selain kedua sheet, skrip memelihara dua file di folder *Keuangan*:
    lalu pilih semua. Di editor Apps Script, pilih semua isi `Kode.gs`, hapus, tempel, lalu simpan
    (ikon disket atau `Ctrl+S`). Beri nama proyek, misalnya *Sinkron Keuangan*.
 
-   Periksa sebelum lanjut: editor menunjukkan **549 baris**, baris 1 berisi `/**`, dan baris
+   Periksa sebelum lanjut: editor menunjukkan **582 baris**, baris 1 berisi `/**`, dan baris
    terakhir berisi `}`. Kalau muncul error *Unexpected end of input* (kode terpotong di bawah) atau
    *Illegal return statement* (bagian atas hilang atau tercampur isi lama), ulangi langkah ini.
 3. Klik **Deploy → New deployment**. Di *Select type* pilih **Web app**, lalu isi:
@@ -70,7 +70,7 @@ Halaman artifact Claude tidak boleh menghubungi Web App di atas, jadi di sana ap
 
 Pasang sekali:
 
-1. Tempel kode `Code.gs` versi terbaru (549 baris) seperti langkah 2 di atas, lalu simpan.
+1. Tempel kode `Code.gs` versi terbaru (582 baris) seperti langkah 2 di atas, lalu simpan.
 2. Di bilah atas editor, pilih fungsi **`pasangPemicu`**, lalu klik **▶ Jalankan**. Setujui izin
    yang diminta (Drive, Sheets, "terhubung ke layanan eksternal" untuk mengambil harga, dan
    "menjalankan saat Anda tidak ada" untuk pemicu terjadwal).

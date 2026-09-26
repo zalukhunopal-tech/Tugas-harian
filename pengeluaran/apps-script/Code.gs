@@ -276,6 +276,40 @@ function tulisBaris(sheet, baris, tx, id) {
     .getRange(baris, KOL.tanggal, 1, 5)
     .setValues([[tx.tanggal, String(tx.deskripsi).trim(), String(tx.kategori || "").trim(), masuk ? jumlah || "" : "", masuk ? "" : jumlah || ""]]);
   sheet.getRange(baris, KOL.kaitan, 1, 3).setValues([[String(tx.kaitan || "").trim(), gabungCatatan(tx), id]]);
+  lengkapiRumus(sheet, baris);
+}
+
+// Kolom No (A) dan Saldo (G) seharusnya terisi otomatis. Bila ARRAYFORMULA di baris 7 berbatas
+// (mis. $C$7:$C$22) atau sheet memakai rumus per baris, baris baru di luar jangkauannya tetap kosong;
+// di sini rumusnya dilengkapi tanpa menyentuh sel yang sudah terisi.
+function lengkapiRumus(sheet, baris) {
+  [1, 7].forEach(function (kol) {
+    var sel = sheet.getRange(baris, kol);
+    if (sel.getFormula() || String(sel.getValue()) !== "") return;
+    var rumusAwal = sheet.getRange(BARIS_AWAL, kol).getFormula();
+    if (/ARRAYFORMULA/i.test(rumusAwal)) {
+      // Menulis rumus di dalam jangkauan ARRAYFORMULA membuatnya #REF!, jadi hanya di luar batasnya.
+      var batas = 0;
+      var m;
+      var re = /\$?[A-Z]{1,3}\$?(\d+)/g;
+      while ((m = re.exec(rumusAwal))) batas = Math.max(batas, Number(m[1]));
+      if (batas >= baris) return;
+    } else {
+      for (var r = baris - 1; r >= BARIS_AWAL && r >= baris - 50; r--) {
+        var f = sheet.getRange(r, kol).getFormulaR1C1();
+        if (f) {
+          sel.setFormulaR1C1(f);
+          return;
+        }
+      }
+    }
+    // Apps Script selalu memakai sintaks en-US (koma) untuk setFormula, apa pun locale sheet-nya.
+    sel.setFormula(
+      kol === 1
+        ? "=IF(LEN(C" + baris + ")=0,\"\",COUNTA($C$" + BARIS_AWAL + ":C" + baris + "))"
+        : "=IF(LEN(C" + baris + ")=0,\"\",SUM($E$" + BARIS_AWAL + ":E" + baris + ")-SUM($F$" + BARIS_AWAL + ":F" + baris + "))"
+    );
+  });
 }
 
 function hapus(id) {
@@ -293,14 +327,13 @@ function hapus(id) {
   return jumlahDihapus;
 }
 
-// Baris 7 memuat ARRAYFORMULA di A7 dan G7, jadi baris itu hanya dikosongkan, tidak dihapus.
+// Baris TIDAK PERNAH dihapus utuh: panel rekap di kolom K–L dan rumus A7/G7 berbagi baris dengan
+// data, sehingga deleteRow akan ikut membuang isi panel (pernah terjadi: judul "PENGELUARAN PER
+// KATEGORI" hilang). Isi kolom B–F dan H–J dikosongkan; baris kosong itu dipakai lagi oleh
+// transaksi berikutnya (barisKosong memilih baris kosong pertama).
 function hapusBaris(sheet, baris) {
-  if (baris === BARIS_AWAL) {
-    sheet.getRange(baris, KOL.tanggal, 1, 5).clearContent();
-    sheet.getRange(baris, KOL.kaitan, 1, 3).clearContent();
-  } else {
-    sheet.deleteRow(baris);
-  }
+  sheet.getRange(baris, KOL.tanggal, 1, 5).clearContent();
+  sheet.getRange(baris, KOL.kaitan, 1, 3).clearContent();
 }
 
 function buatId() {
