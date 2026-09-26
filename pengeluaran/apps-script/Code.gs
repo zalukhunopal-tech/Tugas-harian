@@ -6,6 +6,9 @@
  * Halaman artifact Claude tidak boleh menghubungi Web App ini, jadi ia menulis perubahan sebagai
  * file JSON di subfolder "Antrean Sinkron" lewat konektor Google Drive; prosesAntreanDrive()
  * (dipicu setiap menit, pasang dengan menjalankan pasangPemicu() sekali) memasukkannya ke sheet.
+ * Harga pasar (emas Antam dari Logam Mulia, kripto dari CoinGecko) diambil perbaruiHarga() tiap jam
+ * dan disimpan di "Harga Pasar.json"; daftar aset aplikasi disimpan di "Aset.json".
+ * Keamanan: bila Script Property KUNCI_SINKRON diisi, setiap permintaan Web App harus membawa kunci itu.
  * Panduan pemasangan: README.md di folder yang sama.
  *
  * Tata letak sheet (sama untuk Keuangan Pribadi dan Keuangan Kegiatan):
@@ -21,7 +24,16 @@ var BARIS_HEADER = 6;
 var BARIS_AWAL = 7;
 var KOL = { tanggal: 2, uraian: 3, kategori: 4, pemasukan: 5, pengeluaran: 6, kaitan: 8, catatan: 9, id: 10 };
 var NAMA_FOLDER_ANTREAN = "Antrean Sinkron";
-var VERSI = 2;
+var NAMA_FILE_ASET = "Aset.json";
+var NAMA_FILE_HARGA = "Harga Pasar.json";
+var KOIN_DEFAULT = ["bitcoin", "ethereum"];
+var HARGA_SEGAR_MENIT = 55;
+var SUMBER_EMAS = [
+  { nama: "Logam Mulia", url: "https://www.logammulia.com/id/harga-emas-hari-ini" },
+  { nama: "Logam Mulia (beranda)", url: "https://www.logammulia.com/id" },
+];
+var URL_COINGECKO = "https://api.coingecko.com/api/v3/simple/price?vs_currencies=idr&include_24hr_change=true&ids=";
+var VERSI = 3;
 
 var cacheSheet = {};
 var cacheFile = {};
@@ -29,6 +41,7 @@ var cacheFile = {};
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || "ping";
   return jalankan(function () {
+    periksaKunci(e && e.parameter && e.parameter.kunci);
     if (action === "ping") {
       return {
         ok: true,
@@ -38,7 +51,9 @@ function doGet(e) {
         }),
       };
     }
-    if (action === "list") return { ok: true, transaksi: bacaSemua() };
+    if (action === "list") return { ok: true, transaksi: bacaSemua(), aset: bacaAset(), harga: perbaruiHarga(false) };
+    if (action === "harga") return { ok: true, harga: perbaruiHarga(e.parameter.segar === "1") };
+    if (action === "aset") return { ok: true, aset: bacaAset() };
     throw new Error("Aksi tidak dikenal: " + action);
   });
 }
@@ -46,17 +61,27 @@ function doGet(e) {
 function doPost(e) {
   return jalankan(function () {
     var body = JSON.parse(e.postData.contents);
+    periksaKunci(body.kunci);
     var lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
       if (body.action === "upsert") return { ok: true, id: upsert(body.transaksi) };
       if (body.action === "delete") return { ok: true, dihapus: hapus(body.id) };
-      if (body.action === "list") return { ok: true, transaksi: bacaSemua() };
+      if (body.action === "aset") return { ok: true, jumlah: simpanAset(body.aset) };
+      if (body.action === "list") return { ok: true, transaksi: bacaSemua(), aset: bacaAset(), harga: perbaruiHarga(false) };
       throw new Error("Aksi tidak dikenal: " + body.action);
     } finally {
       lock.releaseLock();
     }
   });
+}
+
+// Bila KUNCI_SINKRON diisi di Project Settings → Script Properties, URL Web App saja tidak cukup:
+// permintaan tanpa kunci yang sama ditolak. Antrean lewat Drive tidak perlu kunci (sudah lewat akun Google).
+function periksaKunci(kunciDiberikan) {
+  var kunci = PropertiesService.getScriptProperties().getProperty("KUNCI_SINKRON");
+  if (!kunci) return;
+  if (String(kunciDiberikan || "") !== kunci) throw new Error("Kunci sinkron salah atau kosong");
 }
 
 function jalankan(fn) {
@@ -294,9 +319,18 @@ function pasangPemicu() {
   ScriptApp.getProjectTriggers().forEach(function (pemicu) {
     if (pemicu.getHandlerFunction() === "prosesAntreanDrive") ScriptApp.deleteTrigger(pemicu);
   });
+  ScriptApp.getProjectTriggers().forEach(function (pemicu) {
+    if (pemicu.getHandlerFunction() === "perbaruiHargaTerjadwal") ScriptApp.deleteTrigger(pemicu);
+  });
   ScriptApp.newTrigger("prosesAntreanDrive").timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger("perbaruiHargaTerjadwal").timeBased().everyHours(1).create();
   prosesAntreanDrive();
-  Logger.log("Pemicu terpasang: perubahan dari halaman artifact dimasukkan ke sheet setiap menit.");
+  perbaruiHarga(true);
+  Logger.log("Pemicu terpasang: antrean artifact diproses tiap menit, harga pasar diperbarui tiap jam.");
+}
+
+function perbaruiHargaTerjadwal() {
+  perbaruiHarga(true);
 }
 
 function ambilFolderAntrean(buat) {
@@ -345,6 +379,7 @@ function terapkanOp(op) {
   if (!op || typeof op !== "object") throw new Error("Isi antrean bukan JSON objek");
   if (op.action === "upsert") return upsert(op.transaksi);
   if (op.action === "delete") return hapus(op.id);
+  if (op.action === "aset") return simpanAset(op.aset);
   throw new Error("Aksi tidak dikenal: " + op.action);
 }
 
@@ -375,4 +410,140 @@ function beriIdSheet(sheet) {
   });
   if (jumlah) pastikanHeaderId(sheet);
   return jumlah;
+}
+
+/* ---------- File JSON di folder Keuangan: Aset.json dan Harga Pasar.json ---------- */
+
+function bacaFileJson(nama) {
+  var files = DriveApp.getFolderById(FOLDER_ID).getFilesByName(nama);
+  if (!files.hasNext()) return null;
+  try {
+    return JSON.parse(files.next().getBlob().getDataAsString());
+  } catch (err) {
+    return null;
+  }
+}
+
+function tulisFileJson(nama, isi) {
+  var teks = JSON.stringify(isi, null, 1);
+  var folder = DriveApp.getFolderById(FOLDER_ID);
+  var files = folder.getFilesByName(nama);
+  if (files.hasNext()) files.next().setContent(teks);
+  else folder.createFile(nama, teks, "application/json");
+}
+
+function bacaAset() {
+  var isi = bacaFileJson(NAMA_FILE_ASET);
+  return isi && Array.isArray(isi.aset) ? isi.aset : [];
+}
+
+var JENIS_ASET = { emas: 1, crypto: 1, jmo: 1, investasi: 1 };
+
+function simpanAset(daftar) {
+  if (!Array.isArray(daftar)) throw new Error("Daftar aset harus berupa array");
+  if (daftar.length > 200) throw new Error("Terlalu banyak aset (maks 200)");
+  var bersih = daftar
+    .filter(function (a) {
+      return a && typeof a === "object" && JENIS_ASET[a.jenis] && String(a.nama || "").trim();
+    })
+    .map(function (a) {
+      var salinan = {};
+      Object.keys(a).forEach(function (k) {
+        var v = a[k];
+        if (typeof v === "string") salinan[k] = v.trim().slice(0, 200);
+        else if (typeof v === "number" && isFinite(v)) salinan[k] = v;
+        else if (typeof v === "boolean") salinan[k] = v;
+      });
+      return salinan;
+    });
+  tulisFileJson(NAMA_FILE_ASET, { aset: bersih, diperbarui: new Date().toISOString() });
+  return bersih.length;
+}
+
+/* ---------- Harga pasar ---------- */
+
+// Mengembalikan harga tersimpan; mengambil ulang bila dipaksa atau lebih tua dari HARGA_SEGAR_MENIT.
+function perbaruiHarga(paksa) {
+  var lama = bacaFileJson(NAMA_FILE_HARGA) || {};
+  var umur = Date.now() - (Date.parse(lama.waktu || "") || 0);
+  if (!paksa && umur < HARGA_SEGAR_MENIT * 60000) return lama;
+
+  var baru = { waktu: new Date().toISOString(), emas: lama.emas || null, crypto: lama.crypto || {}, manual: lama.manual || null, catatan: [] };
+  try {
+    var emas = ambilHargaEmas();
+    if (emas) baru.emas = emas;
+    else baru.catatan.push("Harga emas tidak terbaca dari sumber; memakai nilai sebelumnya.");
+  } catch (err) {
+    baru.catatan.push("Emas: " + String((err && err.message) || err));
+  }
+  try {
+    var koin = KOIN_DEFAULT.slice();
+    bacaAset().forEach(function (a) {
+      if (a.jenis === "crypto" && a.koin && koin.indexOf(String(a.koin).toLowerCase()) < 0) koin.push(String(a.koin).toLowerCase());
+    });
+    var kripto = ambilHargaCrypto(koin);
+    Object.keys(kripto).forEach(function (id) {
+      baru.crypto[id] = kripto[id];
+    });
+  } catch (err) {
+    baru.catatan.push("Kripto: " + String((err && err.message) || err));
+  }
+  tulisFileJson(NAMA_FILE_HARGA, baru);
+  return baru;
+}
+
+// Mencoba setiap sumber sampai harga 1 gram terbaca. Halaman HTML-nya bisa berubah sewaktu-waktu,
+// jadi pembacaannya longgar: cari "1 gram/gr" lalu angka rupiah pertama sesudahnya.
+function ambilHargaEmas() {
+  for (var i = 0; i < SUMBER_EMAS.length; i++) {
+    var respons = UrlFetchApp.fetch(SUMBER_EMAS[i].url, { muteHttpExceptions: true, followRedirects: true });
+    if (respons.getResponseCode() !== 200) continue;
+    var hasil = parseHargaEmas(respons.getContentText());
+    if (hasil) {
+      hasil.sumber = SUMBER_EMAS[i].nama;
+      hasil.waktu = new Date().toISOString();
+      return hasil;
+    }
+  }
+  return null;
+}
+
+function parseHargaEmas(html) {
+  var teks = String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ");
+  var jual = cariRupiahSetelah(teks, /(?:^|[^\d,.])1(?:[.,]0+)?\s*(?:gr|gram)\b/i);
+  if (!jual) return null;
+  var buyback = cariRupiahSetelah(teks, /buy\s*back|harga\s+beli\s+kembali/i);
+  // Harga 1 gram emas Antam berada di kisaran ratusan ribu sampai beberapa juta rupiah.
+  if (jual < 300000 || jual > 20000000) return null;
+  return { jual: jual, buyback: buyback && buyback < jual ? buyback : null };
+}
+
+function cariRupiahSetelah(teks, polaAwal) {
+  var m = teks.match(polaAwal);
+  if (!m) return null;
+  var sisa = teks.slice(m.index + m[0].length, m.index + m[0].length + 160);
+  var angka = sisa.match(/(?:Rp\.?\s*)?(\d{1,3}(?:[.,]\d{3}){1,3}|\d{6,9})(?![\d])/);
+  if (!angka) return null;
+  var nilai = Number(angka[1].replace(/[.,]/g, ""));
+  return nilai > 0 ? nilai : null;
+}
+
+function ambilHargaCrypto(ids) {
+  if (!ids.length) return {};
+  var respons = UrlFetchApp.fetch(URL_COINGECKO + encodeURIComponent(ids.join(",")), { muteHttpExceptions: true });
+  if (respons.getResponseCode() !== 200) throw new Error("CoinGecko menjawab " + respons.getResponseCode());
+  var json = JSON.parse(respons.getContentText());
+  var hasil = {};
+  Object.keys(json).forEach(function (id) {
+    var v = json[id];
+    if (v && typeof v.idr === "number") {
+      hasil[id] = { idr: v.idr, perubahan24: typeof v.idr_24h_change === "number" ? v.idr_24h_change : null, waktu: new Date().toISOString() };
+    }
+  });
+  return hasil;
 }
