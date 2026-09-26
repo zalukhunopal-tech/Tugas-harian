@@ -1,0 +1,9 @@
+# Jangan pernah commit konfigurasi lokal yang berisi URL Web App, kunci, atau token.
+.env
+.env.*
+*.local.*
+konfigurasi-lokal*.json
+rahasia*.txt
+node_modules/
+.DS_Store
+*.log

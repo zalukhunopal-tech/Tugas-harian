@@ -1,0 +1,42 @@
+# Berjalan di setiap push dan pull request:
+# 1. menolak commit yang memuat URL Web App, kunci, token, atau kredensial Google;
+# 2. memeriksa sintaks semua JavaScript dan Code.gs;
+# 3. menjalankan uji Code.gs dan aset.js dengan tiruan layanan Google (tanpa akun apa pun).
+name: Keamanan & uji
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  periksa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cari rahasia yang tidak boleh masuk repo
+        run: |
+          pola='script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35}|ya29\.[0-9A-Za-z_-]{20,}|-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|"type": *"service_account"|"client_secret"|KUNCI_SINKRON *[:=] *["'"'"'][^"'"'"'[:space:]]{4,}'
+          if git grep -nIE "$pola" -- . ':!.github/workflows/keamanan.yml'; then
+            echo "::error::Ditemukan pola rahasia di repo. Hapus dari commit, lalu ganti kunci/URL yang bocor."
+            exit 1
+          fi
+          echo "Tidak ada pola rahasia."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Periksa sintaks JavaScript dan Code.gs
+        run: |
+          for f in pengeluaran/*.js pengeluaran/apps-script/uji/*.js; do node --check "$f"; done
+          cp pengeluaran/apps-script/Code.gs /tmp/Code.js && node --check /tmp/Code.js
+          echo "Sintaks OK"
+
+      - name: Uji Code.gs dan aset.js
+        run: |
+          node pengeluaran/apps-script/uji/uji-code.js
+          node pengeluaran/apps-script/uji/uji-aset.js

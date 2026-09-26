@@ -20,6 +20,11 @@ html[data-tema="jujutsu"] {
   --k2: 56, 189, 248;
   --k3: 200, 30, 58;
   --teks-tombol: #fff;
+  --masuk: #38bdf8;
+  --keluar: #f0abfc;
+  --topbar-bg: transparent;
+  --topbar-text: #ece8ff;
+  --nav-bg: rgba(12, 10, 26, 0.92);
 }
 
 /* Gojo: Tanpa Batas — biru es dan putih. */
@@ -38,6 +43,10 @@ html[data-tema="jujutsu"][data-karakter="gojo"] {
   --k2: 255, 255, 255;
   --k3: 99, 102, 241;
   --teks-tombol: #061224;
+  --masuk: #7dd3fc;
+  --keluar: #fda4af;
+  --topbar-text: #e6f4ff;
+  --nav-bg: rgba(8, 14, 30, 0.94);
 }
 
 /* Sukuna: Raja Kutukan — merah darah dan hitam. */
@@ -56,6 +65,10 @@ html[data-tema="jujutsu"][data-karakter="sukuna"] {
   --k2: 255, 255, 255;
   --k3: 120, 0, 10;
   --teks-tombol: #fff;
+  --masuk: #fca5a5;
+  --keluar: #fb7185;
+  --topbar-text: #ffe4e6;
+  --nav-bg: rgba(20, 4, 6, 0.94);
 }
 
 /* Jogo: gunung berapi — oranye lava dan kuning bara. */
@@ -74,6 +87,10 @@ html[data-tema="jujutsu"][data-karakter="jogo"] {
   --k2: 253, 224, 71;
   --k3: 200, 40, 0;
   --teks-tombol: #1a0a03;
+  --masuk: #fde68a;
+  --keluar: #fb923c;
+  --topbar-text: #fff1e6;
+  --nav-bg: rgba(20, 8, 4, 0.94);
 }
 
 /* Nanami: rasio 7:3 — kuning emas dan abu gelap. */
@@ -92,6 +109,10 @@ html[data-tema="jujutsu"][data-karakter="nanami"] {
   --k2: 255, 255, 255;
   --k3: 120, 90, 10;
   --teks-tombol: #1a1705;
+  --masuk: #fef08a;
+  --keluar: #fbbf24;
+  --topbar-text: #fffbe6;
+  --nav-bg: rgba(14, 14, 8, 0.94);
 }
 
 html[data-tema="jujutsu"] body {
@@ -172,10 +193,10 @@ html[data-tema="jujutsu"] .container {
 }
 
 /* Judul dengan cahaya berdenyut. */
-html[data-tema="jujutsu"] header h1 {
+html[data-tema="jujutsu"] .topbar h1 {
   font-family: "Yuji Syuku", "Hiragino Mincho ProN", "Noto Serif", serif;
   font-weight: 400;
-  font-size: 1.9rem;
+  font-size: 1.45rem;
   letter-spacing: 0.02em;
   animation: denyut-judul 4s ease-in-out infinite;
 }
@@ -192,8 +213,8 @@ html[data-tema="jujutsu"] header h1 {
 
 html[data-tema="jujutsu"] .tagline {
   display: block;
-  margin: 6px 0 0;
-  font-size: 0.85rem;
+  margin: 2px 0 0;
+  font-size: 0.78rem;
   color: var(--accent-hover);
   letter-spacing: 0.02em;
 }
@@ -203,18 +224,18 @@ html[data-tema="jujutsu"] .hanko {
   display: grid;
   place-items: center;
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   background: var(--segel);
   color: #fff4f4;
   font-family: "Yuji Syuku", serif;
-  font-size: 1.9rem;
+  font-size: 1.6rem;
   line-height: 1;
   transform: rotate(-8deg);
   box-shadow: 0 0 16px rgba(var(--k1), 0.55);
   /* Ruang untuk cincin berputar: kotak pembatasnya melebar saat diputar. */
-  margin: 16px 16px 6px 0;
+  margin: 8px 12px 8px 6px;
 }
 
 html[data-tema="jujutsu"] .hanko::after {
@@ -601,14 +622,14 @@ html[data-tema="jujutsu"] .pulsa {
 }
 
 @media (max-width: 560px) {
-  html[data-tema="jujutsu"] header h1 {
-    font-size: 1.6rem;
+  html[data-tema="jujutsu"] .topbar h1 {
+    font-size: 1.25rem;
   }
 
   html[data-tema="jujutsu"] .hanko {
-    width: 44px;
-    height: 44px;
-    font-size: 1.6rem;
+    width: 38px;
+    height: 38px;
+    font-size: 1.35rem;
   }
 }
 
@@ -630,4 +651,124 @@ html[data-tema="jujutsu"] .pulsa {
   .domain-romaji {
     opacity: 1 !important;
   }
+}
+
+/* ---------- Bilah atas, navigasi, dan daftar pada tema Jujutsu ---------- */
+
+html[data-tema="jujutsu"] .topbar {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(160deg, rgba(var(--k1), 0.28), rgba(var(--k3), 0.18) 60%, transparent);
+  border-bottom: 1px solid rgba(var(--k1), 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+html[data-tema="jujutsu"] .bulan-label {
+  background: rgba(var(--k1), 0.18);
+  border: 1px solid rgba(var(--k1), 0.45);
+}
+
+html[data-tema="jujutsu"] .btn-ikon:hover {
+  background: rgba(var(--k1), 0.2);
+}
+
+html[data-tema="jujutsu"] .stat-bulan .stat-value {
+  text-shadow: 0 0 10px rgba(var(--k1), 0.35);
+}
+
+html[data-tema="jujutsu"] .navbar {
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(var(--k1), 0.4);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.4);
+}
+
+html[data-tema="jujutsu"] .nav-item[aria-current="page"] {
+  color: var(--accent-hover);
+  text-shadow: 0 0 10px rgba(var(--k1), 0.7);
+}
+
+html[data-tema="jujutsu"] .nav-plus {
+  background: linear-gradient(135deg, rgb(var(--k1)), var(--accent-hover));
+  color: var(--teks-tombol);
+  border-color: var(--bg);
+  box-shadow: 0 0 18px rgba(var(--k1), 0.75);
+  animation: denyut-domain 2.4s ease-in-out infinite;
+}
+
+html[data-tema="jujutsu"] .chip {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+html[data-tema="jujutsu"] .chip[aria-checked="true"] {
+  background: linear-gradient(120deg, rgb(var(--k1)), var(--accent-hover));
+  color: var(--teks-tombol);
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(var(--k1), 0.5);
+}
+
+html[data-tema="jujutsu"] .hari,
+html[data-tema="jujutsu"] .budget {
+  border: 1px solid rgba(var(--k1), 0.3);
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+html[data-tema="jujutsu"] .hari-kepala {
+  font-family: "Yuji Syuku", "Hiragino Mincho ProN", serif;
+  border-bottom: 1px solid rgba(var(--k1), 0.25);
+  background: rgba(var(--k1), 0.06);
+}
+
+html[data-tema="jujutsu"] .hari-kepala .hari-total {
+  font-family: var(--font-teks);
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.keluar {
+  background: rgba(var(--k3), 0.3);
+  color: var(--keluar);
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.masuk {
+  background: rgba(var(--k1), 0.25);
+  color: var(--masuk);
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.aset-emas {
+  background: #7c5a12;
+  color: #fde68a;
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.aset-crypto {
+  background: #7c3a12;
+  color: #fed7aa;
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.aset-jmo {
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+
+html[data-tema="jujutsu"] .ikon-kategori.aset-investasi {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+html[data-tema="jujutsu"] .aset-total-nilai {
+  text-shadow: 0 0 14px rgba(var(--k1), 0.5);
+}
+
+html[data-tema="jujutsu"] .tren .bar.masuk {
+  background: linear-gradient(180deg, var(--masuk), rgba(var(--k1), 0.6));
+  box-shadow: 0 0 8px rgba(var(--k1), 0.5);
+}
+
+html[data-tema="jujutsu"] .tren .bar.keluar {
+  background: linear-gradient(180deg, var(--keluar), rgba(var(--k3), 0.6));
+  box-shadow: 0 0 8px rgba(var(--k3), 0.5);
+}
+
+html[data-tema="jujutsu"] .tabel-tren th,
+html[data-tema="jujutsu"] .tabel-tren td {
+  border-color: rgba(var(--k1), 0.2);
 }
