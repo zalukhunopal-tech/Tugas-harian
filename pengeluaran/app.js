@@ -627,7 +627,8 @@ const IKON_ASET = { emas: "Au", crypto: "₿", jmo: "JHT", investasi: "%" };
 const NAMA_JENIS_ASET = { emas: "Emas", crypto: "Kripto", jmo: "JMO · JHT", investasi: "Investasi" };
 
 let aset = (bacaJsonStorage(ASET_KEY, []) || []).map(Aset.rapikanAset).filter(Boolean);
-let harga = bacaJsonStorage(HARGA_KEY, {}) || {};
+let harga = bacaJsonStorage(HARGA_KEY, {});
+if (!harga || typeof harga !== "object" || Array.isArray(harga)) harga = {};
 let editAsetId = null;
 let sedangAmbilHarga = false;
 
@@ -856,6 +857,10 @@ function renderInfoHarga(ringkas) {
   }
   $("hint-harga").textContent = waktu ? `diperbarui ${waktu.toLocaleTimeString("id-ID", { timeStyle: "short" })}` : "belum ada";
   if (ringkas && ringkas.belumTersedia) info.textContent += ` · ${ringkas.belumTersedia} aset belum punya harga.`;
+  // Catatan dari Apps Script (mis. sumber yang gagal atau cadangan yang dipakai) ditampilkan apa adanya.
+  const catatan = Array.isArray(harga.catatan) ? harga.catatan.filter(Boolean) : [];
+  const detail = $("harga-detail");
+  if (catatan.length && !detail.dataset.pesanLokal) detail.textContent = `Catatan Apps Script: ${catatan.join(" ")}`;
   $("emas-manual").value = harga.manual && harga.manual.emas ? harga.manual.emas.jual : "";
   $("emas-buyback-manual").value = harga.manual && harga.manual.emas && harga.manual.emas.buyback ? harga.manual.emas.buyback : "";
 }
@@ -927,7 +932,13 @@ async function perbaruiHarga(paksa) {
     }
     simpanHargaLokal();
     renderAset();
-    detail.textContent = catatan.length ? `Sebagian sumber gagal — ${catatan.join("; ")}.` : "Harga diperbarui.";
+    const catatanServer = Array.isArray(harga.catatan) ? harga.catatan.filter(Boolean) : [];
+    detail.textContent = [
+      catatan.length ? `Sebagian sumber gagal — ${catatan.join("; ")}.` : "Harga diperbarui.",
+      catatanServer.length ? `Catatan Apps Script: ${catatanServer.join(" ")}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   } finally {
     sedangAmbilHarga = false;
     tombol.disabled = false;
@@ -1007,17 +1018,13 @@ let pesanTautanSinkron = "";
 let konektor = null;
 let cacheDrive = null;
 let timerMuatUlang = null;
-let antrean = bacaJsonStorage(SYNC_QUEUE_KEY);
-let terkirim = bacaJsonStorage(SYNC_SENT_KEY);
+let antrean = bacaDaftarStorage(SYNC_QUEUE_KEY);
+let terkirim = bacaDaftarStorage(SYNC_SENT_KEY);
 let sedangSync = false;
 
-function bacaJsonStorage(kunci) {
-  try {
-    const nilai = JSON.parse(bacaStorage(kunci, "[]"));
-    return Array.isArray(nilai) ? nilai : [];
-  } catch {
-    return [];
-  }
+function bacaDaftarStorage(kunci) {
+  const nilai = bacaJsonStorage(kunci, []);
+  return Array.isArray(nilai) ? nilai : [];
 }
 
 function simpanAntrean() {
@@ -1088,7 +1095,7 @@ function jelaskanBalasanBukanJson(teks, status) {
     return "Web App meminta login Google: akses deployment belum 'Siapa saja' (Anyone). Deploy → Manage deployments → ✎ → Who has access: Anyone → Deploy.";
   }
   if (/SyntaxError|ReferenceError|TypeError|Script function not found|not found: do(Get|Post)|Exception/i.test(polos)) {
-    return `kode Apps Script error, bukan masalah koneksi: “${cuplikan}”. Tempel ulang Code.gs utuh (582 baris), simpan, lalu Deploy → New version.`;
+    return `kode Apps Script error, bukan masalah koneksi: “${cuplikan}”. Tempel ulang Code.gs utuh (692 baris), simpan, lalu Deploy → New version.`;
   }
   if (/deleted|dihapus|no longer|tidak tersedia|not available|has been archived/i.test(polos)) {
     return `deployment di URL ini tidak aktif lagi: “${cuplikan}”. Pakai URL dari deployment yang aktif (Deploy → Manage deployments).`;

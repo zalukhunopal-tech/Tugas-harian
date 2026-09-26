@@ -33,7 +33,17 @@ var SUMBER_EMAS = [
   { nama: "Logam Mulia (beranda)", url: "https://www.logammulia.com/id" },
 ];
 var URL_COINGECKO = "https://api.coingecko.com/api/v3/simple/price?vs_currencies=idr&include_24hr_change=true&ids=";
-var VERSI = 3;
+// Cadangan bila CoinGecko menolak (server Apps Script sering kena batas 429): Indodax memberi harga IDR langsung.
+var URL_INDODAX = "https://indodax.com/api/ticker_all";
+var SIMBOL_KOIN = {
+  bitcoin: "btc", ethereum: "eth", solana: "sol", binancecoin: "bnb", ripple: "xrp", cardano: "ada",
+  dogecoin: "doge", tether: "usdt", "usd-coin": "usdc", "the-open-network": "ton", litecoin: "ltc",
+  polkadot: "dot", chainlink: "link", avalanche: "avax", tron: "trx", "shiba-inu": "shib", "matic-network": "matic",
+};
+// Cadangan emas bila halaman Logam Mulia tidak terbaca: harga spot dunia per troy ounce dalam IDR.
+var URL_EMAS_SPOT = "https://data-asg.goldprice.org/dbXRates/IDR";
+var GRAM_PER_TROY_OUNCE = 31.1034768;
+var VERSI = 4;
 
 var cacheSheet = {};
 var cacheFile = {};
@@ -54,6 +64,7 @@ function doGet(e) {
     if (action === "list") return { ok: true, transaksi: bacaSemua(), aset: bacaAset(), harga: perbaruiHarga(false) };
     if (action === "harga") return { ok: true, harga: perbaruiHarga(e.parameter.segar === "1") };
     if (action === "aset") return { ok: true, aset: bacaAset() };
+    if (action === "diagnosis") return { ok: true, diagnosis: diagnosis() };
     throw new Error("Aksi tidak dikenal: " + action);
   });
 }
@@ -283,6 +294,8 @@ function tulisBaris(sheet, baris, tx, id) {
 // (mis. $C$7:$C$22) atau sheet memakai rumus per baris, baris baru di luar jangkauannya tetap kosong;
 // di sini rumusnya dilengkapi tanpa menyentuh sel yang sudah terisi.
 function lengkapiRumus(sheet, baris) {
+  // Pastikan nilai spill ARRAYFORMULA sudah dihitung ulang sebelum diperiksa.
+  SpreadsheetApp.flush();
   [1, 7].forEach(function (kol) {
     var sel = sheet.getRange(baris, kol);
     if (sel.getFormula() || String(sel.getValue()) !== "") return;
@@ -502,36 +515,120 @@ function perbaruiHarga(paksa) {
   if (!paksa && umur < HARGA_SEGAR_MENIT * 60000) return lama;
 
   var baru = { waktu: new Date().toISOString(), emas: lama.emas || null, crypto: lama.crypto || {}, manual: lama.manual || null, catatan: [] };
+  baru.diagnosisEmas = [];
   try {
-    var emas = ambilHargaEmas();
+    var emas = ambilHargaEmas(baru.diagnosisEmas);
     if (emas) baru.emas = emas;
-    else baru.catatan.push("Harga emas tidak terbaca dari sumber; memakai nilai sebelumnya.");
+    else {
+      try {
+        var spot = ambilEmasSpot();
+        if (spot) {
+          baru.emas = spot;
+          baru.catatan.push("Halaman Logam Mulia tidak terbaca; memakai harga spot emas dunia (bukan harga Antam).");
+        } else baru.catatan.push("Harga emas tidak terbaca dari sumber mana pun; memakai nilai sebelumnya.");
+      } catch (err2) {
+        baru.catatan.push("Emas spot: " + String((err2 && err2.message) || err2));
+      }
+    }
   } catch (err) {
     baru.catatan.push("Emas: " + String((err && err.message) || err));
   }
+  var koin = KOIN_DEFAULT.slice();
+  var simbol = {};
+  bacaAset().forEach(function (a) {
+    if (a.jenis === "crypto" && a.koin) {
+      var id = String(a.koin).toLowerCase();
+      if (koin.indexOf(id) < 0) koin.push(id);
+      if (a.simbol) simbol[id] = String(a.simbol).toLowerCase();
+    }
+  });
+  var kripto = null;
   try {
-    var koin = KOIN_DEFAULT.slice();
-    bacaAset().forEach(function (a) {
-      if (a.jenis === "crypto" && a.koin && koin.indexOf(String(a.koin).toLowerCase()) < 0) koin.push(String(a.koin).toLowerCase());
-    });
-    var kripto = ambilHargaCrypto(koin);
+    kripto = ambilHargaCrypto(koin);
+  } catch (err) {
+    baru.catatan.push("Kripto: " + String((err && err.message) || err) + "; mencoba Indodax.");
+    try {
+      kripto = ambilHargaIndodax(koin, simbol);
+    } catch (err3) {
+      baru.catatan.push("Indodax: " + String((err3 && err3.message) || err3));
+    }
+  }
+  if (kripto) {
     Object.keys(kripto).forEach(function (id) {
       baru.crypto[id] = kripto[id];
     });
-  } catch (err) {
-    baru.catatan.push("Kripto: " + String((err && err.message) || err));
+    var hilang = koin.filter(function (id) {
+      return !baru.crypto[id];
+    });
+    if (hilang.length) baru.catatan.push("Koin tanpa harga: " + hilang.join(", "));
   }
   tulisFileJson(NAMA_FILE_HARGA, baru);
   return baru;
 }
 
+// Harga spot dunia (goldprice.org) dalam IDR per troy ounce, dikonversi ke per gram.
+function ambilEmasSpot() {
+  var respons = UrlFetchApp.fetch(URL_EMAS_SPOT, { muteHttpExceptions: true });
+  if (respons.getResponseCode() !== 200) throw new Error("goldprice.org menjawab " + respons.getResponseCode());
+  var json = JSON.parse(respons.getContentText());
+  var item = json && json.items && json.items[0];
+  if (!item || !(item.xauPrice > 0)) return null;
+  return { jual: Math.round(item.xauPrice / GRAM_PER_TROY_OUNCE), buyback: null, sumber: "spot dunia (goldprice.org), bukan Antam", waktu: new Date().toISOString() };
+}
+
+function ambilHargaIndodax(ids, simbolDariAset) {
+  var respons = UrlFetchApp.fetch(URL_INDODAX, { muteHttpExceptions: true });
+  if (respons.getResponseCode() !== 200) throw new Error("Indodax menjawab " + respons.getResponseCode());
+  var tickers = (JSON.parse(respons.getContentText()) || {}).tickers || {};
+  var hasil = {};
+  ids.forEach(function (id) {
+    var simbol = SIMBOL_KOIN[id] || (simbolDariAset && simbolDariAset[id]) || "";
+    var t = simbol && tickers[simbol + "_idr"];
+    var last = t && Number(t.last);
+    if (last > 0) hasil[id] = { idr: last, perubahan24: null, sumber: "Indodax", waktu: new Date().toISOString() };
+  });
+  return hasil;
+}
+
+// Ringkasan keadaan skrip dan sheet untuk memeriksa masalah dari jauh (tanpa membuka sheet-nya).
+function diagnosis() {
+  var hasil = { versi: VERSI, kunciTerpasang: !!PropertiesService.getScriptProperties().getProperty("KUNCI_SINKRON"), pemicu: [], sheet: {} };
+  ScriptApp.getProjectTriggers().forEach(function (p) {
+    hasil.pemicu.push(p.getHandlerFunction());
+  });
+  hasil.folderAntrean = !!ambilFolderAntrean(false);
+  Object.keys(NAMA_SHEET).forEach(function (dana) {
+    var sheet = ambilSheet(dana);
+    var n = jumlahBarisData(sheet);
+    var info = { file: sheet.getParent().getName(), barisData: n, rumusA7: sheet.getRange(BARIS_AWAL, 1).getFormula(), rumusG7: sheet.getRange(BARIS_AWAL, 7).getFormula(), barisTerakhir: [] };
+    var mulai = Math.max(BARIS_AWAL, BARIS_AWAL + n - 6);
+    for (var r = mulai; r < BARIS_AWAL + n; r++) {
+      var uraian = String(sheet.getRange(r, KOL.uraian).getValue()).trim();
+      if (!uraian) continue;
+      info.barisTerakhir.push({
+        baris: r,
+        uraian: uraian.slice(0, 40),
+        A: String(sheet.getRange(r, 1).getValue()),
+        rumusA: sheet.getRange(r, 1).getFormula(),
+        G: String(sheet.getRange(r, 7).getValue()),
+        rumusG: sheet.getRange(r, 7).getFormula(),
+      });
+    }
+    hasil.sheet[dana] = info;
+  });
+  hasil.harga = bacaFileJson(NAMA_FILE_HARGA);
+  return hasil;
+}
+
 // Mencoba setiap sumber sampai harga 1 gram terbaca. Halaman HTML-nya bisa berubah sewaktu-waktu,
 // jadi pembacaannya longgar: cari "1 gram/gr" lalu angka rupiah pertama sesudahnya.
-function ambilHargaEmas() {
+function ambilHargaEmas(diagnosisEmas) {
   for (var i = 0; i < SUMBER_EMAS.length; i++) {
     var respons = UrlFetchApp.fetch(SUMBER_EMAS[i].url, { muteHttpExceptions: true, followRedirects: true });
-    if (respons.getResponseCode() !== 200) continue;
-    var hasil = parseHargaEmas(respons.getContentText());
+    var kode = respons.getResponseCode();
+    var html = kode === 200 ? respons.getContentText() : "";
+    var hasil = html ? parseHargaEmas(html) : null;
+    if (diagnosisEmas) diagnosisEmas.push({ sumber: SUMBER_EMAS[i].nama, kode: kode, terbaca: !!hasil, cuplikan: cuplikanEmas(html) });
     if (hasil) {
       hasil.sumber = SUMBER_EMAS[i].nama;
       hasil.waktu = new Date().toISOString();
@@ -541,14 +638,27 @@ function ambilHargaEmas() {
   return null;
 }
 
-function parseHargaEmas(html) {
-  var teks = String(html || "")
+// Potongan teks halaman di sekitar kata "gram"/"gr" (atau awal halaman) untuk memperbaiki pembaca bila situsnya berubah.
+function cuplikanEmas(html) {
+  if (!html) return "";
+  var teks = teksPolos(html);
+  var m = teks.match(/[\s\S]{0,120}\b(?:1\s*(?:gr|gram)|gram)\b[\s\S]{0,200}/i);
+  return (m ? m[0] : teks.slice(0, 300)).trim();
+}
+
+function teksPolos(html) {
+  return String(html || "")
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ");
-  var jual = cariRupiahSetelah(teks, /(?:^|[^\d,.])1(?:[.,]0+)?\s*(?:gr|gram)\b/i);
+}
+
+function parseHargaEmas(html) {
+  var teks = teksPolos(html);
+  // "1 gr", "1 gram", "1,0 gram", "1.00 gr", juga "1 g" yang diikuti angka rupiah.
+  var jual = cariRupiahSetelah(teks, /(?:^|[^\d,.])1(?:[.,]0+)?\s*(?:gr|gram|g)\b/i);
   if (!jual) return null;
   var buyback = cariRupiahSetelah(teks, /buy\s*back|harga\s+beli\s+kembali/i);
   // Harga 1 gram emas Antam berada di kisaran ratusan ribu sampai beberapa juta rupiah.
