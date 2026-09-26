@@ -12,6 +12,10 @@ function buatSheet(nama, rows) {
     getValue: () => (data[r - 1] || [])[c - 1] ?? "",
     setValue: (v) => { while (data.length < r) data.push(Array(W).fill("")); data[r - 1][c - 1] = v; },
     setNumberFormat: () => {},
+    getFormula: () => { const v = (data[r - 1] || [])[c - 1]; return typeof v === "string" && v.startsWith("=") ? v : ""; },
+    getFormulaR1C1: () => { const v = (data[r - 1] || [])[c - 1]; return typeof v === "string" && v.startsWith("=") ? v : ""; },
+    setFormula: (f) => { while (data.length < r) data.push(Array(W).fill("")); data[r - 1][c - 1] = f; },
+    setFormulaR1C1: (f) => { while (data.length < r) data.push(Array(W).fill("")); data[r - 1][c - 1] = f; },
     clearContent: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) data[r - 1 + i][c - 1 + j] = ""; },
   });
   return {
@@ -26,7 +30,7 @@ const pribadi = buatSheet("Keuangan Pribadi 2026", [
   baris("ALIRAN KEUANGAN PRIBADI - Nopal"), baris("", "", "", "", "", "", "", "", "", "", "REKAP OTOMATIS"),
   baris("", "", "", "", "", "", "", "", "", "", "Total pemasukan", 0), baris(), baris(),
   baris("No", "Tanggal", "Uraian", "Kategori", "Pemasukan (Rp)", "Pengeluaran (Rp)", "Saldo (Rp)", "Sumber / Tujuan", "Catatan", "", "Jumlah transaksi", 2),
-  baris("=ARRAYFORMULA(...)", "2026-09-19", "Saldo awal", "Pemasukan Lain", "", "", "=ARRAYFORMULA(...)", "", "Isi angkanya di kolom Pemasukan"),
+  baris("=ARRAYFORMULA(IF(LEN($C$7:$C$9)=0,\"\",COUNTIFS($C$7:$C$9,\"<>\",ROW($C$7:$C$9),\"<=\"&ROW($C$7:$C$9))))", "2026-09-19", "Saldo awal", "Pemasukan Lain", "", "", "=ARRAYFORMULA(IF(LEN($C$7:$C$9)=0,\"\",SUMIF(ROW($C$7:$C$9),\"<=\"&ROW($C$7:$C$9),$E$7:$E$9)-SUMIF(ROW($C$7:$C$9),\"<=\"&ROW($C$7:$C$9),$F$7:$F$9)))", "", "Isi angkanya di kolom Pemasukan"),
   baris("", "2026-09-19", "Pembelian makan siang di Hotways Chicken", "Makan & Minum", "", 68000, "", "Hotways Chicken - Tanjung Selor", "Bayar QRIS. Struk HTCS2026 (15:05)"),
   baris(), baris("", "", "", "", "", "", "", "", "", "", "PENGELUARAN PER KATEGORI"),
   baris("", "", "", "", "", "", "", "", "", "", "Makan & Minum", 68000), baris("", "", "", "", "", "", "", "", "", "", "TOTAL", 68000),
@@ -34,8 +38,8 @@ const pribadi = buatSheet("Keuangan Pribadi 2026", [
 const kegiatan = buatSheet("Keuangan Kegiatan 2026", [
   baris("ALIRAN KEUANGAN KEGIATAN"), baris(), baris(), baris(), baris(),
   baris("No", "Tanggal", "Uraian", "Kategori", "Pemasukan (Rp)", "Pengeluaran (Rp)", "Saldo (Rp)", "Kaitan Kegiatan", "Catatan"),
-  baris("=AF", new Date(2026, 8, 19), "Penerimaan dana awal kegiatan", "Penerimaan Dana", 26370000, "", "=AF", "", "Dana awal berkegiatan"),
-  baris("", "2026-09-20", "Pembelian konsumsi perjalanan (snack) di Indomaret", "Konsumsi", "", 65800, "", "Perjalanan Tanjung Selor - Malinau", "Bayar tunai. Struk 20.09.26"),
+  baris("=IF(LEN(C7)=0,\"\",COUNTA($C$7:C7))", new Date(2026, 8, 19), "Penerimaan dana awal kegiatan", "Penerimaan Dana", 26370000, "", "=IF(LEN(C7)=0,\"\",SUM($E$7:E7)-SUM($F$7:F7))", "", "Dana awal berkegiatan"),
+  baris("=IF(LEN(C8)=0,\"\",COUNTA($C$7:C8))", "2026-09-20", "Pembelian konsumsi perjalanan (snack) di Indomaret", "Konsumsi", "", 65800, "=IF(LEN(C8)=0,\"\",SUM($E$7:E8)-SUM($F$7:F8))", "Perjalanan Tanjung Selor - Malinau", "Bayar tunai. Struk 20.09.26"),
 ]);
 const files = [
   { nama: "Keuangan Pribadi 2026", id: "p", sheet: pribadi }, { nama: "Keuangan Pribadi 2025", id: "p-lama", sheet: buatSheet("lama", []) },
@@ -98,7 +102,7 @@ assert.equal(pribadi.data[5][9], "ID Aplikasi"); assert.equal(pribadi.data[6][9]
 // upsert baru -> baris kosong pertama (baris 9), bukan setelah panel K/L
 const r1 = post({ action: "upsert", transaksi: { id: "app1", dana: "Dana Pribadi", jenis: "pengeluaran", tanggal: "2026-09-25", deskripsi: "Pembelian kopi", kategori: "Makan & Minum", jumlah: 25000, metode: "Tunai", kaitan: "Point Coffee", catatan: "Struk 0042" } });
 assert.deepEqual(r1, { ok: true, id: "app1" });
-assert.deepEqual(pribadi.data[8].slice(0, 10), ["", "2026-09-25", "Pembelian kopi", "Makan & Minum", "", 25000, "", "Point Coffee", "Bayar tunai. Struk 0042", "app1"]);
+assert.deepEqual(pribadi.data[8].slice(0, 10), ["", "2026-09-25", "Pembelian kopi", "Makan & Minum", "", 25000, "", "Point Coffee", "Bayar tunai. Struk 0042", "app1"], "baris 9 masih di jangkauan ARRAYFORMULA ($C$9): A/G tidak ditulisi");
 assert.equal(pribadi.data[9][10], "PENGELUARAN PER KATEGORI", "panel K/L tidak bergeser");
 
 // upsert ubah -> baris yang sama
@@ -108,20 +112,27 @@ assert.equal(pribadi.data.length, 12);
 
 // pindah dana -> hapus di Pribadi (deleteRow), tulis di Kegiatan
 post({ action: "upsert", transaksi: { id: "app1", dana: "Dana Kegiatan", jenis: "pengeluaran", tanggal: "2026-09-25", deskripsi: "Pembelian kopi rapat", kategori: "Konsumsi", jumlah: 30000, metode: "", kaitan: "Rapat tim GIS", catatan: "" } });
-assert.equal(pribadi.data.length, 11); assert.equal(pribadi.data[8][10], "PENGELUARAN PER KATEGORI", "baris kosong terhapus, panel naik satu baris");
-assert.deepEqual(kegiatan.data[8].slice(1, 10), ["2026-09-25", "Pembelian kopi rapat", "Konsumsi", "", 30000, "", "Rapat tim GIS", "", "app1"]);
+assert.equal(pribadi.data.length, 12, "tidak ada baris yang dihapus utuh"); assert.equal(pribadi.data[9][10], "PENGELUARAN PER KATEGORI", "panel K/L tetap di tempat");
+assert.deepEqual(pribadi.data[8].slice(1, 10), ["", "", "", "", "", "", "", "", ""], "baris di sheet lama dikosongkan");
+assert.deepEqual(kegiatan.data[8].slice(1, 10), ["2026-09-25", "Pembelian kopi rapat", "Konsumsi", "", 30000, "=IF(LEN(C8)=0,\"\",SUM($E$7:E8)-SUM($F$7:F8))", "Rapat tim GIS", "", "app1"]);
+assert.equal(kegiatan.data[8][0], "=IF(LEN(C8)=0,\"\",COUNTA($C$7:C8))", "rumus per baris disalin (R1C1) dari baris di atasnya");
 assert.equal(kegiatan.data[5][9], "ID Aplikasi");
 
 // pemasukan -> kolom E, F kosong
 post({ action: "upsert", transaksi: { dana: "Dana Kegiatan", jenis: "pemasukan", tanggal: "2026-09-26", deskripsi: "Penerimaan dana tahap 2", kategori: "Penerimaan Dana", jumlah: 5000000 } });
 assert.deepEqual(kegiatan.data[9].slice(1, 6), ["2026-09-26", "Penerimaan dana tahap 2", "Penerimaan Dana", 5000000, ""]);
+assert.ok(kegiatan.data[9][0].startsWith("=IF(LEN(C"), "baris 10 pun mendapat rumus");
 assert.match(kegiatan.data[9][9], /^suuid/);
 
 // hapus: baris biasa dihapus, baris 7 hanya dikosongkan (ARRAYFORMULA tetap)
 assert.deepEqual(post({ action: "delete", id: "app1" }), { ok: true, dihapus: 1 });
-assert.equal(kegiatan.data[8][2], "Penerimaan dana tahap 2");
+assert.equal(kegiatan.data[8][2], "", "baris dikosongkan, bukan dihapus"); assert.equal(kegiatan.data[9][2], "Penerimaan dana tahap 2", "baris di bawahnya tidak bergeser");
+// baris kosong itu dipakai lagi oleh transaksi berikutnya
+post({ action: "upsert", transaksi: { id: "isi-ulang", dana: "Dana Kegiatan", jenis: "pengeluaran", tanggal: "2026-09-27", deskripsi: "Pembelian bensin", kategori: "Transportasi & BBM", jumlah: 100000 } });
+assert.equal(kegiatan.data[8][2], "Pembelian bensin", "gap diisi ulang"); assert.equal(kegiatan.data[8][9], "isi-ulang");
+post({ action: "delete", id: "isi-ulang" });
 assert.deepEqual(post({ action: "delete", id: saldoAwal.id }), { ok: true, dihapus: 1 });
-assert.equal(pribadi.data[6][0], "=ARRAYFORMULA(...)"); assert.equal(pribadi.data[6][6], "=ARRAYFORMULA(...)"); assert.equal(pribadi.data[6][2], ""); assert.equal(pribadi.data[7][2], "Pembelian makan siang di Hotways Chicken");
+assert.ok(pribadi.data[6][0].startsWith("=ARRAYFORMULA(")); assert.ok(pribadi.data[6][6].startsWith("=ARRAYFORMULA(")); assert.equal(pribadi.data[6][2], ""); assert.equal(pribadi.data[7][2], "Pembelian makan siang di Hotways Chicken");
 assert.deepEqual(post({ action: "delete", id: "tidak-ada" }), { ok: true, dihapus: 0 });
 
 // validasi
@@ -168,6 +179,21 @@ assert.equal(sisa.length, 2); assert.ok(sisa.includes("catatan.txt"));
 assert.ok(sisa.some((n) => n.startsWith("GAGAL - op-1790400000004-rusak.json - ")), "file rusak ditandai GAGAL");
 jalan(prosesAntreanDrive); assert.equal(folderAntrean.isi.filter((f) => !f.trashed).length, 2, "file GAGAL tidak diulang");
 assert.throws(() => terapkanOp({ action: "apa" }), /Aksi tidak dikenal/);
+
+// ---------- Rumus No/Saldo di luar batas ARRAYFORMULA ----------
+// Pribadi: ARRAYFORMULA berbatas $C$9. Baris 10 (indeks 9) memuat panel "PENGELUARAN PER KATEGORI" di K, C kosong.
+post({ action: "upsert", transaksi: { id: "luar1", dana: "Dana Pribadi", jenis: "pengeluaran", tanggal: "2026-09-27", deskripsi: "Pembelian pulsa", kategori: "Pulsa & Internet", jumlah: 50000 } });
+const rLuar = pribadi.data.findIndex((r) => r[9] === "luar1");
+assert.equal(rLuar, 8, "gap baris 9 dipakai dulu (masih dalam batas, tanpa rumus)");
+post({ action: "upsert", transaksi: { id: "luar2", dana: "Dana Pribadi", jenis: "pengeluaran", tanggal: "2026-09-27", deskripsi: "Pembelian air", kategori: "Belanja Harian", jumlah: 5000 } });
+const rLuar2 = pribadi.data.findIndex((r) => r[9] === "luar2");
+assert.equal(rLuar2, 9, "baris 10 (berbagi baris dengan panel K/L)");
+assert.equal(pribadi.data[9][0], '=IF(LEN(C10)=0,"",COUNTA($C$7:C10))', "No ditulis sendiri di luar batas ARRAYFORMULA");
+assert.equal(pribadi.data[9][6], '=IF(LEN(C10)=0,"",SUM($E$7:E10)-SUM($F$7:F10))', "Saldo ditulis sendiri");
+assert.equal(pribadi.data[9][10], "PENGELUARAN PER KATEGORI", "panel di baris yang sama tidak tersentuh");
+post({ action: "delete", id: "luar2" });
+assert.equal(pribadi.data[9][10], "PENGELUARAN PER KATEGORI", "hapus tidak menggeser panel"); assert.equal(pribadi.data[9][0], '=IF(LEN(C10)=0,"",COUNTA($C$7:C10))', "rumus A/G dibiarkan (menghasilkan \"\" saat C kosong)");
+post({ action: "delete", id: "luar1" });
 
 // ---------- Kunci sinkron ----------
 props.KUNCI_SINKRON = ["rahasia", "panjang", "123"].join("-"); // dirangkai agar tidak menyerupai kunci sungguhan bagi pemindai
