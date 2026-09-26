@@ -627,7 +627,8 @@ const IKON_ASET = { emas: "Au", crypto: "₿", jmo: "JHT", investasi: "%" };
 const NAMA_JENIS_ASET = { emas: "Emas", crypto: "Kripto", jmo: "JMO · JHT", investasi: "Investasi" };
 
 let aset = (bacaJsonStorage(ASET_KEY, []) || []).map(Aset.rapikanAset).filter(Boolean);
-let harga = bacaJsonStorage(HARGA_KEY, {}) || {};
+let harga = bacaJsonStorage(HARGA_KEY, {});
+if (!harga || typeof harga !== "object" || Array.isArray(harga)) harga = {};
 let editAsetId = null;
 let sedangAmbilHarga = false;
 
@@ -1017,17 +1018,13 @@ let pesanTautanSinkron = "";
 let konektor = null;
 let cacheDrive = null;
 let timerMuatUlang = null;
-let antrean = bacaJsonStorage(SYNC_QUEUE_KEY);
-let terkirim = bacaJsonStorage(SYNC_SENT_KEY);
+let antrean = bacaDaftarStorage(SYNC_QUEUE_KEY);
+let terkirim = bacaDaftarStorage(SYNC_SENT_KEY);
 let sedangSync = false;
 
-function bacaJsonStorage(kunci) {
-  try {
-    const nilai = JSON.parse(bacaStorage(kunci, "[]"));
-    return Array.isArray(nilai) ? nilai : [];
-  } catch {
-    return [];
-  }
+function bacaDaftarStorage(kunci) {
+  const nilai = bacaJsonStorage(kunci, []);
+  return Array.isArray(nilai) ? nilai : [];
 }
 
 function simpanAntrean() {
