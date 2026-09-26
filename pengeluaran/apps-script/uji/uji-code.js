@@ -56,7 +56,7 @@ const fileJson = (nama) => ({ getBlob: () => ({ getDataAsString: () => jsonFiles
 const HTML_EMAS = `<html><body><h1>Harga Emas Hari Ini</h1><table><tr><td>0.5 gr</td><td>Rp 720.000</td></tr>
 <tr><td>1 gr</td><td>Rp 1.345.000</td></tr><tr><td>2 gr</td><td>Rp 2.630.000</td></tr></table>
 <p>Harga Buyback Emas: Rp 1.210.000 /gram</p><script>var x = "1 gr Rp 9.999.999";</script></body></html>`;
-const fetchLog = []; let coingeckoGagal = false;
+const fetchLog = []; let coingeckoGagal = false; let emasGagal = false; let indodaxGagal = false;
 Object.assign(globalThis, {
   MimeType: { GOOGLE_SHEETS: "application/vnd.google-apps.spreadsheet" },
   DriveApp: { getFolderById: (id) => { assert.equal(id, "1zRqAgxStMdx3Ksm_K1R8R_pec_pMg6qf"); let i = 0; return {
@@ -67,14 +67,16 @@ Object.assign(globalThis, {
     createFile: (n, teks, mime) => { assert.equal(mime, "application/json"); jsonFiles[n] = teks; return fileJson(n); },
   }; } },
   UrlFetchApp: { fetch: (url) => { fetchLog.push(url);
-    if (url.includes("logammulia.com/id/harga-emas-hari-ini")) return { getResponseCode: () => 200, getContentText: () => HTML_EMAS };
-    if (url.includes("logammulia.com")) return { getResponseCode: () => 503, getContentText: () => "" };
+    if (url.includes("logammulia.com/id/harga-emas-hari-ini") && !emasGagal) return { getResponseCode: () => 200, getContentText: () => HTML_EMAS };
+    if (url.includes("logammulia.com")) return { getResponseCode: () => emasGagal ? 200 : 503, getContentText: () => (emasGagal ? "<html><body>Halaman tanpa harga, hanya menu gram dan kalkulator</body></html>" : "") };
+    if (url.includes("goldprice.org")) return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ items: [{ curr: "IDR", xauPrice: 62206953.6, chgXau: 1000 }] }) };
+    if (url.includes("indodax.com")) return indodaxGagal ? { getResponseCode: () => 500, getContentText: () => "" } : { getResponseCode: () => 200, getContentText: () => JSON.stringify({ tickers: { btc_idr: { last: "1640000000", high: "1", low: "1" }, eth_idr: { last: "41000000" }, sol_idr: { last: "2450000" } } }) };
     if (url.includes("coingecko")) return coingeckoGagal ? { getResponseCode: () => 429, getContentText: () => "" } : { getResponseCode: () => 200, getContentText: () => JSON.stringify({ bitcoin: { idr: 1650000000, idr_24h_change: 1.25 }, ethereum: { idr: 42000000, idr_24h_change: -0.5 }, solana: { idr: 2500000, idr_24h_change: 3 } }) };
     throw new Error("URL tidak dikenal: " + url); } },
   ScriptApp: { getProjectTriggers: () => triggers.slice(), deleteTrigger: (t) => triggers.splice(triggers.indexOf(t), 1), newTrigger: (fn) => { const buat = (m) => ({ create: () => { const t = { fn, m, getHandlerFunction: () => fn }; triggers.push(t); return t; } }); return { timeBased: () => ({ everyMinutes: buat, everyHours: (h) => buat(h * 60) }) }; } },
   PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = v; } }) },
   Logger: { log: () => {} },
-  SpreadsheetApp: { openById: (id) => ({ getSheets: () => [files.find((f) => f.id === id).sheet] }) },
+  SpreadsheetApp: { openById: (id) => ({ getSheets: () => [files.find((f) => f.id === id).sheet] }), flush: () => {} },
   ContentService: { MimeType: { JSON: "json" }, createTextOutput: (s) => ({ setMimeType() { return { getContent: () => s }; } }) },
   LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
   Utilities: { getUuid: () => `uuid-${++no}-xxxxxxxxxxxxxxxxxxxxxxxxxxxx`, formatDate: (d, tz, fmt) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` },
@@ -86,7 +88,7 @@ const post = (body) => { cacheSheet = {}; cacheFile = {}; return JSON.parse(doPo
 
 // ping
 const ping = get("ping");
-assert.deepEqual(ping, { ok: true, versi: 3, sheets: ["Keuangan Pribadi 2026", "Keuangan Kegiatan 2026"] });
+assert.deepEqual(ping, { ok: true, versi: 4, sheets: ["Keuangan Pribadi 2026", "Keuangan Kegiatan 2026"] });
 
 // list: memberi id ke baris manual, header J6, parsing metode/tanggal/jenis
 const list = get("list");
@@ -230,8 +232,24 @@ const nFetch = fetchLog.length;
 get("harga"); assert.equal(fetchLog.length, nFetch, "harga segar tidak diambil ulang");
 coingeckoGagal = true;
 const h2 = JSON.parse(doGet({ parameter: { action: "harga", segar: "1" } }).getContent()).harga;
-assert.equal(h2.crypto.bitcoin.idr, 1650000000, "nilai lama dipertahankan saat sumber gagal"); assert.match(h2.catatan.join(" "), /Kripto: CoinGecko menjawab 429/);
-coingeckoGagal = false;
+assert.equal(h2.crypto.bitcoin.idr, 1640000000, "CoinGecko 429 -> Indodax dipakai"); assert.equal(h2.crypto.bitcoin.sumber, "Indodax"); assert.equal(h2.crypto.ethereum.idr, 41000000, "simbol dari tabel dipakai");
+assert.match(h2.catatan.join(" "), /Kripto: CoinGecko menjawab 429; mencoba Indodax/);
+indodaxGagal = true;
+const h2b = JSON.parse(doGet({ parameter: { action: "harga", segar: "1" } }).getContent()).harga;
+assert.equal(h2b.crypto.bitcoin.idr, 1640000000, "kedua sumber gagal -> nilai lama dipertahankan"); assert.match(h2b.catatan.join(" "), /Indodax: Indodax menjawab 500/);
+indodaxGagal = false; coingeckoGagal = false;
+// emas: Logam Mulia tidak terbaca -> spot dunia, dengan cuplikan diagnosis
+emasGagal = true;
+const h3 = JSON.parse(doGet({ parameter: { action: "harga", segar: "1" } }).getContent()).harga;
+assert.equal(h3.emas.jual, 2000000, "spot per troy ounce / 31.1035 -> per gram"); assert.match(h3.emas.sumber, /spot dunia/); assert.match(h3.catatan.join(" "), /Logam Mulia tidak terbaca/);
+assert.equal(h3.diagnosisEmas.length, 2); assert.equal(h3.diagnosisEmas[0].terbaca, false); assert.match(h3.diagnosisEmas[0].cuplikan, /menu gram/);
+emasGagal = false;
+const h4 = JSON.parse(doGet({ parameter: { action: "harga", segar: "1" } }).getContent()).harga;
+assert.equal(h4.emas.jual, 1345000, "Logam Mulia kembali terbaca -> dipakai lagi"); assert.equal(h4.diagnosisEmas[0].terbaca, true);
+// diagnosis
+const dg = get("diagnosis").diagnosis;
+assert.equal(dg.versi, 4); assert.equal(dg.kunciTerpasang, false); assert.ok(dg.folderAntrean);
+assert.ok(dg.sheet["Dana Pribadi"].rumusA7.startsWith("=ARRAYFORMULA")); assert.ok(dg.sheet["Dana Pribadi"].barisTerakhir.length >= 1); assert.ok(dg.harga && dg.harga.emas);
 // parser: script diabaikan, harga di luar kisaran ditolak
 assert.equal(parseHargaEmas("<p>1 gr Rp 50.000</p>"), null);
 assert.deepEqual(parseHargaEmas("<td>1 gram</td><td>Rp1.500.000</td> buyback Rp 1.400.000"), { jual: 1500000, buyback: 1400000 });
