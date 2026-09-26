@@ -1069,8 +1069,31 @@ async function bacaJson(respons) {
   try {
     return JSON.parse(teks);
   } catch {
-    throw new Error("Balasan bukan JSON. Pastikan URL berakhiran /exec dan akses Web App diatur ke 'Anyone'.");
+    throw new Error(jelaskanBalasanBukanJson(teks, respons.status));
   }
+}
+
+// Apps Script membalas HTML (bukan JSON) saat kodenya error, akses bukan "Anyone", atau deployment
+// dihapus. Isi halamannya dikutip supaya penyebabnya langsung terbaca.
+function jelaskanBalasanBukanJson(teks, status) {
+  const polos = String(teks || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const cuplikan = polos.slice(0, 160) + (polos.length > 160 ? "…" : "");
+  if (/accounts\.google\.com|Sign in|Masuk|Login/i.test(polos) && /Google/i.test(polos)) {
+    return "Web App meminta login Google: akses deployment belum 'Siapa saja' (Anyone). Deploy → Manage deployments → ✎ → Who has access: Anyone → Deploy.";
+  }
+  if (/SyntaxError|ReferenceError|TypeError|Script function not found|not found: do(Get|Post)|Exception/i.test(polos)) {
+    return `kode Apps Script error, bukan masalah koneksi: “${cuplikan}”. Tempel ulang Code.gs utuh (582 baris), simpan, lalu Deploy → New version.`;
+  }
+  if (/deleted|dihapus|no longer|tidak tersedia|not available|has been archived/i.test(polos)) {
+    return `deployment di URL ini tidak aktif lagi: “${cuplikan}”. Pakai URL dari deployment yang aktif (Deploy → Manage deployments).`;
+  }
+  return `balasan bukan JSON (HTTP ${status || "?"}): “${cuplikan || "(kosong)"}”. Pastikan URL berakhiran /exec dan akses Web App 'Siapa saja' (Anyone).`;
 }
 
 // fetch hanya menolak (TypeError "Failed to fetch") bila browser memblokir permintaannya,
