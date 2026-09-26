@@ -55,6 +55,12 @@ Selain kedua sheet, skrip memelihara dua file di folder *Keuangan*:
 7. (Opsional) Kalau sudah ada transaksi di browser yang belum ada di sheet, klik
    **Kirim semua data lokal**.
 
+Cara cepat di HP: buka alamat aplikasi dengan tambahan `#sync=<URL Web App>` (dan `&kunci=<kunci>`
+bila dipakai), misalnya
+`https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/#sync=https://script.google.com/macros/s/…/exec`.
+Pengaturannya tersimpan di browser itu dan langsung dihapus dari address bar. Jangan bagikan tautan
+tersebut: isinya sama rahasianya dengan URL Web App.
+
 ## Sinkron dari halaman artifact Claude
 
 Halaman artifact Claude tidak boleh menghubungi Web App di atas, jadi di sana aplikasi memakai

@@ -981,6 +981,29 @@ const peringatanArtifact = document.getElementById("peringatan-artifact");
 let syncUrl = bacaStorage(SYNC_URL_KEY, "");
 let syncKunci = bacaStorage(SYNC_KUNCI_KEY, "");
 const inputSyncKunci = document.getElementById("sync-kunci");
+let pesanTautanSinkron = "";
+
+// Tautan pemasangan: index.html#sync=<URL Web App>&kunci=<kunci> menyimpan pengaturan sinkron
+// lalu menghapusnya dari address bar (fragmen tidak pernah dikirim ke server mana pun).
+(function bacaTautanSinkron() {
+  if (!location.hash.startsWith("#sync=") && !location.hash.includes("&sync=")) return;
+  const param = new URLSearchParams(location.hash.slice(1));
+  const url = (param.get("sync") || "").trim();
+  const kunci = (param.get("kunci") || "").trim();
+  history.replaceState(null, "", location.pathname + location.search);
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)) {
+    pesanTautanSinkron = "Tautan pemasangan diabaikan: URL bukan Web App Apps Script yang berakhiran /exec.";
+    return;
+  }
+  syncUrl = url;
+  tulisStorage(SYNC_URL_KEY, url);
+  if (param.has("kunci")) {
+    syncKunci = kunci;
+    tulisStorage(SYNC_KUNCI_KEY, kunci || null);
+  }
+  tulisStorage(SYNC_TIME_KEY, null);
+  pesanTautanSinkron = "URL Web App dari tautan pemasangan tersimpan di browser ini; koneksi sedang diuji.";
+})();
 let konektor = null;
 let cacheDrive = null;
 let timerMuatUlang = null;
@@ -1688,6 +1711,7 @@ resetFormAset();
 inputTanggal.value = hariIni();
 inputSyncUrl.value = syncUrl;
 inputSyncKunci.value = syncKunci;
+if (pesanTautanSinkron) syncDetail.textContent = pesanTautanSinkron;
 statusIdle();
 render();
 renderAset();
