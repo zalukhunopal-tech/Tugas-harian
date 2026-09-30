@@ -114,6 +114,24 @@ progress { width: 100%; height: 8px; accent-color: var(--brand); }
 .badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
 .prev.on .badge { background: var(--brand); color: #fff; border-color: var(--brand); }
 
+
+.seg.wrap { flex-wrap: wrap; }
+.legend { display: flex; flex-direction: column; gap: 3px; }
+.legend .ramp { height: 10px; border-radius: 5px; border: 1px solid var(--line); }
+.legend .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.legend small { color: var(--muted); font-size: 11.5px; }
+.batch-tools { justify-content: space-between; }
+.batch-check { font-size: 12px; color: var(--muted); }
+.muted { color: var(--muted); }
+.changebox { border-top: 1px dashed var(--line); padding-top: 10px; gap: 8px; }
+.batch-jobs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.batch-jobs li { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.batch-jobs .grow { flex: 1; display: flex; flex-direction: column; }
+.batch-jobs small { color: var(--muted); font-size: 11.5px; }
+.jstat { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.jstat.completed { color: var(--ok); } .jstat.failed { color: var(--err); }
+a.btn.center { display: block; text-align: center; text-decoration: none; }
+
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
   .stage { order: -1; }

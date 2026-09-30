@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { PRESET_LABELS, presetMatches, resampleNotes, toggleBand } from "../lib/bands";
-import { formatDate } from "../lib/dates";
 import { DEFAULT_CLOUD_MASK, maskProblem } from "../lib/cloud";
-import type { AOIInfo, AppConfig, CloudStats, DownloadOptions, Job, Scene } from "../types";
+import { formatDate } from "../lib/dates";
+import { DEFAULT_CHANGE, outputProblem } from "../lib/indices";
+import type { AOIInfo, AppConfig, CloudStats, DownloadOptions, IndexName, Job, Scene } from "../types";
+import BatchPanel from "./BatchPanel";
+import ChangePanel from "./ChangePanel";
 import CloudMaskPanel from "./CloudMaskPanel";
 
 interface Props {
   config: AppConfig;
-  scene: Scene;
   aoi: AOIInfo;
+  /** scene tunggal terpilih (dipakai bila tidak ada scene yang dicentang untuk batch) */
+  scene: Scene | null;
+  batchScenes: Scene[];
   onPreviewMask: (cm: DownloadOptions["cloud_mask"]) => Promise<void>;
   previewing: boolean;
   previewStats: CloudStats | null;
@@ -17,17 +22,20 @@ interface Props {
 
 const STATUS_LABEL: Record<string, string> = {
   QUEUED: "Dalam antrean",
-  DOWNLOADING: "Mengunduh & memotong",
-  PROCESSING: "Memproses",
-  CROPPING: "Memotong",
+  DOWNLOADING: "Mengunduh & menyiapkan",
+  PROCESSING: "Memproses awan",
+  CROPPING: "Memotong & menghitung",
   GENERATING: "Membuat berkas",
   COMPLETED: "Selesai",
   FAILED: "Gagal",
 };
 
-export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previewing, previewStats }: Props) {
+export default function DownloadPanel({ config, aoi, scene, batchScenes, onPreviewMask, previewing, previewStats }: Props) {
+  const batch = batchScenes.length > 0;
   const [opts, setOpts] = useState<DownloadOptions>({
     bands: config.presets.rgb ?? ["B04", "B03", "B02"],
+    indices: [],
+    change: { ...DEFAULT_CHANGE },
     resolution: 10,
     formats: ["geotiff", "cog"],
     mask_to_aoi: true,
@@ -36,18 +44,25 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
     cloud_mask: DEFAULT_CLOUD_MASK,
   });
   const [job, setJob] = useState<Job | null>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  const batchKey = batchScenes.map((s) => s.id).join(",");
 
-  // scene/AOI berubah -> job lama tidak relevan lagi
+  // scene/AOI berubah -> hasil, pilihan citra sebelumnya, dan referensi lama tidak relevan lagi
   useEffect(() => {
     setJob(null);
+    setBatchId(null);
     setError(null);
-    setOpts((o) => ({ ...o, cloud_mask: { ...o.cloud_mask, previous_scene_ids: [] } }));
-  }, [scene.id, aoi]);
+    setOpts((o) => ({
+      ...o,
+      cloud_mask: { ...o.cloud_mask, previous_scene_ids: [] },
+      change: { ...o.change, reference_scene_id: null },
+    }));
+  }, [scene?.id, aoi, batchKey]);
 
-  // polling job
+  // polling job tunggal
   useEffect(() => {
     window.clearInterval(timer.current);
     if (!job || job.status === "COMPLETED" || job.status === "FAILED") return;
@@ -66,14 +81,19 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
   const notes = useMemo(() => resampleNotes(opts.bands, opts.resolution, config, opts.resampling), [opts.bands, opts.resolution, opts.resampling, config]);
   const resampled = notes.filter((n) => n.action !== "native");
   const busy = starting || (job != null && job.status !== "COMPLETED" && job.status !== "FAILED");
-  const problem = maskProblem(opts.cloud_mask);
-  const canStart = opts.bands.length > 0 && opts.formats.length > 0 && !busy && !problem;
+  const problem = outputProblem(opts, batch) ?? maskProblem(opts.cloud_mask);
+  const canStart = !busy && !problem && (batch ? batchScenes.length <= config.max_batch : !!scene);
 
   const start = async () => {
     setError(null);
     setStarting(true);
     try {
-      setJob(await api.startDownload(scene.id, aoi.geometry, opts));
+      if (batch) {
+        const b = await api.startBatch(batchScenes.map((s) => s.id), aoi.geometry, { ...opts, change: { ...DEFAULT_CHANGE } });
+        setBatchId(b.id);
+      } else if (scene) {
+        setJob(await api.startDownload(scene.id, aoi.geometry, opts));
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -83,15 +103,26 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
 
   const toggleFormat = (f: "geotiff" | "cog") =>
     setOpts((o) => ({ ...o, formats: o.formats.includes(f) ? o.formats.filter((x) => x !== f) : [...o.formats, f] }));
+  const toggleIndex = (i: IndexName) =>
+    setOpts((o) => ({ ...o, indices: o.indices.includes(i) ? o.indices.filter((x) => x !== i) : [...o.indices, i] }));
 
   return (
     <section className="panel" aria-labelledby="h-dl">
       <h2 id="h-dl">
-        <span className="step">5</span> Unduh
+        <span className="step">5</span> {batch ? "Proses batch" : "Unduh"}
       </h2>
-      <p className="hint">
-        Scene {formatDate(scene.date)} · tile {scene.tile ?? "—"} · {scene.cloud_cover?.toFixed(1) ?? "—"}% awan
-      </p>
+      {batch ? (
+        <p className="msg info" data-testid="batch-info">
+          Mode batch: <strong>{batchScenes.length} scene</strong> ({batchScenes.map((s) => formatDate(s.date)).join(", ")}). Opsi di bawah berlaku untuk semuanya; satu
+          job per scene. Hapus centang “Batch” untuk mengunduh satu scene.
+        </p>
+      ) : (
+        scene && (
+          <p className="hint">
+            Scene {formatDate(scene.date)} · tile {scene.tile ?? "—"} · {scene.cloud_cover?.toFixed(1) ?? "—"}% awan
+          </p>
+        )
+      )}
 
       <div className="field">
         <span>Band</span>
@@ -101,6 +132,9 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
               {PRESET_LABELS[key] ?? key}
             </button>
           ))}
+          <button type="button" className="chip" onClick={() => setOpts({ ...opts, bands: [] })}>
+            Tanpa band
+          </button>
         </div>
         <div className="bands" role="group" aria-label="Pilih band">
           {Object.entries(config.bands).map(([b, m]) => (
@@ -112,6 +146,19 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
           ))}
         </div>
         <p className="hint">Urutan band di berkas mengikuti urutan pemilihan: {opts.bands.join(", ") || "—"}</p>
+      </div>
+
+      <div className="field" data-testid="indices">
+        <span>Indeks spektral</span>
+        {(Object.entries(config.indices) as [IndexName, AppConfig["indices"][IndexName]][]).map(([k, v]) => (
+          <label key={k} className="inline" title={v.label}>
+            <input type="checkbox" checked={opts.indices.includes(k)} onChange={() => toggleIndex(k)} />
+            <span>
+              <strong>{k}</strong> <small className="muted">{v.formula}</small>
+            </span>
+          </label>
+        ))}
+        <p className="hint">Dihitung dari reflektansi (Float32, NoData −9999, rentang −1…1) dan mengikuti cloud mask di bawah.</p>
       </div>
 
       <div className="field">
@@ -160,7 +207,7 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
 
       <CloudMaskPanel
         config={config}
-        scene={scene}
+        scene={batch ? null : scene}
         aoi={aoi}
         value={opts.cloud_mask}
         onChange={(cloud_mask) => setOpts((o) => ({ ...o, cloud_mask }))}
@@ -169,10 +216,18 @@ export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previ
         previewStats={previewStats}
       />
 
+      {!batch && scene && (
+        <ChangePanel config={config} scene={scene} aoi={aoi} value={opts.change} onChange={(change) => setOpts((o) => ({ ...o, change }))} maskOn={opts.cloud_mask.enabled} />
+      )}
+
       <button type="button" className="btn primary wide" disabled={!canStart} onClick={start} data-testid="start-download">
-        {busy ? "Memproses…" : "Proses & unduh"}
+        {busy ? "Memproses…" : batch ? `Proses batch (${batchScenes.length} scene)` : "Proses & unduh"}
       </button>
+      {problem && <p className="msg warn" data-testid="output-problem">{problem}</p>}
+      {batch && batchScenes.length > config.max_batch && <p className="msg warn">Maksimum {config.max_batch} scene per batch.</p>}
       {error && <p className="msg error" role="alert">{error}</p>}
+
+      {batchId && <BatchPanel batchId={batchId} scenes={batchScenes} />}
 
       {job && (
         <div className="job" data-testid="job" data-status={job.status}>
