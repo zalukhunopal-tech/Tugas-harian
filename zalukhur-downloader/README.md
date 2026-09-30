@@ -85,8 +85,13 @@ Pesan error berbahasa Indonesia dalam bentuk `{"code": "...", "detail": "..."}`.
   (diverifikasi terhadap data Sentinel-2 asli, lihat “Pengujian”).
 - **NoData** = 0 (konvensi Sentinel-2). Piksel di luar poligon AOI (opsional, bawaan aktif), di luar tepi scene,
   atau tanpa data menjadi NoData. `valid_pixel_pct` per band dicatat di metadata.
-- **Reflektansi**: nilai disimpan sebagai DN `uint16`; `scale`/`offset` (mis. 0.0001 / −0.1) ditulis sebagai
-  scale/offset GeoTIFF sehingga QGIS/GDAL dapat mengonversi: `reflektansi = DN × scale + offset`.
+- **Reflektansi**: nilai disimpan sebagai DN `uint16`; `scale`/`offset` **efektif** ditulis sebagai scale/offset
+  GeoTIFF sehingga QGIS/GDAL dapat mengonversi: `reflektansi = DN × scale + offset`. Earth Search menandai scene
+  baseline ≥ 04.00 dengan `earthsearch:boa_offset_applied = true`: offset BOA (+1000) sudah dikurangkan dari DN,
+  walau `raster:bands.offset` di metadata masih −0,1. Aplikasi **mengabaikan** offset katalog itu (offset efektif 0)
+  dan mencatatnya di `band_details` (`offset_declared_in_catalog`). Dasarnya pengukuran pada data asli: median
+  B05 di tutupan vegetasi ≈ 880–960 pada scene 2021 (tanpa offset), 2022, dan 2024; bila offset −0,1 diterapkan
+  reflektansi hutan menjadi negatif. Katalog tanpa flag itu dipercaya sesuai metadatanya.
 - **Resampling eksplisit** (dicatat di metadata per band): `auto` = nearest saat resolusi keluaran lebih halus
   dari resolusi asli band (nilai asli tidak “dikarang”), average saat lebih kasar. Bisa diganti manual.
 - **Urutan band** mengikuti urutan pilihan pengguna. Preset RGB = `B04, B03, B02` (band 1–3 = R, G, B) agar
@@ -107,9 +112,9 @@ Dipisahkan tegas dari *cloud cover*: cloud cover katalog hanya menyaring scene; 
    untuk mengisi.
 3. **Komposit multi-tanggal** — pilih beberapa citra sebelumnya (maks 5); dipakai berurutan sesuai prioritas
    (urutan klik). Piksel yang tetap berawan di semua citra tetap **NoData** (0).
-4. **Harmonisasi radiometrik** — scene berbaseline pemrosesan berbeda memakai offset reflektansi berbeda
-   (mis. 2021: 0, 2022+: −0,1). DN citra pengisi dikonversi ke skala DN citra utama
-   (`reflektansi = DN × scale + offset`), bukan disalin mentah. Diverifikasi pada data asli.
+4. **Harmonisasi radiometrik** — DN citra pengisi dikonversi ke skala/offset **efektif** citra utama
+   (`reflektansi = DN × scale + offset`). Pada Earth Search semua offset efektif 0 sehingga DN disalin apa adanya;
+   konversi hanya aktif bila sumbernya berbeda (mis. data ESA mentah beroffset −0,1). Diuji terhadap data asli.
 5. **Peta QA** (`*_QA.tif`, uint8, nodata 255): `1` = citra utama bersih, `2…N+1` = diisi dari citra sebelumnya
    ke‑1…N, `254` = ter-mask tanpa pengganti, `255` = di luar AOI / tanpa data. Legenda ada di `metadata.json`.
 6. **Metadata** mencatat metode, kelas & kode SCL, dilasi, citra sebelumnya (id, tanggal, piksel terisi), dan statistik

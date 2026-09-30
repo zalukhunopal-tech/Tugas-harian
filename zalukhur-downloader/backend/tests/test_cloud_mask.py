@@ -279,3 +279,23 @@ def test_metadata_written_to_disk_matches(s2, tmp_path):
     on_disk = json.loads((tmp_path / "metadata.json").read_text())
     assert on_disk["cloud_masking"]["applied"] is True and on_disk["cloud_masking"]["dilate_m"] == 20
     assert on_disk["outputs"]["metadata"] == "metadata.json"
+
+
+def test_dilation_reaches_in_from_clouds_just_outside_the_aoi(s2, tmp_path):
+    """Awan tepat di luar AOI harus ikut melebar ke dalam AOI (margin dilasi di sekeliling grid)."""
+    from tests.conftest import utm_box_to_aoi
+    # AOI berakhir di kolom SCL 96; kotak awan (SCL 9) mulai di kolom 100 => celah 80 m
+    x0, x1 = ORIGIN[0] + 70 * 20, ORIGIN[0] + 96 * 20
+    y1, y0 = ORIGIN[1] - 110 * 20, ORIGIN[1] - 150 * 20
+    aoi = utm_box_to_aoi(x0, y0, x1, y1)
+    cur = s2["cur"]["item"]
+    reached = {}
+    for dil in (0, 40, 100):
+        req = DownloadRequest(scene_id=cur["id"], aoi=aoi, bands=["B04"], mask_to_aoi=False,
+                              cloud_mask={"enabled": True, "dilate_m": dil, "classes": ["cloud"]})
+        out = tmp_path / f"d{dil}"
+        crop.process_scene(cur, shape(aoi), req, out, SETTINGS)
+        with rasterio.open(out / "AOI_2026-09-25.tif") as ds:
+            reached[dil] = bool((ds.read(1)[:, -2:] == 0).any())   # 20 m terakhir di tepi kanan AOI
+    # 40 m (celah 80 m) belum sampai; 100 m menembus tepi AOI berkat margin dilasi
+    assert reached == {0: False, 40: False, 100: True}

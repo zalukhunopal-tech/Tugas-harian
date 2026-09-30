@@ -80,23 +80,26 @@ def read_masks(item: dict, grid: raster.Grid, classes: list[str], dilate_m: int,
     """
     work_res = min(grid.resolution, SCL_WORK_RES)
     factor = int(round(grid.resolution / work_res)) if grid.resolution > work_res else 1
-    if factor > 1:
-        t = grid.transform
-        work = raster.Grid(
-            crs=grid.crs, transform=Affine(work_res, 0, t.c, 0, -work_res, t.f),
-            width=grid.width * factor, height=grid.height * factor, resolution=work_res,
-        )
-    else:
-        work = grid
+    px = math.ceil(dilate_m / work_res) if dilate_m > 0 else 0
+    # Margin di sekeliling AOI: awan tepat di luar AOI juga harus ikut melebar (dilasi) ke dalamnya.
+    # Kelipatan `factor` agar reduksi blok 60 m tetap sejajar.
+    pad = math.ceil(px / factor) * factor if px else 0
+    t = grid.transform
+    work = raster.Grid(
+        crs=grid.crs,
+        transform=Affine(work_res, 0, t.c - pad * work_res, 0, -work_res, t.f + pad * work_res),
+        width=grid.width * factor + 2 * pad, height=grid.height * factor + 2 * pad, resolution=work_res,
+    )
 
     with rasterio.open(scl_href(item, settings)) as src, raster.open_warped(src, work, Resampling.nearest, SCL_NODATA) as vrt:
         scl = vrt.read(1)
 
     bad = np.isin(scl, bad_codes(classes))
     nodata = scl == SCL_NODATA
-    px = math.ceil(dilate_m / work_res) if dilate_m > 0 else 0
     if px:
         bad = dilate(bad, px)
+    if pad:
+        bad, nodata = bad[pad:-pad, pad:-pad], nodata[pad:-pad, pad:-pad]
     if factor > 1:
         h, w = grid.height, grid.width
         bad = bad.reshape(h, factor, w, factor).any(axis=(1, 3))

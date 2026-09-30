@@ -1,8 +1,9 @@
 """Verifikasi manual cloud masking + pengisian ke scene Sentinel-2 ASLI (butuh internet ke bucket publik).
 
 Scene utama 48MUB 2024-06-10 berawan; pengisi: 2024-06-05, 2024-06-03 (baseline sama) dan
-2021-06-06 (baseline 03.00, offset BOA 0 -> butuh harmonisasi). Piksel keluaran dibandingkan dengan
-pembacaan langsung dari COG sumber.
+2021-06-06 (baseline 03.00). Pada Earth Search DN ketiganya sudah bebas offset (offset BOA sudah dikurangkan;
+lihat app/services/assets.py), sehingga piksel pengisi harus SAMA PERSIS dengan DN sumber. Piksel keluaran
+dibandingkan dengan pembacaan langsung dari COG sumber.
 
     PYTHONPATH=. python scripts/verify_real_cloud_mask.py
 """
@@ -76,8 +77,8 @@ with rasterio.open(out / "AOI_2024-06-10.tif") as ds, rasterio.open(out / "AOI_2
         if not sel.any():
             print(f"  prev{i}: tidak dipakai"); continue
         pdn, poff = read_like(p, "B04", ds, None)
-        expect = pdn[sel] if poff == cur_off else np.rint((pdn[sel] * 1e-4 + poff - cur_off) / 1e-4)
-        print(f"  prev{i} ({p['id']}, offset {poff}): {sel.sum()} px terisi, nilai sesuai harmonisasi:", np.array_equal(got[sel], expect.astype('int64')))
+        print(f"  prev{i} ({p['id']}, offset katalog {poff}): {sel.sum()} px terisi, DN identik dgn sumber (tanpa geser offset):",
+              np.array_equal(got[sel], pdn[sel]))
     un = q == 254
     print("piksel tak terisi = NoData:", bool((got[un] == 0).all()), f"({un.sum()} px)")
     print("QA kode:", {int(v): int((q == v).sum()) for v in np.unique(q)})
