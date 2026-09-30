@@ -1,0 +1,13 @@
+backend/.venv
+backend/data
+backend/.e2e-data
+backend/.pytest_cache
+backend/tests
+backend/scripts
+**/__pycache__
+frontend/node_modules
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/e2e
+.env*

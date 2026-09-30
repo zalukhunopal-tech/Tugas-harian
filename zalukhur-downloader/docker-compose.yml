@@ -1,0 +1,15 @@
+# docker compose up --build   ->  http://localhost:8000
+services:
+  zalukhur:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - zalukhur-data:/data
+    environment:
+      # Ubah bila perlu (lihat README). Tidak ada rahasia yang dibutuhkan untuk Earth Search.
+      MAX_AOI_KM2: "2500"
+      JOB_WORKERS: "2"
+    restart: unless-stopped
+volumes:
+  zalukhur-data:

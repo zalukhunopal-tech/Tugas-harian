@@ -26,6 +26,37 @@ yang diunduh, bukan seluruh scene.
 
 Prasyarat: Python ≥ 3.11 dan Node ≥ 20. Rasterio/GDAL terpasang lewat wheel (tidak perlu GDAL sistem).
 
+**Cara tercepat (satu perintah, satu server)**
+
+```bash
+cd zalukhur-downloader
+./run.sh            # pasang dependensi + bangun UI (sekali), lalu buka http://127.0.0.1:8000
+```
+
+`./run.sh setup` hanya memasang; `./run.sh start` hanya menjalankan; `HOST`/`PORT` mengatur alamat.
+
+**Di web tanpa memasang apa pun: GitHub Codespaces** (URL privat, hanya akun GitHub Anda)
+
+1. Di GitHub, buka repositori → *Code* → *Codespaces* → *New with options…*.
+2. Pilih branch yang memuat folder `.devcontainer` dan konfigurasi **ZalukhuR Downloader**.
+3. Tunggu ±1–2 menit; aplikasi terbuka otomatis di tab baru (port 8000, privat). Log: `/tmp/zalukhur.log`.
+
+Katalog Sentinel diakses dari server Codespaces, jadi pencarian dan unduhan bekerja seperti di komputer sendiri.
+
+**Docker (hosting sendiri)**
+
+```bash
+docker compose up --build        # http://localhost:8000 ; hasil job di volume zalukhur-data
+# atau: docker build -t zalukhur-downloader . && docker run -p 8000:8000 -v zalukhur-data:/data zalukhur-downloader
+```
+
+Image yang sama bisa dipakai di Render/Railway/Fly (variabel `PORT` dihormati). **Sebelum membuka ke publik**: aplikasi
+belum punya autentikasi dan pembatasan laju, sementara tiap unduhan memakai CPU dan bandwidth server. Taruh di belakang
+reverse proxy dengan login atau batasi aksesnya. (Catatan: Dockerfile ditulis dan langkah-langkahnya diperiksa manual,
+tetapi image-nya belum pernah dibangun di lingkungan pengembangan ini karena tidak ada daemon Docker.)
+
+**Mode pengembangan (dua proses)**
+
 ```bash
 # Backend
 cd backend
@@ -39,7 +70,7 @@ npm install
 npm run dev                                          # http://localhost:5173 (proxy /api → :8000)
 ```
 
-Produksi satu server: `npm run build` lalu `FRONTEND_DIST=../frontend/dist uvicorn app.main:create_app --factory`.
+Produksi satu server tanpa skrip: `npm run build` lalu `FRONTEND_DIST=../frontend/dist uvicorn app.main:create_app --factory`.
 
 ### Konfigurasi (environment variable, hanya di backend)
 
@@ -200,7 +231,10 @@ katalog dan data Sentinel-2 sungguhan.
 ## Keterbatasan yang diketahui
 
 - Cloud masking hanya memakai SCL (akurasi SCL terbatas: awan tipis/bayangan kecil bisa lolos, permukaan terang bisa
-  terdeteksi sebagai awan). Perbedaan waktu antar citra pengisi berarti perubahan permukaan nyata (panen, banjir)
+  terdeteksi sebagai awan). Pada uji data asli, tambalan yang diisi dari tanggal lain
+  kadang tampak berkabut karena kabut tipis di citra pengisi tidak dikenali SCL (ditandai vegetasi). Pilih citra pengisi
+  yang bersih (lihat “di AOI %” pada daftar kandidat dan pratinjau) dan periksa peta QA; pemilihan otomatis hanya
+  memilih yang terdekat waktunya. Perbedaan waktu antar citra pengisi berarti perubahan permukaan nyata (panen, banjir)
   ikut terisi; periksa peta QA sebelum memakai hasil untuk analisis.
 - Tidak ada autentikasi/rate limiting; sebelum dibuka ke publik, pasang di belakang reverse proxy yang
   membatasi akses. Job disimpan di disk lokal (bukan object storage) dan status job di memori + `job.json`.

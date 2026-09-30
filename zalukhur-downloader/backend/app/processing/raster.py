@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass
 from typing import Iterator
 
@@ -15,8 +16,21 @@ from rasterio.vrt import WarpedVRT
 from rasterio.windows import Window
 from shapely.geometry.base import BaseGeometry
 
+def _ca_bundle_env() -> dict[str, str]:
+    """GDAL (libcurl di dalam wheel rasterio) tidak selalu menemukan bundel CA sistem, mis. di container
+    polos. Bila lingkungan tidak menyediakannya, pakai bundel certifi supaya HTTPS ke S3 tidak gagal."""
+    if any(os.environ.get(k) for k in ("CURL_CA_BUNDLE", "GDAL_HTTP_CAINFO", "SSL_CERT_FILE")):
+        return {}
+    try:
+        import certifi
+    except ImportError:  # pragma: no cover
+        return {}
+    return {"GDAL_HTTP_CAINFO": certifi.where()}
+
+
 # Opsi GDAL untuk membaca COG jarak jauh secara efisien (HTTP range request).
 GDAL_HTTP_ENV = {
+    **_ca_bundle_env(),
     "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
     "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": ".tif,.tiff",
     "GDAL_HTTP_MULTIPLEX": "YES",
