@@ -9,7 +9,35 @@ const shot = async (page: Page, name: string) => {
 // Scene sintetis (tile 12x12 km) berada di sekitar sini.
 const SCENE_BBOX = [103.19, -2.83, 103.32, -2.7];
 
+// Error konsol non-tile (mis. "Worker failed to load") harus nol di setiap skenario.
+const consoleErrors: string[] = [];
+test.beforeEach(() => { consoleErrors.length = 0; });
+test.afterEach(() => { expect(consoleErrors, "error konsol/halaman").toEqual([]); });
+
+/** Hitung piksel berwarna `rgb` (toleransi `tol`) pada gambar PNG, dengan mendekode di dalam halaman. */
+async function countColor(page: Page, png: Buffer, rgb: [number, number, number], tol = 30): Promise<number> {
+  return page.evaluate(async ({ b64, rgb, tol }) => {
+    const img = new Image();
+    img.src = "data:image/png;base64," + b64;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (Math.abs(d[i]! - rgb[0]) <= tol && Math.abs(d[i + 1]! - rgb[1]) <= tol && Math.abs(d[i + 2]! - rgb[2]) <= tol) n++;
+    }
+    return n;
+  }, { b64: png.toString("base64"), rgb, tol });
+}
+
 async function openAndFly(page: Page) {
+  page.on("pageerror", (e) => consoleErrors.push(e.message));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !/tile|Failed to load resource|AJAX|net::|NetworkError/i.test(m.text())) consoleErrors.push(m.text());
+  });
   await page.route("**/api/geocode*", (route) =>
     route.fulfill({ json: [{ name: "Lokasi uji", lat: -2.767, lon: 103.2548, bbox: SCENE_BBOX }] }),
   );
@@ -44,6 +72,12 @@ test("alur utama: gambar AOI → cari → preview → pilih → proses → unduh
   await expect(page.getByTestId("aoi-info")).toBeVisible();
   await expect(page.getByTestId("aoi-info")).toContainText("km²");
   await expect(page.getByTestId("aoi-info")).toContainText("EPSG:4326");
+
+  // Garis AOI (#0369a1) harus benar-benar tergambar di peta. Layer GeoJSON memakai worker MapLibre;
+  // bila worker gagal dimuat (404 pada build produksi) garis ini tidak muncul walau DOM tampak normal.
+  await page.waitForTimeout(1200);
+  const aoiPx = await countColor(page, await page.getByTestId("map").screenshot(), [3, 105, 161], 25);
+  expect(aoiPx, "piksel garis AOI di peta").toBeGreaterThan(300);
 
   // ---- Filter + cari
   await setDates(page, "2026-09-01", "2026-09-30");
