@@ -1,3 +1,4 @@
+import "../maplibre-worker";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Map as MapLibreMap, NavigationControl, ScaleControl, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
