@@ -1,4 +1,4 @@
-"""Preview citra (true color / false color) pada AOI, dirender di backend sebagai PNG."""
+"""Preview citra pada AOI (true/false color, NDVI/NDWI/NBR), dirender di backend sebagai PNG."""
 from __future__ import annotations
 
 import base64
@@ -9,22 +9,20 @@ from contextlib import ExitStack
 import numpy as np
 import rasterio
 from PIL import Image
-
-from app.bands import BANDS, PREVIEW_MODES
-from app.config import Settings
-from app.models.scene import CloudMaskOptions, PreviewResponse
 from rasterio.windows import Window
 
+from app.bands import PREVIEW_MODES
+from app.config import Settings
+from app.models.scene import CloudMaskOptions, PreviewResponse
+from app.processing import indices as idx_mod
 from app.processing import raster
-from app.processing.resampling import choose
 from app.services import aoi as aoi_svc
 from app.services import cloud_mask, composite
-from app.services.crop import _band_nodata, _band_scale_offset, asset_source, open_prev_readers, scene_grid
+from app.services.crop import scene_grid
+from app.services.scene_reader import SceneReader
 
 REFLECTANCE_MAX = 0.3  # peregangan tampilan: 0..0.3 -> 0..255
 GAMMA = 1 / 1.4
-
-
 MAGENTA = (255, 0, 255)
 
 
@@ -32,7 +30,8 @@ def render(
     item: dict, aoi_4326, mode: str, settings: Settings,
     cm: CloudMaskOptions | None = None, prev_items: list[dict] | None = None,
 ) -> PreviewResponse:
-    bands = PREVIEW_MODES[mode]
+    index = mode.upper() if mode.upper() in idx_mod.INDICES else None
+    bands = list(idx_mod.INDICES[index]["bands"]) if index else PREVIEW_MODES[mode]
     minx, miny, maxx, maxy = aoi_svc.project(aoi_4326, "EPSG:4326", aoi_svc.utm_epsg(*aoi_4326.centroid.coords[0])).bounds
     side = max(maxx - minx, maxy - miny)
     res = max(10, int(math.ceil(side / settings.preview_max_px / 10.0)) * 10)
@@ -40,35 +39,38 @@ def render(
     with rasterio.Env(**raster.GDAL_HTTP_ENV):
         grid, aoi_crs = scene_grid(item, aoi_4326, res, settings, max_pixels=10 * settings.preview_max_px**2)
         inside = raster.aoi_mask(aoi_crs, grid)
-        channels = []
-        valid = inside.copy()
 
         plan = None
         if cm is not None and cm.enabled:
             cur_masks = cloud_mask.read_masks(item, grid, cm.classes, cm.dilate_m, settings)
             plan = composite.plan(cur_masks, inside, (prev_items or []) if cm.fill_from_previous else [], grid,
                                   cm.classes, cm.dilate_m, settings)
-            valid &= ~cur_masks.nodata
 
-        full = slice(0, grid.height)
-        for band in bands:
-            href, asset = asset_source(item, band, settings)
-            scale, offset = _band_scale_offset(asset)
-            with ExitStack() as stack:
-                src = stack.enter_context(rasterio.open(href))
-                nodata = _band_nodata(asset, src)
-                _, method = choose(abs(src.res[0]), res, "auto")
-                vrt = stack.enter_context(raster.open_warped(src, grid, method, nodata))
-                dn = vrt.read(1)
-                readers = open_prev_readers(stack, plan, band, grid, res, "auto", scale, offset, settings)
-                whole = Window(0, 0, grid.width, grid.height)
-                dn = composite.apply(dn, plan, full, lambda k: readers[k](whole), int(nodata))
-            valid &= dn != nodata
-            refl = dn.astype("float32") * scale + offset
-            channels.append(np.clip(refl / REFLECTANCE_MAX, 0, 1) ** GAMMA)
+        whole = Window(0, 0, grid.width, grid.height)
+        with ExitStack() as stack:
+            reader = SceneReader(stack, item, bands, grid, res, "auto", plan, inside, settings)
+            dn = {b: reader.read(b, whole) for b in bands}
+        info = reader.info
 
-    rgb = (np.dstack(channels) * 255).astype("uint8")
+    valid = inside.copy()
+    for b in bands:
+        valid &= dn[b] != 0
+    if plan is not None:
+        valid &= ~plan.masks.nodata
+
+    if index:
+        b1, b2 = idx_mod.INDICES[index]["bands"]
+        vals = idx_mod.compute(index, dn[b1], dn[b2], (info[b1].scale, info[b1].offset), (info[b2].scale, info[b2].offset))
+        valid &= vals != idx_mod.NODATA
+        rgb = idx_mod.colorize(np.where(valid, vals, 0), index)
+    else:
+        chans = []
+        for b in bands:
+            refl = dn[b].astype("float32") * info[b].scale + info[b].offset
+            chans.append(np.clip(refl / REFLECTANCE_MAX, 0, 1) ** GAMMA)
+        rgb = (np.dstack(chans) * 255).astype("uint8")
     alpha = (valid * 255).astype("uint8")
+
     cloud_stats = None
     if plan is not None:
         # masih ter-mask dan tidak terisi -> magenta (akan menjadi NoData pada hasil unduhan)
@@ -76,9 +78,9 @@ def render(
         rgb[left] = MAGENTA
         alpha[left] = 200
         cloud_stats = plan.stats
-    img = Image.fromarray(np.dstack([rgb, alpha]), mode="RGBA")
+
     buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=False)
+    Image.fromarray(np.dstack([rgb, alpha]), mode="RGBA").save(buf, format="PNG")
 
     x0, y0, x1, y1 = grid.bounds  # minx, miny, maxx, maxy
     crs = grid.crs.to_string()

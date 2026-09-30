@@ -20,10 +20,14 @@ from app.config import Settings
 from app.errors import ProcessingError
 from app.models.scene import DownloadRequest
 from app.processing import metadata as meta_mod
+from app.processing import indices as idx_mod
 from app.processing import raster
 from app.processing.resampling import choose, describe
 from app.services import aoi as aoi_svc
+from app.services import change as change_svc
 from app.services import cloud_mask, composite
+from app.services.assets import asset_source, band_nodata, band_scale_offset
+from app.services.scene_reader import SceneReader
 from app.services.catalog import coverage_pct, item_to_scene
 
 ProgressFn = Callable[[str, float, str], None]
@@ -36,29 +40,6 @@ def _noop(*_a, **_k):  # pragma: no cover
 def safe_name(name: str | None) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", (name or "").strip()).strip("_")
     return cleaned[:40] or "AOI"
-
-
-def asset_source(item: dict, band: str, settings: Settings) -> tuple[str, dict]:
-    key = BANDS[band]["asset"]
-    asset = (item.get("assets") or {}).get(key)
-    if not asset or not asset.get("href"):
-        raise ProcessingError(f"Band {band} tidak tersedia pada scene {item.get('id')}.")
-    href: str = asset["href"]
-    if not href.startswith("https://") and not (settings.allow_local_assets and Path(href).exists()):
-        raise ProcessingError(f"Sumber data band {band} tidak valid.")
-    return href, asset
-
-
-def _band_scale_offset(asset: dict) -> tuple[float, float]:
-    rb = (asset.get("raster:bands") or [{}])[0]
-    return float(rb.get("scale", 1.0)), float(rb.get("offset", 0.0))
-
-
-def _band_nodata(asset: dict, src: rasterio.DatasetReader) -> float:
-    rb = (asset.get("raster:bands") or [{}])[0]
-    if rb.get("nodata") is not None:
-        return float(rb["nodata"])
-    return float(src.nodata) if src.nodata is not None else 0.0
 
 
 def scene_grid(item: dict, aoi_4326, resolution: int, settings: Settings, max_pixels: int) -> tuple[raster.Grid, Any]:
@@ -80,37 +61,15 @@ def scene_grid(item: dict, aoi_4326, resolution: int, settings: Settings, max_pi
     return grid, aoi_crs
 
 
-def open_prev_readers(
-    stack: ExitStack, plan: composite.FillPlan | None, band: str, grid: raster.Grid, res: int, requested: str,
-    cur_scale: float, cur_offset: float, settings: Settings,
-) -> dict[int, Callable[[Any], np.ndarray]]:
-    """Pembaca window band dari tiap citra sebelumnya (sudah diharmonisasi ke skala DN citra utama).
-
-    Dibuka hanya untuk citra yang benar-benar mengisi piksel, agar tidak mengunduh data yang tak terpakai.
-    """
-    readers: dict[int, Callable[[Any], np.ndarray]] = {}
-    if plan is None:
-        return readers
-    for pi, pitem in enumerate(plan.prev_items, start=1):
-        if plan.filled_count(pi) == 0:
-            continue
-        phref, passet = asset_source(pitem, band, settings)
-        psrc = stack.enter_context(rasterio.open(phref))
-        _, pmethod = choose(abs(psrc.res[0]), res, requested)
-        pvrt = stack.enter_context(raster.open_warped(psrc, grid, pmethod, _band_nodata(passet, psrc)))
-        pscale, poffset = _band_scale_offset(passet)
-        readers[pi] = lambda win, v=pvrt, ps=pscale, po=poffset: composite.harmonize(
-            v.read(1, window=win), ps, po, cur_scale, cur_offset
-        )
-    return readers
-
-
 def processing_tokens(req: DownloadRequest) -> list[str]:
     tokens = ["aoi_crop"] + (["aoi_polygon_mask"] if req.mask_to_aoi else [])
     cm = req.cloud_mask
     if cm.enabled:
-        n = len(cm.previous_scene_ids) if cm.fill_from_previous else 0
+        n = (len(cm.previous_scene_ids) or cm.auto_previous) if cm.fill_from_previous else 0
         tokens.append("cloud_mask_multi_date_composite" if n > 1 else "cloud_mask_previous_image" if n == 1 else "cloud_mask")
+    tokens += [f"index_{i}" for i in req.indices]
+    if req.change.enabled:
+        tokens.append(f"change_detection_{req.change.index}")
     return tokens
 
 
@@ -162,6 +121,43 @@ def _cloud_block(cm, plan: composite.FillPlan, qa_name: str | None, current_id: 
     }
 
 
+COG_OPTS = dict(
+    driver="COG", COMPRESS="DEFLATE", PREDICTOR="YES", BLOCKSIZE=256, OVERVIEW_RESAMPLING="AVERAGE",
+    BIGTIFF="IF_SAFER", NUM_THREADS="ALL_CPUS",
+)
+
+
+def _finalize(stage: Path, stem: str, formats: list[str], outputs: dict[str, str], key: str, cog_key: str) -> None:
+    """GeoTIFF sementara -> GeoTIFF dan/atau COG sesuai format yang diminta."""
+    if "cog" in formats:
+        cog = stage.with_name(f"{stem}_COG.tif")
+        rio_copy(stage, cog, **COG_OPTS)
+        outputs[cog_key] = cog.name
+    if "geotiff" in formats:
+        outputs[key] = stage.name
+    else:
+        stage.unlink(missing_ok=True)
+
+
+def _float_profile(grid: raster.Grid) -> dict[str, Any]:
+    return dict(
+        driver="GTiff", dtype="float32", count=1, crs=grid.crs, transform=grid.transform, width=grid.width,
+        height=grid.height, nodata=float(idx_mod.NODATA), compress="deflate", predictor=3, tiled=True,
+        blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER",
+    )
+
+
+def needed_bands(req: DownloadRequest) -> list[str]:
+    """Band yang dibaca: yang diminta pengguna + band sumber indeks/perubahan (urutan stabil)."""
+    out = list(req.bands)
+    names = list(req.indices) + ([req.change.index] if req.change.enabled else [])
+    for name in names:
+        for b in idx_mod.INDICES[name]["bands"]:
+            if b not in out:
+                out.append(b)
+    return out
+
+
 def process_scene(
     item: dict,
     aoi_4326,
@@ -171,8 +167,9 @@ def process_scene(
     progress: ProgressFn = _noop,
     aoi_info: dict | None = None,
     prev_items: list[dict] | None = None,
+    ref_item: dict | None = None,
 ) -> dict[str, Any]:
-    """Jalankan crop (+ cloud masking / pengisian dari citra sebelumnya bila diminta) untuk satu scene.
+    """Crop AOI satu scene + (opsional) cloud masking/pengisian, indeks spektral, dan deteksi perubahan.
 
     Mengembalikan metadata (dict) dan menulis berkas ke out_dir.
     """
@@ -180,9 +177,11 @@ def process_scene(
     scene = item_to_scene(item, aoi_4326)
     res = req.resolution
     base = f"{safe_name(req.name)}_{scene.date.isoformat()}"
-    tif_path = out_dir / f"{base}.tif"
-    cog_path = out_dir / f"{base}_COG.tif"
-    want_tif, want_cog = "geotiff" in req.formats, "cog" in req.formats
+    cm, chg = req.cloud_mask, req.change
+    if chg.enabled and ref_item is None:
+        raise ProcessingError("Citra referensi untuk deteksi perubahan tidak tersedia.")
+    ref_scene = item_to_scene(ref_item) if chg.enabled else None
+    nodata_out = 0
 
     with rasterio.Env(**raster.GDAL_HTTP_ENV):
         progress("DOWNLOADING", 0.02, "Menyiapkan grid AOI")
@@ -190,8 +189,8 @@ def process_scene(
         mask = raster.aoi_mask(aoi_crs, grid) if req.mask_to_aoi else np.ones(grid.shape, dtype=bool)
         inside_px = int(mask.sum())
 
-        cm = req.cloud_mask
         plan: composite.FillPlan | None = None
+        ref_plan: composite.FillPlan | None = None
         if cm.enabled:
             progress("PROCESSING", 0.08, "Membaca SCL dan mendeteksi awan")
             cur_masks = cloud_mask.read_masks(item, grid, cm.classes, cm.dilate_m, settings)
@@ -200,75 +199,141 @@ def process_scene(
                 settings,
                 on_prev=lambda i, n: progress("PROCESSING", 0.1 + 0.2 * i / n, f"Membaca citra sebelumnya {i}/{n}"),
             )
+            if chg.enabled:  # citra referensi di-mask dengan aturan yang sama (tanpa pengisian)
+                progress("PROCESSING", 0.3, "Mendeteksi awan pada citra referensi")
+                ref_masks = cloud_mask.read_masks(ref_item, grid, cm.classes, cm.dilate_m, settings)
+                ref_plan = composite.plan(ref_masks, mask, [], grid, cm.classes, cm.dilate_m, settings)
 
+        bands_needed = needed_bands(req)
+        idx_names = list(dict.fromkeys(list(req.indices) + ([chg.index] if chg.enabled else [])))
+        outputs: dict[str, str] = {}
         band_info: list[dict[str, Any]] = []
-        nodata_out = 0
-        profile = dict(
-            driver="GTiff", dtype="uint16", count=len(req.bands), crs=grid.crs, transform=grid.transform,
-            width=grid.width, height=grid.height, nodata=nodata_out, compress="deflate", predictor=2,
-            tiled=True, blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER",
-        )
-        stage_path = tif_path  # GeoTIFF sementara dipakai juga sebagai sumber COG
-        with rasterio.open(stage_path, "w", **profile) as dst:
-            for i, band in enumerate(req.bands, start=1):
-                progress("CROPPING", 0.3 + 0.55 * (i - 1) / len(req.bands), f"Memotong {band} ({i}/{len(req.bands)})")
-                href, asset = asset_source(item, band, settings)
-                scale, offset = _band_scale_offset(asset)
-                with ExitStack() as stack:
-                    src = stack.enter_context(rasterio.open(href))
-                    native = float(abs(src.res[0]))
-                    src_nodata = _band_nodata(asset, src)
-                    method_name, method = choose(native, res, req.resampling)
-                    vrt = stack.enter_context(raster.open_warped(src, grid, method, src_nodata))
+        products: dict[str, Any] = {}
+        valid_px = {b: 0 for b in req.bands}
+        idx_stats = {n: idx_mod.Stats() for n in idx_names}
+        chg_stats = change_svc.ChangeStats()
 
-                    prev_readers = open_prev_readers(stack, plan, band, grid, res, req.resampling, scale, offset, settings)
+        main_path = out_dir / f"{base}.tif"
+        idx_paths = {n: out_dir / f"{base}_{n}.tif" for n in req.indices}
+        ref_tag = ref_scene.date.isoformat() if ref_scene else ""
+        d_path = out_dir / f"{base}_d{chg.index}_vs_{ref_tag}.tif"
+        c_path = out_dir / f"{base}_change_{chg.index}_vs_{ref_tag}.tif"
 
-                    valid_px = 0
-                    for win in raster.strips(grid.width, grid.height):
-                        data = vrt.read(1, window=win)
-                        r0, r1 = int(win.row_off), int(win.row_off + win.height)
-                        data = composite.apply(data, plan, slice(r0, r1), lambda k, w=win: prev_readers[k](w), nodata_out)
-                        data = np.where(mask[r0:r1], data, nodata_out).astype("uint16")
-                        valid_px += int(np.count_nonzero(data != nodata_out))
-                        dst.write(data, i, window=win)
-                dst.set_band_description(i, band)
-                band_info.append({
-                    "name": band,
-                    "asset": BANDS[band]["asset"],
-                    "label": BANDS[band]["label"],
-                    "native_resolution_m": native,
-                    "resampling": describe(native, res, method_name),
-                    "scale": scale,
-                    "offset": offset,
-                    "valid_pixel_pct": round(100 * valid_px / max(inside_px, 1), 2),
-                })
-            dst.scales = tuple(b["scale"] for b in band_info)
-            dst.offsets = tuple(b["offset"] for b in band_info)
-            dst.update_tags(
-                SATELLITE="Sentinel-2", PRODUCT_LEVEL="L2A", SCENE_ID=scene.id,
-                ACQUISITION_DATE=scene.date.isoformat(), CLOUD_COVER=str(scene.cloud_cover),
-                PROCESSING="+".join(processing_tokens(req)),
-                RESAMPLING=",".join(f"{b['name']}:{b['resampling']}" for b in band_info),
-                REFLECTANCE="reflectance = DN * scale + offset",
-            )
+        with ExitStack() as stack:
+            cur = SceneReader(stack, item, bands_needed, grid, res, req.resampling, plan, mask, settings)
+            ref_bands = list(idx_mod.INDICES[chg.index]["bands"]) if chg.enabled else []
+            ref = SceneReader(stack, ref_item, ref_bands, grid, res, req.resampling, ref_plan, mask, settings) if chg.enabled else None
+
+            dst = None
+            if req.bands:
+                dst = stack.enter_context(rasterio.open(main_path, "w", **dict(
+                    driver="GTiff", dtype="uint16", count=len(req.bands), crs=grid.crs, transform=grid.transform,
+                    width=grid.width, height=grid.height, nodata=nodata_out, compress="deflate", predictor=2,
+                    tiled=True, blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER")))
+                for i, b in enumerate(req.bands, start=1):
+                    dst.set_band_description(i, b)
+                dst.scales = tuple(cur.info[b].scale for b in req.bands)
+                dst.offsets = tuple(cur.info[b].offset for b in req.bands)
+                dst.update_tags(
+                    SATELLITE="Sentinel-2", PRODUCT_LEVEL="L2A", SCENE_ID=scene.id,
+                    ACQUISITION_DATE=scene.date.isoformat(), CLOUD_COVER=str(scene.cloud_cover),
+                    PROCESSING="+".join(processing_tokens(req)),
+                    RESAMPLING=",".join(f"{b}:{cur.info[b].method_name}" for b in req.bands),
+                    REFLECTANCE="reflectance = DN * scale + offset",
+                )
+            idx_dst = {}
+            for n, path in idx_paths.items():
+                d = stack.enter_context(rasterio.open(path, "w", **_float_profile(grid)))
+                d.set_band_description(1, n)
+                d.update_tags(INDEX=n, FORMULA=idx_mod.INDICES[n]["formula"], SCENE_ID=scene.id,
+                              ACQUISITION_DATE=scene.date.isoformat(),
+                              NOTE="dihitung dari reflektansi (DN*scale+offset), negatif dipotong 0; NoData=-9999")
+                idx_dst[n] = d
+            d_dst = c_dst = None
+            if chg.enabled:
+                d_dst = stack.enter_context(rasterio.open(d_path, "w", **_float_profile(grid)))
+                d_dst.set_band_description(1, f"d{chg.index}")
+                d_dst.update_tags(CHANGE=f"{chg.index} {scene.date} - {chg.index} {ref_tag}", SCENE_ID=scene.id,
+                                  REFERENCE_SCENE_ID=ref_scene.id)
+                c_prof = _float_profile(grid) | dict(dtype="uint8", nodata=change_svc.CLASS_NODATA, predictor=2)
+                c_dst = stack.enter_context(rasterio.open(c_path, "w", **c_prof))
+                c_dst.set_band_description(1, f"change_{chg.index}")
+                c_dst.update_tags(CLASSES="; ".join(f"{k}={v}" for k, v in change_svc.CLASS_LEGEND.items()),
+                                  THRESHOLD=str(chg.threshold))
+
+            wins = list(raster.strips(grid.width, grid.height))
+            for k, win in enumerate(wins):
+                progress("CROPPING", 0.35 + 0.5 * k / len(wins), f"Memotong dan menghitung ({k + 1}/{len(wins)})")
+                arrays = {b: cur.read(b, win) for b in bands_needed}
+                if dst is not None:
+                    for i, b in enumerate(req.bands, start=1):
+                        dst.write(arrays[b], i, window=win)
+                        valid_px[b] += int(np.count_nonzero(arrays[b] != nodata_out))
+                idx_vals: dict[str, np.ndarray] = {}
+                for n in idx_names:
+                    b1, b2 = idx_mod.INDICES[n]["bands"]
+                    idx_vals[n] = idx_mod.compute(n, arrays[b1], arrays[b2],
+                                                  (cur.info[b1].scale, cur.info[b1].offset),
+                                                  (cur.info[b2].scale, cur.info[b2].offset))
+                    idx_stats[n].add(idx_vals[n])
+                for n, d in idx_dst.items():
+                    d.write(idx_vals[n], 1, window=win)
+                if chg.enabled and ref is not None:
+                    b1, b2 = idx_mod.INDICES[chg.index]["bands"]
+                    ra, rb = ref.read(b1, win), ref.read(b2, win)
+                    ref_idx = idx_mod.compute(chg.index, ra, rb, (ref.info[b1].scale, ref.info[b1].offset),
+                                              (ref.info[b2].scale, ref.info[b2].offset))
+                    diff = change_svc.difference(idx_vals[chg.index], ref_idx)
+                    cls = change_svc.classify(diff, chg.threshold)
+                    chg_stats.add(diff, cls)
+                    d_dst.write(diff, 1, window=win)
+                    c_dst.write(cls, 1, window=win)
+
+        for b in req.bands:
+            i = cur.info[b]
+            band_info.append({
+                "name": b, "asset": BANDS[b]["asset"], "label": BANDS[b]["label"],
+                "native_resolution_m": i.native_res, "resampling": i.method_name,
+                "scale": i.scale, "offset": i.offset,
+                "valid_pixel_pct": round(100 * valid_px[b] / max(inside_px, 1), 2),
+            })
 
         progress("GENERATING", 0.9, "Menulis keluaran")
-        outputs: dict[str, str] = {}
         qa_name = None
         if plan is not None and cm.include_qa:
             qa_name = f"{base}_QA.tif"
             _write_qa(out_dir / qa_name, plan, grid)
             outputs["qa"] = qa_name
-        if want_cog:
-            rio_copy(
-                stage_path, cog_path, driver="COG", COMPRESS="DEFLATE", PREDICTOR="YES",
-                BLOCKSIZE=256, OVERVIEW_RESAMPLING="AVERAGE", BIGTIFF="IF_SAFER", NUM_THREADS="ALL_CPUS",
-            )
-            outputs["cog"] = cog_path.name
-        if want_tif:
-            outputs["geotiff"] = tif_path.name
-        else:
-            stage_path.unlink(missing_ok=True)
+        if req.bands:
+            _finalize(main_path, base, req.formats, outputs, "geotiff", "cog")
+
+        for n in req.indices:
+            _finalize(idx_paths[n], f"{base}_{n}", req.formats, outputs, f"index_{n}", f"index_{n}_cog")
+        if req.indices:
+            products["indices"] = [{
+                "name": n, "label": idx_mod.INDICES[n]["label"], "formula": idx_mod.INDICES[n]["formula"],
+                "bands": list(idx_mod.INDICES[n]["bands"]), "dtype": "float32", "nodata": float(idx_mod.NODATA),
+                "range": [-1, 1], "reflectance_negative_clipped_to_zero": True,
+                "source_scale_offset": {b: [cur.info[b].scale, cur.info[b].offset] for b in idx_mod.INDICES[n]["bands"]},
+                "statistics": idx_stats[n].result(inside_px),
+                "files": {k: v for k, v in outputs.items() if k in (f"index_{n}", f"index_{n}_cog")},
+            } for n in req.indices]
+
+        if chg.enabled:
+            _finalize(d_path, d_path.stem, req.formats, outputs, f"change_delta_{chg.index}", f"change_delta_{chg.index}_cog")
+            _finalize(c_path, c_path.stem, req.formats, outputs, f"change_class_{chg.index}", f"change_class_{chg.index}_cog")
+            products["change_detection"] = {
+                "index": chg.index, "formula": idx_mod.INDICES[chg.index]["formula"],
+                "delta": f"{chg.index}(utama {scene.date}) - {chg.index}(referensi {ref_tag})",
+                "note": "Untuk dNBR luka bakar klasik (pre - post), balik tandanya: dNBR = -delta.",
+                "threshold": chg.threshold,
+                "current_scene": scene.id, "reference_scene": {"id": ref_scene.id, "date": ref_tag,
+                                                               "tile": ref_scene.tile, "cloud_cover": ref_scene.cloud_cover},
+                "reference_cloud_masked": cm.enabled,
+                "class_legend": change_svc.CLASS_LEGEND,
+                "statistics": chg_stats.result(res, inside_px),
+                "files": {k: v for k, v in outputs.items() if k.startswith(f"change_") and f"_{chg.index}" in k},
+            }
 
         meta = meta_mod.build(
             scene={"id": scene.id, "platform": scene.platform, "tile": scene.tile, "date": scene.date.isoformat(),
@@ -285,6 +350,7 @@ def process_scene(
             catalog_url=f"{settings.stac_url}/collections/{settings.stac_collection}/items/{scene.id}",
             processing=processing_tokens(req),
             cloud_masking=_cloud_block(cm, plan, qa_name, scene.id) if plan is not None else None,
+            products=products or None,
         )
         meta_path = out_dir / "metadata.json"
         meta_mod.write(meta_path, meta)

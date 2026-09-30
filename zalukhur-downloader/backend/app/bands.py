@@ -34,5 +34,6 @@ PREVIEW_MODES: dict[str, list[str]] = {
     "true_color": ["B04", "B03", "B02"],
     "false_color": ["B08", "B04", "B03"],
 }
+PREVIEW_INDEX_MODES = ("ndvi", "ndwi", "nbr")
 
 RESAMPLING_METHODS = ("auto", "nearest", "bilinear", "cubic", "average")

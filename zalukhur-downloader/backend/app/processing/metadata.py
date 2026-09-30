@@ -35,6 +35,7 @@ def build(
     catalog_url: str,
     processing: list[str] | None = None,
     cloud_masking: dict[str, Any] | None = None,
+    products: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     processing = processing or ["aoi_crop"] + (["aoi_polygon_mask"] if mask_to_aoi else [])
     methods = {b["name"]: b["resampling"] for b in bands}
@@ -65,6 +66,7 @@ def build(
         "processing": processing,
         "cloud_masking": cloud_masking or "not_applied",
         "reflectance_formula": "reflectance = DN * scale + offset (lihat band_details)",
+        "products": products or {},
         "outputs": outputs,
         "source": {
             "catalog": catalog_url,
