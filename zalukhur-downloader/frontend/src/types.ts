@@ -63,6 +63,8 @@ export interface CloudMaskOptions {
   dilate_m: number;
   fill_from_previous: boolean;
   previous_scene_ids: string[];
+  auto_previous: number;
+  auto_lookback_days: number;
   include_qa: boolean;
 }
 
@@ -84,7 +86,8 @@ export interface AoiCloudStat {
   error: string | null;
 }
 
-export type PreviewMode = "true_color" | "false_color";
+export type PreviewMode = "true_color" | "false_color" | "ndvi" | "ndwi" | "nbr";
+export type IndexName = "NDVI" | "NDWI" | "NBR";
 
 export interface AppConfig {
   max_aoi_km2: number;
@@ -94,6 +97,8 @@ export interface AppConfig {
   resolutions: number[];
   resampling: string[];
   mask_classes: Record<MaskClass, string>;
+  indices: Record<IndexName, { label: string; formula: string; bands: string[] }>;
+  max_batch: number;
 }
 
 export type JobStatus = "QUEUED" | "DOWNLOADING" | "PROCESSING" | "CROPPING" | "GENERATING" | "COMPLETED" | "FAILED";
@@ -108,8 +113,30 @@ export interface Job {
   scene_id: string | null;
 }
 
+export interface ChangeOptions {
+  enabled: boolean;
+  index: IndexName;
+  reference_scene_id: string | null;
+  threshold: number;
+}
+
+export type BatchStatus = "RUNNING" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "FAILED";
+
+export interface Batch {
+  id: string;
+  status: BatchStatus;
+  total: number;
+  completed: number;
+  failed: number;
+  progress: number;
+  jobs: Job[];
+  zip_url: string | null;
+}
+
 export interface DownloadOptions {
   bands: string[];
+  indices: IndexName[];
+  change: ChangeOptions;
   resolution: number;
   formats: ("geotiff" | "cog")[];
   mask_to_aoi: boolean;

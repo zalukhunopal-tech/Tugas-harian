@@ -284,3 +284,129 @@ test("mask saja: piksel awan menjadi NoData dan tercatat di metadata", async ({ 
   expect(meta.cloud_masking.statistics.filled_pct).toBe(0);
   expect(meta.cloud_masking.statistics.unfilled_masked_pct).toBe(meta.cloud_masking.statistics.masked_pct);
 });
+
+// ============================================================ tahap 3: indeks, perubahan, batch
+
+async function fileLinks(page: Page) {
+  const links = await page.getByTestId("files").getByRole("link").evaluateAll((els) => els.map((e) => [e.textContent, (e as HTMLAnchorElement).href]));
+  return links.map(([t, h]) => [(t ?? "").replace("⬇", "").trim(), h!] as const);
+}
+
+test("indeks NDVI: preview berlegenda dan keluaran Float32 dengan statistik", async ({ page, request }) => {
+  await selectSceneWithAoi(page, 0);
+
+  // preview NDVI (mode + legenda)
+  await page.getByRole("radio", { name: "NDVI", exact: true }).click();
+  await expect(page.getByTestId("legend")).toBeVisible();
+  const resp = page.waitForResponse((r) => r.url().includes("/api/scenes/preview") && r.status() === 200);
+  await page.getByTestId("scene-card").first().getByRole("button", { name: "Preview" }).click();
+  expect((await (await resp).json()).mode).toBe("ndvi");
+  await page.waitForTimeout(500);
+  await shot(page, "5-ndvi");
+
+  // keluaran: hanya indeks (tanpa band)
+  await page.getByRole("button", { name: "Tanpa band" }).click();
+  await expect(page.getByTestId("output-problem")).toHaveText("Pilih minimal satu band, indeks, atau deteksi perubahan.");
+  await expect(page.getByTestId("start-download")).toBeDisabled();
+  await page.getByTestId("indices").getByRole("checkbox", { name: /NDVI/ }).check();
+  await expect(page.getByTestId("output-problem")).toHaveCount(0);
+  await page.getByTestId("start-download").click();
+  await expect(page.getByTestId("job")).toHaveAttribute("data-status", "COMPLETED", { timeout: 60_000 });
+  const names = (await fileLinks(page)).map((l) => l[0]).sort();
+  expect(names).toEqual(["AOI_2026-09-25_NDVI.tif", "AOI_2026-09-25_NDVI_COG.tif", "metadata.json"]);
+  const meta = await (await request.get((await fileLinks(page)).find((l) => l[0] === "metadata.json")![1])).json();
+  const nd = meta.products.indices[0];
+  expect(nd.name).toBe("NDVI");
+  expect(nd.statistics.mean).toBeGreaterThan(-1);
+  expect(nd.statistics.mean).toBeLessThan(1);
+  expect(nd.statistics.valid_pct).toBeGreaterThan(50);
+  expect(meta.bands).toEqual([]);
+});
+
+test("deteksi perubahan: referensi wajib, peringatan tanpa mask, keluaran & luas per kelas", async ({ page, request }) => {
+  await selectSceneWithAoi(page, 0);
+  const box = page.getByTestId("changebox");
+  await box.getByLabel("Bandingkan dengan citra yang lebih lama").check();
+  await expect(page.getByTestId("ref-candidate")).toHaveCount(3);
+  await expect(page.getByTestId("output-problem")).toHaveText("Pilih citra referensi (lebih lama) untuk deteksi perubahan.");
+  await expect(page.getByTestId("start-download")).toBeDisabled();
+  await expect(box).toContainText("Cloud masking mati"); // awan terbaca sebagai perubahan bila tidak di-mask
+
+  await page.getByTestId("cloudmask").getByLabel("Aktifkan mask dari SCL").check();
+  await expect(box).not.toContainText("Cloud masking mati");
+  await page.getByTestId("ref-candidate").nth(1).click();          // 13 Sep
+  await expect(page.getByTestId("ref-candidate").nth(1)).toHaveAttribute("aria-checked", "true");
+  await box.getByLabel("Ambang perubahan").fill("0.15");
+  await page.getByTestId("start-download").click();
+  await expect(page.getByTestId("job")).toHaveAttribute("data-status", "COMPLETED", { timeout: 60_000 });
+
+  const links = await fileLinks(page);
+  const names = links.map((l) => l[0]);
+  expect(names).toContain("AOI_2026-09-25_change_NDVI_vs_2026-09-13.tif");
+  expect(names).toContain("AOI_2026-09-25_dNDVI_vs_2026-09-13.tif");
+  const meta = await (await request.get(links.find((l) => l[0] === "metadata.json")![1])).json();
+  const cd = meta.products.change_detection;
+  expect(cd).toMatchObject({ index: "NDVI", threshold: 0.15, reference_cloud_masked: true });
+  expect(cd.reference_scene.date).toBe("2026-09-13");
+  const c = cd.statistics.classes;
+  const pct = c.decrease.pct_of_valid + c.stable.pct_of_valid + c.increase.pct_of_valid;
+  expect(pct).toBeGreaterThan(99.8);
+  expect(pct).toBeLessThan(100.2);
+  expect(c.stable.area_ha).toBeGreaterThan(0);
+});
+
+test("batch: satu job per scene, kegagalan terisolasi, ZIP hasil", async ({ page, request }) => {
+  await openAndFly(page);
+  await page.getByTestId("aoi-file").setInputFiles({ name: "aoi.geojson", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(CLOUD_AOI)) });
+  await expect(page.getByTestId("aoi-info")).toContainText("AOI poligon");
+  await setDates(page, "2026-09-01", "2026-09-30");
+  await page.getByLabel("Cloud cover kustom (%)").fill("100");
+  await page.getByTestId("search").click();
+  await expect(page.getByTestId("scene-count")).toHaveText("4");
+
+  await page.getByRole("button", { name: /Pilih semua/ }).click();
+  await expect(page.getByTestId("batch-count")).toHaveText("Batch: 4 dipilih");
+  await expect(page.getByTestId("batch-info")).toContainText("4 scene");
+  // mode batch tidak menawarkan pemilihan manual maupun deteksi perubahan
+  await expect(page.getByTestId("changebox")).toHaveCount(0);
+
+  const cm = page.getByTestId("cloudmask");
+  await cm.getByLabel("Aktifkan mask dari SCL").check();
+  await cm.getByLabel("Isi piksel ter-mask dari citra sebelumnya").check();
+  const sel = cm.getByLabel("Pemilihan citra sebelumnya");
+  await expect(sel.locator("option[value='0']")).toHaveCount(0);       // manual tak tersedia di batch
+  await expect(sel).toHaveValue("1");                                    // otomatis 1 terdekat
+  await page.getByRole("button", { name: "RGB", exact: true }).click();
+  await page.getByTestId("indices").getByRole("checkbox", { name: /NDVI/ }).check();
+  await expect(page.getByTestId("start-download")).toHaveText("Proses batch (4 scene)");
+  await page.getByTestId("start-download").click();
+
+  // 8 Sep tidak punya pendahulu -> gagal; tiga lainnya selesai
+  await expect(page.getByTestId("batch")).toHaveAttribute("data-status", "COMPLETED_WITH_ERRORS", { timeout: 90_000 });
+  const jobs = page.getByTestId("batch-job");
+  await expect(jobs).toHaveCount(4);
+  await expect(page.locator("[data-testid=batch-job][data-status=COMPLETED]")).toHaveCount(3);
+  await expect(page.locator("[data-testid=batch-job][data-status=FAILED]")).toHaveCount(1);
+  await expect(page.locator("[data-testid=batch-job][data-status=FAILED]")).toContainText("Citra sebelumnya tidak tersedia");
+  await shot(page, "6-batch");
+
+  const href = await page.getByTestId("batch-zip").getAttribute("href");
+  const zip = await request.get(href!);
+  expect(zip.status()).toBe(200);
+  const names = (await zip.body()).toString("latin1");            // ZIP tanpa kompresi: nama berkas terbaca
+  for (const [id, d] of [["S2A_48MUB_20260925_0_L2A", "2026-09-25"], ["S2B_48MUB_20260918_0_L2A", "2026-09-18"], ["S2A_48MUB_20260913_0_L2A", "2026-09-13"]]) {
+    expect(names).toContain(`${id}/AOI_${d}.tif`);
+    expect(names).toContain(`${id}/AOI_${d}_NDVI.tif`);
+  }
+  expect(names).not.toContain("S2A_48MUB_20260908_0_L2A/");        // scene yang gagal tidak ada di ZIP
+});
+
+test("batch dikosongkan -> kembali ke mode unduh satu scene", async ({ page }) => {
+  await selectSceneWithAoi(page, 0);
+  await page.getByTestId("scene-card").nth(1).getByLabel(/^Batch/).check();
+  await expect(page.getByTestId("batch-info")).toBeVisible();
+  await page.getByRole("button", { name: "Kosongkan" }).click();
+  await expect(page.getByTestId("batch-info")).toHaveCount(0);
+  await expect(page.getByTestId("changebox")).toBeVisible();
+  await expect(page.getByTestId("start-download")).toHaveText("Proses & unduh");
+});

@@ -7,6 +7,7 @@ import GeocodeBox from "./components/GeocodeBox";
 import MapView, { type Basemap, type FitRequest } from "./components/MapView";
 import SceneList from "./components/SceneList";
 import { defaultFilters, resolveRange, type DateFilters } from "./lib/dates";
+import { toggleBatch } from "./lib/indices";
 import type { AOIInfo, AppConfig, CloudMaskOptions, DrawMode, Geometry, PreviewMode, PreviewResponse, Scene, SearchResponse } from "./types";
 
 type PointSource = { lat: number; lon: number } | null;
@@ -39,6 +40,7 @@ export default function App() {
   const [preview, setPreview] = useState<{ sceneId: string; data: PreviewResponse } | null>(null);
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [batchIds, setBatchIds] = useState<string[]>([]);
 
   useEffect(() => {
     api.config().then(setConfig).catch((e: Error) => setConfigError(e.message));
@@ -50,6 +52,7 @@ export default function App() {
     setPreview(null);
     setSearchError(null);
     setPreviewError(null);
+    setBatchIds([]);
   }, []);
 
   // Menerapkan AOI baru: hanya hasil permintaan terakhir yang dipakai
@@ -114,6 +117,7 @@ export default function App() {
     setSearchError(null);
     setSelected(null);
     setPreview(null);
+    setBatchIds([]);
     try {
       setResult(
         await api.search({ aoi: aoi.geometry, start_date: range.start, end_date: range.end, max_cloud_cover: cloud, limit: range.limit }),
@@ -157,6 +161,10 @@ export default function App() {
   const previewMask = async (cm: CloudMaskOptions) => {
     if (selected) await loadPreview(selected, previewMode, cm);
   };
+
+  const order = result?.scenes.map((s) => s.id) ?? [];
+  const maxBatch = config?.max_batch ?? 20;
+  const batchScenes = (result?.scenes ?? []).filter((s) => batchIds.includes(s.id));
 
   const canSearch = !!aoi && !("error" in range) && !searching;
 
@@ -215,15 +223,21 @@ export default function App() {
           onPreview={togglePreview}
           onSelect={setSelected}
           previewError={previewError}
+          batchIds={batchIds}
+          maxBatch={maxBatch}
+          onToggleBatch={(s) => setBatchIds((cur) => toggleBatch(cur, s.id, order, maxBatch))}
+          onBatchAll={() => setBatchIds(order.slice(0, maxBatch))}
+          onBatchNone={() => setBatchIds([])}
         />
 
-        {selected && aoi && config && <DownloadPanel
+        {(selected || batchScenes.length > 0) && aoi && config && <DownloadPanel
             config={config}
             scene={selected}
+            batchScenes={batchScenes}
             aoi={aoi}
             onPreviewMask={previewMask}
-            previewing={previewLoading === selected.id}
-            previewStats={preview?.sceneId === selected.id ? preview.data.cloud : null}
+            previewing={!!selected && previewLoading === selected.id}
+            previewStats={selected && preview?.sceneId === selected.id ? preview.data.cloud : null}
           />}
 
         <footer className="foot">

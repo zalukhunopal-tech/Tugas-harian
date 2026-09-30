@@ -1,4 +1,5 @@
 import { formatDate } from "../lib/dates";
+import { cssGradient, INDEX_HINT, previewIndex } from "../lib/indices";
 import type { PreviewMode, SearchResponse, Scene } from "../types";
 
 interface Props {
@@ -11,6 +12,11 @@ interface Props {
   onPreview: (s: Scene) => void;
   onSelect: (s: Scene) => void;
   previewError: string | null;
+  batchIds: string[];
+  maxBatch: number;
+  onToggleBatch: (s: Scene) => void;
+  onBatchAll: () => void;
+  onBatchNone: () => void;
 }
 
 export default function SceneList(p: Props) {
@@ -31,18 +37,39 @@ export default function SceneList(p: Props) {
       {r.truncated && <p className="msg info">Hasil dibatasi. Persempit rentang tanggal untuk melihat semua scene.</p>}
 
       {r.count > 0 && (
-        <div className="seg small" role="radiogroup" aria-label="Mode preview">
-          {(
-            [
-              ["true_color", "True color"],
-              ["false_color", "False color"],
-            ] as const
-          ).map(([m, label]) => (
-            <button key={m} type="button" role="radio" aria-checked={p.previewMode === m} className={p.previewMode === m ? "on" : ""} onClick={() => p.onPreviewMode(m)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="seg small wrap" role="radiogroup" aria-label="Mode preview">
+            {(
+              [
+                ["true_color", "True color"],
+                ["false_color", "False color"],
+                ["ndvi", "NDVI"],
+                ["ndwi", "NDWI"],
+                ["nbr", "NBR"],
+              ] as const
+            ).map(([m, label]) => (
+              <button key={m} type="button" role="radio" aria-checked={p.previewMode === m} className={p.previewMode === m ? "on" : ""} onClick={() => p.onPreviewMode(m)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {previewIndex(p.previewMode) && (
+            <div className="legend" data-testid="legend">
+              <div className="ramp" style={{ background: cssGradient(previewIndex(p.previewMode)!) }} />
+              <div className="ticks">
+                <span>−1</span>
+                <span>0</span>
+                <span>+1</span>
+              </div>
+              <small>{INDEX_HINT[previewIndex(p.previewMode)!]}</small>
+            </div>
+          )}
+          <div className="btn-row batch-tools">
+            <span className="hint" data-testid="batch-count">Batch: {p.batchIds.length} dipilih</span>
+            <button type="button" className="link" onClick={p.onBatchAll}>Pilih semua (maks {p.maxBatch})</button>
+            <button type="button" className="link" onClick={p.onBatchNone} disabled={p.batchIds.length === 0}>Kosongkan</button>
+          </div>
+        </>
       )}
       {p.previewError && <p className="msg error">{p.previewError}</p>}
 
@@ -59,6 +86,9 @@ export default function SceneList(p: Props) {
                 <span className="warn-text"> · hanya menutupi {s.aoi_coverage_pct}% AOI</span>
               )}
             </div>
+            <label className="inline batch-check">
+              <input type="checkbox" checked={p.batchIds.includes(s.id)} onChange={() => p.onToggleBatch(s)} aria-label={`Batch ${formatDate(s.date)}`} /> Batch
+            </label>
             <div className="btn-row">
               <button type="button" className={"btn" + (p.previewId === s.id ? " active" : "")} disabled={p.previewLoading === s.id} onClick={() => p.onPreview(s)}>
                 {p.previewLoading === s.id ? "Memuat…" : p.previewId === s.id ? "Sembunyikan" : "Preview"}

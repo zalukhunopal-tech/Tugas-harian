@@ -1,5 +1,5 @@
 import type {
-  AOIInfo, AoiCloudStat, AppConfig, CloudMaskOptions, DownloadOptions, Geometry, Job, PreviewMode, PreviewResponse,
+  AOIInfo, AoiCloudStat, Batch, AppConfig, CloudMaskOptions, DownloadOptions, Geometry, Job, PreviewMode, PreviewResponse,
   PreviousResponse, SearchResponse,
 } from "./types";
 
@@ -67,6 +67,9 @@ export const api = {
   startDownload: (scene_id: string, aoi: Geometry, o: DownloadOptions) =>
     request<Job>("/api/download", json({ scene_id, aoi, ...o, name: o.name || null })),
   job: (id: string) => request<Job>(`/api/jobs/${id}`),
+  startBatch: (scene_ids: string[], aoi: Geometry, o: DownloadOptions) =>
+    request<Batch>("/api/batch", json({ scene_ids, aoi, ...o, name: o.name || null })),
+  batch: (id: string) => request<Batch>(`/api/batches/${id}`),
   fileUrl: (url: string) => BASE + url,
 
   geocode: (q: string) =>
