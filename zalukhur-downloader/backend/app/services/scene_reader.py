@@ -40,7 +40,7 @@ def open_prev_readers(
         psrc = stack.enter_context(rasterio.open(phref))
         _, pmethod = choose(abs(psrc.res[0]), res, requested)
         pvrt = stack.enter_context(raster.open_warped(psrc, grid, pmethod, band_nodata(passet, psrc)))
-        pscale, poffset = band_scale_offset(passet)
+        pscale, poffset = band_scale_offset(pitem, passet)
         readers[pi] = lambda win, v=pvrt, ps=pscale, po=poffset: composite.harmonize(
             v.read(1, window=win), ps, po, cur_scale, cur_offset
         )
@@ -70,7 +70,7 @@ class SceneReader:
         self._prev: dict[str, dict[int, Callable[[Any], np.ndarray]]] = {}
         for band in bands:
             href, asset = asset_source(item, band, settings)
-            scale, offset = band_scale_offset(asset)
+            scale, offset = band_scale_offset(item, asset)
             src = stack.enter_context(rasterio.open(href))
             native = float(abs(src.res[0]))
             method_name, method = choose(native, res, requested)

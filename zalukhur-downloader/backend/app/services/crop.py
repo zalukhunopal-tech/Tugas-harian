@@ -26,7 +26,7 @@ from app.processing.resampling import choose, describe
 from app.services import aoi as aoi_svc
 from app.services import change as change_svc
 from app.services import cloud_mask, composite
-from app.services.assets import asset_source, band_nodata, band_scale_offset
+from app.services.assets import asset_source, band_nodata, declared_scale_offset
 from app.services.scene_reader import SceneReader
 from app.services.catalog import coverage_pct, item_to_scene
 
@@ -295,6 +295,9 @@ def process_scene(
                 "name": b, "asset": BANDS[b]["asset"], "label": BANDS[b]["label"],
                 "native_resolution_m": i.native_res, "resampling": i.method_name,
                 "scale": i.scale, "offset": i.offset,
+                **({"offset_declared_in_catalog": declared_scale_offset(i.asset)[1],
+                    "offset_note": "offset katalog diabaikan: DN sudah bebas offset (earthsearch:boa_offset_applied)"}
+                   if declared_scale_offset(i.asset)[1] != i.offset else {}),
                 "valid_pixel_pct": round(100 * valid_px[b] / max(inside_px, 1), 2),
             })
 
