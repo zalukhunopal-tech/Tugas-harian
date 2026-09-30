@@ -78,7 +78,9 @@ export default function MapView({ aoi, drawMode, basemap, scenes, selectedId, pr
       if (coordRef.current) coordRef.current.textContent = `${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`;
     });
 
-    map.on("load", () => {
+    // "style.load", bukan "load": "load" menunggu semua tile selesai, sehingga alat gambar
+    // tidak aktif selama tile basemap lambat/gagal dimuat.
+    map.once("style.load", () => {
       map.addSource("footprints", { type: "geojson", data: EMPTY });
       map.addSource("selected", { type: "geojson", data: EMPTY });
       map.addSource("aoi", { type: "geojson", data: EMPTY });
