@@ -102,6 +102,18 @@ progress { width: 100%; height: 8px; accent-color: var(--brand); }
 .coords { position: absolute; z-index: 5; right: 10px; bottom: 26px; background: rgb(255 255 255 / 88%); color: #16232b; padding: 3px 8px; border-radius: 6px; font: 12px ui-monospace, monospace; }
 .draw-hint { position: absolute; z-index: 5; left: 50%; bottom: 20px; transform: translateX(-50%); background: #16232b; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; max-width: 90%; text-align: center; }
 
+
+.cloudmask { border-top: 1px dashed var(--line); padding-top: 10px; gap: 8px; }
+.classes { display: flex; flex-direction: column; gap: 4px; }
+.prevbox { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.prev-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.prev { width: 100%; display: flex; gap: 8px; align-items: center; text-align: left; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+.prev.on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.prev .grow { flex: 1; display: flex; flex-direction: column; }
+.prev small { color: var(--muted); font-size: 11.5px; }
+.badge { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+.prev.on .badge { background: var(--brand); color: #fff; border-color: var(--brand); }
+
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
   .stage { order: -1; }

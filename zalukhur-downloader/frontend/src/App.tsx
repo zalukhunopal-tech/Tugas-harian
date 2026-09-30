@@ -7,7 +7,7 @@ import GeocodeBox from "./components/GeocodeBox";
 import MapView, { type Basemap, type FitRequest } from "./components/MapView";
 import SceneList from "./components/SceneList";
 import { defaultFilters, resolveRange, type DateFilters } from "./lib/dates";
-import type { AOIInfo, AppConfig, DrawMode, Geometry, PreviewMode, PreviewResponse, Scene, SearchResponse } from "./types";
+import type { AOIInfo, AppConfig, CloudMaskOptions, DrawMode, Geometry, PreviewMode, PreviewResponse, Scene, SearchResponse } from "./types";
 
 type PointSource = { lat: number; lon: number } | null;
 
@@ -127,12 +127,12 @@ export default function App() {
   };
 
   const loadPreview = useCallback(
-    async (scene: Scene, mode: PreviewMode) => {
+    async (scene: Scene, mode: PreviewMode, cm?: CloudMaskOptions) => {
       if (!aoi) return;
       setPreviewLoading(scene.id);
       setPreviewError(null);
       try {
-        const data = await api.preview(scene.id, aoi.geometry, mode);
+        const data = await api.preview(scene.id, aoi.geometry, mode, cm);
         setPreview({ sceneId: scene.id, data });
       } catch (e) {
         setPreviewError((e as Error).message);
@@ -152,6 +152,10 @@ export default function App() {
     setPreviewMode(m);
     const scene = result?.scenes.find((s) => s.id === preview?.sceneId);
     if (scene) void loadPreview(scene, m);
+  };
+
+  const previewMask = async (cm: CloudMaskOptions) => {
+    if (selected) await loadPreview(selected, previewMode, cm);
   };
 
   const canSearch = !!aoi && !("error" in range) && !searching;
@@ -213,7 +217,14 @@ export default function App() {
           previewError={previewError}
         />
 
-        {selected && aoi && config && <DownloadPanel config={config} scene={selected} aoi={aoi} />}
+        {selected && aoi && config && <DownloadPanel
+            config={config}
+            scene={selected}
+            aoi={aoi}
+            onPreviewMask={previewMask}
+            previewing={previewLoading === selected.id}
+            previewStats={preview?.sceneId === selected.id ? preview.data.cloud : null}
+          />}
 
         <footer className="foot">
           Contains modified Copernicus Sentinel data. Data melalui Earth Search (AWS Open Data).

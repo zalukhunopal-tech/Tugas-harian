@@ -1,4 +1,7 @@
-import type { AOIInfo, AppConfig, DownloadOptions, Geometry, Job, PreviewMode, PreviewResponse, SearchResponse } from "./types";
+import type {
+  AOIInfo, AoiCloudStat, AppConfig, CloudMaskOptions, DownloadOptions, Geometry, Job, PreviewMode, PreviewResponse,
+  PreviousResponse, SearchResponse,
+} from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
@@ -53,8 +56,13 @@ export const api = {
   search: (p: { aoi: Geometry; start_date: string; end_date: string; max_cloud_cover: number; limit?: number }) =>
     request<SearchResponse>("/api/scenes/search", json({ ...p, satellite: "sentinel-2", product_level: "L2A" })),
 
-  preview: (scene_id: string, aoi: Geometry, mode: PreviewMode) =>
-    request<PreviewResponse>("/api/scenes/preview", json({ scene_id, aoi, mode })),
+  preview: (scene_id: string, aoi: Geometry, mode: PreviewMode, cloud_mask?: CloudMaskOptions) =>
+    request<PreviewResponse>("/api/scenes/preview", json({ scene_id, aoi, mode, ...(cloud_mask ? { cloud_mask } : {}) })),
+
+  previousScenes: (scene_id: string, aoi: Geometry, lookback_days: number) =>
+    request<PreviousResponse>("/api/scenes/previous", json({ scene_id, aoi, lookback_days, limit: 10 })),
+  aoiCloud: (scene_ids: string[], aoi: Geometry, classes: string[], dilate_m: number) =>
+    request<{ stats: AoiCloudStat[] }>("/api/scenes/aoi-cloud", json({ scene_ids, aoi, classes, dilate_m })),
 
   startDownload: (scene_id: string, aoi: Geometry, o: DownloadOptions) =>
     request<Job>("/api/download", json({ scene_id, aoi, ...o, name: o.name || null })),

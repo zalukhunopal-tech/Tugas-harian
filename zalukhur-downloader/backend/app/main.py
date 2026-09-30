@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import aoi, download, geocode, query
+from app.api import aoi, download, geocode, processing, query
 from app.config import Settings, get_settings
 from app.errors import AppError
 from app.jobs import JobManager
@@ -52,7 +52,7 @@ def create_app(settings: Settings | None = None, catalog: StacCatalog | None = N
     def health() -> dict:
         return {"status": "ok"}
 
-    for r in (aoi.router, query.router, download.router, geocode.router):
+    for r in (aoi.router, query.router, processing.router, download.router, geocode.router):
         app.include_router(r)
 
     if settings.frontend_dist and settings.frontend_dist.is_dir():

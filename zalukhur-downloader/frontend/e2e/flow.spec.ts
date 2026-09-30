@@ -49,13 +49,14 @@ test("alur utama: gambar AOI → cari → preview → pilih → proses → unduh
   await setDates(page, "2026-09-01", "2026-09-30");
   await page.getByLabel("Cloud cover kustom (%)").fill("20");
   await page.getByTestId("search").click();
-  await expect(page.getByTestId("scene-count")).toHaveText("2");
+  await expect(page.getByTestId("scene-count")).toHaveText("4");
   const cards = page.getByTestId("scene-card");
   await expect(cards.first()).toContainText("25 Sep 2026");
   await expect(cards.first()).toContainText("4.2%");
   await expect(cards.first()).toContainText("48MUB");
   await expect(cards.first()).toContainText("L2A");
   await expect(cards.nth(1)).toContainText("18 Sep 2026");
+  await expect(cards.nth(3)).toContainText("8 Sep 2026");
 
   // ---- Preview
   const previewResp = page.waitForResponse((r) => r.url().includes("/api/scenes/preview") && r.status() === 200);
@@ -156,10 +157,10 @@ test("pesan bila tidak ada citra / semua terlalu berawan", async ({ page }) => {
   await expect(page.getByTestId("aoi-info")).toBeVisible();
 
   await setDates(page, "2026-09-01", "2026-09-30");
-  await page.getByLabel("Cloud cover kustom (%)").fill("1");
+  await page.getByLabel("Cloud cover kustom (%)").fill("0");
   await page.getByTestId("search").click();
-  await expect(page.getByTestId("no-scenes")).toContainText("Tidak tersedia citra dengan cloud cover ≤1% pada periode tersebut.");
-  await expect(page.getByTestId("no-scenes")).toContainText("4.2%");
+  await expect(page.getByTestId("no-scenes")).toContainText("Tidak tersedia citra dengan cloud cover ≤0% pada periode tersebut.");
+  await expect(page.getByTestId("no-scenes")).toContainText("1%"); // cloud cover terendah yang ada
 
   await setDates(page, "2025-01-01", "2025-01-31");
   await page.getByTestId("search").click();
@@ -185,4 +186,101 @@ test("tanggal tunggal dan relatif", async ({ page }) => {
   await page.getByRole("radio", { name: "Citra terbaru" }).click();
   await page.getByTestId("search").click();
   await expect(page.getByTestId("scene-count")).toHaveText(/^[01]$/); // bergantung tanggal hari ini
+});
+
+
+// ============================================================ tahap 2: cloud masking
+
+// AOI 6x6 km yang mencakup seluruh pola awan sintetis (lon/lat WGS84)
+const CLOUD_AOI = {
+  type: "Feature", properties: {},
+  geometry: { type: "Polygon", coordinates: [[[103.209842, -2.776141], [103.2638, -2.776222], [103.263878, -2.721964], [103.209923, -2.721885], [103.209842, -2.776141]]] },
+};
+
+async function selectSceneWithAoi(page: Page, cardIndex: number) {
+  await openAndFly(page);
+  await page.getByTestId("aoi-file").setInputFiles({ name: "aoi.geojson", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(CLOUD_AOI)) });
+  await expect(page.getByTestId("aoi-info")).toContainText("AOI poligon");
+  await setDates(page, "2026-09-01", "2026-09-30");
+  await page.getByLabel("Cloud cover kustom (%)").fill("100");
+  await page.getByTestId("search").click();
+  await expect(page.getByTestId("scene-count")).toHaveText("4");
+  await page.getByTestId("scene-card").nth(cardIndex).getByRole("button", { name: "Pilih" }).click();
+  await expect(page.getByTestId("cloudmask")).toBeVisible();
+}
+
+test("cloud masking SCL + isi dari dua citra sebelumnya → unduh dengan peta QA", async ({ page, request }) => {
+  await selectSceneWithAoi(page, 0); // 25 Sep
+  const cm = page.getByTestId("cloudmask");
+  await cm.getByLabel("Aktifkan mask dari SCL").check();
+
+  // % awan tepat di AOI dari SCL (bukan cloud cover katalog 4.2%)
+  await expect(page.getByTestId("aoi-cloud-current")).toHaveText(/^\d+\.\d%$/, { timeout: 15_000 });
+  const cloudPct = parseFloat((await page.getByTestId("aoi-cloud-current").textContent())!);
+  expect(cloudPct).toBeGreaterThan(4);
+  expect(cloudPct).toBeLessThan(14);
+
+  // tanpa citra sebelumnya terpilih -> tidak boleh diproses
+  await cm.getByLabel("Isi piksel ter-mask dari citra sebelumnya").check();
+  await expect(page.getByTestId("mask-problem")).toHaveText("Pilih minimal satu citra sebelumnya.");
+  await expect(page.getByTestId("start-download")).toBeDisabled();
+
+  const cands = page.getByTestId("prev-candidate");
+  await expect(cands).toHaveCount(3);
+  await expect(cands.nth(0)).toContainText("18 Sep 2026");
+  await expect(cands.nth(1)).toContainText("13 Sep 2026");
+  await expect(cands.nth(0)).toContainText(/di AOI \d+\.\d%/, { timeout: 15_000 });
+  await cands.nth(0).click();
+  await cands.nth(1).click();
+  await expect(cands.nth(0).locator(".badge")).toHaveText("1");
+  await expect(cands.nth(1).locator(".badge")).toHaveText("2");
+  await expect(page.getByTestId("mask-problem")).toHaveCount(0);
+
+  // pratinjau: ter-mask X%, semuanya terisi
+  await page.getByTestId("preview-mask").click();
+  await expect(page.getByTestId("mask-preview-stats")).toContainText("terisi", { timeout: 30_000 });
+  const txt = (await page.getByTestId("mask-preview-stats").textContent())!;
+  const [masked, filled, rest] = [...txt.matchAll(/(\d+\.\d)%/g)].map((m) => parseFloat(m[1]!));
+  expect(masked).toBeGreaterThan(0);
+  expect(filled).toBeCloseTo(masked!, 1);
+  expect(rest).toBe(0);
+  await shot(page, "4-cloudmask");
+
+  await page.getByRole("button", { name: "RGB", exact: true }).click();
+  await page.getByTestId("start-download").click();
+  await expect(page.getByTestId("job")).toHaveAttribute("data-status", "COMPLETED", { timeout: 60_000 });
+  const links = await page.getByTestId("files").getByRole("link").evaluateAll((els) => els.map((e) => [e.textContent, (e as HTMLAnchorElement).href]));
+  const names = links.map((l) => (l[0] ?? "").replace("⬇", "").trim()).sort();
+  expect(names).toEqual(["AOI_2026-09-25.tif", "AOI_2026-09-25_COG.tif", "AOI_2026-09-25_QA.tif", "metadata.json"]);
+
+  const meta = await (await request.get(links.find((l) => (l[0] ?? "").includes("metadata"))![1]!)).json();
+  expect(meta.processing).toContain("cloud_mask_multi_date_composite");
+  expect(meta.cloud_masking.method).toBe("scl_multi_date_composite");
+  expect(meta.cloud_masking.previous_scenes.map((p: { id: string }) => p.id)).toEqual(["S2B_48MUB_20260918_0_L2A", "S2A_48MUB_20260913_0_L2A"]);
+  expect(meta.cloud_masking.statistics.unfilled_masked_pixels).toBe(0);
+  expect(meta.cloud_masking.statistics.masked_pct).toBeCloseTo(masked!, 0);
+});
+
+test("pesan bila citra sebelumnya tidak tersedia (scene tertua)", async ({ page }) => {
+  await selectSceneWithAoi(page, 3); // 8 Sep: tak ada yang lebih lama
+  const cm = page.getByTestId("cloudmask");
+  await cm.getByLabel("Aktifkan mask dari SCL").check();
+  await cm.getByLabel("Isi piksel ter-mask dari citra sebelumnya").check();
+  await expect(page.getByTestId("no-previous")).toHaveText("Citra sebelumnya tidak tersedia. Cloud masking berbasis previous image tidak dapat dilakukan.");
+  await expect(page.getByTestId("start-download")).toBeDisabled();
+  // tanpa pengisian, mask saja tetap bisa diproses
+  await cm.getByLabel("Isi piksel ter-mask dari citra sebelumnya").uncheck();
+  await expect(page.getByTestId("start-download")).toBeEnabled();
+});
+
+test("mask saja: piksel awan menjadi NoData dan tercatat di metadata", async ({ page, request }) => {
+  await selectSceneWithAoi(page, 0);
+  await page.getByTestId("cloudmask").getByLabel("Aktifkan mask dari SCL").check();
+  await page.getByTestId("start-download").click();
+  await expect(page.getByTestId("job")).toHaveAttribute("data-status", "COMPLETED", { timeout: 60_000 });
+  const links = await page.getByTestId("files").getByRole("link").evaluateAll((els) => els.map((e) => [e.textContent, (e as HTMLAnchorElement).href]));
+  const meta = await (await request.get(links.find((l) => (l[0] ?? "").includes("metadata"))![1]!)).json();
+  expect(meta.cloud_masking.method).toBe("scl_mask_only");
+  expect(meta.cloud_masking.statistics.filled_pct).toBe(0);
+  expect(meta.cloud_masking.statistics.unfilled_masked_pct).toBe(meta.cloud_masking.statistics.masked_pct);
 });

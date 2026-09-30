@@ -1,8 +1,8 @@
 """Job system sederhana: antrean + worker thread, status tersimpan di disk.
 
-Status: QUEUED -> DOWNLOADING -> GENERATING -> COMPLETED (atau FAILED). Status
-PROCESSING/CROPPING terpisah dicadangkan untuk cloud masking (tahap 2); pada tahap 1
-crop terjadi saat pembacaan window, sehingga tercakup dalam DOWNLOADING.
+Status: QUEUED -> DOWNLOADING (menyiapkan grid AOI) -> PROCESSING (hanya bila cloud masking:
+membaca SCL, mendeteksi awan, memilih piksel pengganti) -> CROPPING (baca window tiap band,
+terapkan mask/isi, tulis) -> GENERATING (COG, peta QA, metadata) -> COMPLETED (atau FAILED).
 """
 from __future__ import annotations
 

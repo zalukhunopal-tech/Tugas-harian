@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 from app.api.query import _safe_id, validated_aoi
 from app.models.scene import DownloadRequest
-from app.services import crop
+from app.services import cloud_mask, crop, previous
 
 router = APIRouter(prefix="/api", tags=["download"])
 
@@ -20,8 +20,14 @@ def create_download(body: DownloadRequest, request: Request) -> dict:
     item = st.catalog.get_item(_safe_id(body.scene_id))  # data & URL aset selalu dari katalog, bukan dari klien
     aoi_info = {"geometry": info.geometry, "area_km2": info.area_km2}
 
+    prev_items: list[dict] = []
+    if body.cloud_mask.enabled:
+        cloud_mask.scl_href(item, st.settings)  # gagal cepat bila scene tak punya SCL
+        if body.cloud_mask.fill_from_previous:
+            prev_items = previous.resolve(st.catalog, item, body.cloud_mask.previous_scene_ids, geom, st.settings, _safe_id)
+
     def work(out_dir, progress):
-        return crop.process_scene(item, geom, body, out_dir, st.settings, progress, aoi_info)
+        return crop.process_scene(item, geom, body, out_dir, st.settings, progress, aoi_info, prev_items)
 
     job = st.jobs.submit(work, scene_id=body.scene_id)
     return job.public()

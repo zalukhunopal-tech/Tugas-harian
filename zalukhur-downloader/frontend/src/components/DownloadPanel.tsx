@@ -2,12 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { PRESET_LABELS, presetMatches, resampleNotes, toggleBand } from "../lib/bands";
 import { formatDate } from "../lib/dates";
-import type { AOIInfo, AppConfig, DownloadOptions, Job, Scene } from "../types";
+import { DEFAULT_CLOUD_MASK, maskProblem } from "../lib/cloud";
+import type { AOIInfo, AppConfig, CloudStats, DownloadOptions, Job, Scene } from "../types";
+import CloudMaskPanel from "./CloudMaskPanel";
 
 interface Props {
   config: AppConfig;
   scene: Scene;
   aoi: AOIInfo;
+  onPreviewMask: (cm: DownloadOptions["cloud_mask"]) => Promise<void>;
+  previewing: boolean;
+  previewStats: CloudStats | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -20,7 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   FAILED: "Gagal",
 };
 
-export default function DownloadPanel({ config, scene, aoi }: Props) {
+export default function DownloadPanel({ config, scene, aoi, onPreviewMask, previewing, previewStats }: Props) {
   const [opts, setOpts] = useState<DownloadOptions>({
     bands: config.presets.rgb ?? ["B04", "B03", "B02"],
     resolution: 10,
@@ -28,6 +33,7 @@ export default function DownloadPanel({ config, scene, aoi }: Props) {
     mask_to_aoi: true,
     resampling: "auto",
     name: "AOI",
+    cloud_mask: DEFAULT_CLOUD_MASK,
   });
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +44,7 @@ export default function DownloadPanel({ config, scene, aoi }: Props) {
   useEffect(() => {
     setJob(null);
     setError(null);
+    setOpts((o) => ({ ...o, cloud_mask: { ...o.cloud_mask, previous_scene_ids: [] } }));
   }, [scene.id, aoi]);
 
   // polling job
@@ -59,7 +66,8 @@ export default function DownloadPanel({ config, scene, aoi }: Props) {
   const notes = useMemo(() => resampleNotes(opts.bands, opts.resolution, config, opts.resampling), [opts.bands, opts.resolution, opts.resampling, config]);
   const resampled = notes.filter((n) => n.action !== "native");
   const busy = starting || (job != null && job.status !== "COMPLETED" && job.status !== "FAILED");
-  const canStart = opts.bands.length > 0 && opts.formats.length > 0 && !busy;
+  const problem = maskProblem(opts.cloud_mask);
+  const canStart = opts.bands.length > 0 && opts.formats.length > 0 && !busy && !problem;
 
   const start = async () => {
     setError(null);
@@ -148,8 +156,18 @@ export default function DownloadPanel({ config, scene, aoi }: Props) {
           <span>Nama berkas</span>
           <input value={opts.name} maxLength={60} onChange={(e) => setOpts({ ...opts, name: e.target.value })} />
         </label>
-        <p className="hint">Cloud masking level piksel akan tersedia di tahap berikutnya; hasil saat ini adalah crop AOI apa adanya.</p>
       </div>
+
+      <CloudMaskPanel
+        config={config}
+        scene={scene}
+        aoi={aoi}
+        value={opts.cloud_mask}
+        onChange={(cloud_mask) => setOpts((o) => ({ ...o, cloud_mask }))}
+        onPreview={() => void onPreviewMask(opts.cloud_mask)}
+        previewing={previewing}
+        previewStats={previewStats}
+      />
 
       <button type="button" className="btn primary wide" disabled={!canStart} onClick={start} data-testid="start-download">
         {busy ? "Memproses…" : "Proses & unduh"}
