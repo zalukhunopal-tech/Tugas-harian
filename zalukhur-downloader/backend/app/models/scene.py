@@ -47,10 +47,81 @@ class SearchResponse(BaseModel):
     min_cloud_cover_available: float | None = None
 
 
+MaskClass = Literal["cloud", "cloud_shadow", "cirrus", "snow_ice"]
+
+
+class CloudMaskOptions(BaseModel):
+    """Cloud masking level piksel (SCL) + pengisian dari citra sebelumnya."""
+
+    enabled: bool = False
+    classes: list[MaskClass] = ["cloud", "cloud_shadow", "cirrus"]
+    dilate_m: int = Field(default=20, ge=0, le=100)
+    fill_from_previous: bool = False
+    previous_scene_ids: list[str] = Field(default_factory=list, max_length=5)
+    include_qa: bool = True
+
+    @field_validator("classes")
+    @classmethod
+    def _classes(cls, v: list[str]):
+        v = list(dict.fromkeys(v))
+        if not v:
+            raise ValueError("Pilih minimal satu kelas untuk di-mask (awan, bayangan, cirrus, atau salju/es).")
+        return v
+
+    @model_validator(mode="after")
+    def _fill(self):
+        if self.fill_from_previous:
+            if not self.enabled:
+                raise ValueError("Pengisian dari citra sebelumnya memerlukan cloud masking aktif.")
+            if not self.previous_scene_ids:
+                raise ValueError("Pilih minimal satu citra sebelumnya untuk mengisi piksel yang ter-mask.")
+        if len(set(self.previous_scene_ids)) != len(self.previous_scene_ids):
+            raise ValueError("Citra sebelumnya tidak boleh duplikat.")
+        return self
+
+
 class PreviewRequest(BaseModel):
     scene_id: str
     aoi: dict[str, Any]
     mode: Literal["true_color", "false_color"] = "true_color"
+    cloud_mask: CloudMaskOptions = Field(default_factory=CloudMaskOptions)
+
+
+class PreviousRequest(BaseModel):
+    scene_id: str
+    aoi: dict[str, Any]
+    lookback_days: int = Field(default=45, ge=1, le=365)
+    max_cloud_cover: float = Field(default=100, ge=0, le=100)
+    limit: int = Field(default=10, ge=1, le=30)
+
+
+class PreviousScene(Scene):
+    same_tile: bool = False
+    days_before: int = 0
+
+
+class PreviousResponse(BaseModel):
+    count: int
+    scenes: list[PreviousScene]
+    message: str | None = None
+
+
+class AoiCloudRequest(BaseModel):
+    scene_ids: list[str] = Field(min_length=1, max_length=12)
+    aoi: dict[str, Any]
+    classes: list[MaskClass] = ["cloud", "cloud_shadow", "cirrus"]
+    dilate_m: int = Field(default=20, ge=0, le=100)
+
+
+class AoiCloudStat(BaseModel):
+    scene_id: str
+    cloud_pct: float | None = None   # % piksel AOI yang ter-mask (dari yang bertanda data)
+    valid_pct: float | None = None   # % piksel AOI yang punya data pada scene ini
+    error: str | None = None
+
+
+class AoiCloudResponse(BaseModel):
+    stats: list[AoiCloudStat]
 
 
 class PreviewResponse(BaseModel):
@@ -59,6 +130,7 @@ class PreviewResponse(BaseModel):
     mode: str
     width: int
     height: int
+    cloud: dict[str, Any] | None = None  # statistik mask bila cloud masking aktif
 
 
 class DownloadRequest(BaseModel):
@@ -70,6 +142,7 @@ class DownloadRequest(BaseModel):
     mask_to_aoi: bool = True
     resampling: str = "auto"
     name: str | None = Field(default=None, max_length=60)
+    cloud_mask: CloudMaskOptions = Field(default_factory=CloudMaskOptions)
 
     @field_validator("bands")
     @classmethod

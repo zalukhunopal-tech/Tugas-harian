@@ -1,7 +1,7 @@
 """Server STAC palsu untuk pengujian end-to-end (BUKAN untuk produksi).
 
 Melayani POST /v1/search dan GET /v1/collections/sentinel-2-l2a/items/{id} dengan scene
-sintetis (COG lokal). Jalankan:  python -m tests.fake_stac_server --port 9100
+sintetis (COG + SCL lokal; pola awan diketahui). Jalankan:  python -m tests.fake_stac_server --port 9100
 """
 from __future__ import annotations
 
@@ -10,33 +10,16 @@ import json
 import tempfile
 from pathlib import Path
 
-import numpy as np
-import rasterio
 import uvicorn
-from affine import Affine
 from fastapi import FastAPI, HTTPException, Request
 
-from app.bands import BANDS
-from tests.conftest import ORIGIN, EPSG, dn_array, make_item
+from tests.conftest import build_stage2_scenes
 
-SCENES = [
-    ("S2A_48MUB_20260925_0_L2A", "2026-09-25T03:29:10Z", 4.2),
-    ("S2B_48MUB_20260918_0_L2A", "2026-09-18T03:29:10Z", 7.1),
-    ("S2A_48MUB_20260910_0_L2A", "2026-09-10T03:29:10Z", 62.0),
-]
 
 
 def build_app(workdir: Path) -> FastAPI:
-    hrefs = {}
-    for seed, (b, meta) in enumerate(BANDS.items()):
-        arr = dn_array(meta["native_res"], seed)
-        path = workdir / f"{b}.tif"
-        with rasterio.open(path, "w", driver="GTiff", dtype="uint16", count=1, width=arr.shape[1], height=arr.shape[0],
-                           crs=f"EPSG:{EPSG}", transform=Affine(meta["native_res"], 0, ORIGIN[0], 0, -meta["native_res"], ORIGIN[1]),
-                           nodata=0, tiled=True, blockxsize=256, blockysize=256, compress="deflate") as dst:
-            dst.write(arr, 1)
-        hrefs[b] = str(path)
-    items = {i: make_item(i, d, c, hrefs) for i, d, c in SCENES}
+    scenes = build_stage2_scenes(workdir)  # cur 25 Sep, prev1 18 Sep, prev2 13 Sep, old 8 Sep (offset 0)
+    items = {v["item"]["id"]: v["item"] for v in scenes.values()}
 
     app = FastAPI()
 

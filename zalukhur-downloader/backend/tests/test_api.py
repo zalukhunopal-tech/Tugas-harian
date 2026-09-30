@@ -1,3 +1,4 @@
+import numpy as np
 import json
 import time
 
@@ -269,3 +270,134 @@ def test_job_file_security(env):
     assert tc.get(f"/api/jobs/{jid}/files/job.json").status_code == 404  # bukan keluaran
     assert tc.get(f"/api/jobs/{jid}/files/..%2Fjob.json").status_code == 404
     assert tc.get("/api/jobs/doesnotexist").status_code == 404
+
+
+# ================================================================== tahap 2: cloud masking
+
+@pytest.fixture()
+def env2(tmp_path, s2):
+    from tests.conftest import stage2_aoi
+    stac = FakeStac([s2[k]["item"] for k in ("cur", "prev1", "prev2", "old")])
+    settings = Settings(data_dir=tmp_path / "data", stac_url="https://stac.test/v1")
+    client = httpx.Client(transport=httpx.MockTransport(stac.handler))
+    app = create_app(settings, StacCatalog(settings, client))
+    with TestClient(app) as tc:
+        tc.stac = stac
+        yield tc, s2, stage2_aoi()
+
+
+CUR, P1, P2, OLD = ("S2A_48MUB_20260925_0_L2A", "S2B_48MUB_20260918_0_L2A", "S2A_48MUB_20260913_0_L2A", "S2A_48MUB_20260908_0_L2A")
+
+
+def test_previous_candidates_sorted_nearest_first(env2):
+    tc, _, aoi = env2
+    r = tc.post("/api/scenes/previous", json={"scene_id": CUR, "aoi": aoi, "lookback_days": 45})
+    assert r.status_code == 200
+    d = r.json()
+    assert [s["id"] for s in d["scenes"]] == [P1, P2, OLD] and d["message"] is None
+    assert [s["days_before"] for s in d["scenes"]] == [7, 12, 17]
+    assert all(s["same_tile"] and s["aoi_coverage_pct"] == 100.0 for s in d["scenes"])
+
+
+def test_previous_candidates_filters(env2):
+    tc, _, aoi = env2
+    r = tc.post("/api/scenes/previous", json={"scene_id": CUR, "aoi": aoi, "lookback_days": 45, "max_cloud_cover": 5})
+    assert [s["id"] for s in r.json()["scenes"]] == [P2, OLD]  # prev1 (7,1%) tersaring
+    # tidak ada citra sebelumnya dalam jendela -> pesan PRD
+    r = tc.post("/api/scenes/previous", json={"scene_id": CUR, "aoi": aoi, "lookback_days": 3})
+    d = r.json()
+    assert d["count"] == 0 and d["message"] == "Citra sebelumnya tidak tersedia. Cloud masking berbasis previous image tidak dapat dilakukan."
+    # untuk scene tertua tak ada yang lebih lama
+    assert tc.post("/api/scenes/previous", json={"scene_id": OLD, "aoi": aoi}).json()["count"] == 0
+
+
+def test_aoi_cloud_percentages_from_scl(env2):
+    tc, s2, aoi = env2
+    r = tc.post("/api/scenes/aoi-cloud", json={"scene_ids": [CUR, P2, "S2A_XXXX_00000000_0_L2A"], "aoi": aoi, "dilate_m": 0})
+    assert r.status_code == 200
+    by = {s["scene_id"]: s for s in r.json()["stats"]}
+    assert by[P2]["cloud_pct"] == 0.0 and by[P2]["valid_pct"] == 100.0
+    assert 0 < by[CUR]["cloud_pct"] < 20
+    assert "tidak ditemukan" in by["S2A_XXXX_00000000_0_L2A"]["error"].lower()
+    # nilai harus cocok dengan pola SCL yang diketahui: 60x60 + 10x10 + 30x30 + 30x30 dari 300x300 piksel 20 m
+    expected = (60 * 60 + 10 * 10 + 30 * 30 + 30 * 30) / (300 * 300) * 100
+    assert by[CUR]["cloud_pct"] == pytest.approx(expected, abs=1.0)
+    # dilasi membesarkan angka
+    r2 = tc.post("/api/scenes/aoi-cloud", json={"scene_ids": [CUR], "aoi": aoi, "dilate_m": 60})
+    assert r2.json()["stats"][0]["cloud_pct"] > by[CUR]["cloud_pct"]
+
+
+def test_download_with_cloud_mask_and_fill(env2):
+    tc, s2, aoi = env2
+    r = tc.post("/api/download", json={
+        "scene_id": CUR, "aoi": aoi, "bands": ["B04", "B03", "B02"], "mask_to_aoi": False, "formats": ["geotiff", "cog"],
+        "cloud_mask": {"enabled": True, "fill_from_previous": True, "previous_scene_ids": [P1, P2], "dilate_m": 20},
+    })
+    assert r.status_code == 202, r.text
+    done = wait_job(tc, r.json()["id"])
+    assert done["status"] == "COMPLETED", done
+    assert {f["name"] for f in done["files"]} == {
+        "AOI_2026-09-25.tif", "AOI_2026-09-25_COG.tif", "AOI_2026-09-25_QA.tif", "metadata.json"}
+    meta = tc.get(f"/api/jobs/{r.json()['id']}/files/metadata.json").json()
+    cm = meta["cloud_masking"]
+    assert cm["method"] == "scl_multi_date_composite" and meta["processing"][-1] == "cloud_mask_multi_date_composite"
+    assert [p["id"] for p in cm["previous_scenes"]] == [P1, P2]
+    assert cm["statistics"]["unfilled_masked_pixels"] == 0 and cm["statistics"]["filled_pct"] == cm["statistics"]["masked_pct"] > 0
+    from rasterio.io import MemoryFile
+    with MemoryFile(tc.get(f"/api/jobs/{r.json()['id']}/files/AOI_2026-09-25_QA.tif").content) as mf, mf.open() as qa:
+        assert qa.nodata == 255 and qa.crs.to_epsg() == 32748
+
+
+def test_download_cloud_mask_validation(env2):
+    tc, _, aoi = env2
+    base = {"scene_id": CUR, "aoi": aoi, "bands": ["B04"]}
+    r = tc.post("/api/download", json={**base, "cloud_mask": {"enabled": True, "fill_from_previous": True}})
+    assert r.status_code == 422 and "minimal satu citra sebelumnya" in r.json()["detail"]
+    # citra 'sebelumnya' yang justru lebih baru
+    r = tc.post("/api/download", json={**base, "scene_id": P1,
+                "cloud_mask": {"enabled": True, "fill_from_previous": True, "previous_scene_ids": [CUR]}})
+    assert r.status_code == 422 and "harus lebih lama" in r.json()["detail"]
+    r = tc.post("/api/download", json={**base, "cloud_mask": {"enabled": True, "fill_from_previous": True, "previous_scene_ids": [CUR]}})
+    assert r.status_code == 422 and "tidak boleh sama" in r.json()["detail"]
+    r = tc.post("/api/download", json={**base, "cloud_mask": {"enabled": True, "fill_from_previous": True, "previous_scene_ids": ["S2A_XXXX_00000000_0_L2A"]}})
+    assert r.status_code == 404
+    r = tc.post("/api/download", json={**base, "cloud_mask": {"enabled": True, "classes": ["haze"]}})
+    assert r.status_code == 422
+    # AOI di luar cakupan citra sebelumnya
+    from tests.conftest import ORIGIN, utm_box_to_aoi
+    far = utm_box_to_aoi(ORIGIN[0] + 60000, ORIGIN[1] - 3000, ORIGIN[0] + 61000, ORIGIN[1] - 2000)
+    r = tc.post("/api/download", json={**base, "aoi": far, "cloud_mask": {"enabled": True, "fill_from_previous": True, "previous_scene_ids": [P1]}})
+    assert r.status_code == 422 and "tidak menutupi AOI" in r.json()["detail"]
+
+
+def test_download_cloud_mask_requires_scl(env2):
+    tc, s2, aoi = env2
+    import copy
+    broken = copy.deepcopy(tc.stac.items[CUR])
+    del broken["assets"]["scl"]
+    tc.stac.items[CUR] = broken
+    r = tc.post("/api/download", json={"scene_id": CUR, "aoi": aoi, "bands": ["B04"], "cloud_mask": {"enabled": True}})
+    assert r.status_code == 422 and "SCL" in r.json()["detail"]
+
+
+def test_preview_with_cloud_mask_shows_magenta_and_stats(env2):
+    tc, _, aoi = env2
+    r = tc.post("/api/scenes/preview", json={"scene_id": CUR, "aoi": aoi, "cloud_mask": {"enabled": True, "dilate_m": 0}})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["cloud"]["masked_pct"] > 0 and d["cloud"]["filled_pct"] == 0
+    from PIL import Image
+    import base64, io
+    img = Image.open(io.BytesIO(base64.b64decode(d["image"].split(",")[1]))).convert("RGBA")
+    px = np.array(img)
+    magenta = (px[..., 0] == 255) & (px[..., 1] == 0) & (px[..., 2] == 255)
+    assert magenta.any()
+    assert abs(magenta.mean() * 100 - d["cloud"]["masked_pct"]) < 2.0   # tampilan sejalan dengan statistik
+
+    # dengan pengisian dari prev2 (bersih): tak ada lagi piksel magenta
+    r2 = tc.post("/api/scenes/preview", json={"scene_id": CUR, "aoi": aoi, "cloud_mask": {
+        "enabled": True, "dilate_m": 0, "fill_from_previous": True, "previous_scene_ids": [P2]}})
+    d2 = r2.json()
+    px2 = np.array(Image.open(io.BytesIO(base64.b64decode(d2["image"].split(",")[1]))).convert("RGBA"))
+    assert not ((px2[..., 0] == 255) & (px2[..., 1] == 0) & (px2[..., 2] == 255)).any()
+    assert d2["cloud"]["filled_pct"] == d2["cloud"]["masked_pct"]

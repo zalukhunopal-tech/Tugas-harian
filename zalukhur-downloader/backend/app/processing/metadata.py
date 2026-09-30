@@ -33,8 +33,10 @@ def build(
     aoi_coverage_pct: float | None,
     outputs: dict[str, str],
     catalog_url: str,
+    processing: list[str] | None = None,
+    cloud_masking: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    processing = ["aoi_crop"] + (["aoi_polygon_mask"] if mask_to_aoi else [])
+    processing = processing or ["aoi_crop"] + (["aoi_polygon_mask"] if mask_to_aoi else [])
     methods = {b["name"]: b["resampling"] for b in bands}
     return {
         "satellite": "Sentinel-2",
@@ -61,7 +63,7 @@ def build(
         "nodata": grid["nodata"],
         "dtype": grid["dtype"],
         "processing": processing,
-        "cloud_masking": "not_applied",
+        "cloud_masking": cloud_masking or "not_applied",
         "reflectance_formula": "reflectance = DN * scale + offset (lihat band_details)",
         "outputs": outputs,
         "source": {
