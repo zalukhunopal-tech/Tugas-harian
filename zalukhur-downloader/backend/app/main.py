@@ -9,9 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import aoi, download, geocode, processing, query
+from app.api import aoi, batch, download, geocode, processing, query
 from app.config import Settings, get_settings
 from app.errors import AppError
+from app.batches import BatchManager
 from app.jobs import JobManager
 from app.services.catalog import StacCatalog
 
@@ -30,6 +31,7 @@ def create_app(settings: Settings | None = None, catalog: StacCatalog | None = N
     app.state.settings = settings
     app.state.catalog = catalog or StacCatalog(settings)
     app.state.jobs = JobManager(settings.data_dir / "jobs", settings.job_workers, settings.job_ttl_hours)
+    app.state.batches = BatchManager(settings.data_dir / "batches", app.state.jobs, settings.job_ttl_hours)
 
     app.add_middleware(
         CORSMiddleware, allow_origins=list(settings.cors_origins), allow_methods=["GET", "POST"], allow_headers=["*"],
@@ -52,7 +54,7 @@ def create_app(settings: Settings | None = None, catalog: StacCatalog | None = N
     def health() -> dict:
         return {"status": "ok"}
 
-    for r in (aoi.router, query.router, processing.router, download.router, geocode.router):
+    for r in (aoi.router, query.router, processing.router, download.router, batch.router, geocode.router):
         app.include_router(r)
 
     if settings.frontend_dist and settings.frontend_dist.is_dir():

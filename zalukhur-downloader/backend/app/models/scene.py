@@ -58,6 +58,10 @@ class CloudMaskOptions(BaseModel):
     dilate_m: int = Field(default=20, ge=0, le=100)
     fill_from_previous: bool = False
     previous_scene_ids: list[str] = Field(default_factory=list, max_length=5)
+    # otomatis: pilih N citra sebelumnya terdekat (utamakan tile yang sama). Dipakai bila
+    # previous_scene_ids kosong; wajib untuk batch karena tiap scene punya pendahulu berbeda.
+    auto_previous: int = Field(default=0, ge=0, le=5)
+    auto_lookback_days: int = Field(default=45, ge=1, le=365)
     include_qa: bool = True
 
     @field_validator("classes")
@@ -73,7 +77,7 @@ class CloudMaskOptions(BaseModel):
         if self.fill_from_previous:
             if not self.enabled:
                 raise ValueError("Pengisian dari citra sebelumnya memerlukan cloud masking aktif.")
-            if not self.previous_scene_ids:
+            if not self.previous_scene_ids and self.auto_previous == 0:
                 raise ValueError("Pilih minimal satu citra sebelumnya untuk mengisi piksel yang ter-mask.")
         if len(set(self.previous_scene_ids)) != len(self.previous_scene_ids):
             raise ValueError("Citra sebelumnya tidak boleh duplikat.")
@@ -83,7 +87,7 @@ class CloudMaskOptions(BaseModel):
 class PreviewRequest(BaseModel):
     scene_id: str
     aoi: dict[str, Any]
-    mode: Literal["true_color", "false_color"] = "true_color"
+    mode: Literal["true_color", "false_color", "ndvi", "ndwi", "nbr"] = "true_color"
     cloud_mask: CloudMaskOptions = Field(default_factory=CloudMaskOptions)
 
 
@@ -133,16 +137,36 @@ class PreviewResponse(BaseModel):
     cloud: dict[str, Any] | None = None  # statistik mask bila cloud masking aktif
 
 
-class DownloadRequest(BaseModel):
-    scene_id: str
-    aoi: dict[str, Any]
-    bands: list[str]
+IndexName = Literal["NDVI", "NDWI", "NBR"]
+
+
+class ChangeOptions(BaseModel):
+    """Deteksi perubahan: selisih indeks (citra utama − citra referensi yang lebih lama)."""
+
+    enabled: bool = False
+    index: IndexName = "NDVI"
+    reference_scene_id: str | None = None
+    threshold: float = Field(default=0.1, gt=0, le=1)
+
+    @model_validator(mode="after")
+    def _ref(self):
+        if self.enabled and not self.reference_scene_id:
+            raise ValueError("Pilih citra referensi (lebih lama) untuk deteksi perubahan.")
+        return self
+
+
+class DownloadOptions(BaseModel):
+    """Opsi pemrosesan yang sama untuk unduhan tunggal maupun batch."""
+
+    bands: list[str] = []
+    indices: list[IndexName] = []
     resolution: int = 10
     formats: list[Literal["geotiff", "cog"]] = ["geotiff"]
     mask_to_aoi: bool = True
     resampling: str = "auto"
     name: str | None = Field(default=None, max_length=60)
     cloud_mask: CloudMaskOptions = Field(default_factory=CloudMaskOptions)
+    change: ChangeOptions = Field(default_factory=ChangeOptions)
 
     @field_validator("bands")
     @classmethod
@@ -154,9 +178,12 @@ class DownloadRequest(BaseModel):
                 raise ValueError(f"Band '{b}' tidak dikenal. Pilihan: {', '.join(BANDS)}.")
             if b not in seen:
                 seen.append(b)
-        if not seen:
-            raise ValueError("Pilih minimal satu band.")
         return seen
+
+    @field_validator("indices")
+    @classmethod
+    def _indices(cls, v: list[str]):
+        return list(dict.fromkeys(v))
 
     @field_validator("resolution")
     @classmethod
@@ -179,3 +206,32 @@ class DownloadRequest(BaseModel):
         if not v:
             raise ValueError("Pilih minimal satu format keluaran.")
         return v
+
+    @model_validator(mode="after")
+    def _something(self):
+        if not (self.bands or self.indices or self.change.enabled):
+            raise ValueError("Pilih minimal satu band, indeks, atau deteksi perubahan.")
+        return self
+
+
+class DownloadRequest(DownloadOptions):
+    scene_id: str
+    aoi: dict[str, Any]
+
+
+class BatchRequest(DownloadOptions):
+    scene_ids: list[str] = Field(min_length=1, max_length=20)
+    aoi: dict[str, Any]
+
+    @model_validator(mode="after")
+    def _batch(self):
+        if len(set(self.scene_ids)) != len(self.scene_ids):
+            raise ValueError("Daftar scene batch tidak boleh duplikat.")
+        if self.cloud_mask.previous_scene_ids:
+            raise ValueError("Batch memakai pemilihan otomatis citra sebelumnya (auto_previous); "
+                             "daftar citra sebelumnya manual hanya untuk unduhan tunggal.")
+        if self.change.enabled:
+            raise ValueError("Deteksi perubahan memerlukan satu citra referensi per scene dan belum tersedia untuk batch.")
+        if self.cloud_mask.fill_from_previous and self.cloud_mask.auto_previous == 0:
+            raise ValueError("Batch dengan pengisian dari citra sebelumnya memerlukan auto_previous (1-5).")
+        return self

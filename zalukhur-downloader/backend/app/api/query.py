@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from shapely.geometry import shape
 
-from app.bands import BANDS, PRESETS, PREVIEW_MODES, RESAMPLING_METHODS, RESOLUTIONS
+from app.bands import BANDS, PRESETS, PREVIEW_INDEX_MODES, PREVIEW_MODES, RESAMPLING_METHODS, RESOLUTIONS
+from app.processing.indices import INDICES
 from app.models.scene import PreviewRequest, PreviewResponse, SearchRequest, SearchResponse
 from app.services import aoi as aoi_svc
 from app.services import cloud_mask, previous
@@ -29,7 +30,9 @@ def config(request: Request) -> dict:
         "presets": PRESETS,
         "resolutions": list(RESOLUTIONS),
         "resampling": list(RESAMPLING_METHODS),
-        "preview_modes": list(PREVIEW_MODES),
+        "preview_modes": [*PREVIEW_MODES, *PREVIEW_INDEX_MODES],
+        "indices": {k: {"label": v["label"], "formula": v["formula"], "bands": list(v["bands"])} for k, v in INDICES.items()},
+        "max_batch": 20,
         "mask_classes": {
             "cloud": "Awan (probabilitas sedang + tinggi, SCL 8-9)",
             "cloud_shadow": "Bayangan awan (SCL 3)",
@@ -60,7 +63,10 @@ def preview_scene(body: PreviewRequest, request: Request) -> PreviewResponse:
     if cm.enabled:
         cloud_mask.scl_href(item, st.settings)
         if cm.fill_from_previous:
-            prev_items = previous.resolve(st.catalog, item, cm.previous_scene_ids, geom, st.settings, _safe_id)
+            if cm.previous_scene_ids:
+                prev_items = previous.resolve(st.catalog, item, cm.previous_scene_ids, geom, st.settings, _safe_id)
+            else:
+                prev_items = previous.auto(st.catalog, item, geom, cm.auto_previous, cm.auto_lookback_days, st.settings)
     return preview_svc.render(item, geom, body.mode, st.settings, cm, prev_items)
 
 

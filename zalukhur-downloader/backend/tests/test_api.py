@@ -401,3 +401,129 @@ def test_preview_with_cloud_mask_shows_magenta_and_stats(env2):
     px2 = np.array(Image.open(io.BytesIO(base64.b64decode(d2["image"].split(",")[1]))).convert("RGBA"))
     assert not ((px2[..., 0] == 255) & (px2[..., 1] == 0) & (px2[..., 2] == 255)).any()
     assert d2["cloud"]["filled_pct"] == d2["cloud"]["masked_pct"]
+
+
+# ================================================================== tahap 3: indeks, perubahan, batch
+
+def test_config_lists_indices_and_modes(env2):
+    tc, *_ = env2
+    cfg = tc.get("/api/config").json()
+    assert set(cfg["indices"]) == {"NDVI", "NDWI", "NBR"} and cfg["indices"]["NBR"]["bands"] == ["B08", "B12"]
+    assert {"ndvi", "ndwi", "nbr"} <= set(cfg["preview_modes"]) and cfg["max_batch"] == 20
+
+
+def test_download_indices_and_change_via_api(env2):
+    tc, s2, aoi = env2
+    r = tc.post("/api/download", json={
+        "scene_id": CUR, "aoi": aoi, "indices": ["NDVI"], "mask_to_aoi": False, "formats": ["geotiff"],
+        "cloud_mask": {"enabled": True, "dilate_m": 0},
+        "change": {"enabled": True, "index": "NDVI", "reference_scene_id": P2, "threshold": 0.15},
+    })
+    assert r.status_code == 202, r.text
+    done = wait_job(tc, r.json()["id"])
+    assert done["status"] == "COMPLETED", done
+    names = {f["name"] for f in done["files"]}
+    assert names == {"AOI_2026-09-25_NDVI.tif", "AOI_2026-09-25_dNDVI_vs_2026-09-13.tif",
+                     "AOI_2026-09-25_change_NDVI_vs_2026-09-13.tif", "AOI_2026-09-25_QA.tif", "metadata.json"}
+    meta = tc.get(f"/api/jobs/{r.json()['id']}/files/metadata.json").json()
+    assert meta["products"]["change_detection"]["threshold"] == 0.15
+
+
+def test_change_reference_validation(env2):
+    tc, _, aoi = env2
+    base = {"scene_id": P1, "aoi": aoi, "indices": ["NDVI"]}
+    r = tc.post("/api/download", json={**base, "change": {"enabled": True, "reference_scene_id": CUR}})
+    assert r.status_code == 422 and "harus lebih lama" in r.json()["detail"]
+    r = tc.post("/api/download", json={**base, "change": {"enabled": True, "reference_scene_id": P1}})
+    assert r.status_code == 422 and "tidak boleh sama" in r.json()["detail"]
+    r = tc.post("/api/download", json={**base, "change": {"enabled": True, "reference_scene_id": "S2A_XXXX_00000000_0_L2A"}})
+    assert r.status_code == 404
+    r = tc.post("/api/download", json={"scene_id": CUR, "aoi": aoi})
+    assert r.status_code == 422 and "minimal satu band, indeks" in r.json()["detail"]
+
+
+def test_preview_index_modes(env2):
+    tc, _, aoi = env2
+    import base64, io
+    from PIL import Image
+    for mode in ("ndvi", "ndwi", "nbr"):
+        r = tc.post("/api/scenes/preview", json={"scene_id": CUR, "aoi": aoi, "mode": mode})
+        assert r.status_code == 200, (mode, r.text)
+        img = Image.open(io.BytesIO(base64.b64decode(r.json()["image"].split(",")[1]))).convert("RGBA")
+        px = np.array(img)
+        assert px[..., 3].max() == 255 and len(np.unique(px[..., :3].reshape(-1, 3), axis=0)) > 20   # berwarna, bukan datar
+    r = tc.post("/api/scenes/preview", json={"scene_id": CUR, "aoi": aoi, "mode": "evi"})
+    assert r.status_code == 422
+
+
+def wait_batch(tc, bid, timeout=60):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        b = tc.get(f"/api/batches/{bid}").json()
+        if b["status"] != "RUNNING":
+            return b
+        time.sleep(0.1)
+    raise AssertionError("batch timeout")
+
+
+def test_batch_runs_each_scene_and_bundles_zip(env2):
+    tc, s2, aoi = env2
+    r = tc.post("/api/batch", json={
+        "scene_ids": [CUR, P1, P2], "aoi": aoi, "bands": ["B04"], "indices": ["NDVI"], "mask_to_aoi": False,
+        "cloud_mask": {"enabled": True, "dilate_m": 0, "fill_from_previous": True, "auto_previous": 1},
+    })
+    assert r.status_code == 202, r.text
+    b0 = r.json()
+    assert b0["total"] == 3 and [j["scene_id"] for j in b0["jobs"]] == [CUR, P1, P2]
+    done = wait_batch(tc, b0["id"])
+    assert done["status"] == "COMPLETED" and done["completed"] == 3 and done["progress"] == 1.0
+    # pendahulu dipilih otomatis: terdekat & tile sama
+    prevs = {}
+    for j in done["jobs"]:
+        meta = tc.get(f"/api/jobs/{j['id']}/files/metadata.json").json()
+        prevs[j["scene_id"]] = [p["id"] for p in meta["cloud_masking"]["previous_scenes"]]
+    assert prevs == {CUR: [P1], P1: [P2], P2: [OLD]}
+    z = tc.get(done["zip_url"])
+    assert z.status_code == 200 and z.headers["content-type"] == "application/zip"
+    import zipfile, io
+    names = zipfile.ZipFile(io.BytesIO(z.content)).namelist()
+    for sid, date in ((CUR, "2026-09-25"), (P1, "2026-09-18"), (P2, "2026-09-13")):
+        assert f"{sid}/AOI_{date}.tif" in names and f"{sid}/AOI_{date}_NDVI.tif" in names and f"{sid}/metadata.json" in names
+    assert len(names) == len(set(names))
+
+
+def test_batch_partial_failure_is_isolated(env2):
+    tc, _, aoi = env2
+    # OLD (scene tertua) tidak punya pendahulu -> job itu gagal dengan pesan PRD; yang lain tetap selesai
+    r = tc.post("/api/batch", json={
+        "scene_ids": [CUR, OLD, "S2A_XXXX_00000000_0_L2A"], "aoi": aoi, "bands": ["B04"], "mask_to_aoi": False,
+        "cloud_mask": {"enabled": True, "fill_from_previous": True, "auto_previous": 1},
+    })
+    done = wait_batch(tc, r.json()["id"])
+    by = {j["scene_id"]: j for j in done["jobs"]}
+    assert done["status"] == "COMPLETED_WITH_ERRORS" and done["completed"] == 1 and done["failed"] == 2
+    assert by[CUR]["status"] == "COMPLETED"
+    assert by[OLD]["error"] == "Citra sebelumnya tidak tersedia. Cloud masking berbasis previous image tidak dapat dilakukan."
+    assert "tidak ditemukan" in by["S2A_XXXX_00000000_0_L2A"]["error"].lower()
+    import zipfile, io
+    names = zipfile.ZipFile(io.BytesIO(tc.get(done["zip_url"]).content)).namelist()
+    assert all(n.startswith(CUR + "/") for n in names)
+
+
+def test_batch_validation_and_not_found(env2):
+    tc, _, aoi = env2
+    base = {"aoi": aoi, "bands": ["B04"]}
+    assert tc.post("/api/batch", json={**base, "scene_ids": []}).status_code == 422
+    assert tc.post("/api/batch", json={**base, "scene_ids": [f"S2A_TEST_{i:08d}" for i in range(21)]}).status_code == 422
+    r = tc.post("/api/batch", json={**base, "scene_ids": [CUR, CUR]})
+    assert r.status_code == 422 and "duplikat" in r.json()["detail"]
+    r = tc.post("/api/batch", json={**base, "scene_ids": [CUR], "cloud_mask": {"enabled": True, "fill_from_previous": True}})
+    assert r.status_code == 422 and "citra sebelumnya" in r.json()["detail"]
+    r = tc.post("/api/batch", json={**base, "scene_ids": [CUR], "cloud_mask": {
+        "enabled": True, "fill_from_previous": True, "previous_scene_ids": [P1]}})
+    assert r.status_code == 422 and "auto_previous" in r.json()["detail"]
+    r = tc.post("/api/batch", json={**base, "scene_ids": [CUR], "change": {"enabled": True, "reference_scene_id": P1}})
+    assert r.status_code == 422 and "belum tersedia untuk batch" in r.json()["detail"]
+    assert tc.post("/api/batch", json={**base, "scene_ids": ["../etc/passwd"]}).status_code == 404
+    assert tc.get("/api/batches/unknown").status_code == 404
+    assert tc.get("/api/batches/unknown/download.zip").status_code == 404
