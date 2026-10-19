@@ -231,6 +231,275 @@ const EFEK: Record<KarakterId, EfekDefinisi> = {
       }
     },
   },
+
+  itadori: {
+    nama: "黒閃",
+    romaji: "Kokusen · Black Flash — Yuji Itadori",
+    mulai() {
+      return { kilat: [], ledakan: 0 };
+    },
+    gambar(ctx, w, h, t, dt, s) {
+      ctx.fillStyle = "rgba(10, 0, 5, 0.35)";
+      ctx.fillRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+
+      // Gelombang Distorsi Spasial Kokusen
+      const rMaks = Math.hypot(w, h) * 0.5;
+      for (let i = 0; i < 4; i++) {
+        const fase = (t * 0.9 + i / 4) % 1;
+        ctx.strokeStyle = `rgba(225, 29, 72, ${(1 - fase) * 0.9})`;
+        ctx.lineWidth = 4 * (1 - fase) + 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(0, fase * rMaks), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Kilatan Hitam Merah (Black Flash)
+      if (Math.random() < 0.45 && t > 0.4) {
+        ctx.save();
+        ctx.shadowColor = "#e11d48";
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        let kx = cx + acak(-60, 60);
+        let ky = cy + acak(-60, 60);
+        ctx.moveTo(kx, ky);
+        for (let j = 0; j < 6; j++) {
+          kx += acak(-80, 80);
+          ky += acak(-80, 80);
+          ctx.lineTo(kx, ky);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = "#f43f5e";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+  },
+
+  megumi: {
+    nama: "嵌合暗翳庭",
+    romaji: "Kangō An'eitei · Chimera Shadow Garden — Megumi Fushiguro",
+    mulai() {
+      return { bayang: [] };
+    },
+    gambar(ctx, w, h, t, dt) {
+      ctx.fillStyle = "rgba(2, 6, 23, 0.3)";
+      ctx.fillRect(0, 0, w, h);
+
+      // Cairan Bayangan Menggenang di Bawah
+      const grad = ctx.createLinearGradient(0, h * 0.3, 0, h);
+      grad.addColorStop(0, "rgba(4, 47, 46, 0)");
+      grad.addColorStop(0.6, "rgba(15, 118, 110, 0.4)");
+      grad.addColorStop(1, "rgba(2, 44, 34, 0.95)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Gelombang Bayangan Bergelombang
+      ctx.fillStyle = "rgba(13, 148, 136, 0.25)";
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (let x = 0; x <= w; x += 30) {
+        const y = h * 0.65 + Math.sin(x * 0.015 + t * 2) * 25 + Math.cos(x * 0.03 - t) * 15;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Mata Serigala Kembar (Kon / Divine Dog) di Kegelapan
+      const kedip = Math.abs(Math.sin(t * 2));
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + 0.6 * kedip})`;
+      ctx.beginPath();
+      ctx.arc(w * 0.35, h * 0.5, 4, 0, Math.PI * 2);
+      ctx.arc(w * 0.42, h * 0.5, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(45, 212, 191, ${0.4 + 0.6 * kedip})`;
+      ctx.beginPath();
+      ctx.arc(w * 0.58, h * 0.48, 4, 0, Math.PI * 2);
+      ctx.arc(w * 0.65, h * 0.48, 4, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  },
+
+  nobara: {
+    nama: "芻霊呪法",
+    romaji: "Sūrei Juhō · Resonance & Hairpin — Nobara Kugisaki",
+    mulai() {
+      return { paku: [] };
+    },
+    gambar(ctx, w, h, t, dt) {
+      ctx.fillStyle = "rgba(26, 5, 29, 0.35)";
+      ctx.fillRect(0, 0, w, h);
+
+      // Denyut Jantung Resonansi Boneka Jerami
+      const cx = w / 2;
+      const cy = h / 2;
+      const denyut = (Math.sin(t * 6) + 1) * 0.5;
+      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 180);
+      glow.addColorStop(0, `rgba(219, 39, 119, ${0.6 * denyut})`);
+      glow.addColorStop(0.5, `rgba(225, 29, 72, ${0.2 * denyut})`);
+      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+
+      // Paku Berterbangan dan Percikan Biru / Merah Muda
+      if (Math.random() < 0.4) {
+        ctx.save();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.shadowColor = "#db2777";
+        ctx.shadowBlur = 15;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const px = acak(w * 0.1, w * 0.9);
+        const py = acak(h * 0.1, h * 0.9);
+        ctx.moveTo(px, py);
+        ctx.lineTo(px + acak(30, 80), py + acak(30, 80));
+        ctx.stroke();
+        ctx.restore();
+      }
+    },
+  },
+
+  yuta: {
+    nama: "真正相互愛",
+    romaji: "Shinsetsu Sōgo Ai · Authentic Mutual Love — Yuta Okkotsu",
+    mulai(w, h) {
+      return { cincin: [] };
+    },
+    gambar(ctx, w, h, t, dt) {
+      ctx.fillStyle = "rgba(9, 5, 20, 0.3)";
+      ctx.fillRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+
+      // Pita Rohani Ethereal Rika (Ungu & Perak)
+      const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, Math.hypot(w, h) * 0.55);
+      grad.addColorStop(0, "rgba(168, 85, 247, 0.5)");
+      grad.addColorStop(0.4, "rgba(147, 51, 234, 0.25)");
+      grad.addColorStop(1, "rgba(59, 7, 100, 0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Cincin Ikatan Suci Berputar
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 0.8);
+      ctx.strokeStyle = "rgba(233, 213, 255, 0.85)";
+      ctx.shadowColor = "#c084fc";
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 2.5;
+      for (let r = 50; r <= 150; r += 50) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 1.6);
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+  },
+
+  toji: {
+    nama: "天与呪縛",
+    romaji: "Ten'yo Jubaku · Heavenly Restriction — Toji Fushiguro",
+    mulai() {
+      return { garis: [] };
+    },
+    gambar(ctx, w, h, t, dt) {
+      ctx.fillStyle = "rgba(10, 14, 20, 0.35)";
+      ctx.fillRect(0, 0, w, h);
+      // Rantai melayang & kilatan belati perak
+      ctx.save();
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.75)";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(0, h * 0.7 + Math.sin(t * 3) * 50);
+      ctx.bezierCurveTo(w * 0.3, h * 0.2, w * 0.7, h * 0.8, w, h * 0.3);
+      ctx.stroke();
+      ctx.restore();
+    },
+  },
+
+  geto: {
+    nama: "極ノ番「うずまき」",
+    romaji: "Gokunoban: Uzumaki · Maximum: Uzumaki — Suguru Geto",
+    mulai() {
+      return { sudut: 0 };
+    },
+    gambar(ctx, w, h, t) {
+      ctx.fillStyle = "rgba(15, 12, 3, 0.3)";
+      ctx.fillRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 1.5);
+      ctx.strokeStyle = "rgba(202, 138, 4, 0.8)";
+      ctx.shadowColor = "#eab308";
+      ctx.shadowBlur = 20;
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 80 + i * 45, 0, Math.PI * 1.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+  },
+
+  maki: {
+    nama: "釈魂刀",
+    romaji: "Shiratama · Soul Splitter Katana — Maki Zen'in",
+    mulai() {
+      return {};
+    },
+    gambar(ctx, w, h, t) {
+      ctx.fillStyle = "rgba(20, 5, 8, 0.32)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.strokeStyle = "#e11d48";
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#f43f5e";
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.moveTo(w * 0.1, h * 0.8);
+      ctx.lineTo(w * 0.9, h * 0.2);
+      ctx.stroke();
+      ctx.restore();
+    },
+  },
+
+  mahito: {
+    nama: "自閉円頓裹",
+    romaji: "Jihei Endonka · Self-Embodiment of Perfection — Mahito",
+    mulai() {
+      return {};
+    },
+    gambar(ctx, w, h, t) {
+      ctx.fillStyle = "rgba(6, 12, 22, 0.35)";
+      ctx.fillRect(0, 0, w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+      ctx.save();
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.7)";
+      ctx.shadowColor = "#a855f7";
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 2;
+      for (let r = 40; r < 240; r += 50) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + Math.sin(t * 4 + r) * 15, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    },
+  },
 };
 
 let aktif = false;

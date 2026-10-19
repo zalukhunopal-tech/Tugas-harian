@@ -78,3 +78,18 @@ export function muatHarga(): DataHarga {
 export function simpanHarga(harga: DataHarga): void {
   tulisStorage(HARGA_KEY, JSON.stringify(harga));
 }
+
+export function muatTransaksiBerulang(): import("../types").TransaksiBerulang[] {
+  const data = bacaJsonStorage<import("../types").TransaksiBerulang[]>(
+    "keuangan-transaksi-berulang",
+    []
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export function simpanTransaksiBerulang(
+  data: import("../types").TransaksiBerulang[]
+): void {
+  tulisStorage("keuangan-transaksi-berulang", JSON.stringify(data));
+}
+

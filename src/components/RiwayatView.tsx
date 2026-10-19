@@ -10,6 +10,8 @@ interface RiwayatViewProps {
   onEdit: (t: Transaksi) => void;
   onDelete: (id: string) => void;
   onGeserBulan: (delta: number) => void;
+  onBukaTransaksiBerulang?: () => void;
+  jumlahJatuhTempo?: number;
 }
 
 function inisialKategori(k: string): string {
@@ -25,6 +27,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onEdit,
   onDelete,
   onGeserBulan,
+  onBukaTransaksiBerulang,
+  jumlahJatuhTempo = 0,
 }) => {
   const [filterDana, setFilterDana] = useState<string>("");
 
@@ -82,6 +86,38 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
 
   return (
     <section className="view" id="view-riwayat" data-view="riwayat">
+      {jumlahJatuhTempo > 0 && onBukaTransaksiBerulang && (
+        <div
+          style={{
+            marginBottom: "12px",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
+            border: "1.5px solid var(--accent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.86rem" }}>
+            <span style={{ fontSize: "1.2rem" }}>🔔</span>
+            <span>
+              Ada <strong>{jumlahJatuhTempo} transaksi berulang</strong> jatuh tempo hari ini!
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ padding: "5px 12px", fontSize: "0.8rem", fontWeight: 700 }}
+            onClick={onBukaTransaksiBerulang}
+          >
+            🔁 Kelola &amp; Terapkan
+          </button>
+        </div>
+      )}
+
       <section className="balances" aria-label="Saldo per dana">
         <div className="balance" data-dana="Dana Pribadi">
           <span className="stat-label">Saldo Dana Pribadi</span>
@@ -142,6 +178,39 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         >
           Dana Kegiatan
         </button>
+
+        {onBukaTransaksiBerulang && (
+          <button
+            type="button"
+            className="chip"
+            style={{
+              marginLeft: "auto",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              borderColor: jumlahJatuhTempo > 0 ? "var(--accent)" : undefined,
+              fontWeight: 600,
+            }}
+            onClick={onBukaTransaksiBerulang}
+            title="Kelola jadwal transaksi berulang (gaji, tagihan, langganan bulanan)"
+          >
+            <span>🔁 Transaksi Berulang</span>
+            {jumlahJatuhTempo > 0 && (
+              <span
+                style={{
+                  background: "var(--accent)",
+                  color: "#fff",
+                  borderRadius: "10px",
+                  padding: "1px 6px",
+                  fontSize: "0.72rem",
+                  fontWeight: 800,
+                }}
+              >
+                {jumlahJatuhTempo}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="budget" id="kartu-anggaran">

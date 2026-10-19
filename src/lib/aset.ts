@@ -3,7 +3,7 @@ import { formatRupiah, formatGram, formatKoin } from "./constants";
 
 export const JENIS_ASET = ["emas", "crypto", "jmo", "investasi"] as const;
 export const KOIN_DEFAULT = ["bitcoin", "ethereum"];
-export const HARGA_BASI_MS = 6 * 60 * 60 * 1000; // 6 hours
+export const HARGA_BASI_MS = 30 * 60 * 1000; // 30 menit (interval otomatis update harga aset)
 
 export function waktuMs(w?: string): number {
   if (!w) return 0;
@@ -197,6 +197,46 @@ export async function ambilHargaCoinGecko(koinList: string[]): Promise<Record<st
     }
   }
   return hasil;
+}
+
+export async function ambilHargaPasarLengkap(koinList: string[]): Promise<{
+  crypto: Record<string, HargaKoin>;
+  emas?: HargaEmas;
+}> {
+  // Selalu sertakan pax-gold untuk update otomatis harga emas pasar spot
+  const idsToFetch = Array.from(new Set([...koinList, "pax-gold"]));
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(
+    idsToFetch.join(",")
+  )}&vs_currencies=idr&include_24hr_change=true`;
+
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`CoinGecko HTTP ${res.status}`);
+  const data = (await res.json()) as Record<string, { idr?: number; idr_24h_change?: number }>;
+
+  const cryptoHasil: Record<string, HargaKoin> = {};
+  for (const [id, v] of Object.entries(data)) {
+    if (id !== "pax-gold" && v && typeof v.idr === "number") {
+      cryptoHasil[id.toLowerCase()] = {
+        idr: v.idr,
+        perubahan24: typeof v.idr_24h_change === "number" ? v.idr_24h_change : null,
+      };
+    }
+  }
+
+  let emasHasil: HargaEmas | undefined;
+  if (data["pax-gold"] && typeof data["pax-gold"].idr === "number" && data["pax-gold"].idr > 0) {
+    // 1 Troy Ounce = 31.1034768 gram
+    const gramIdr = Math.round(data["pax-gold"].idr / 31.1034768);
+    const buyback = Math.round(gramIdr * 0.91);
+    emasHasil = {
+      jual: gramIdr,
+      buyback,
+      waktu: new Date().toISOString(),
+      sumber: "otomatis (spot gold)",
+    };
+  }
+
+  return { crypto: cryptoHasil, emas: emasHasil };
 }
 
 export function hargaBasi(harga?: DataHarga, kini: number = Date.now()): boolean {

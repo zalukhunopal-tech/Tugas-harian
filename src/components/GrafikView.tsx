@@ -104,31 +104,33 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
           })}
         </div>
 
-        <table className="tabel-tren" id="tabel-tren">
-          <thead>
-            <tr>
-              <th>Bulan</th>
-              <th>Pemasukan</th>
-              <th>Pengeluaran</th>
-              <th>Selisih</th>
-            </tr>
-          </thead>
-          <tbody>
-            {daftarBulan.map((b) => {
-              const selisih = b.masuk - b.keluar;
-              return (
-                <tr key={b.kunci}>
-                  <td>{b.label}</td>
-                  <td>{formatAngka(b.masuk)}</td>
-                  <td>{formatAngka(b.keluar)}</td>
-                  <td className={selisih < 0 ? "negatif" : ""}>
-                    {formatAngka(selisih)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="tabel-tren-wrap">
+          <table className="tabel-tren" id="tabel-tren">
+            <thead>
+              <tr>
+                <th>Bulan</th>
+                <th>Pemasukan</th>
+                <th>Pengeluaran</th>
+                <th>Selisih</th>
+              </tr>
+            </thead>
+            <tbody>
+              {daftarBulan.map((b) => {
+                const selisih = b.masuk - b.keluar;
+                return (
+                  <tr key={b.kunci}>
+                    <td>{b.label}</td>
+                    <td>{formatAngka(b.masuk)}</td>
+                    <td>{formatAngka(b.keluar)}</td>
+                    <td className={selisih < 0 ? "negatif" : ""}>
+                      {formatAngka(selisih)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card">
