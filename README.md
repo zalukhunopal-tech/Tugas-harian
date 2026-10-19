@@ -1,28 +1,49 @@
-# Tugas-harian
-Memuat kode automasi untuk tugas harian
+# Catatan Keuangan Harian (React + TypeScript + Vite)
 
-## Catatan Keuangan Harian
+Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScript, dan Vite yang tersinkronisasi dengan Google Sheets, dilengkapi dengan pelacakan portofolio aset, anggaran harian, grafik tren pengeluaran, serta tema Jujutsu Kaisen interaktif.
 
-Halaman web sederhana di folder [`pengeluaran/`](pengeluaran/) untuk mencatat pemasukan dan pengeluaran harian,
-tersinkron dengan Google Sheets di folder Drive *Keuangan*.
+## Fitur Utama
 
-- Buka di <https://zalukhunopal-tech.github.io/Tugas-harian/pengeluaran/> (GitHub Pages, perlu diaktifkan sekali:
-  *Settings → Pages → Deploy from a branch → main / (root)*), atau buka `pengeluaran/index.html` langsung di browser.
-- Transaksi **pemasukan** atau **pengeluaran** dicatat ke salah satu dana. Kategorinya persis sama dengan panel
-  kategori di sheet *Keuangan Pribadi 2026* / *Keuangan Kegiatan 2026*, ditambah kolom Sumber/Tujuan atau Kaitan Kegiatan.
-- **Sinkronisasi Google Sheets**: setiap transaksi otomatis ditulis ke sheet yang sesuai, dan isi sheet ditarik saat
-  halaman dibuka. Perantaranya Google Apps Script yang dipasang sekali; panduan di
-  [`pengeluaran/apps-script/README.md`](pengeluaran/apps-script/README.md). Di halaman biasa (GitHub Pages / file
-  lokal) aplikasi memanggil Web App Apps Script; di halaman artifact Claude aplikasi memakai konektor Google Drive
-  dan antrean yang diproses Apps Script setiap menit. Tanpa sinkronisasi, data tetap tersimpan di `localStorage` browser.
-- Ubah/hapus transaksi, filter per tanggal dan dana, anggaran pengeluaran harian, ringkasan per kategori, unduh CSV.
-- **Aset**: emas (harga Antam dari Logam Mulia), kripto (CoinGecko), saldo JHT BPJS Ketenagakerjaan (proyeksi
-  mengikuti skema iuran 5,7% + hasil pengembangan tahunan), dan investasi lain (bunga rata-rata). Total nilai,
-  untung/rugi, dan harga pasar yang diperbarui tiap jam oleh Apps Script.
-- **Tampilan dashboard**: bilah atas dengan pemilih bulan dan ringkasan Pengeluaran / Pemasukan / Saldo, daftar
-  transaksi dikelompokkan per hari, navigasi bawah (Riwayat, Aset, +, Grafik, Saya), font Plus Jakarta Sans.
-- **Keamanan**: kunci sinkron untuk Web App, pemindai rahasia di CI, CODEOWNERS; langkah pengamanan akun di
-  [SECURITY.md](SECURITY.md).
-- **Tema Jujutsu** (bawaan) dengan pilihan karakter — Gojo, Sukuna, Jogo, Nanami — yang mengubah palet warna dan
-  lambang, serta efek **Perluasan Domain** (領域展開) lewat tombol di pojok kanan atas. Tema standar tetap tersedia;
-  animasi mati otomatis bila perangkat mengaktifkan *reduce motion*.
+- **Pencatatan Transaksi Harian**:
+  - Pemasukan dan pengeluaran untuk **Dana Pribadi** dan **Dana Kegiatan**.
+  - Kategori otomatis sesuai pos anggaran.
+  - Perekaman metode bayar (Tunai, Transfer, QRIS, E-wallet, Kartu debit/kredit).
+  - Kolom sumber/tujuan dana, kaitan kegiatan, dan catatan.
+- **Ringkasan & Anggaran Harian**:
+  - Saldo kumulatif per dana serta arus kas bulan berjalan.
+  - Meter anggaran pengeluaran harian dengan indikator persentase dan peringatan limit.
+  - Pengelompokan riwayat transaksi per hari dengan subtotal.
+  - Filter cepat per jenis dana (Semua Dana, Dana Pribadi, Dana Kegiatan).
+- **Pelacakan Aset**:
+  - **Emas Antam**: Perhitungan nilai berdasarkan gram dan harga pasar emas (serta buyback).
+  - **Kripto**: Pelacakan koin (BTC, ETH, SOL, BNB, dll.) dengan harga pasar real-time dari CoinGecko dalam IDR.
+  - **JMO / BPJS Ketenagakerjaan JHT**: Proyeksi pertumbuhan saldo berdasarkan iuran bulanan 5,7% upah dan suku bunga tahunan majemuk bulanan.
+  - **Investasi**: Modal tumbuh dengan skema bunga sederhana, majemuk tahunan, atau majemuk bulanan.
+  - Perhitungan untung/rugi total dan per aset (nominal Rp & persentase).
+- **Grafik & Analisis**:
+  - Grafik batang tren pemasukan dan pengeluaran 6 bulan terakhir.
+  - Tabel rekapitulasi 6 bulan (Pemasukan, Pengeluaran, Selisih/Saldo).
+  - Rekapitulasi pengeluaran dan pemasukan per kategori bulan berjalan.
+- **Sinkronisasi Google Sheets**:
+  - Kompatibel dengan Google Apps Script Web App untuk membaca (`GET`) dan menyimpan (`POST`) transaksi secara dua arah.
+  - Penyalinan dan pengunduhan kode `Code.gs` langsung dari aplikasi.
+- **Tema & Visual Jujutsu Kaisen**:
+  - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
+  - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
+  - Efek animasi Kanvas **Perluasan Domain** (領域展開) penuh layar sesuai karakter.
+  - Pilihan beralih ke Tema Standar.
+- **Ekspor Data**:
+  - Unduh seluruh riwayat transaksi dalam format CSV ber-BOM UTF-8.
+
+## Menjalankan Aplikasi
+
+```bash
+# Instalasi dependensi
+npm install
+
+# Menjalankan dev server pada port 3000
+npm run dev
+
+# Membangun versi produksi
+npm run build
+```
