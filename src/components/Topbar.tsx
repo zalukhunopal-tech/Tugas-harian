@@ -1,13 +1,16 @@
 import React from "react";
 import { KarakterId, Transaksi } from "../types";
-import { KARAKTER, formatRupiah, namaBulan, namaBulanPendek } from "../lib/constants";
+import { KARAKTER, formatRupiah, namaBulanPendek } from "../lib/constants";
 import { jalankanPerluasanDomain } from "../lib/domain";
+import { KarakterAnimasi } from "./KarakterAnimasi";
 
 interface TopbarProps {
   karakter: KarakterId;
   bulanTerpilih: string; // YYYY-MM
   onPilihBulan: (bulan: string) => void;
   transaksi: Transaksi[];
+  onTarikDrive?: () => void;
+  memuatDrive?: boolean;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -15,6 +18,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   bulanTerpilih,
   onPilihBulan,
   transaksi,
+  onTarikDrive,
+  memuatDrive = false,
 }) => {
   const meta = KARAKTER[karakter] || KARAKTER.gojo;
 
@@ -44,24 +49,46 @@ export const Topbar: React.FC<TopbarProps> = ({
       <div className="topbar-row">
         <div className="brand">
           <div className="hanko" id="hanko" aria-hidden="true">
-            {meta.lambang}
+            <KarakterAnimasi
+              karakter={karakter}
+              ukuran={42}
+              showAura
+              interaktif
+              onClick={() => jalankanPerluasanDomain(karakter)}
+              title={`Karakter Aktif: ${meta.nama}. Klik untuk Perluasan Domain!`}
+            />
           </div>
-          <div>
+          <div className="brand-text">
             <h1>Catatan Keuangan</h1>
             <p className="tagline" id="tagline">
               {meta.tagline}
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          id="btn-domain"
-          className="btn-domain"
-          title="Perluasan Domain"
-          onClick={() => jalankanPerluasanDomain(karakter)}
-        >
-          領域展開
-        </button>
+
+        <div className="topbar-actions">
+          {onTarikDrive && (
+            <button
+              type="button"
+              className="btn-sync-topbar"
+              title="Tarik & sinkronkan data dari folder Keuangan di Google Drive"
+              onClick={onTarikDrive}
+              disabled={memuatDrive}
+            >
+              {memuatDrive ? "⟳ Menarik…" : "⟳ Tarik Drive"}
+            </button>
+          )}
+
+          <button
+            type="button"
+            id="btn-domain"
+            className="btn-domain"
+            title="Perluasan Domain"
+            onClick={() => jalankanPerluasanDomain(karakter)}
+          >
+            領域展開
+          </button>
+        </div>
       </div>
 
       <div className="topbar-row ringkasan-bulan">
@@ -102,23 +129,29 @@ export const Topbar: React.FC<TopbarProps> = ({
             ›
           </button>
         </div>
-        <div className="stat-bulan">
-          <span className="stat-label">Pengeluaran</span>
-          <span className="stat-value" id="keluar-bulan">
-            {formatRupiah(totalKeluar)}
-          </span>
-        </div>
-        <div className="stat-bulan">
-          <span className="stat-label">Pemasukan</span>
-          <span className="stat-value" id="masuk-bulan">
-            {formatRupiah(totalMasuk)}
-          </span>
-        </div>
-        <div className="stat-bulan">
-          <span className="stat-label">Saldo</span>
-          <span className="stat-value" id="saldo-bulan">
-            {formatRupiah(saldoBulan)}
-          </span>
+
+        <div className="ringkasan-bulan-stats">
+          <div className="stat-bulan">
+            <span className="stat-label">Pengeluaran</span>
+            <span className="stat-value" id="keluar-bulan">
+              {formatRupiah(totalKeluar)}
+            </span>
+          </div>
+          <div className="stat-bulan">
+            <span className="stat-label">Pemasukan</span>
+            <span className="stat-value" id="masuk-bulan">
+              {formatRupiah(totalMasuk)}
+            </span>
+          </div>
+          <div className="stat-bulan">
+            <span className="stat-label">Saldo</span>
+            <span
+              className={`stat-value ${saldoBulan < 0 ? "negative" : ""}`}
+              id="saldo-bulan"
+            >
+              {formatRupiah(saldoBulan)}
+            </span>
+          </div>
         </div>
       </div>
     </header>

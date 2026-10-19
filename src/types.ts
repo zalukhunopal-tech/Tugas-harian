@@ -84,7 +84,19 @@ export interface RingkasanAset {
   belumTersedia: number;
 }
 
-export type KarakterId = "gojo" | "sukuna" | "jogo" | "nanami";
+export type KarakterId =
+  | "gojo"
+  | "sukuna"
+  | "jogo"
+  | "nanami"
+  | "itadori"
+  | "megumi"
+  | "nobara"
+  | "yuta"
+  | "toji"
+  | "geto"
+  | "maki"
+  | "mahito";
 export type TemaId = "jujutsu" | "standar";
 export type ViewTab = "riwayat" | "aset" | "tambah" | "grafik" | "saya";
 
@@ -95,3 +107,24 @@ export interface SyncOp {
   aset?: AsetItem[];
   dibuat?: string;
 }
+
+export type FrekuensiBerulang = "harian" | "mingguan" | "bulanan" | "tahunan";
+
+export interface TransaksiBerulang {
+  id: string;
+  nama: string;
+  jenis: JenisTransaksi;
+  dana: NamaDana;
+  jumlah: number;
+  kategori: string;
+  metode: string;
+  kaitan: string;
+  catatan: string;
+  frekuensi: FrekuensiBerulang;
+  tanggalMulai: string; // YYYY-MM-DD
+  hariDalamBulan?: number; // 1-31 (misal tiap tanggal 25)
+  hariDalamMinggu?: number; // 0 (Minggu) - 6 (Sabtu)
+  terakhirDiterapkan?: string; // YYYY-MM-DD
+  aktif: boolean;
+}
+

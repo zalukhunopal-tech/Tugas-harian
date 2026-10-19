@@ -115,6 +115,182 @@ html[data-tema="jujutsu"][data-karakter="nanami"] {
   --nav-bg: rgba(14, 14, 8, 0.94);
 }
 
+/* Itadori: Kilatan Hitam (Kokusen) — merah mawar, hitam bara, dan oranye harimau. */
+html[data-tema="jujutsu"][data-karakter="itadori"] {
+  --bg: #0e0507;
+  --surface: #1c0a0f;
+  --border: #581c26;
+  --accent: #f43f5e;
+  --accent-hover: #fb7185;
+  --track: #2a0e14;
+  --highlight: #3b141d;
+  --muted: #d4a5ad;
+  --biru: #fecdd3;
+  --segel: #e11d48;
+  --k1: 244, 63, 94;
+  --k2: 251, 146, 60;
+  --k3: 159, 18, 57;
+  --teks-tombol: #fff;
+  --masuk: #fed7aa;
+  --keluar: #f43f5e;
+  --topbar-text: #ffe4e6;
+  --nav-bg: rgba(22, 6, 10, 0.94);
+}
+
+/* Megumi: Sepuluh Bayangan — hijau toska bayangan & giok gelap. */
+html[data-tema="jujutsu"][data-karakter="megumi"] {
+  --bg: #030a0d;
+  --surface: #09171f;
+  --border: #153c48;
+  --accent: #14b8a6;
+  --accent-hover: #2dd4bf;
+  --track: #0f2732;
+  --highlight: #133342;
+  --muted: #8cb4be;
+  --biru: #99f6e4;
+  --segel: #0f766e;
+  --k1: 20, 184, 166;
+  --k2: 56, 189, 248;
+  --k3: 13, 148, 136;
+  --teks-tombol: #022c22;
+  --masuk: #99f6e4;
+  --keluar: #a7f3d0;
+  --topbar-text: #e6fffa;
+  --nav-bg: rgba(4, 16, 22, 0.94);
+}
+
+/* Nobara: Resonansi & Paku Jerami — magenta tajam & mawar merah. */
+html[data-tema="jujutsu"][data-karakter="nobara"] {
+  --bg: #0f0409;
+  --surface: #1e0914;
+  --border: #561a3b;
+  --accent: #ec4899;
+  --accent-hover: #f472b6;
+  --track: #2f0f21;
+  --highlight: #3e142c;
+  --muted: #d69dbb;
+  --biru: #fbcfe8;
+  --segel: #be185d;
+  --k1: 236, 72, 153;
+  --k2: 251, 113, 133;
+  --k3: 190, 24, 93;
+  --teks-tombol: #fff;
+  --masuk: #fbcfe8;
+  --keluar: #fb7185;
+  --topbar-text: #fdf2f8;
+  --nav-bg: rgba(24, 5, 14, 0.94);
+}
+
+/* Yuta: Cinta Sejati & Rika — violet mistis & lavender suci. */
+html[data-tema="jujutsu"][data-karakter="yuta"] {
+  --bg: #080512;
+  --surface: #130d24;
+  --border: #3c2466;
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --track: #1f1438;
+  --highlight: #2c1d4e;
+  --muted: #b9a7d8;
+  --biru: #e9d5ff;
+  --segel: #7e22ce;
+  --k1: 168, 85, 247;
+  --k2: 243, 232, 255;
+  --k3: 126, 34, 206;
+  --teks-tombol: #fff;
+  --masuk: #e9d5ff;
+  --keluar: #f0abfc;
+  --topbar-text: #faf5ff;
+  --nav-bg: rgba(12, 8, 26, 0.94);
+}
+
+/* Toji: Batasan Surgawi — baja dingin arang & hijau giok pembunuh. */
+html[data-tema="jujutsu"][data-karakter="toji"] {
+  --bg: #07090d;
+  --surface: #111620;
+  --border: #283748;
+  --accent: #64748b;
+  --accent-hover: #94a3b8;
+  --track: #1a232f;
+  --highlight: #233040;
+  --muted: #94a3b8;
+  --biru: #cbd5e1;
+  --segel: #334155;
+  --k1: 148, 163, 184;
+  --k2: 34, 197, 94;
+  --k3: 71, 85, 105;
+  --teks-tombol: #020617;
+  --masuk: #86efac;
+  --keluar: #cbd5e1;
+  --topbar-text: #f1f5f9;
+  --nav-bg: rgba(10, 14, 20, 0.95);
+}
+
+/* Geto: Manipulasi Roh Kutukan — emas kuno & hijau kutukan. */
+html[data-tema="jujutsu"][data-karakter="geto"] {
+  --bg: #0b0a03;
+  --surface: #181608;
+  --border: #4d4316;
+  --accent: #ca8a04;
+  --accent-hover: #eab308;
+  --track: #2b260d;
+  --highlight: #3b3412;
+  --muted: #baa876;
+  --biru: #fef08a;
+  --segel: #854d0e;
+  --k1: 202, 138, 4;
+  --k2: 74, 222, 128;
+  --k3: 133, 77, 14;
+  --teks-tombol: #1c1402;
+  --masuk: #fef08a;
+  --keluar: #fde047;
+  --topbar-text: #fefce8;
+  --nav-bg: rgba(16, 14, 6, 0.95);
+}
+
+/* Maki: Jiwa Baja Terbelah — merah darah kirmizi & hijau pertempuran. */
+html[data-tema="jujutsu"][data-karakter="maki"] {
+  --bg: #0c0406;
+  --surface: #1b0a0e;
+  --border: #521926;
+  --accent: #e11d48;
+  --accent-hover: #f43f5e;
+  --track: #2a0e16;
+  --highlight: #3a131e;
+  --muted: #cfa1ab;
+  --biru: #fecdd3;
+  --segel: #9f1239;
+  --k1: 225, 29, 72;
+  --k2: 52, 211, 153;
+  --k3: 159, 18, 57;
+  --teks-tombol: #fff;
+  --masuk: #fecdd3;
+  --keluar: #fda4af;
+  --topbar-text: #ffe4e6;
+  --nav-bg: rgba(22, 6, 10, 0.95);
+}
+
+/* Mahito: Mutasi Jiwa — biru es pucat & ungu roh terdistorsi. */
+html[data-tema="jujutsu"][data-karakter="mahito"] {
+  --bg: #06090e;
+  --surface: #0e1622;
+  --border: #22374e;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --track: #152436;
+  --highlight: #1b3048;
+  --muted: #95acc7;
+  --biru: #bae6fd;
+  --segel: #0284c7;
+  --k1: 56, 189, 248;
+  --k2: 192, 132, 252;
+  --k3: 3, 105, 161;
+  --teks-tombol: #041426;
+  --masuk: #bae6fd;
+  --keluar: #e9d5ff;
+  --topbar-text: #f0f9ff;
+  --nav-bg: rgba(8, 16, 26, 0.95);
+}
+
 html[data-tema="jujutsu"] body {
   background: var(--bg);
 }
@@ -196,9 +372,10 @@ html[data-tema="jujutsu"] .container {
 html[data-tema="jujutsu"] .topbar h1 {
   font-family: "Yuji Syuku", "Hiragino Mincho ProN", "Noto Serif", serif;
   font-weight: 400;
-  font-size: 1.45rem;
+  font-size: clamp(1.15rem, 4vw, 1.45rem);
   letter-spacing: 0.02em;
   animation: denyut-judul 4s ease-in-out infinite;
+  line-height: 1.25;
 }
 
 @keyframes denyut-judul {
@@ -217,34 +394,33 @@ html[data-tema="jujutsu"] .tagline {
   font-size: 0.78rem;
   color: var(--accent-hover);
   letter-spacing: 0.02em;
+  line-height: 1.35;
 }
 
 /* Segel bergaya cap dengan lambang karakter, dan cincin putus-putus yang berputar. */
+/* Segel bergaya cap dengan avatar karakter animasi, dan cincin putus-putus berputar */
 html[data-tema="jujutsu"] .hanko {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
-  background: var(--segel);
-  color: #fff4f4;
-  font-family: "Yuji Syuku", serif;
-  font-size: 1.6rem;
-  line-height: 1;
-  transform: rotate(-8deg);
-  box-shadow: 0 0 16px rgba(var(--k1), 0.55);
-  /* Ruang untuk cincin berputar: kotak pembatasnya melebar saat diputar. */
-  margin: 8px 12px 8px 6px;
+  background: transparent;
+  border-radius: 50%;
+  transform: none;
+  margin: 2px 4px 2px 0;
+  box-shadow: none;
 }
 
 html[data-tema="jujutsu"] .hanko::after {
   content: "";
   position: absolute;
-  inset: -7px;
-  border: 1.5px dashed rgba(var(--k1), 0.7);
+  inset: -4px;
+  border: 1.5px dashed rgba(var(--k1), 0.75);
   border-radius: 50%;
   animation: putar 16s linear infinite;
+  pointer-events: none;
 }
 
 @keyframes putar {
@@ -450,25 +626,14 @@ html[data-tema="jujutsu"] .budget-status.over .meter-fill {
 
 /* Kartu pemilihan karakter. */
 html[data-tema="jujutsu"] .karakter-lambang {
-  font-family: "Yuji Syuku", serif;
-  color: #fff;
+  background: transparent !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-html[data-tema="jujutsu"] .karakter[data-karakter="gojo"] .karakter-lambang {
-  background: #1d4ed8;
-}
-
-html[data-tema="jujutsu"] .karakter[data-karakter="sukuna"] .karakter-lambang {
-  background: #7f1d1d;
-}
-
-html[data-tema="jujutsu"] .karakter[data-karakter="jogo"] .karakter-lambang {
-  background: #9a3412;
-}
-
-html[data-tema="jujutsu"] .karakter[data-karakter="nanami"] .karakter-lambang {
-  background: #1f2937;
-  color: #facc15;
+html[data-tema="jujutsu"] .karakter[data-karakter] .karakter-lambang {
+  background: transparent !important;
 }
 
 html[data-tema="jujutsu"] .karakter[aria-checked="true"] {
@@ -623,13 +788,14 @@ html[data-tema="jujutsu"] .pulsa {
 
 @media (max-width: 560px) {
   html[data-tema="jujutsu"] .topbar h1 {
-    font-size: 1.25rem;
+    font-size: clamp(1.05rem, 3.8vw, 1.2rem);
+    line-height: 1.2;
   }
 
   html[data-tema="jujutsu"] .hanko {
-    width: 38px;
-    height: 38px;
-    font-size: 1.35rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
   }
 }
 
@@ -689,6 +855,9 @@ html[data-tema="jujutsu"] .nav-item[aria-current="page"] {
 }
 
 html[data-tema="jujutsu"] .nav-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(135deg, rgb(var(--k1)), var(--accent-hover));
   color: var(--teks-tombol);
   border-color: var(--bg);

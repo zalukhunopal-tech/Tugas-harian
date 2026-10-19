@@ -1,20 +1,32 @@
 import React, { useState } from "react";
-import { KarakterId, TemaId, Transaksi } from "../types";
+import { KarakterId, TemaId, Transaksi, AsetItem } from "../types";
 import { KARAKTER } from "../lib/constants";
+import { KarakterAnimasi } from "./KarakterAnimasi";
+import { User } from "firebase/auth";
+import { KeuanganDriveContents } from "../lib/gdriveSync";
 
 interface SayaViewProps {
   tema: TemaId;
   karakter: KarakterId;
   onGantiTema: (tema: TemaId) => void;
   onGantiKarakter: (karakter: KarakterId) => void;
-  syncUrl: string;
-  syncKunci: string;
-  onSimpanSync: (url: string, kunci: string) => Promise<void>;
-  onTarikDariSheet: () => Promise<void>;
-  onKirimSemuaKeSheet: () => Promise<void>;
-  onPutusSync: () => void;
+
+  // Google Drive Direct Sync
+  googleUser: User | null;
+  googleLoading: boolean;
+  onGoogleLogin: () => Promise<void>;
+  onGoogleLogout: () => Promise<void>;
+  driveContents: KeuanganDriveContents | null;
+  memuatDrive: boolean;
+  onPeriksaDrive: () => Promise<void>;
+  onTarikDariDrive: () => Promise<void>;
+  onKirimKeDrive: () => Promise<void>;
+
   transaksi: Transaksi[];
+  aset: AsetItem[];
   syncStatusPesan: string;
+  onBukaTransaksiBerulang?: () => void;
+  jumlahTransaksiBerulang?: number;
 }
 
 export const SayaView: React.FC<SayaViewProps> = ({
@@ -22,47 +34,21 @@ export const SayaView: React.FC<SayaViewProps> = ({
   karakter,
   onGantiTema,
   onGantiKarakter,
-  syncUrl,
-  syncKunci,
-  onSimpanSync,
-  onTarikDariSheet,
-  onKirimSemuaKeSheet,
-  onPutusSync,
+  googleUser,
+  googleLoading,
+  onGoogleLogin,
+  onGoogleLogout,
+  driveContents,
+  memuatDrive,
+  onPeriksaDrive,
+  onTarikDariDrive,
+  onKirimKeDrive,
   transaksi,
+  aset,
   syncStatusPesan,
+  onBukaTransaksiBerulang,
+  jumlahTransaksiBerulang = 0,
 }) => {
-  const [urlInput, setUrlInput] = useState(syncUrl);
-  const [kunciInput, setKunciInput] = useState(syncKunci);
-  const [infoSalin, setInfoSalin] = useState("");
-  const [sedangUji, setSedangUji] = useState(false);
-
-  const handleSimpanSync = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!urlInput.trim()) return;
-    setSedangUji(true);
-    try {
-      await onSimpanSync(urlInput.trim(), kunciInput.trim());
-    } finally {
-      setSedangUji(false);
-    }
-  };
-
-  const handleSalinKode = async () => {
-    try {
-      const res = await fetch("/apps-script/Code.gs");
-      const text = res.ok ? await res.text() : "";
-      if (text) {
-        await navigator.clipboard.writeText(text);
-        setInfoSalin("Kode Apps Script berhasil disalin ke papan klip!");
-      } else {
-        setInfoSalin("Gagal memuat file Code.gs untuk disalin.");
-      }
-    } catch (err: any) {
-      setInfoSalin(`Gagal menyalin: ${err.message}`);
-    }
-    setTimeout(() => setInfoSalin(""), 4000);
-  };
-
   const handleExportCSV = () => {
     if (transaksi.length === 0) {
       alert("Belum ada transaksi untuk diunduh.");
@@ -104,111 +90,166 @@ export const SayaView: React.FC<SayaViewProps> = ({
 
   return (
     <section className="view" id="view-saya" data-view="saya">
-      {/* ===== Folder 1: Sinkronisasi Google Sheets ===== */}
-      <details className="folder" id="folder-sync" open>
+      {/* ===== Folder 1: Sinkronisasi Google Drive (Folder Keuangan) ===== */}
+      <details className="folder" id="folder-gdrive" open>
         <summary>
           <span className="folder-icon" aria-hidden="true"></span>
-          <span className="folder-title">Sinkronisasi Google Sheets</span>
-          <span className="folder-hint" id="hint-sync">
-            {syncUrl ? "terhubung" : "belum terhubung"}
+          <span className="folder-title">Folder Keuangan di Google Drive</span>
+          <span className="folder-hint" id="hint-gdrive">
+            {googleUser ? "terhubung" : "belum masuk"}
           </span>
         </summary>
         <div className="folder-body">
           <p className="help">
-            Setiap transaksi dan daftar aset yang disimpan di sini otomatis ditulis ke folder Drive{" "}
-            <em>Keuangan</em> (sheet <strong>Keuangan Pribadi 2026</strong> /{" "}
-            <strong>Keuangan Kegiatan 2026</strong> dan file <strong>Aset.json</strong>), dan ditarik
-            kembali saat halaman dibuka. Perantaranya adalah Google Apps Script yang dipasang sekali
-            dari akun Google Anda.
+            Sinkronkan langsung data transaksi dan aset dengan folder <strong>Keuangan</strong> di
+            Google Drive Anda, termasuk spreadsheet <em>Keuangan Pribadi</em>,{" "}
+            <em>Keuangan Kegiatan</em>, dan file <em>Aset.json</em>.
           </p>
 
-          <div className="salin-kode">
-            <p className="help">
-              <strong>Kode Apps Script.</strong> Salin dengan tombol di bawah, lalu di editor Apps
-              Script tempel ke file <code>Code.gs</code>.
-            </p>
-            <div className="sync-buttons">
+          {!googleUser ? (
+            <div style={{ margin: "14px 0" }}>
               <button
                 type="button"
-                id="btn-salin-kode"
-                className="btn-secondary"
-                onClick={handleSalinKode}
+                className="gsi-material-button"
+                onClick={() => void onGoogleLogin()}
+                disabled={googleLoading}
               >
-                Salin kode Apps Script
+                <div className="gsi-material-button-state"></div>
+                <div className="gsi-material-button-content-wrapper">
+                  <div className="gsi-material-button-icon">
+                    <svg
+                      version="1.1"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 48 48"
+                      style={{ display: "block" }}
+                    >
+                      <path
+                        fill="#EA4335"
+                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+                      ></path>
+                      <path
+                        fill="#4285F4"
+                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+                      ></path>
+                      <path
+                        fill="#FBBC05"
+                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+                      ></path>
+                      <path
+                        fill="#34A853"
+                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+                      ></path>
+                      <path fill="none" d="M0 0h48v48H0z"></path>
+                    </svg>
+                  </div>
+                  <span className="gsi-material-button-contents">
+                    {googleLoading ? "Menghubungkan…" : "Masuk dengan Google & Sinkron Drive"}
+                  </span>
+                </div>
               </button>
-              <a
-                className="btn-secondary btn-link"
-                href="/apps-script/Code.gs"
-                download="Code.gs"
-              >
-                Unduh Code.gs
-              </a>
             </div>
-            {infoSalin && (
-              <p id="info-salin" className="help info-salin-teks" role="status">
-                {infoSalin}
-              </p>
-            )}
-          </div>
-
-          <form id="form-sync" className="sync-form" onSubmit={handleSimpanSync}>
-            <label htmlFor="sync-url">URL Web App Apps Script</label>
-            <input
-              type="url"
-              id="sync-url"
-              placeholder="https://script.google.com/macros/s/.../exec"
-              autoComplete="off"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-            />
-            <label htmlFor="sync-kunci">
-              Kunci sinkron (opsional, sama dengan KUNCI_SINKRON di Apps Script)
-            </label>
-            <input
-              type="password"
-              id="sync-kunci"
-              placeholder="kosongkan bila tidak dipakai"
-              autoComplete="off"
-              value={kunciInput}
-              onChange={(e) => setKunciInput(e.target.value)}
-            />
-            <div className="sync-buttons">
-              <button type="submit" className="btn-primary" disabled={sedangUji}>
-                {sedangUji ? "Menguji koneksi…" : "Simpan & uji koneksi"}
-              </button>
-              <button
-                type="button"
-                id="btn-tarik"
-                className="btn-secondary"
-                disabled={!syncUrl}
-                onClick={() => void onTarikDariSheet()}
-              >
-                Tarik dari Sheet
-              </button>
-              <button
-                type="button"
-                id="btn-kirim-semua"
-                className="btn-secondary"
-                disabled={!syncUrl}
-                onClick={() => void onKirimSemuaKeSheet()}
-              >
-                Kirim semua data lokal
-              </button>
-              {syncUrl && (
+          ) : (
+            <div>
+              <div className="gdrive-user-card">
+                <div className="gdrive-user-info">
+                  {googleUser.photoURL ? (
+                    <img
+                      src={googleUser.photoURL}
+                      alt={googleUser.displayName || "User"}
+                      style={{ width: 36, height: 36, borderRadius: "50%" }}
+                    />
+                  ) : (
+                    <div className="gdrive-avatar">
+                      {(googleUser.displayName || googleUser.email || "U")[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <strong>{googleUser.displayName || "Pengguna Google"}</strong>
+                    <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                      {googleUser.email}
+                    </div>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  id="btn-putus"
-                  className="btn-secondary btn-delete"
-                  onClick={onPutusSync}
+                  className="btn-small btn-delete"
+                  onClick={() => void onGoogleLogout()}
                 >
-                  Putuskan
+                  Keluar
                 </button>
+              </div>
+
+              {driveContents ? (
+                <div className="gdrive-folder-status">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span>
+                      Folder: <strong>{driveContents.folder.name}</strong>
+                    </span>
+                    {driveContents.folder.webViewLink && (
+                      <a
+                        href={driveContents.folder.webViewLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-link"
+                        style={{ fontSize: "0.8rem" }}
+                      >
+                        Buka di Drive ↗
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="gdrive-badge-row">
+                    <span
+                      className={`gdrive-badge ${driveContents.sheetPribadi ? "ok" : ""}`}
+                    >
+                      {driveContents.sheetPribadi ? "✓ Keuangan Pribadi" : "— Keuangan Pribadi"}
+                    </span>
+                    <span
+                      className={`gdrive-badge ${driveContents.sheetKegiatan ? "ok" : ""}`}
+                    >
+                      {driveContents.sheetKegiatan ? "✓ Keuangan Kegiatan" : "— Keuangan Kegiatan"}
+                    </span>
+                    <span className={`gdrive-badge ${driveContents.fileAset ? "ok" : ""}`}>
+                      {driveContents.fileAset ? "✓ Aset.json" : "— Aset.json"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="help">
+                  {memuatDrive ? "Mencari folder Keuangan di Google Drive…" : "Folder belum diperiksa."}
+                </p>
               )}
+
+              <div className="sync-buttons">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={memuatDrive}
+                  onClick={() => void onTarikDariDrive()}
+                >
+                  {memuatDrive ? "Memproses…" : "Tarik Data dari Folder Keuangan"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={memuatDrive}
+                  onClick={() => void onKirimKeDrive()}
+                >
+                  Kirim Data Lokal ke Folder Keuangan
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleExportCSV}
+                >
+                  Unduh CSV ({transaksi.length} transaksi)
+                </button>
+              </div>
             </div>
-          </form>
+          )}
 
           {syncStatusPesan && (
-            <p id="sync-detail" className="help">
+            <p id="sync-detail" className="help" style={{ marginTop: "10px" }}>
               {syncStatusPesan}
             </p>
           )}
@@ -238,71 +279,93 @@ export const SayaView: React.FC<SayaViewProps> = ({
           </div>
 
           {tema === "jujutsu" && (
-            <div
-              className="karakter-grid"
-              id="karakter-grid"
-              role="radiogroup"
-              aria-label="Pilih karakter"
-            >
-              {(Object.keys(KARAKTER) as KarakterId[]).map((kId) => {
-                const k = KARAKTER[kId];
-                const aktif = karakter === kId;
-                return (
-                  <button
-                    key={kId}
-                    type="button"
-                    className={`karakter ${aktif ? "aktif" : ""}`}
-                    data-karakter={kId}
-                    role="radio"
-                    aria-checked={aktif}
-                    onClick={() => onGantiKarakter(kId)}
-                  >
-                    <span className="karakter-lambang">{k.lambang}</span>
-                    <span className="karakter-nama">{k.nama}</span>
-                    <span className="karakter-teknik">{k.teknik}</span>
-                    <span className="karakter-domain">{k.domain}</span>
-                  </button>
-                );
-              })}
+            <>
+              {/* Kartu Pendamping Karakter Animasi Aktif */}
+              <div className="karakter-mascot-card">
+                <KarakterAnimasi
+                  karakter={karakter}
+                  ukuran={64}
+                  showAura
+                  interaktif
+                />
+                <div className="karakter-mascot-info">
+                  <span className="karakter-mascot-role">Pendamping Aktif</span>
+                  <div className="karakter-mascot-nama">
+                    {KARAKTER[karakter].nama}
+                  </div>
+                  <div className="karakter-mascot-quote">
+                    "{KARAKTER[karakter].tagline}"
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="karakter-grid"
+                id="karakter-grid"
+                role="radiogroup"
+                aria-label="Pilih karakter"
+              >
+                {(Object.keys(KARAKTER) as KarakterId[]).map((kId) => {
+                  const k = KARAKTER[kId];
+                  const aktif = karakter === kId;
+                  return (
+                    <button
+                      key={kId}
+                      type="button"
+                      className={`karakter ${aktif ? "aktif" : ""}`}
+                      data-karakter={kId}
+                      role="radio"
+                      aria-checked={aktif}
+                      onClick={() => onGantiKarakter(kId)}
+                    >
+                      <span className="karakter-lambang">
+                        <KarakterAnimasi
+                          karakter={kId}
+                          ukuran={44}
+                          showAura={aktif}
+                        />
+                      </span>
+                      <div className="karakter-info">
+                        <span className="karakter-nama">{k.nama}</span>
+                        <span className="karakter-teknik">{k.teknik}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </details>
+
+      {/* ===== Folder 4: Transaksi Berulang (Rutin) ===== */}
+      <details className="folder" id="folder-berulang" open>
+        <summary>
+          <span className="folder-icon" aria-hidden="true">🔁</span>
+          <span className="folder-title">Transaksi Berulang (Rutin)</span>
+          <span className="folder-hint" id="hint-berulang">
+            {jumlahTransaksiBerulang > 0 ? `${jumlahTransaksiBerulang} jadwal aktif` : "jadwal rutin"}
+          </span>
+        </summary>
+        <div className="folder-body">
+          <p className="help">
+            Otomatisasi pencatatan keuangan rutin seperti gaji bulanan, uang sewa kos, tagihan listrik &amp; internet, cicilan, maupun langganan streaming bulanan.
+          </p>
+          {onBukaTransaksiBerulang && (
+            <div className="sync-buttons">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={onBukaTransaksiBerulang}
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                🔁 Buka &amp; Kelola Transaksi Berulang
+              </button>
             </div>
           )}
         </div>
       </details>
 
-      {/* ===== Folder 3: Data & Keamanan ===== */}
-      <details className="folder" id="folder-data" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true"></span>
-          <span className="folder-title">Data &amp; keamanan</span>
-        </summary>
-        <div className="folder-body">
-          <div className="sync-buttons">
-            <button
-              type="button"
-              id="btn-export"
-              className="btn-secondary"
-              onClick={handleExportCSV}
-            >
-              Unduh CSV transaksi ({transaksi.length} entri)
-            </button>
-          </div>
-          <ul className="help daftar-sumber">
-            <li>
-              Aplikasi ini <strong>tidak pernah</strong> meminta atau menyimpan kata sandi Google.
-              Yang tersimpan di browser ini hanya transaksi, aset, harga terakhir, URL Web App, dan
-              kunci sinkron.
-            </li>
-            <li>
-              URL Web App dan kunci sinkron berlaku seperti kunci pintu: jangan dibagikan, jangan
-              ditempel di GitHub, chat, atau tangkapan layar publik.
-            </li>
-            <li>
-              Kalau bocor: di Apps Script buka <em>Deploy → Manage deployments</em>, arsipkan
-              deployment lama, buat yang baru, lalu perbarui <code>KUNCI_SINKRON</code>.
-            </li>
-          </ul>
-        </div>
-      </details>
     </section>
   );
 };

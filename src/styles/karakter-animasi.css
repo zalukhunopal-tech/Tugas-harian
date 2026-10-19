@@ -1,0 +1,507 @@
+/* ==========================================================================
+   Animasi Karakter Jujutsu Kaisen (Gojo, Sukuna, Jogo, Nanami)
+   ========================================================================== */
+
+/* Wadah umum avatar karakter animasi */
+.karakter-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: visible;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.karakter-avatar-wrap.interaktif:hover {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.karakter-avatar-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Animasi Napas / Idle Universal */
+.anim-napas {
+  transform-origin: 50% 60%;
+  animation: avatar-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes avatar-breathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-1.5px) scale(1.015);
+  }
+}
+
+/* ==========================================================================
+   1. GOJO SATORU (Tanpa Batas · Enam Mata)
+   ========================================================================== */
+.gojo-wrap {
+  background: radial-gradient(circle at 50% 40%, #0369a1, #0f172a 80%);
+}
+
+.gojo-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.55), 0 0 30px rgba(14, 165, 233, 0.3);
+}
+
+.gojo-hair {
+  transform-origin: 50% 30%;
+  animation: gojo-hair-sway 4s ease-in-out infinite alternate;
+}
+
+@keyframes gojo-hair-sway {
+  0% {
+    transform: rotate(0deg) skewX(0deg);
+  }
+  50% {
+    transform: rotate(1.2deg) skewX(0.8deg);
+  }
+  100% {
+    transform: rotate(-1.2deg) skewX(-0.8deg);
+  }
+}
+
+.gojo-sixeyes {
+  animation: gojo-sixeyes-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes gojo-sixeyes-pulse {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 3px #38bdf8) drop-shadow(0 0 8px #0284c7);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px #7dd3fc) drop-shadow(0 0 14px #38bdf8);
+  }
+}
+
+.gojo-mugen-ring {
+  transform-origin: 50% 50%;
+  animation: gojo-mugen-expand 3s ease-out infinite;
+}
+
+@keyframes gojo-mugen-expand {
+  0% {
+    r: 30;
+    opacity: 0.9;
+    stroke-width: 2;
+  }
+  70% {
+    opacity: 0.4;
+  }
+  100% {
+    r: 48;
+    opacity: 0;
+    stroke-width: 0.5;
+  }
+}
+
+.gojo-spark-1 {
+  animation: float-spark 2.4s ease-in-out infinite;
+}
+.gojo-spark-2 {
+  animation: float-spark 2.8s ease-in-out 0.8s infinite;
+}
+
+@keyframes float-spark {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   2. RYOMEN SUKUNA (Raja Kutukan · Tebasan Dismantle / Cleave)
+   ========================================================================== */
+.sukuna-wrap {
+  background: radial-gradient(circle at 50% 40%, #7f1d1d, #1c0505 85%);
+}
+
+.sukuna-wrap.dengan-aura {
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.6), 0 0 32px rgba(185, 28, 28, 0.35);
+}
+
+.sukuna-eyes {
+  animation: sukuna-eyes-flicker 2.8s ease-in-out infinite;
+}
+
+@keyframes sukuna-eyes-flicker {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px #ef4444) drop-shadow(0 0 6px #b91c1c);
+    opacity: 0.9;
+  }
+  48%, 52% {
+    opacity: 0.5;
+  }
+  50% {
+    filter: drop-shadow(0 0 6px #f87171) drop-shadow(0 0 12px #ef4444);
+    opacity: 1;
+  }
+}
+
+.sukuna-slash-line {
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: sukuna-slash-anim 3.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes sukuna-slash-anim {
+  0%, 65% {
+    stroke-dashoffset: 80;
+    opacity: 0;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  85% {
+    stroke-dashoffset: -80;
+    opacity: 0.8;
+  }
+  100% {
+    stroke-dashoffset: -80;
+    opacity: 0;
+  }
+}
+
+.sukuna-cursed-flame {
+  transform-origin: 50% 90%;
+  animation: sukuna-flame-dance 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes sukuna-flame-dance {
+  0% {
+    transform: scaleY(1) skewX(-1deg);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scaleY(1.08) skewX(1.5deg);
+    opacity: 0.9;
+  }
+}
+
+/* ==========================================================================
+   3. JOGO / JUGO (Gunung Berapi · Erupsi Magma & Asap)
+   ========================================================================== */
+.jogo-wrap {
+  background: radial-gradient(circle at 50% 35%, #7c2d12, #1c1917 80%);
+}
+
+.jogo-wrap.dengan-aura {
+  box-shadow: 0 0 18px rgba(249, 115, 22, 0.65), 0 0 30px rgba(234, 88, 12, 0.35);
+}
+
+.volcano-lava {
+  animation: lava-bubble 2s ease-in-out infinite alternate;
+}
+
+@keyframes lava-bubble {
+  0% {
+    fill: #f97316;
+    filter: drop-shadow(0 0 4px #fb923c);
+  }
+  50% {
+    fill: #ef4444;
+    filter: drop-shadow(0 0 8px #f97316);
+  }
+  100% {
+    fill: #facc15;
+    filter: drop-shadow(0 0 10px #fbbf24);
+  }
+}
+
+.volcano-smoke-puff-1 {
+  transform-origin: 50% 18%;
+  animation: smoke-rise-1 2.8s ease-out infinite;
+}
+
+.volcano-smoke-puff-2 {
+  transform-origin: 50% 18%;
+  animation: smoke-rise-2 2.8s ease-out 1.2s infinite;
+}
+
+@keyframes smoke-rise-1 {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-16px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes smoke-rise-2 {
+  0% {
+    transform: translateY(0) scale(0.5) translateX(-2px);
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-18px) scale(1.8) translateX(3px);
+    opacity: 0;
+  }
+}
+
+.cyclops-eye-glow {
+  transform-origin: 50% 48%;
+  animation: cyclops-blink 3.8s infinite;
+}
+
+@keyframes cyclops-blink {
+  0%, 46%, 52%, 100% {
+    transform: scaleY(1);
+    filter: drop-shadow(0 0 4px #facc15);
+  }
+  49% {
+    transform: scaleY(0.1);
+    filter: none;
+  }
+}
+
+.fire-ember-1 {
+  animation: ember-float 2.2s ease-out infinite;
+}
+.fire-ember-2 {
+  animation: ember-float 2.6s ease-out 1.1s infinite;
+}
+
+@keyframes ember-float {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-14px) translateX(4px);
+    opacity: 0;
+  }
+}
+
+/* ==========================================================================
+   4. NANAMI KENTO (Teknik Rasio 7:3 · Disiplin Kerja Tepat Waktu)
+   ========================================================================== */
+.nanami-wrap {
+  background: radial-gradient(circle at 50% 40%, #854d0e, #0f172a 80%);
+}
+
+.nanami-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.55), 0 0 28px rgba(217, 119, 6, 0.3);
+}
+
+.nanami-glint {
+  animation: glasses-glint 3.2s ease-in-out infinite;
+}
+
+@keyframes glasses-glint {
+  0%, 70%, 100% {
+    opacity: 0;
+    transform: translateX(-15px) skewX(-20deg);
+  }
+  75% {
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0;
+    transform: translateX(25px) skewX(-20deg);
+  }
+}
+
+.ratio-point {
+  animation: ratio-strike-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ratio-strike-pulse {
+  0%, 100% {
+    r: 2.2;
+    filter: drop-shadow(0 0 3px #f59e0b) drop-shadow(0 0 6px #ef4444);
+    opacity: 0.85;
+  }
+  50% {
+    r: 3.5;
+    filter: drop-shadow(0 0 6px #fde047) drop-shadow(0 0 10px #f59e0b);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   5. YUJI ITADORI (Wadah Sukuna · Kilatan Hitam / Kokusen)
+   ========================================================================== */
+.itadori-wrap {
+  background: radial-gradient(circle at 50% 40%, #be123c, #111827 80%);
+}
+.itadori-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(225, 29, 72, 0.6), 0 0 28px rgba(190, 18, 60, 0.35);
+}
+
+.itadori-kokusen-spark {
+  animation: kokusen-spark 2.4s ease-in-out infinite alternate;
+}
+@keyframes kokusen-spark {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px #e11d48) drop-shadow(0 0 8px #000000);
+  }
+}
+
+/* ==========================================================================
+   6. MEGUMI FUSHIGURO (Sepuluh Bayangan · Chimera Shadow Garden)
+   ========================================================================== */
+.megumi-wrap {
+  background: radial-gradient(circle at 50% 40%, #0f766e, #020617 80%);
+}
+.megumi-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(13, 148, 136, 0.6), 0 0 28px rgba(15, 118, 110, 0.35);
+}
+
+.megumi-shadow-wave {
+  animation: shadow-drift 3.2s ease-in-out infinite alternate;
+}
+@keyframes shadow-drift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+
+/* ==========================================================================
+   7. NOBARA KUGISAKI (Boneka Jerami · Resonansi & Paku)
+   ========================================================================== */
+.nobara-wrap {
+  background: radial-gradient(circle at 50% 40%, #be185d, #1a051d 80%);
+}
+.nobara-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(219, 39, 119, 0.6), 0 0 28px rgba(190, 24, 93, 0.35);
+}
+
+.nobara-nail-pulse {
+  animation: nail-spark 2s ease-in-out infinite;
+}
+@keyframes nail-spark {
+  0%, 100% { filter: drop-shadow(0 0 2px #38bdf8); }
+  50% { filter: drop-shadow(0 0 6px #db2777) drop-shadow(0 0 10px #38bdf8); }
+}
+
+/* ==========================================================================
+   8. YUTA OKKOTSU (Penyihir Tingkat Khusus · Rika Ratu Kutukan)
+   ========================================================================== */
+.yuta-wrap {
+  background: radial-gradient(circle at 50% 40%, #7e22ce, #090514 80%);
+}
+.yuta-wrap.dengan-aura {
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.6), 0 0 30px rgba(126, 34, 206, 0.35);
+}
+
+.yuta-ring-glow {
+  animation: ring-shine 2.8s ease-in-out infinite;
+}
+@keyframes ring-shine {
+  0%, 100% { filter: drop-shadow(0 0 3px #c084fc); }
+  50% { filter: drop-shadow(0 0 8px #f3e8ff) drop-shadow(0 0 12px #9333ea); }
+}
+
+/* ==========================================================================
+   Kartu Companion Mascot Karakter (Showcase Interaktif)
+   ========================================================================== */
+.karakter-mascot-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(var(--k1), 0.15), rgba(var(--k2), 0.08));
+  border: 1px solid rgba(var(--k1), 0.35);
+  margin-bottom: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.karakter-mascot-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 120px;
+  background: radial-gradient(circle at 100% 50%, rgba(var(--k1), 0.2), transparent 70%);
+  pointer-events: none;
+}
+
+.karakter-mascot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.karakter-mascot-nama {
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.karakter-mascot-role {
+  font-size: 0.76rem;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.karakter-mascot-quote {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+  font-style: italic;
+  margin: 2px 0 0;
+}
+
+/* Reduce motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .anim-napas,
+  .gojo-hair,
+  .gojo-sixeyes,
+  .gojo-mugen-ring,
+  .gojo-spark-1,
+  .gojo-spark-2,
+  .sukuna-eyes,
+  .sukuna-slash-line,
+  .sukuna-cursed-flame,
+  .volcano-lava,
+  .volcano-smoke-puff-1,
+  .volcano-smoke-puff-2,
+  .cyclops-eye-glow,
+  .fire-ember-1,
+  .fire-ember-2,
+  .nanami-glint,
+  .ratio-point {
+    animation: none !important;
+  }
+}

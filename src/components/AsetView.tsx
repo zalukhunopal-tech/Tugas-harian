@@ -192,19 +192,49 @@ export const AsetView: React.FC<AsetViewProps> = ({
   };
 
   const infoWaktuHarga = harga.waktu
-    ? `Harga pasar diperbarui ${new Date(harga.waktu).toLocaleTimeString("id-ID", {
+    ? `Pukul ${new Date(harga.waktu).toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",
-      })}.`
-    : "Harga pasar belum dimuat.";
+      })} WIB`
+    : "Belum dimuat";
 
   return (
     <section className="view" id="view-aset" data-view="aset">
       <div className="card aset-total">
-        <span className="stat-label">Total nilai aset</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+          <span className="stat-label">Total nilai aset</span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "0.76rem",
+              fontWeight: 600,
+              padding: "3px 8px",
+              borderRadius: "12px",
+              background: "rgba(34, 197, 94, 0.12)",
+              color: "#22c55e",
+              border: "1px solid rgba(34, 197, 94, 0.3)",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                background: memuatHarga ? "#eab308" : "#22c55e",
+                animation: "pulsa-indikator 1.6s infinite ease-in-out",
+              }}
+            />
+            {memuatHarga ? "Memperbarui pasar…" : "Update otomatis aktif"}
+          </span>
+        </div>
+
         <span className="aset-total-nilai" id="aset-total">
           {formatRupiah(ringkasan.total)}
         </span>
+
         {ringkasan.untung !== null ? (
           <span
             className={`aset-total-untung ${ringkasan.untung >= 0 ? "untung" : "rugi"}`}
@@ -218,9 +248,11 @@ export const AsetView: React.FC<AsetViewProps> = ({
             {aset.length ? "Isi harga beli untuk melihat untung/rugi." : ""}
           </span>
         )}
-        <p className="help" id="aset-harga-info">
-          {infoWaktuHarga}
+
+        <p className="help" id="aset-harga-info" style={{ margin: "6px 0 12px" }}>
+          Harga pasar otomatis diperbarui: <strong>{infoWaktuHarga}</strong> · Interval 30 menit.
         </p>
+
         <div className="sync-buttons">
           <button
             type="button"
@@ -229,7 +261,7 @@ export const AsetView: React.FC<AsetViewProps> = ({
             disabled={memuatHarga}
             onClick={() => void onPerbaruiHarga()}
           >
-            {memuatHarga ? "Memperbarui…" : "Perbarui harga"}
+            {memuatHarga ? "Memperbarui…" : "⟳ Perbarui Sekarang"}
           </button>
           <button
             type="button"
