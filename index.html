@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="id" data-tema="jujutsu" data-karakter="gojo">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Catatan Keuangan Harian</title>
+  <meta name="description" content="Aplikasi pencatatan keuangan harian, pelacakan aset (emas, kripto, JMO, investasi), anggaran, grafik tren, sinkronisasi Google Sheets, dan tema Jujutsu Kaisen.">
+  <meta property="og:title" content="Catatan Keuangan Harian">
+  <meta property="og:description" content="Aplikasi pencatatan keuangan harian, pelacakan aset (emas, kripto, JMO, investasi), anggaran, grafik tren, sinkronisasi Google Sheets, dan tema Jujutsu Kaisen.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Yuji+Syuku&display=swap">
+  <script>
+    try {
+      const tema = localStorage.getItem("keuangan-tema");
+      if (tema) document.documentElement.dataset.tema = tema;
+      const karakter = localStorage.getItem("keuangan-karakter");
+      if (karakter) document.documentElement.dataset.karakter = karakter;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
