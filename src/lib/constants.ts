@@ -167,6 +167,69 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
   },
 };
 
+export const KATA_BIJAK_KEUANGAN: Record<KarakterId, string[]> = {
+  gojo: [
+    "Kekayaan sejati adalah kendali tanpa batas atas nafsu pengeluaran.",
+    "Batas anggaranmu harus kokoh bagaikan dinding Infinity.",
+    "Harta yang terjaga memberi ketenangan hidup tanpa batas.",
+  ],
+  sukuna: [
+    "Kuasai setiap keping hartamu sebelum nafsu memperbudakmu.",
+    "Tebas habis pengeluaran impulsif tanpa ampun.",
+    "Raja sejati berkuasa karena cermat menghitung tiap sumber daya.",
+  ],
+  jogo: [
+    "Jangan biarkan emosi sesaat membakar ludes tabungan masa depan.",
+    "Dinginkan keinginan belanja sebelum api pemborosan meletus.",
+    "Tabungan yang aman adalah benteng dari kobaran krisis.",
+  ],
+  nanami: [
+    "Disiplin keuangan adalah kedewasaan sejati: catat tepat waktu, alokasikan 7:3.",
+    "Bekerja keraslah dengan rencana, jangan lembur demi menambal utang.",
+    "Uang bukan segalanya, tapi kebebasan finansial memberi martabat.",
+  ],
+  itadori: [
+    "Kebaikan terbaik bagi diri sendiri adalah merawat keuangan hari ini.",
+    "Sedikit demi sedikit, pukulan tabungan rutin akan menjadi bukit.",
+    "Hidup sederhana membuat hati tenang dan langkah semakin ringan.",
+  ],
+  megumi: [
+    "Siapkan dana darurat dalam bayangan sebelum badai tak terduga tiba.",
+    "Aset terbaik adalah yang tersembunyi aman dan terus bertumbuh.",
+    "Pikirkan langkah finansial tiga langkah ke depan sebelum bertindak.",
+  ],
+  nobara: [
+    "Tampil percaya diri dan bergaya tanpa harus menusuk tabungan sendiri.",
+    "Cantik dan mandiri dimulai dari kantong yang selalu terisi.",
+    "Ketahui nilai dirimu dan hargai setiap rupiah hasil keringatmu.",
+  ],
+  yuta: [
+    "Energi finansial terbaik dialirkan untuk melindungi orang yang dicintai.",
+    "Cinta sejati berlandaskan tanggung jawab dan masa depan yang mapan.",
+    "Kendalikan kekuatan uangmu untuk kebaikan dan masa depan berkah.",
+  ],
+  toji: [
+    "Bebas dari jeratan utang adalah kemerdekaan hidup yang sesungguhnya.",
+    "Fokus pada nilai dan kegunaan nyata, bukan gengsi semu.",
+    "Harta sejati adalah keterampilan dan kemandirian tanpa beban.",
+  ],
+  geto: [
+    "Himpun dan kelola setiap aliran dana demi visi besar masa depan.",
+    "Kekuatan finansial lahir dari konsistensi menyatukan hal-hal kecil.",
+    "Kelola setiap rupiah dengan bijak demi cita-cita yang luhur.",
+  ],
+  maki: [
+    "Dengan tekad baja dan hidup hemat, semua rintangan finansial runtuh.",
+    "Tak butuh keistimewaan untuk kaya, cukup disiplin dan kerja keras.",
+    "Pangkas pengeluaran tak perlu seperti bilah pedang yang tajam.",
+  ],
+  mahito: [
+    "Bentuk masa depanmu diukir oleh tiap keputusan uangmu hari ini.",
+    "Ubah kebiasaan buruk finansial menjadi kekuatan hidup yang baru.",
+    "Setiap rupiah adalah benih yang akan membentuk kemakmuran esok.",
+  ],
+};
+
 export const DAFTAR_KOIN = [
   { id: "bitcoin", simbol: "BTC", nama: "Bitcoin" },
   { id: "ethereum", simbol: "ETH", nama: "Ethereum" },

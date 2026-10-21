@@ -187,24 +187,27 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
         )}
       </div>
 
-      <div className="card">
+      <div className="card card-anggaran-harian">
         <h2>Anggaran pengeluaran harian</h2>
         <form id="form-anggaran" className="budget-form" onSubmit={handleSubmitAnggaran}>
-          <label htmlFor="anggaran">Batas per hari (Rp)</label>
+          <label htmlFor="anggaran" className="budget-form-label">
+            Batas per hari (Rp)
+          </label>
           <input
             type="number"
             id="anggaran"
+            className="budget-form-input"
             min="0"
             step="1"
             placeholder="Belum diatur"
             value={inputBatas}
             onChange={(e) => setInputBatas(e.target.value)}
           />
-          <button type="submit" className="btn-secondary">
+          <button type="submit" className="btn-secondary budget-form-btn">
             Atur
           </button>
         </form>
-        <p className="help">
+        <p className="help budget-form-help">
           Dipakai untuk meter di tab Riwayat: pengeluaran hari ini dibanding batas.
         </p>
       </div>

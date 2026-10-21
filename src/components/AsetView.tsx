@@ -12,6 +12,10 @@ interface AsetViewProps {
   onPerbaruiHarga: () => Promise<void>;
   onSimpanHargaManual: (jual: number, buyback?: number) => void;
   memuatHarga: boolean;
+  googleUser?: any;
+  onTarikDrive?: () => void;
+  onKirimDrive?: () => void;
+  memuatDrive?: boolean;
 }
 
 const IKON_ASET: Record<JenisAset, string> = {
@@ -37,6 +41,10 @@ export const AsetView: React.FC<AsetViewProps> = ({
   onPerbaruiHarga,
   onSimpanHargaManual,
   memuatHarga,
+  googleUser,
+  onTarikDrive,
+  onKirimDrive,
+  memuatDrive = false,
 }) => {
   const [formBuka, setFormBuka] = useState(false);
   const [editAset, setEditAset] = useState<AsetItem | null>(null);
@@ -201,34 +209,27 @@ export const AsetView: React.FC<AsetViewProps> = ({
   return (
     <section className="view" id="view-aset" data-view="aset">
       <div className="card aset-total">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+        <div className="aset-total-header">
           <span className="stat-label">Total nilai aset</span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "0.76rem",
-              fontWeight: 600,
-              padding: "3px 8px",
-              borderRadius: "12px",
-              background: "rgba(34, 197, 94, 0.12)",
-              color: "#22c55e",
-              border: "1px solid rgba(34, 197, 94, 0.3)",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: memuatHarga ? "#eab308" : "#22c55e",
-                animation: "pulsa-indikator 1.6s infinite ease-in-out",
-              }}
-            />
-            {memuatHarga ? "Memperbarui pasar…" : "Update otomatis aktif"}
-          </span>
+          <div className="aset-badges">
+            {googleUser && (
+              <span
+                className="aset-badge-drive"
+                title="Aset tersinkron otomatis ke folder Keuangan di Google Drive (Aset.json)"
+              >
+                <span>☁️</span> Drive Tersinkron
+              </span>
+            )}
+            <span className="aset-badge-pasar">
+              <span
+                className="dot-indikator"
+                style={{
+                  background: memuatHarga ? "#eab308" : "#22c55e",
+                }}
+              />
+              {memuatHarga ? "Memperbarui pasar…" : "Pasar 30m"}
+            </span>
+          </div>
         </div>
 
         <span className="aset-total-nilai" id="aset-total">
@@ -249,25 +250,39 @@ export const AsetView: React.FC<AsetViewProps> = ({
           </span>
         )}
 
-        <p className="help" id="aset-harga-info" style={{ margin: "6px 0 12px" }}>
-          Harga pasar otomatis diperbarui: <strong>{infoWaktuHarga}</strong> · Interval 30 menit.
+        <p className="help" id="aset-harga-info" style={{ margin: "6px 0 10px", fontSize: "0.76rem" }}>
+          Harga pasar: <strong>{infoWaktuHarga}</strong> · {googleUser ? "Aset tersinkron otomatis ke Google Drive (Aset.json)." : "Hubungkan Google di tab Saya untuk sinkronisasi cloud."}
         </p>
 
-        <div className="sync-buttons">
+        <div className="sync-buttons" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           <button
             type="button"
             id="btn-perbarui-harga"
             className="btn-secondary"
             disabled={memuatHarga}
             onClick={() => void onPerbaruiHarga()}
+            style={{ flex: "1 1 auto" }}
           >
-            {memuatHarga ? "Memperbarui…" : "⟳ Perbarui Sekarang"}
+            {memuatHarga ? "Memperbarui…" : "⟳ Cek Harga"}
           </button>
+          {onTarikDrive && (
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={memuatDrive}
+              onClick={onTarikDrive}
+              style={{ flex: "1 1 auto" }}
+              title="Sinkronkan data aset dan transaksi dengan Google Drive"
+            >
+              {memuatDrive ? "Sinkron…" : "☁️ Sinkron Drive"}
+            </button>
+          )}
           <button
             type="button"
             id="btn-tambah-aset"
             className="btn-primary"
             onClick={bukaFormTambah}
+            style={{ flex: "1 1 auto" }}
           >
             + Tambah aset
           </button>
@@ -346,9 +361,17 @@ export const AsetView: React.FC<AsetViewProps> = ({
       )}
 
       {formBuka && (
-        <div className="card" id="kartu-form-aset">
-          <h2 id="judul-form-aset">{editAset ? "Ubah Aset" : "Tambah Aset"}</h2>
-          <form id="form-aset" onSubmit={simpanForm}>
+        <div
+          className="aset-form-dialog-wrapper"
+          onClick={() => setFormBuka(false)}
+        >
+          <div
+            className="card"
+            id="kartu-form-aset"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="judul-form-aset">{editAset ? "Ubah Aset" : "Tambah Aset"}</h2>
+            <form id="form-aset" onSubmit={simpanForm}>
             <fieldset className="field segmented wide">
               <legend>Jenis aset</legend>
               <div className="segmented-options empat">
@@ -652,6 +675,7 @@ export const AsetView: React.FC<AsetViewProps> = ({
             </div>
           </form>
         </div>
+      </div>
       )}
 
       <details className="folder" id="folder-harga">

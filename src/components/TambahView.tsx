@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Transaksi, JenisTransaksi, NamaDana } from "../types";
+import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang } from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import {
@@ -16,6 +16,9 @@ interface TambahViewProps {
   onResetInitialScan?: () => void;
   initialScanMode?: "kamera" | "galeri" | null;
   onResetInitialScanMode?: () => void;
+  onBukaTransaksiBerulang?: () => void;
+  jumlahJatuhTempo?: number;
+  daftarBerulang?: TransaksiBerulang[];
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -26,6 +29,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
   onResetInitialScan,
   initialScanMode = null,
   onResetInitialScanMode,
+  onBukaTransaksiBerulang,
+  jumlahJatuhTempo = 0,
+  daftarBerulang = [],
 }) => {
   const [jenis, setJenis] = useState<JenisTransaksi>("pengeluaran");
   const [dana, setDana] = useState<NamaDana>("Dana Pribadi");
@@ -200,6 +206,17 @@ export const TambahView: React.FC<TambahViewProps> = ({
     }
   };
 
+  const handlePilihJadwal = (item: TransaksiBerulang) => {
+    setJenis(item.jenis);
+    setDana(item.dana);
+    setDeskripsi(item.nama);
+    setJumlah(String(item.jumlah));
+    setKategori(item.kategori);
+    if (item.metode) setMetode(item.metode);
+    if (item.kaitan) setKaitan(item.kaitan);
+    if (item.catatan) setCatatan(item.catatan);
+  };
+
   return (
     <section className="view" id="view-tambah" data-view="tambah">
       {/* Input File Tersembunyi untuk Kamera & Galeri */}
@@ -224,6 +241,135 @@ export const TambahView: React.FC<TambahViewProps> = ({
           if (file) void handleProsesFileStruk(file);
         }}
       />
+
+      {/* Tool Transaksi Berulang */}
+      {!editTransaksi && onBukaTransaksiBerulang && (
+        <section
+          className="card-berulang-tool"
+          aria-label="Tool Transaksi Berulang"
+          style={{
+            marginBottom: "14px",
+            padding: "12px 14px",
+            borderRadius: "12px",
+            border: jumlahJatuhTempo > 0 ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+            background:
+              jumlahJatuhTempo > 0
+                ? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+                : "var(--surface)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "1.4rem" }}>🔁</span>
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "0.95rem",
+                    fontWeight: 700,
+                    color: "var(--accent)",
+                  }}
+                >
+                  Transaksi Berulang (Jadwal Rutin)
+                </h3>
+                <span className="help" style={{ margin: "2px 0 0", fontSize: "0.78rem" }}>
+                  Kelola jadwal gaji, sewa, tagihan listrik, WiFi, atau langganan rutin
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-sync-topbar"
+              onClick={onBukaTransaksiBerulang}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                borderRadius: "999px",
+                borderColor: "var(--accent)",
+              }}
+            >
+              <span>⚙️ Kelola Jadwal</span>
+              {jumlahJatuhTempo > 0 && (
+                <span
+                  style={{
+                    background: "var(--accent)",
+                    color: "#fff",
+                    borderRadius: "10px",
+                    padding: "1px 7px",
+                    fontSize: "0.72rem",
+                    fontWeight: 800,
+                  }}
+                >
+                  {jumlahJatuhTempo} Jatuh Tempo
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Quick Shortcuts jika ada transaksi berulang aktif */}
+          {daftarBerulang && daftarBerulang.filter((d) => d.aktif).length > 0 && (
+            <div
+              style={{
+                marginTop: "10px",
+                borderTop: "1px dashed var(--border)",
+                paddingTop: "8px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.76rem",
+                  color: "var(--text-muted)",
+                  marginBottom: "6px",
+                  fontWeight: 600,
+                }}
+              >
+                ⚡ Isi cepat formulir dari jadwal rutin:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {daftarBerulang
+                  .filter((d) => d.aktif)
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="chip"
+                      style={{
+                        fontSize: "0.76rem",
+                        padding: "5px 10px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handlePilihJadwal(item)}
+                      title={`Klik untuk otomatis mengisi formulir dengan data ${item.nama} (${formatRupiah(item.jumlah)})`}
+                    >
+                      <span>{item.jenis === "pemasukan" ? "📈" : "📉"}</span>
+                      <strong style={{ color: "var(--text)" }}>{item.nama}</strong>
+                      <span style={{ opacity: 0.8, fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        ({formatRupiah(item.jumlah)})
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Bagian Scan Struk Belanja dengan Gemini AI */}
       {!editTransaksi && (
