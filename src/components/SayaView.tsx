@@ -4,6 +4,7 @@ import { KARAKTER } from "../lib/constants";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
+import { cekStatusSesiGoogle } from "../lib/googleAuth";
 
 interface SayaViewProps {
   tema: TemaId;
@@ -178,6 +179,58 @@ export const SayaView: React.FC<SayaViewProps> = ({
                   Keluar
                 </button>
               </div>
+
+              {/* Status Masa Berlaku Sesi 3 Bulan */}
+              {(() => {
+                const statusSesi = cekStatusSesiGoogle();
+                return (
+                  <div
+                    style={{
+                      margin: "8px 0 10px",
+                      padding: "8px 11px",
+                      borderRadius: "10px",
+                      background: statusSesi.kedaluwarsa
+                        ? "rgba(239, 68, 68, 0.12)"
+                        : "rgba(34, 197, 94, 0.1)",
+                      border: `1px solid ${
+                        statusSesi.kedaluwarsa
+                          ? "rgba(239, 68, 68, 0.3)"
+                          : "rgba(34, 197, 94, 0.3)"
+                      }`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        color: statusSesi.kedaluwarsa ? "#ef4444" : "#22c55e",
+                      }}
+                    >
+                      <span>{statusSesi.kedaluwarsa ? "⚠️" : "🔒"}</span>
+                      <span>
+                        {statusSesi.kedaluwarsa
+                          ? "Sesi Sinkronisasi 3 Bulan Kedaluwarsa"
+                          : `Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        margin: "3px 0 0",
+                        fontSize: "0.74rem",
+                        color: "var(--muted)",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {statusSesi.kedaluwarsa
+                        ? "Batas waktu 3 bulan telah berakhir. Silakan masuk ulang dengan Google untuk memperpanjang."
+                        : `Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {driveContents ? (
                 <div className="gdrive-folder-status">

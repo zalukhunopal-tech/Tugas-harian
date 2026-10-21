@@ -18,8 +18,6 @@ export const Topbar: React.FC<TopbarProps> = ({
   bulanTerpilih,
   onPilihBulan,
   transaksi,
-  onTarikDrive,
-  memuatDrive = false,
 }) => {
   const meta = KARAKTER[karakter] || KARAKTER.gojo;
 
@@ -46,16 +44,16 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   return (
     <header className="topbar">
-      <div className="topbar-row">
+      <div className="topbar-row topbar-row-utama">
         <div className="brand">
           <div className="hanko" id="hanko" aria-hidden="true">
             <KarakterAnimasi
               karakter={karakter}
-              ukuran={42}
+              ukuran={40}
               showAura
               interaktif
               onClick={() => jalankanPerluasanDomain(karakter)}
-              title={`Karakter Aktif: ${meta.nama}. Klik untuk Perluasan Domain!`}
+              title={`Karakter Aktif: ${meta.nama}. Klik untuk efek domain!`}
             />
           </div>
           <div className="brand-text">
@@ -66,32 +64,6 @@ export const Topbar: React.FC<TopbarProps> = ({
           </div>
         </div>
 
-        <div className="topbar-actions">
-          {onTarikDrive && (
-            <button
-              type="button"
-              className="btn-sync-topbar"
-              title="Tarik & sinkronkan data dari folder Keuangan di Google Drive"
-              onClick={onTarikDrive}
-              disabled={memuatDrive}
-            >
-              {memuatDrive ? "⟳ Menarik…" : "⟳ Tarik Drive"}
-            </button>
-          )}
-
-          <button
-            type="button"
-            id="btn-domain"
-            className="btn-domain"
-            title="Perluasan Domain"
-            onClick={() => jalankanPerluasanDomain(karakter)}
-          >
-            領域展開
-          </button>
-        </div>
-      </div>
-
-      <div className="topbar-row ringkasan-bulan">
         <div className="pilih-bulan">
           <button
             type="button"
@@ -129,7 +101,9 @@ export const Topbar: React.FC<TopbarProps> = ({
             ›
           </button>
         </div>
+      </div>
 
+      <div className="topbar-row ringkasan-bulan">
         <div className="ringkasan-bulan-stats">
           <div className="stat-bulan">
             <span className="stat-label">Pengeluaran</span>

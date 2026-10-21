@@ -39,6 +39,7 @@ import {
   googleSignIn,
   logoutGoogle,
   getAccessToken,
+  cekStatusSesiGoogle,
 } from "./lib/googleAuth";
 import {
   cariFolderKeuangan,
@@ -112,19 +113,7 @@ export default function App() {
     document.body.dataset.view = currentView;
   }, [currentView]);
 
-  // Firebase Google Auth Listener
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (user, _token) => {
-        setGoogleUser(user);
-      },
-      () => {
-        setGoogleUser(null);
-        setDriveContents(null);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
+
 
   // Persist transactions and assets
   const perbaruiTransaksi = useCallback((baru: Transaksi[]) => {
@@ -221,6 +210,26 @@ export default function App() {
       setMemuatDrive(false);
     }
   }, []);
+
+  // Firebase Google Auth Listener (Sesi 3 Bulan Aktif)
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setGoogleUser(user);
+        if (token) {
+          void periksaDriveOtomatis(token);
+        }
+      },
+      (alasan) => {
+        setGoogleUser(null);
+        setDriveContents(null);
+        if (alasan) {
+          setSyncPesan(alasan);
+        }
+      }
+    );
+    return () => unsubscribe();
+  }, [periksaDriveOtomatis]);
 
   const handleGoogleLogin = async (): Promise<string | null> => {
     setGoogleLoading(true);
@@ -476,10 +485,49 @@ export default function App() {
     setCurrentView("tambah");
   };
 
+  // Otomatis sinkronkan Aset.json ke Google Drive saat ada perubahan jika sesi aktif
+  const autoSimpanAsetKeDrive = useCallback(
+    async (asetTerbaru: AsetItem[]) => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const status = cekStatusSesiGoogle();
+        if (!status.aktif) return;
+
+        let folderId = driveContents?.folder?.id;
+        if (!folderId) {
+          const folder = await cariFolderKeuangan(token);
+          if (folder) folderId = folder.id;
+        }
+
+        if (folderId) {
+          const fileAsetId = await simpanAsetKeDrive(
+            token,
+            folderId,
+            driveContents?.fileAset?.id || null,
+            asetTerbaru
+          );
+          if (driveContents && !driveContents.fileAset) {
+            setDriveContents({
+              ...driveContents,
+              fileAset: { id: fileAsetId, name: "Aset.json", mimeType: "application/json" },
+            });
+          }
+          setSyncStatus({ pesan: "Aset tersinkron otomatis ke Google Drive", status: "sukses" });
+          setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 2500);
+        }
+      } catch (e: any) {
+        console.warn("Auto-sync aset ke Drive:", e.message);
+      }
+    },
+    [driveContents]
+  );
+
   // Asset CRUD handlers
   const handleTambahAset = (item: AsetItem) => {
     const baru = [...aset, item];
     perbaruiAset(baru);
+    void autoSimpanAsetKeDrive(baru);
     if (item.jenis === "crypto" || item.jenis === "emas") {
       setTimeout(() => {
         void perbaruiHargaPasar();
@@ -490,6 +538,7 @@ export default function App() {
   const handleUbahAset = (item: AsetItem) => {
     const baru = aset.map((a) => (a.id === item.id ? item : a));
     perbaruiAset(baru);
+    void autoSimpanAsetKeDrive(baru);
     if (item.jenis === "crypto" || item.jenis === "emas") {
       setTimeout(() => {
         void perbaruiHargaPasar();
@@ -500,6 +549,7 @@ export default function App() {
   const handleHapusAset = (id: string) => {
     const baru = aset.filter((a) => a.id !== id);
     perbaruiAset(baru);
+    void autoSimpanAsetKeDrive(baru);
   };
 
   const handleSimpanHargaManual = (jual: number, buyback?: number) => {
@@ -532,8 +582,6 @@ export default function App() {
         bulanTerpilih={bulanTerpilih}
         onPilihBulan={setBulanTerpilih}
         transaksi={transaksi}
-        onTarikDrive={handleTarikDariDrive}
-        memuatDrive={memuatDrive}
       />
 
       <main className="container">
@@ -567,6 +615,10 @@ export default function App() {
             onPerbaruiHarga={perbaruiHargaPasar}
             onSimpanHargaManual={handleSimpanHargaManual}
             memuatHarga={memuatHarga}
+            googleUser={googleUser}
+            onTarikDrive={handleTarikDariDrive}
+            onKirimDrive={handleKirimKeDrive}
+            memuatDrive={memuatDrive}
           />
         )}
 
@@ -581,6 +633,9 @@ export default function App() {
             }}
             initialScanMode={initialScanMode}
             onResetInitialScanMode={() => setInitialScanMode(null)}
+            onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
+            jumlahJatuhTempo={jumlahJatuhTempo}
+            daftarBerulang={daftarBerulang}
           />
         )}
 

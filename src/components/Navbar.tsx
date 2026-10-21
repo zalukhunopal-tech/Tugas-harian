@@ -22,7 +22,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         onClick={() => onSelectView("riwayat")}
       >
         <span className="nav-ikon" aria-hidden="true">
-          ☰
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <line x1="10" y1="9" x2="8" y2="9" />
+          </svg>
         </span>
         <span>Riwayat</span>
       </button>
@@ -35,7 +50,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         onClick={() => onSelectView("aset")}
       >
         <span className="nav-ikon" aria-hidden="true">
-          ◈
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 3h12l4 6-10 12L2 9l4-6z" />
+            <path d="M2 9h20" />
+            <path d="M12 21L7.5 9 10 3" />
+            <path d="M16.5 9L14 3" />
+          </svg>
         </span>
         <span>Aset</span>
       </button>
@@ -79,7 +108,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         onClick={() => onSelectView("grafik")}
       >
         <span className="nav-ikon" aria-hidden="true">
-          ◔
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3.5" y="12" width="4" height="8" rx="1" fill="currentColor" fillOpacity="0.3" />
+            <rect x="10" y="4" width="4" height="16" rx="1" fill="currentColor" fillOpacity="0.3" />
+            <rect x="16.5" y="8" width="4" height="12" rx="1" fill="currentColor" fillOpacity="0.3" />
+            <line x1="1.5" y1="20" x2="22.5" y2="20" />
+          </svg>
         </span>
         <span>Grafik</span>
       </button>
@@ -92,7 +135,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         onClick={() => onSelectView("saya")}
       >
         <span className="nav-ikon" aria-hidden="true">
-          ⚙
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
         </span>
         <span>Saya</span>
       </button>

@@ -124,20 +124,22 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
           <span className={`balance-value ${saldoPribadi < 0 ? "negative" : ""}`}>
             {formatRupiah(saldoPribadi)}
           </span>
-          <span className="balance-flow">
-            {teksNamaBulan}: masuk {formatRupiah(arusPribadi.masuk)} · keluar{" "}
-            {formatRupiah(arusPribadi.keluar)}
-          </span>
+          <div className="balance-flow">
+            <span className="balance-flow-period">{teksNamaBulan}:</span>
+            <span className="balance-flow-row flow-in">masuk {formatRupiah(arusPribadi.masuk)}</span>
+            <span className="balance-flow-row flow-out">keluar {formatRupiah(arusPribadi.keluar)}</span>
+          </div>
         </div>
         <div className="balance" data-dana="Dana Kegiatan">
           <span className="stat-label">Saldo Dana Kegiatan</span>
           <span className={`balance-value ${saldoKegiatan < 0 ? "negative" : ""}`}>
             {formatRupiah(saldoKegiatan)}
           </span>
-          <span className="balance-flow">
-            {teksNamaBulan}: masuk {formatRupiah(arusKegiatan.masuk)} · keluar{" "}
-            {formatRupiah(arusKegiatan.keluar)}
-          </span>
+          <div className="balance-flow">
+            <span className="balance-flow-period">{teksNamaBulan}:</span>
+            <span className="balance-flow-row flow-in">masuk {formatRupiah(arusKegiatan.masuk)}</span>
+            <span className="balance-flow-row flow-out">keluar {formatRupiah(arusKegiatan.keluar)}</span>
+          </div>
         </div>
       </section>
 
@@ -178,39 +180,6 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         >
           Dana Kegiatan
         </button>
-
-        {onBukaTransaksiBerulang && (
-          <button
-            type="button"
-            className="chip"
-            style={{
-              marginLeft: "auto",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              borderColor: jumlahJatuhTempo > 0 ? "var(--accent)" : undefined,
-              fontWeight: 600,
-            }}
-            onClick={onBukaTransaksiBerulang}
-            title="Kelola jadwal transaksi berulang (gaji, tagihan, langganan bulanan)"
-          >
-            <span>🔁 Transaksi Berulang</span>
-            {jumlahJatuhTempo > 0 && (
-              <span
-                style={{
-                  background: "var(--accent)",
-                  color: "#fff",
-                  borderRadius: "10px",
-                  padding: "1px 6px",
-                  fontSize: "0.72rem",
-                  fontWeight: 800,
-                }}
-              >
-                {jumlahJatuhTempo}
-              </span>
-            )}
-          </button>
-        )}
       </div>
 
       <div className="budget" id="kartu-anggaran">

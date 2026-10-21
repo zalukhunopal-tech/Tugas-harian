@@ -73,14 +73,15 @@ h3 {
 .container {
   max-width: 720px;
   margin: 0 auto;
-  padding: 16px 16px 32px;
+  padding: 24px 24px calc(120px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .tagline,
 .hanko,
 .energi,
-.pulsa,
-.btn-domain {
+.pulsa {
   display: none;
 }
 
@@ -89,17 +90,26 @@ h3 {
 .topbar {
   background: var(--topbar-bg);
   color: var(--topbar-text);
-  padding: 12px 16px 14px;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding: 20px 0 20px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .topbar-row {
   max-width: 720px;
   margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.topbar-row-utama {
+  margin-bottom: 16px;
 }
 
 .brand {
@@ -119,25 +129,29 @@ h3 {
 
 .topbar h1 {
   margin: 0;
-  font-size: clamp(1.05rem, 4vw, 1.25rem);
+  font-size: clamp(1.05rem, 3.8vw, 1.25rem);
   font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
 }
 
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+.tagline {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .ringkasan-bulan {
-  margin-top: 12px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .pilih-bulan {
@@ -151,11 +165,17 @@ h3 {
   background: transparent;
   border: none;
   color: inherit;
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   line-height: 1;
-  padding: 6px 6px;
+  padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   border-radius: 8px;
+  box-sizing: border-box;
 }
 
 .btn-ikon:hover {
@@ -167,21 +187,24 @@ h3 {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 4px 12px;
+  min-height: 44px;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.08);
   cursor: pointer;
   min-width: 72px;
+  box-sizing: border-box;
 }
 
 .bulan-tahun {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   opacity: 0.85;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .bulan-nama {
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   font-weight: 700;
   line-height: 1.2;
 }
@@ -200,29 +223,32 @@ h3 {
 
 .ringkasan-bulan-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
   min-width: 0;
 }
 
 .stat-bulan {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 8px 8px;
+  border-radius: 8px;
   min-width: 0;
-  padding: 2px 4px;
 }
 
 .stat-bulan .stat-label {
-  font-size: 0.74rem;
+  font-size: 12px;
   opacity: 0.85;
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
 .stat-bulan .stat-value {
-  font-size: clamp(0.85rem, 2.8vw, 1.1rem);
+  font-size: clamp(0.85rem, 2.6vw, 1.05rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -259,21 +285,33 @@ h3 {
   border: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   padding: 6px 4px;
   cursor: pointer;
   border-radius: 0;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .nav-ikon {
-  font-size: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   line-height: 1;
+}
+
+.nav-ikon svg {
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
 .nav-item[aria-current="page"] {
@@ -348,13 +386,17 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-sizing: border-box;
 }
 
 .card h2 {
-  margin: 0 0 14px;
-  font-size: 1.1rem;
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.35;
 }
 
 .card h3 {
@@ -364,7 +406,7 @@ h3 {
 }
 
 .stat-label {
-  font-size: 0.8rem;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -375,7 +417,7 @@ h3 {
 }
 
 .actions {
-  margin-top: 12px;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
@@ -387,16 +429,17 @@ h3 {
 .btn-pil {
   border-radius: 999px;
   padding: 8px 18px;
+  min-height: 44px;
 }
 
 .sync-pill {
   display: inline-block;
   max-width: 100%;
-  margin: 0 0 12px;
-  padding: 5px 12px;
+  margin: 0 0 16px;
+  padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -416,8 +459,8 @@ h3 {
 }
 
 .peringatan {
-  margin-top: 14px;
-  padding: 10px 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
   border: 1px solid var(--danger);
   border-radius: 8px;
   color: var(--text);
@@ -432,19 +475,20 @@ h3 {
 .balances {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
 .balance {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .balance-value {
@@ -459,11 +503,18 @@ h3 {
 }
 
 .balance-flow {
-  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+.balance-flow-row {
+  display: block;
 }
 
 /* ---------- Chip filter ---------- */
@@ -471,20 +522,38 @@ h3 {
 .filter-chips {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+  width: 100%;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.filter-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .chip {
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 13px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 10px 16px;
+  min-height: 44px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--muted);
   cursor: pointer;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: max-content;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
 .chip[aria-checked="true"] {
@@ -522,15 +591,19 @@ h3 {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .budget-form input {
-  width: 180px;
+  width: 200px;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .budget-form button {
-  padding: 8px 14px;
+  padding: 8px 18px;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .budget-status {
@@ -657,7 +730,7 @@ h3 {
 .ikon-kategori.aset-jmo {
   background: #bfdbfe;
   color: #1e3a8a;
-  font-size: 0.68rem;
+  font-size: 12px;
 }
 
 .ikon-kategori.aset-investasi {
@@ -681,14 +754,14 @@ h3 {
 }
 
 .expense-meta {
-  font-size: 0.78rem;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 
 .expense-note {
-  font-size: 0.78rem;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
   font-style: italic;
@@ -726,9 +799,15 @@ h3 {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 3px 9px;
-  font-size: 0.78rem;
-  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .btn-small:hover {
@@ -753,7 +832,47 @@ button:disabled {
 .aset-total {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+}
+
+.aset-total-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.aset-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aset-badge-drive,
+.aset-badge-pasar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.dot-indikator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .aset-total-nilai {
@@ -864,7 +983,7 @@ button:disabled {
 }
 
 .tren-label {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -1109,7 +1228,7 @@ button {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  margin-bottom: 12px;
+  margin-bottom: 24px;
 }
 
 .folder summary {
@@ -1118,9 +1237,11 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 16px 20px;
+  min-height: 44px;
   font-weight: 600;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .folder summary::-webkit-details-marker {
@@ -1136,6 +1257,7 @@ button {
   transform: rotate(-45deg);
   transition: transform 0.2s;
   flex-shrink: 0;
+  margin-left: 8px;
 }
 
 .folder[open] summary::after {
@@ -1177,23 +1299,30 @@ button {
 }
 
 .folder-title {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  word-break: break-word;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.35;
 }
 
 .folder-hint {
-  max-width: 55%;
+  flex-shrink: 0;
+  margin-left: auto;
+  max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 400;
   color: var(--muted);
   text-align: right;
 }
 
 .folder-body {
-  padding: 4px 18px 18px;
+  padding: 8px 20px 24px;
   border-top: 1px solid var(--border);
 }
 
@@ -1201,7 +1330,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .sync-buttons {
@@ -1215,18 +1344,18 @@ button {
 }
 
 .mode-konektor {
-  margin: 14px 0 16px;
+  margin: 16px 0;
 }
 
 .salin-kode {
-  margin: 14px 0 16px;
-  padding: 12px;
+  margin: 16px 0;
+  padding: 16px;
   border: 1px dashed var(--border);
   border-radius: 8px;
 }
 
 .salin-kode .help {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .salin-kode #info-salin {
@@ -1241,7 +1370,7 @@ button {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 10px;
   resize: vertical;
 }
 
@@ -1250,7 +1379,7 @@ button {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 14px 0;
+  margin: 16px 0;
 }
 
 .theme-row .help {
@@ -1259,8 +1388,9 @@ button {
 
 .karakter-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  width: 100%;
 }
 
 .karakter {
@@ -1269,12 +1399,15 @@ button {
   gap: 12px;
   text-align: left;
   padding: 12px 14px;
+  min-height: 52px;
   background: transparent;
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
   transition: border-color 0.2s, box-shadow 0.2s;
   cursor: pointer;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .karakter:hover {
@@ -1303,170 +1436,681 @@ button {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .karakter-nama {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 14px;
   line-height: 1.25;
+  word-break: break-word;
 }
 
 .karakter-teknik {
-  font-size: 0.78rem;
+  font-size: 12px;
   color: var(--muted);
   line-height: 1.35;
+  word-break: break-word;
 }
 
-/* ---------- Layar sempit ---------- */
+/* ---------- Layar sempit (Mode Seluler: di bawah 640 px) ---------- */
 
-@media (max-width: 560px) {
-  form {
-    grid-template-columns: 1fr;
+@media (max-width: 639.98px) {
+  body {
+    font-size: 14px;
+    padding-bottom: calc(var(--tinggi-nav) + env(safe-area-inset-bottom, 0px));
   }
 
-  .segmented-options.empat span {
-    font-size: 0.76rem;
-    padding: 6px 3px;
-    line-height: 1.2;
-    text-align: center;
+  /* 1 & 2: Header dan isi halaman memakai lebar maksimum 720px dan padding kiri-kanan 16px */
+  .container {
+    padding: 16px 16px calc(120px + env(safe-area-inset-bottom, 0px)) 16px;
+    max-width: 720px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .topbar {
+    padding: 16px 0 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .topbar-row {
-    flex-wrap: wrap;
-    gap: 8px 10px;
+    padding: 0 16px;
+    max-width: 720px;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* 8: Jarak 16 px antara baris judul dan tiga kartu ringkasan */
+  .topbar-row-utama {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .brand {
     flex: 1 1 auto;
     min-width: 0;
+    gap: 10px;
+  }
+
+  .brand-text {
+    min-width: 0;
+    gap: 2px;
   }
 
   .topbar h1 {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     line-height: 1.25;
-    white-space: normal;
-  }
-
-  .tagline {
-    font-size: 0.74rem;
-    line-height: 1.35;
-    word-break: break-word;
-  }
-
-  .topbar-actions {
-    margin-left: auto;
-    gap: 5px;
-    flex-wrap: wrap;
-  }
-
-  .btn-sync-topbar {
-    padding: 5px 8px;
-    font-size: 0.74rem;
     white-space: nowrap;
   }
 
-  .ringkasan-bulan {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+  /* 8: Subjudul boleh dua baris, jangan dipotong "..." */
+  .tagline {
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .pilih-bulan {
-    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .pilih-bulan .btn-ikon {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.35rem;
+    padding: 4px;
+  }
+
+  .bulan-label {
+    min-height: 44px;
+    min-width: 68px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    margin-bottom: 2px;
+  }
+
+  .bulan-tahun {
+    font-size: 12px;
+  }
+
+  .bulan-nama {
+    font-size: 0.92rem;
+  }
+
+  .ringkasan-bulan {
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    width: 100%;
   }
 
   .ringkasan-bulan-stats {
     width: 100%;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
+    gap: 8px;
   }
 
   .stat-bulan {
     align-items: center;
     background: rgba(0, 0, 0, 0.08);
-    padding: 7px 4px;
+    padding: 8px 6px;
     border-radius: 8px;
     min-width: 0;
-    overflow: hidden;
   }
 
   .stat-bulan .stat-label {
-    font-size: 0.72rem;
+    font-size: 12px;
     white-space: nowrap;
+    line-height: 1.25;
   }
 
   .stat-bulan .stat-value {
-    font-size: clamp(0.72rem, 3.2vw, 0.92rem);
+    font-size: clamp(0.78rem, 3.2vw, 0.95rem);
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    line-height: 1.25;
   }
 
-  .karakter-grid,
+  /* 1 & 9: Saldo per dana 2 kolom, gap 12px, margin-bottom 16px */
   .balances {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
   }
 
   .balance {
-    padding: 12px 14px;
+    padding: 16px;
     gap: 4px;
+    border-radius: 12px;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .balance .stat-label {
+    font-size: 12px;
   }
 
   .balance-value {
-    font-size: clamp(1.2rem, 5vw, 1.6rem);
+    font-size: clamp(0.95rem, 4vw, 1.25rem);
     line-height: 1.25;
+  }
+
+  /* 9: Tulis "masuk Rp …" dan "keluar Rp …" di dua baris terpisah */
+  .balance-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    line-height: 1.35;
+    margin-top: 4px;
+  }
+
+  .balance-flow-period {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .balance-flow-row {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+  }
+
+  /* 10: Tombol filter jarak 8px; kalau tidak muat jadikan baris yang bisa digeser ke samping */
+  .filter-chips {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100%;
+    margin-bottom: 16px;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .filter-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-chips .chip {
+    flex: 1 1 0;
+    min-width: max-content;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: center;
+    justify-content: center;
+    border-radius: 999px;
+    box-sizing: border-box;
+  }
+
+  /* 1: Padding kartu 16 px di HP, jarak antarkartu 16 px */
+  .card {
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  /* 4: Semua judul bagian memakai satu gaya yang sama dengan jarak antarhuruf normal */
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    line-height: 1.35;
+    margin-bottom: 12px;
+  }
+
+  .card h3 {
+    margin: 12px 0 8px;
+    font-size: 0.88rem;
+  }
+
+  .daftar-hari {
+    gap: 12px;
+  }
+
+  .hari {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+  }
+
+  .hari-kepala {
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+  }
+
+  .hari-total {
+    font-size: 12px;
+  }
+
+  .expense-list {
+    margin: 0;
+    padding: 0;
   }
 
   .expense-item {
     padding: 10px 0;
     gap: 10px;
-    align-items: flex-start;
+    align-items: center;
+  }
+
+  .ikon-kategori {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .expense-info {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .expense-desc {
     font-size: 0.9rem;
-    line-height: 1.35;
+    line-height: 1.3;
+    word-break: break-word;
   }
 
   .expense-meta {
-    font-size: 0.76rem;
-    line-height: 1.45;
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .expense-note {
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .expense-kanan {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
   }
 
   .expense-amount {
     font-size: 0.92rem;
   }
 
+  .expense-buttons {
+    gap: 6px;
+  }
+
+  .expense-buttons .btn-small {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  /* 11: Tab Aset - status "Memperbarui pasar…" tidak terpotong, pindah baris sendiri bila tidak muat */
+  .aset-total-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+    width: 100%;
+  }
+
+  .aset-total-header .stat-label {
+    font-size: 12px;
+  }
+
+  .aset-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .aset-badge-drive,
+  .aset-badge-pasar {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: 12px;
+    min-height: 28px;
+    padding: 4px 10px;
+  }
+
   .aset-total-nilai {
-    font-size: clamp(1.35rem, 5.5vw, 1.85rem);
+    font-size: clamp(1.3rem, 5.5vw, 1.65rem);
     line-height: 1.25;
   }
 
   .aset-total-untung {
-    font-size: 0.8rem;
-    line-height: 1.4;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  /* 1 & 14: Collapsible Folders di HP */
+  .folder {
+    margin-bottom: 16px;
+    border-radius: 12px;
   }
 
   .folder summary {
     padding: 12px 14px;
+    font-size: 1rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
   }
 
-  .folder-body {
-    padding: 4px 14px 16px;
+  .folder-icon {
+    flex-shrink: 0;
+  }
+
+  /* 4 & 14: Judul boleh membungkus, label status & panah tidak boleh menimpa */
+  .folder-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    line-height: 1.35;
   }
 
   .folder-hint {
-    display: none;
+    flex-shrink: 0;
+    margin-left: auto;
+    max-width: 45%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    display: inline-block;
+  }
+
+  .folder summary::after {
+    flex-shrink: 0;
+    margin-left: 6px;
+  }
+
+  .folder-body {
+    padding: 8px 14px 16px;
+  }
+
+  .help {
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  /* 12: Tab Grafik - Anggaran pengeluaran harian:
+     label di atas, input selebar penuh, tombol Atur selebar penuh (jarak 12px), teks keterangan (jarak 8px) */
+  .card-anggaran-harian .budget-form {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0;
+  }
+
+  .card-anggaran-harian .budget-form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .card-anggaran-harian .budget-form-input {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    display: block;
+    font-size: 14px;
+  }
+
+  .card-anggaran-harian .budget-form-btn {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .card-anggaran-harian .budget-form-help {
+    margin-top: 8px;
+    margin-bottom: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  /* Form & input minimum 44px tap target */
+  form {
+    grid-template-columns: 1fr;
+    gap: 12px 10px;
+  }
+
+  .field {
+    gap: 4px;
+  }
+
+  label {
+    font-size: 12px;
+  }
+
+  input,
+  select {
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .segmented-options {
+    padding: 3px;
+    gap: 4px;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .segmented-options span {
+    padding: 8px 6px;
+    font-size: 13px;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .segmented-options.empat span {
+    font-size: 12px;
+    padding: 8px 3px;
+    line-height: 1.2;
   }
 
   .sync-pill {
-    border-radius: 12px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .tren {
+    height: 130px;
+    gap: 6px;
   }
 
   .tren .bar {
-    width: 9px;
+    width: 10px;
+  }
+}
+
+/* 13: Tab Saya pilihan karakter:
+   1 kolom di bawah 480 px (avatar kiri, nama & keterangan kanan),
+   2 kolom mulai 480 px */
+@media (max-width: 479.98px) {
+  .karakter-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .karakter {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    min-height: 52px;
+    box-sizing: border-box;
+    text-align: left;
+    min-width: 0;
+  }
+
+  .karakter-lambang {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+  }
+
+  .karakter-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .karakter-nama {
+    font-size: 14px;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .karakter-teknik {
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 639.98px) {
+  .karakter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+  }
+
+  .karakter {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    min-height: 52px;
+    box-sizing: border-box;
+    text-align: left;
+    min-width: 0;
+  }
+
+  .karakter-lambang {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+  }
+
+  .karakter-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .karakter-nama {
+    font-size: 14px;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .karakter-teknik {
+    font-size: 12px;
+    line-height: 1.35;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* 8: Di bawah 400 px, pindahkan pemilih bulan ke baris sendiri di bawah judul */
+@media (max-width: 400px) {
+  .topbar-row-utama {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .topbar-row-utama .brand {
+    justify-content: flex-start;
+  }
+
+  .topbar-row-utama .pilih-bulan {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* 9: Di bawah 360 px, susun kedua kartu saldo satu kolom */
+@media (max-width: 360px) {
+  .balances {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
@@ -1569,7 +2213,7 @@ button {
 }
 
 .gdrive-badge {
-  font-size: 0.75rem;
+  font-size: 12px;
   padding: 3px 8px;
   border-radius: 6px;
   background: var(--track);
@@ -1740,7 +2384,7 @@ button {
 }
 
 .btn-pilihan-tambah .pilihan-teks span {
-  font-size: 0.78rem;
+  font-size: 12px;
   color: var(--muted);
 }
 

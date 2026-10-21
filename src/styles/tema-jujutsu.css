@@ -429,21 +429,16 @@ html[data-tema="jujutsu"] .hanko::after {
   }
 }
 
-/* Tombol Perluasan Domain. */
-html[data-tema="jujutsu"] .btn-domain {
-  display: inline-block;
-  font-family: "Yuji Syuku", serif;
-  font-size: 1rem;
-  letter-spacing: 0.1em;
-  padding: 6px 12px;
-  color: rgb(var(--k2));
-  background: rgba(var(--k1), 0.15);
-  border: 1px solid rgba(var(--k1), 0.7);
-  animation: denyut-domain 2.4s ease-in-out infinite;
+/* Elemen Bilah Atas Bertema Jujutsu (Statistik & Pemilih Bulan). */
+html[data-tema="jujutsu"] .stat-bulan {
+  background: rgba(var(--k1), 0.12);
+  border: 1px solid rgba(var(--k1), 0.35);
+  border-radius: 8px;
 }
 
-html[data-tema="jujutsu"] .btn-domain:hover {
-  background: rgba(var(--k1), 0.35);
+html[data-tema="jujutsu"] .bulan-label {
+  background: rgba(var(--k1), 0.15);
+  border: 1px solid rgba(var(--k1), 0.4);
 }
 
 @keyframes denyut-domain {
@@ -497,11 +492,13 @@ html[data-tema="jujutsu"] .card h2::before {
   box-shadow: 0 0 8px rgba(var(--k1), 0.8);
 }
 
+html[data-tema="jujutsu"] .card h2,
 html[data-tema="jujutsu"] .folder summary {
   font-family: "Yuji Syuku", "Hiragino Mincho ProN", serif;
   font-weight: 400;
-  font-size: 1.05rem;
-  letter-spacing: 0.02em;
+  font-size: 1rem;
+  letter-spacing: normal;
+  line-height: 1.35;
 }
 
 html[data-tema="jujutsu"] .folder-hint {
