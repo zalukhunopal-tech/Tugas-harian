@@ -51,6 +51,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -61,6 +63,8 @@ body {
   color: var(--text);
   line-height: 1.5;
   padding-bottom: calc(var(--tinggi-nav) + env(safe-area-inset-bottom, 0px));
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 h1,
@@ -2398,4 +2402,654 @@ button {
 .btn-pilihan-tambah:hover .pilihan-panah {
   color: var(--accent);
   transform: translateX(3px);
+}
+
+/* ============================================================
+   RESPONSIVE LAYOUT: TABLET (640px – 1023px) & PC (>= 1024px)
+   ============================================================ */
+
+/* Global reset for PC dialog / sidebar helpers on mobile (< 1024px) */
+@media (max-width: 1023.98px) {
+  .sidebar {
+    display: none !important;
+  }
+  .view-bg-pc-only {
+    display: none !important;
+  }
+  .tambah-dialog-topbar {
+    display: none !important;
+  }
+  .tambah-dialog-box {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+  }
+  .btn-batal-dialog-only {
+    display: none !important;
+  }
+  .aset-form-dialog-wrapper {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+  }
+  .aset-dialog-close {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   TABLET (640px – 1023px)
+   ============================================================ */
+@media (min-width: 640px) and (max-width: 1023.98px) {
+  /* 1. Lebar isi maksimal 760 px di tengah, padding samping 24 px */
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 24px;
+    padding-bottom: calc(var(--tinggi-nav, 76px) + 32px + env(safe-area-inset-bottom, 0px));
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .topbar-row {
+    max-width: 760px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 2. Kartu yang sejajar (Saldo Dana Pribadi & Kegiatan, pilihan karakter) memakai 2 kolom dengan jarak 16 px. Navigasi bawah tetap. */
+  .balances {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .karakter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  /* Navigasi bawah tetap */
+  .navbar {
+    display: flex !important;
+  }
+}
+
+/* ============================================================
+   PC (1024px ke atas)
+   ============================================================ */
+@media (min-width: 1024px) {
+  /* Layout utama PC: Sidebar di kiri + Area isi di kanan */
+  .app-layout {
+    display: flex;
+    flex-direction: row;
+    min-height: 100vh;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  /* 4. Ganti navigasi bawah dengan sidebar kiri yang menempel (sticky), lebar sekitar 240 px */
+  .sidebar {
+    display: block !important;
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    box-sizing: border-box;
+    z-index: 100;
+  }
+
+  .sidebar-inner {
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Avatar dan judul aplikasi di atas */
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-avatar {
+    flex-shrink: 0;
+  }
+
+  .sidebar-brand-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .sidebar-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-tagline {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.3;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Tombol "+ Tambah transaksi" yang menonjol */
+  .sidebar-btn-tambah {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 16px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: var(--accent-text, #ffffff);
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb, 139, 92, 246), 0.35);
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+  }
+
+  .sidebar-btn-tambah:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(var(--accent-rgb, 139, 92, 246), 0.45);
+    filter: brightness(1.08);
+  }
+
+  /* Menu Riwayat, Aset, Grafik, Saya (ikon + teks, tinggi minimal 44 px, menu aktif disorot) */
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .sidebar-nav-item:hover {
+    background: rgba(127, 127, 127, 0.08);
+    color: var(--text);
+  }
+
+  .sidebar-nav-item[aria-current="page"],
+  .sidebar-nav-item.active {
+    background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .sidebar-nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav-label {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Sembunyikan navigasi bawah dan tombol "+" mengambang di PC */
+  .navbar,
+  #btn-tambah-mengambang,
+  .btn-tambah-float,
+  .btn-float {
+    display: none !important;
+  }
+
+  /* Area isi kanan */
+  .main-content-wrapper {
+    flex: 1 1 0%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow-x: hidden;
+  }
+
+  /* 3. Lebarkan wadah isi menjadi maksimal 1200 px di tengah, padding samping 32 px */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px 64px 32px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* 5. Kartu ringkasan (Pengeluaran, Pemasukan, Saldo) dan pemilih bulan berada di atas area isi, tepinya sejajar dengan kartu di bawahnya */
+  .topbar {
+    background: transparent;
+    padding: 24px 0 20px 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .topbar-row {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Di PC, avatar dan judul aplikasi ada di sidebar */
+  .topbar-row-utama .brand {
+    display: none;
+  }
+
+  .topbar-row-utama {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  /* Kartu ringkasan (Pengeluaran, Pemasukan, Saldo): Label 13 px, angka 22–24 px, padding 16–20 px */
+  .ringkasan-bulan {
+    margin-bottom: 0;
+  }
+
+  .ringkasan-bulan-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    width: 100%;
+  }
+
+  .stat-bulan {
+    padding: 18px 20px !important;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+  }
+
+  .stat-bulan .stat-label {
+    font-size: 13px !important;
+    margin-bottom: 6px;
+    opacity: 0.85;
+  }
+
+  .stat-bulan .stat-value {
+    font-size: 24px !important;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  /* 7. Jarak antarkartu 24 px, padding dalam kartu 24 px, teks biasa 15 px, judul bagian 18 px */
+  body {
+    padding-bottom: 0;
+  }
+
+  body,
+  .container {
+    font-size: 15px;
+  }
+
+  .card,
+  .folder,
+  .hari {
+    padding: 24px !important;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-sizing: border-box;
+  }
+
+  .card h2,
+  .folder-title,
+  .hari-kepala,
+  #judul-kategori,
+  #kartu-form h2 {
+    font-size: 18px !important;
+    line-height: 1.35;
+  }
+
+  .folder summary {
+    padding: 0 0 16px 0;
+  }
+
+  .folder[open] .folder-body {
+    padding-top: 16px;
+  }
+
+  /* 6. Susunan per tab:
+     - Riwayat: Saldo Dana Pribadi & Kegiatan 2 kolom; filter dana dan anggaran harian di bawahnya; daftar transaksi selebar penuh. */
+  .balances {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .balance {
+    padding: 24px !important;
+    border-radius: 16px;
+    box-sizing: border-box;
+  }
+
+  .balance .balance-value {
+    font-size: 24px !important;
+  }
+
+  .filter-chips {
+    margin-bottom: 24px;
+  }
+
+  .budget {
+    padding: 24px !important;
+    border-radius: 16px;
+    margin-bottom: 24px;
+  }
+
+  .daftar-hari {
+    width: 100%;
+  }
+
+  /* - Aset: kartu total nilai aset selebar penuh dengan tombol-tombolnya sebaris; daftar aset dalam grid 2 kolom; "Harga pasar & sumber" di bawahnya. */
+  .card.aset-total {
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .card.aset-total .sync-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-top: 16px;
+  }
+
+  .card.aset-total .sync-buttons button {
+    flex: 1 1 0;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .daftar-aset {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 24px;
+    align-items: start;
+  }
+
+  .daftar-aset .hari {
+    margin-bottom: 0;
+  }
+
+  #folder-harga {
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  /* - Grafik: "Tren 6 bulan terakhir" selebar penuh; "Ringkasan per Kategori" dan "Anggaran pengeluaran harian" berdampingan 2 kolom. */
+  #view-grafik {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+
+  #view-grafik .card-tren,
+  #view-grafik > .card:first-child {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+
+  #view-grafik .card-ringkasan-kategori,
+  #view-grafik > .card:nth-of-type(2) {
+    grid-column: 1 / 2;
+    margin-bottom: 0;
+  }
+
+  #view-grafik .card-anggaran-harian,
+  #view-grafik > .card:nth-of-type(3) {
+    grid-column: 2 / 3;
+    margin-bottom: 0;
+  }
+
+  /* - Saya: "Folder Keuangan di Google Drive" dan "Transaksi Berulang" berdampingan 2 kolom; "Tema & Karakter" selebar penuh dengan pilihan karakter 3 kolom. */
+  #view-saya {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+
+  #view-saya #folder-drive {
+    grid-column: 1 / 2;
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  #view-saya #folder-berulang {
+    grid-column: 2 / 3;
+    order: 2;
+    margin-bottom: 0;
+  }
+
+  #view-saya #folder-tema {
+    grid-column: 1 / -1;
+    order: 3;
+    margin-bottom: 0;
+  }
+
+  #view-saya .karakter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  /* 8. Form tambah transaksi dan tambah aset di PC tampil sebagai dialog di tengah layar dengan lebar maksimal 560 px */
+  #view-tambah {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .tambah-dialog-box {
+    max-width: 560px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .tambah-dialog-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .tambah-dialog-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .tambah-dialog-box #kartu-form {
+    background: transparent;
+    border: none;
+    padding: 0 !important;
+    box-shadow: none;
+    margin-bottom: 0;
+  }
+
+  .tambah-dialog-box #kartu-form #judul-form {
+    display: none;
+  }
+
+  /* Form tambah aset di PC: dialog tengah layar maksimal 560px */
+  .aset-form-dialog-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .aset-form-dialog-wrapper #kartu-form-aset {
+    max-width: 560px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: auto;
+    padding: 24px !important;
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    box-sizing: border-box;
+  }
+
+  .aset-dialog-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+}
+
+/* Print styles for Laporan */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print,
+  .topbar,
+  .navbar,
+  .sidebar,
+  .btn-plus-mengambang,
+  .modal-backdrop,
+  .filter-chips {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  span.print-only {
+    display: inline !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .printable-report {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: #000000 !important;
+  }
+
+  .printable-report table {
+    color: #000000 !important;
+  }
+
+  .printable-report th,
+  .printable-report td {
+    border-color: #cccccc !important;
+  }
 }

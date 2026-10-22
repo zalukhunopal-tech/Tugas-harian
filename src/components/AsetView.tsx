@@ -370,7 +370,18 @@ export const AsetView: React.FC<AsetViewProps> = ({
             id="kartu-form-aset"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="judul-form-aset">{editAset ? "Ubah Aset" : "Tambah Aset"}</h2>
+            <div className="aset-dialog-topbar">
+              <h2 id="judul-form-aset">{editAset ? "Ubah Aset" : "Tambah Aset"}</h2>
+              <button
+                type="button"
+                className="btn-ikon aset-dialog-close"
+                onClick={() => setFormBuka(false)}
+                aria-label="Tutup form aset"
+                title="Tutup form aset"
+              >
+                ✕
+              </button>
+            </div>
             <form id="form-aset" onSubmit={simpanForm}>
             <fieldset className="field segmented wide">
               <legend>Jenis aset</legend>

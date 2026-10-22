@@ -57,13 +57,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
-        <span>Tambah Transaksi</span>
+        <span>+ Tambah transaksi</span>
       </button>
 
       <nav className="sidebar-nav" aria-label="Menu navigasi samping">
         <button
           type="button"
-          className="sidebar-nav-item"
+          className={`sidebar-nav-item ${currentView === "riwayat" ? "active" : ""}`}
           data-view="riwayat"
           aria-current={currentView === "riwayat" ? "page" : undefined}
           onClick={() => onSelectView("riwayat")}
@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           type="button"
-          className="sidebar-nav-item"
+          className={`sidebar-nav-item ${currentView === "aset" ? "active" : ""}`}
           data-view="aset"
           aria-current={currentView === "aset" ? "page" : undefined}
           onClick={() => onSelectView("aset")}
@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           type="button"
-          className="sidebar-nav-item"
+          className={`sidebar-nav-item ${currentView === "grafik" ? "active" : ""}`}
           data-view="grafik"
           aria-current={currentView === "grafik" ? "page" : undefined}
           onClick={() => onSelectView("grafik")}
@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           type="button"
-          className="sidebar-nav-item"
+          className={`sidebar-nav-item ${currentView === "saya" ? "active" : ""}`}
           data-view="saya"
           aria-current={currentView === "saya" ? "page" : undefined}
           onClick={() => onSelectView("saya")}

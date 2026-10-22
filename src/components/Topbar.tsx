@@ -32,13 +32,13 @@ export const Topbar: React.FC<TopbarProps> = ({
   const tanggalObj = new Date(tahun, bulanAngka - 1, 1);
   const teksBulan = namaBulanPendek.format(tanggalObj);
 
-  // Hitung ringkasan bulan terpilih
+  // Hitung ringkasan bulan terpilih (Kategori Pindah Dana tidak dihitung sebagai pemasukan/pengeluaran)
   const transaksiBulan = transaksi.filter((t) => t.tanggal.startsWith(bulanTerpilih));
   const totalKeluar = transaksiBulan
-    .filter((t) => t.jenis === "pengeluaran")
+    .filter((t) => t.jenis === "pengeluaran" && t.kategori !== "Pindah Dana")
     .reduce((s, t) => s + t.jumlah, 0);
   const totalMasuk = transaksiBulan
-    .filter((t) => t.jenis === "pemasukan")
+    .filter((t) => t.jenis === "pemasukan" && t.kategori !== "Pindah Dana")
     .reduce((s, t) => s + t.jumlah, 0);
   const saldoBulan = totalMasuk - totalKeluar;
 

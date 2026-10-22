@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang } from "../types";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang, BuktiItem } from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
 import { buatId } from "../lib/storage";
+import { kompresBukti } from "../lib/buktiStorage";
 import {
   optimalkanGambarStruk,
   prosesStrukDenganGemini,
@@ -10,7 +11,7 @@ import {
 
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
-  onSimpan: (t: Transaksi) => void;
+  onSimpan: (t: Transaksi | Transaksi[]) => void;
   onBatalEdit: () => void;
   initialScanFile?: File | null;
   onResetInitialScan?: () => void;
@@ -19,6 +20,7 @@ interface TambahViewProps {
   onBukaTransaksiBerulang?: () => void;
   jumlahJatuhTempo?: number;
   daftarBerulang?: TransaksiBerulang[];
+  daftarTransaksi?: Transaksi[];
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -32,7 +34,15 @@ export const TambahView: React.FC<TambahViewProps> = ({
   onBukaTransaksiBerulang,
   jumlahJatuhTempo = 0,
   daftarBerulang = [],
+  daftarTransaksi = [],
 }) => {
+  const [modeTransaksi, setModeTransaksi] = useState<"pengeluaran" | "pemasukan" | "pindah_dana">("pengeluaran");
+  const [danaAsal, setDanaAsal] = useState<NamaDana>("Dana Pribadi");
+  const [danaTujuan, setDanaTujuan] = useState<NamaDana>("Dana Kegiatan");
+  const [isTalangan, setIsTalangan] = useState<boolean>(false);
+  const [statusTalangan, setStatusTalangan] = useState<"belum_diganti" | "sudah_diganti">("belum_diganti");
+  const [talanganUntuk, setTalanganUntuk] = useState<string>("");
+
   const [jenis, setJenis] = useState<JenisTransaksi>("pengeluaran");
   const [dana, setDana] = useState<NamaDana>("Dana Pribadi");
   const [tanggal, setTanggal] = useState<string>(hariIni());
@@ -42,6 +52,12 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [metode, setMetode] = useState<string>("Tunai");
   const [kaitan, setKaitan] = useState<string>("");
   const [catatan, setCatatan] = useState<string>("");
+
+  // Bukti Transaksi States
+  const [bukti, setBukti] = useState<BuktiItem[]>([]);
+  const [memuatBukti, setMemuatBukti] = useState(false);
+  const buktiKameraInputRef = useRef<HTMLInputElement>(null);
+  const buktiGaleriInputRef = useRef<HTMLInputElement>(null);
 
   // Struk Scanner States
   const kameraInputRef = useRef<HTMLInputElement>(null);
@@ -56,8 +72,21 @@ export const TambahView: React.FC<TambahViewProps> = ({
   // Sync state when editing
   useEffect(() => {
     if (editTransaksi) {
+      const isPindah = editTransaksi.kategori === "Pindah Dana" || Boolean(editTransaksi.pasanganId);
+      if (isPindah) {
+        setModeTransaksi("pindah_dana");
+        if (editTransaksi.jenis === "pengeluaran") {
+          setDanaAsal(editTransaksi.dana);
+          setDanaTujuan(editTransaksi.dana === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+        } else {
+          setDanaTujuan(editTransaksi.dana);
+          setDanaAsal(editTransaksi.dana === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+        }
+      } else {
+        setModeTransaksi(editTransaksi.jenis);
+        setDana(editTransaksi.dana);
+      }
       setJenis(editTransaksi.jenis);
-      setDana(editTransaksi.dana);
       setTanggal(editTransaksi.tanggal);
       setDeskripsi(editTransaksi.deskripsi);
       setKategori(editTransaksi.kategori);
@@ -65,15 +94,26 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setMetode(editTransaksi.metode || "Tunai");
       setKaitan(editTransaksi.kaitan || "");
       setCatatan(editTransaksi.catatan || "");
+      setBukti(editTransaksi.bukti || []);
+      setIsTalangan(Boolean(editTransaksi.isTalangan));
+      setStatusTalangan(editTransaksi.statusTalangan || "belum_diganti");
+      setTalanganUntuk(editTransaksi.talanganUntuk || "");
     } else {
+      setModeTransaksi("pengeluaran");
       setJenis("pengeluaran");
       setDana("Dana Pribadi");
+      setDanaAsal("Dana Pribadi");
+      setDanaTujuan("Dana Kegiatan");
       setTanggal(hariIni());
       setDeskripsi("");
       setJumlah("");
       setMetode("Tunai");
       setKaitan("");
       setCatatan("");
+      setBukti([]);
+      setIsTalangan(false);
+      setStatusTalangan("belum_diganti");
+      setTalanganUntuk("");
       const defaultKategori = KATEGORI["Dana Pribadi"].pengeluaran[0];
       setKategori(defaultKategori);
     }
@@ -90,12 +130,41 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const daftarKategori = KATEGORI[dana]?.[jenis] || [];
   const kaitanMeta = KAITAN[dana] || KAITAN["Dana Pribadi"];
 
+  // Saran otomatis untuk Kaitan Kegiatan / Sumber & Tujuan
+  const saranKaitan = useMemo(() => {
+    if (!daftarTransaksi || daftarTransaksi.length === 0) return [];
+    const set = new Set<string>();
+    for (const t of daftarTransaksi) {
+      if (t.dana === dana && t.kaitan && t.kaitan.trim()) {
+        set.add(t.kaitan.trim());
+      }
+    }
+    return Array.from(set).slice(0, 15);
+  }, [daftarTransaksi, dana]);
+
   const handleProsesFileStruk = async (file: File) => {
     if (!file) return;
     try {
       setMemuatScan(true);
       setErrorScan(null);
       setHasilScan(null);
+
+      // Foto struk belanja otomatis dijadikan bukti transaksi (Requirement A1 & A2)
+      try {
+        const kompres = await kompresBukti(file, file.name || "struk.jpg");
+        setBukti((prev) => [
+          ...prev,
+          {
+            id: buatId(),
+            nama: kompres.namaFile,
+            tipe: kompres.tipe,
+            dataUrl: kompres.dataUrl,
+            waktu: new Date().toISOString(),
+          },
+        ]);
+      } catch (errBukti) {
+        console.warn("Gagal mengompres struk sebagai bukti:", errBukti);
+      }
 
       const { base64, mimeType, previewUrl } = await optimalkanGambarStruk(file);
       setPreviewFoto(previewUrl);
@@ -156,6 +225,37 @@ export const TambahView: React.FC<TambahViewProps> = ({
     if (onResetInitialScan) onResetInitialScan();
   };
 
+  // Lampirkan berkas bukti (kamera / galeri foto / PDF)
+  const handleLampirkanFileBukti = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setMemuatBukti(true);
+    try {
+      const itemsBaru: BuktiItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const kompres = await kompresBukti(f, f.name);
+        itemsBaru.push({
+          id: buatId(),
+          nama: kompres.namaFile,
+          tipe: kompres.tipe,
+          dataUrl: kompres.dataUrl,
+          waktu: new Date().toISOString(),
+        });
+      }
+      setBukti((prev) => [...prev, ...itemsBaru]);
+    } catch (err: any) {
+      alert(`Gagal memproses lampiran bukti: ${err.message}`);
+    } finally {
+      setMemuatBukti(false);
+      if (buktiKameraInputRef.current) buktiKameraInputRef.current.value = "";
+      if (buktiGaleriInputRef.current) buktiGaleriInputRef.current.value = "";
+    }
+  };
+
+  const handleHapusBukti = (idBukti: string) => {
+    setBukti((prev) => prev.filter((b) => b.id !== idBukti));
+  };
+
   // Otomatis jalankan jika ada initialScanFile dari navigasi luar
   useEffect(() => {
     if (initialScanFile) {
@@ -181,27 +281,104 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const jml = Number(jumlah);
-    if (!deskripsi.trim() || !jml || jml <= 0) return;
+    if (!jml || jml <= 0) return;
 
-    const trx: Transaksi = {
-      id: editTransaksi ? editTransaksi.id : buatId(),
-      jenis,
-      dana,
-      tanggal,
-      deskripsi: deskripsi.trim(),
-      kategori: kategori || daftarKategori[0] || "Lain-lain",
-      jumlah: jml,
-      metode,
-      kaitan: kaitan.trim(),
-      catatan: catatan.trim(),
-    };
+    if (modeTransaksi === "pindah_dana") {
+      const pairId = editTransaksi?.pasanganId || ("pd_" + buatId());
+      const pasanganLama = editTransaksi?.pasanganId
+        ? daftarTransaksi.find(
+            (t) => t.pasanganId === editTransaksi.pasanganId && t.id !== editTransaksi.id
+          )
+        : null;
 
-    onSimpan(trx);
+      const idKeluar =
+        editTransaksi?.jenis === "pengeluaran"
+          ? editTransaksi.id
+          : pasanganLama && pasanganLama.jenis === "pengeluaran"
+          ? pasanganLama.id
+          : buatId();
+
+      const idMasuk =
+        editTransaksi?.jenis === "pemasukan"
+          ? editTransaksi.id
+          : pasanganLama && pasanganLama.jenis === "pemasukan"
+          ? pasanganLama.id
+          : buatId();
+
+      const uraianUtama =
+        deskripsi.trim() || `Pindah Dana (${danaAsal} → ${danaTujuan})`;
+
+      const trxKeluar: Transaksi = {
+        id: idKeluar,
+        jenis: "pengeluaran",
+        dana: danaAsal,
+        tanggal,
+        deskripsi: uraianUtama,
+        kategori: "Pindah Dana",
+        jumlah: jml,
+        metode,
+        kaitan: kaitan.trim() || `Ke ${danaTujuan}`,
+        catatan: catatan.trim(),
+        pasanganId: pairId,
+        isTalangan,
+        statusTalangan: isTalangan ? statusTalangan : undefined,
+        talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
+        diubah: new Date().toISOString(),
+        bukti,
+      };
+
+      const trxMasuk: Transaksi = {
+        id: idMasuk,
+        jenis: "pemasukan",
+        dana: danaTujuan,
+        tanggal,
+        deskripsi: uraianUtama,
+        kategori: "Pindah Dana",
+        jumlah: jml,
+        metode,
+        kaitan: kaitan.trim() || `Dari ${danaAsal}`,
+        catatan: catatan.trim(),
+        pasanganId: pairId,
+        isTalangan,
+        statusTalangan: isTalangan ? statusTalangan : undefined,
+        talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
+        diubah: new Date().toISOString(),
+        bukti,
+      };
+
+      onSimpan([trxKeluar, trxMasuk]);
+    } else {
+      if (!deskripsi.trim()) return;
+      const trx: Transaksi = {
+        id: editTransaksi ? editTransaksi.id : buatId(),
+        jenis,
+        dana,
+        tanggal,
+        deskripsi: deskripsi.trim(),
+        kategori: kategori || daftarKategori[0] || "Lain-lain",
+        jumlah: jml,
+        metode,
+        kaitan: kaitan.trim(),
+        catatan: catatan.trim(),
+        isTalangan,
+        statusTalangan: isTalangan ? statusTalangan : undefined,
+        talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
+        diubah: new Date().toISOString(),
+        bukti,
+      };
+
+      onSimpan(trx);
+    }
+
     if (!editTransaksi) {
       setDeskripsi("");
       setJumlah("");
       setKaitan("");
       setCatatan("");
+      setBukti([]);
+      setIsTalangan(false);
+      setStatusTalangan("belum_diganti");
+      setTalanganUntuk("");
       handleResetScan();
     }
   };
@@ -218,7 +395,16 @@ export const TambahView: React.FC<TambahViewProps> = ({
   };
 
   return (
-    <section className="view" id="view-tambah" data-view="tambah">
+    <section
+      className="view"
+      id="view-tambah"
+      data-view="tambah"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onBatalEdit();
+        }
+      }}
+    >
       {/* Input File Tersembunyi untuk Kamera & Galeri */}
       <input
         type="file"
@@ -242,8 +428,24 @@ export const TambahView: React.FC<TambahViewProps> = ({
         }}
       />
 
-      {/* Tool Transaksi Berulang */}
-      {!editTransaksi && onBukaTransaksiBerulang && (
+      <div className="tambah-dialog-box" onClick={(e) => e.stopPropagation()}>
+        <div className="tambah-dialog-topbar">
+          <h2 className="tambah-dialog-title">
+            {editTransaksi ? "Ubah Transaksi" : "Tambah Transaksi"}
+          </h2>
+          <button
+            type="button"
+            className="btn-ikon tambah-dialog-close"
+            onClick={onBatalEdit}
+            aria-label="Tutup formulir"
+            title="Tutup formulir"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Tool Transaksi Berulang */}
+        {!editTransaksi && onBukaTransaksiBerulang && (
         <section
           className="card-berulang-tool"
           aria-label="Tool Transaksi Berulang"
@@ -506,42 +708,137 @@ export const TambahView: React.FC<TambahViewProps> = ({
         <h2 id="judul-form">{editTransaksi ? "Ubah Transaksi" : "Formulir Transaksi"}</h2>
         <form id="form-transaksi" ref={formRef} onSubmit={handleSubmit}>
           <fieldset className="field segmented">
-            <legend>Jenis</legend>
-            <div className="segmented-options">
-              <label>
+            <legend>Jenis Transaksi</legend>
+            <div className="segmented-options" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              <label style={{ flex: 1, minWidth: "100px" }}>
                 <input
                   type="radio"
-                  name="jenis"
+                  name="modeTransaksi"
                   value="pengeluaran"
-                  checked={jenis === "pengeluaran"}
-                  onChange={() => setJenis("pengeluaran")}
+                  checked={modeTransaksi === "pengeluaran"}
+                  onChange={() => {
+                    setModeTransaksi("pengeluaran");
+                    setJenis("pengeluaran");
+                  }}
                 />
                 <span>Pengeluaran</span>
               </label>
-              <label>
+              <label style={{ flex: 1, minWidth: "100px" }}>
                 <input
                   type="radio"
-                  name="jenis"
+                  name="modeTransaksi"
                   value="pemasukan"
-                  checked={jenis === "pemasukan"}
-                  onChange={() => setJenis("pemasukan")}
+                  checked={modeTransaksi === "pemasukan"}
+                  onChange={() => {
+                    setModeTransaksi("pemasukan");
+                    setJenis("pemasukan");
+                  }}
                 />
                 <span>Pemasukan</span>
+              </label>
+              <label style={{ flex: 1, minWidth: "115px" }}>
+                <input
+                  type="radio"
+                  name="modeTransaksi"
+                  value="pindah_dana"
+                  checked={modeTransaksi === "pindah_dana"}
+                  onChange={() => setModeTransaksi("pindah_dana")}
+                />
+                <span>🔄 Pindah Dana</span>
               </label>
             </div>
           </fieldset>
 
-          <div className="field">
-            <label htmlFor="dana">Dana</label>
-            <select
-              id="dana"
-              value={dana}
-              onChange={(e) => setDana(e.target.value as NamaDana)}
+          {modeTransaksi === "pindah_dana" ? (
+            <div
+              className="field wide"
+              style={{
+                background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "1.5px solid var(--accent)",
+                marginBottom: "8px",
+              }}
             >
-              <option value="Dana Pribadi">Dana Pribadi</option>
-              <option value="Dana Kegiatan">Dana Kegiatan</option>
-            </select>
-          </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                <strong style={{ fontSize: "0.88rem", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>🔄</span> Pindah Dana Antar Rekening / Kas
+                </strong>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Disimpan otomatis sebagai 2 transaksi berpasangan
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="dana-asal" style={{ fontSize: "0.8rem", marginBottom: "4px", display: "block", fontWeight: 600 }}>
+                    Dari (Dana Asal - Keluar):
+                  </label>
+                  <select
+                    id="dana-asal"
+                    value={danaAsal}
+                    onChange={(e) => {
+                      const asal = e.target.value as NamaDana;
+                      setDanaAsal(asal);
+                      setDanaTujuan(asal === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+                    }}
+                  >
+                    <option value="Dana Pribadi">Dana Pribadi</option>
+                    <option value="Dana Kegiatan">Dana Kegiatan</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{
+                    alignSelf: "flex-end",
+                    height: "42px",
+                    padding: "0 14px",
+                    fontSize: "1.2rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onClick={() => {
+                    const temp = danaAsal;
+                    setDanaAsal(danaTujuan);
+                    setDanaTujuan(temp);
+                  }}
+                  title="Tukar Arah Pindah Dana"
+                >
+                  ⇄
+                </button>
+                <div style={{ flex: 1 }}>
+                  <label htmlFor="dana-tujuan" style={{ fontSize: "0.8rem", marginBottom: "4px", display: "block", fontWeight: 600 }}>
+                    Ke (Dana Tujuan - Masuk):
+                  </label>
+                  <select
+                    id="dana-tujuan"
+                    value={danaTujuan}
+                    onChange={(e) => {
+                      const tujuan = e.target.value as NamaDana;
+                      setDanaTujuan(tujuan);
+                      setDanaAsal(tujuan === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+                    }}
+                  >
+                    <option value="Dana Pribadi">Dana Pribadi</option>
+                    <option value="Dana Kegiatan">Dana Kegiatan</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="dana">Dana</label>
+              <select
+                id="dana"
+                value={dana}
+                onChange={(e) => setDana(e.target.value as NamaDana)}
+              >
+                <option value="Dana Pribadi">Dana Pribadi</option>
+                <option value="Dana Kegiatan">Dana Kegiatan</option>
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="tanggal">Tanggal</label>
@@ -559,28 +856,34 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <input
               type="text"
               id="deskripsi"
-              placeholder="Contoh: Pembelian makan siang"
+              placeholder={
+                modeTransaksi === "pindah_dana"
+                  ? `Pindah Dana (${danaAsal} → ${danaTujuan})`
+                  : "Contoh: Pembelian makan siang"
+              }
               maxLength={150}
               value={deskripsi}
               onChange={(e) => setDeskripsi(e.target.value)}
-              required
+              required={modeTransaksi !== "pindah_dana"}
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="kategori">Kategori</label>
-            <select
-              id="kategori"
-              value={kategori}
-              onChange={(e) => setKategori(e.target.value)}
-            >
-              {daftarKategori.map((kat) => (
-                <option key={kat} value={kat}>
-                  {kat}
-                </option>
-              ))}
-            </select>
-          </div>
+          {modeTransaksi !== "pindah_dana" && (
+            <div className="field">
+              <label htmlFor="kategori">Kategori</label>
+              <select
+                id="kategori"
+                value={kategori}
+                onChange={(e) => setKategori(e.target.value)}
+              >
+                {daftarKategori.map((kat) => (
+                  <option key={kat} value={kat}>
+                    {kat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label htmlFor="jumlah">Jumlah (Rp)</label>
@@ -618,11 +921,41 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <input
               type="text"
               id="kaitan"
+              list="list-saran-kaitan"
               placeholder={kaitanMeta.placeholder}
               maxLength={150}
               value={kaitan}
               onChange={(e) => setKaitan(e.target.value)}
             />
+            <datalist id="list-saran-kaitan">
+              {saranKaitan.map((s, idx) => (
+                <option key={idx} value={s} />
+              ))}
+            </datalist>
+            {saranKaitan.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>Saran:</span>
+                {saranKaitan.slice(0, 5).map((s, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="btn-small"
+                    style={{
+                      fontSize: "0.74rem",
+                      padding: "2px 8px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: kaitan === s ? "var(--accent)" : "var(--surface)",
+                      color: kaitan === s ? "#fff" : "var(--text)",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setKaitan(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="field wide">
@@ -637,23 +970,280 @@ export const TambahView: React.FC<TambahViewProps> = ({
             />
           </div>
 
-          <div className="form-actions">
-            {editTransaksi && (
+          {/* Talangan (perlu diganti) (Requirement 2) */}
+          <div
+            className="field wide"
+            style={{
+              padding: "12px 14px",
+              background: isTalangan
+                ? "color-mix(in srgb, var(--accent) 10%, var(--surface))"
+                : "color-mix(in srgb, var(--surface) 90%, var(--border))",
+              border: isTalangan ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+              borderRadius: "12px",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                cursor: "pointer",
+                fontWeight: 700,
+                margin: 0,
+                fontSize: "0.92rem",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isTalangan}
+                onChange={(e) => setIsTalangan(e.target.checked)}
+                style={{ width: "19px", height: "19px", accentColor: "var(--accent)", cursor: "pointer" }}
+              />
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🤝</span> Talangan (perlu diganti)
+              </span>
+            </label>
+            {isTalangan && (
+              <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Status Penggantian:
+                  </span>
+                  <label
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "0.86rem",
+                      cursor: "pointer",
+                      padding: "4px 10px",
+                      borderRadius: "8px",
+                      background: statusTalangan === "belum_diganti" ? "rgba(239,68,68,0.15)" : "transparent",
+                      border: statusTalangan === "belum_diganti" ? "1px solid var(--keluar)" : "1px solid transparent",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="statusTalangan"
+                      value="belum_diganti"
+                      checked={statusTalangan === "belum_diganti"}
+                      onChange={() => setStatusTalangan("belum_diganti")}
+                    />
+                    <span style={{ color: "var(--keluar)", fontWeight: 700 }}>⏳ Belum diganti</span>
+                  </label>
+                  <label
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "0.86rem",
+                      cursor: "pointer",
+                      padding: "4px 10px",
+                      borderRadius: "8px",
+                      background: statusTalangan === "sudah_diganti" ? "rgba(34,197,94,0.15)" : "transparent",
+                      border: statusTalangan === "sudah_diganti" ? "1px solid var(--masuk)" : "1px solid transparent",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="statusTalangan"
+                      value="sudah_diganti"
+                      checked={statusTalangan === "sudah_diganti"}
+                      onChange={() => setStatusTalangan("sudah_diganti")}
+                    />
+                    <span style={{ color: "var(--masuk)", fontWeight: 700 }}>✓ Sudah diganti</span>
+                  </label>
+                </div>
+                <div>
+                  <label htmlFor="talangan-untuk" style={{ fontSize: "0.78rem", marginBottom: "4px", display: "block" }}>
+                    Keterangan Talangan / Ditujukan ke:
+                  </label>
+                  <input
+                    id="talangan-untuk"
+                    type="text"
+                    placeholder="Contoh: Ditalangi dulu untuk transport tim Pak Joko / Panitia"
+                    value={talanganUntuk}
+                    onChange={(e) => setTalanganUntuk(e.target.value)}
+                    maxLength={150}
+                    style={{ fontSize: "0.85rem" }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Lampirkan Bukti Transaksi (Requirement A1 & A2) */}
+          <div className="field wide" style={{ marginTop: "8px", borderTop: "1px dashed var(--border)", paddingTop: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>📎 Lampiran Bukti / Nota</span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--muted)" }}>
+                  (Foto kamera/galeri atau PDF)
+                </span>
+              </label>
+              {bukti.length > 0 && (
+                <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>
+                  {bukti.length} berkas terlampir
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               <button
                 type="button"
-                id="btn-batal"
                 className="btn-secondary"
-                onClick={onBatalEdit}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "8px 14px" }}
+                onClick={() => buktiKameraInputRef.current?.click()}
+                disabled={memuatBukti}
               >
-                Batal
+                📷 Ambil Foto (Kamera)
               </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "8px 14px" }}
+                onClick={() => buktiGaleriInputRef.current?.click()}
+                disabled={memuatBukti}
+              >
+                📁 Pilih Galeri / PDF
+              </button>
+
+              <input
+                ref={buktiKameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                onChange={(e) => handleLampirkanFileBukti(e.target.files)}
+              />
+              <input
+                ref={buktiGaleriInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                style={{ display: "none" }}
+                onChange={(e) => handleLampirkanFileBukti(e.target.files)}
+              />
+            </div>
+
+            {memuatBukti && (
+              <div style={{ marginTop: "6px", fontSize: "0.8rem", color: "var(--muted)" }}>
+                ⏳ Sedang mengompres berkas bukti transaksi…
+              </div>
             )}
+
+            {/* Daftar Foto & PDF yang dilampirkan */}
+            {bukti.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                  gap: "10px",
+                  marginTop: "12px",
+                }}
+              >
+                {bukti.map((item, idx) => {
+                  const isPdf = item.tipe === "application/pdf" || item.nama.toLowerCase().endsWith(".pdf");
+                  return (
+                    <div
+                      key={item.id || idx}
+                      style={{
+                        position: "relative",
+                        border: "1px solid var(--border)",
+                        borderRadius: "10px",
+                        overflow: "hidden",
+                        background: "var(--surface)",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      {isPdf ? (
+                        <div
+                          style={{
+                            height: "85px",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "rgba(239, 68, 68, 0.1)",
+                            fontSize: "1.8rem",
+                          }}
+                        >
+                          📄
+                          <span style={{ fontSize: "0.68rem", fontWeight: 700, color: "var(--danger)" }}>PDF</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={item.dataUrl || item.driveLink}
+                          alt={item.nama}
+                          style={{ width: "100%", height: "85px", objectFit: "cover" }}
+                        />
+                      )}
+                      <div style={{ padding: "6px", fontSize: "0.72rem", flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={item.nama}
+                        >
+                          {item.nama}
+                        </div>
+                        {item.driveLink && (
+                          <span style={{ color: "#16a34a", fontSize: "0.68rem", fontWeight: 700 }}>
+                            ✓ Di Drive
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        style={{
+                          position: "absolute",
+                          top: "4px",
+                          right: "4px",
+                          width: "22px",
+                          height: "22px",
+                          borderRadius: "50%",
+                          background: "rgba(0,0,0,0.65)",
+                          color: "#fff",
+                          border: "none",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onClick={() => handleHapusBukti(item.id)}
+                        title="Hapus bukti ini"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              id="btn-batal"
+              className={`btn-secondary ${!editTransaksi ? "btn-batal-dialog-only" : ""}`}
+              onClick={onBatalEdit}
+            >
+              Batal
+            </button>
             <button type="submit" id="btn-simpan" className="btn-primary">
               {editTransaksi ? "Simpan Perubahan" : "Simpan"}
             </button>
           </div>
         </form>
       </section>
+      </div>
     </section>
   );
 };

@@ -26,6 +26,7 @@ import {
   simpanTransaksiBerulang,
   bacaStorage,
   tulisStorage,
+  tambahIdTerhapus,
 } from "./lib/storage";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
 import {
@@ -45,15 +46,23 @@ import {
   cariFolderKeuangan,
   ambilIsiFolderKeuangan,
   buatFolderKeuangan,
-  bacaTransaksiDariSpreadsheet,
-  bacaAsetDariDrive,
-  bacaHargaDariDrive,
-  simpanTransaksiKeSpreadsheet,
+  kirimSemuaKeDrive,
+  tarikSemuaDariDrive,
   simpanAsetKeDrive,
+  dapatkanFolderBuktiTarget,
+  unggahBuktiKeDrive,
   KeuanganDriveContents,
 } from "./lib/gdriveSync";
+import {
+  simpanBuktiOffline,
+  ambilSemuaBuktiOffline,
+  hapusBuktiOffline,
+  formatNamaFileBukti,
+  konversiDataUrlKeBlob,
+} from "./lib/buktiStorage";
 import { Topbar } from "./components/Topbar";
 import { Navbar } from "./components/Navbar";
+import { Sidebar } from "./components/Sidebar";
 import { RiwayatView } from "./components/RiwayatView";
 import { AsetView } from "./components/AsetView";
 import { TambahView } from "./components/TambahView";
@@ -79,6 +88,13 @@ export default function App() {
   );
 
   const [currentView, setCurrentView] = useState<ViewTab>("riwayat");
+  const [lastActiveTab, setLastActiveTab] = useState<ViewTab>("riwayat");
+
+  useEffect(() => {
+    if (currentView !== "tambah") {
+      setLastActiveTab(currentView);
+    }
+  }, [currentView]);
   const [bulanTerpilih, setBulanTerpilih] = useState<string>(() => hariIni().slice(0, 7));
   const [editTransaksi, setEditTransaksi] = useState<Transaksi | null>(null);
 
@@ -91,7 +107,7 @@ export default function App() {
   const [syncPesan, setSyncPesan] = useState<string>("");
   const [syncStatus, setSyncStatus] = useState<{
     pesan: string;
-    status: "kerja" | "sukses" | "gagal" | "idle";
+    status: "kerja" | "sukses" | "gagal" | "idle" | "tunggu";
   }>({ pesan: "", status: "idle" });
 
   const [memuatHarga, setMemuatHarga] = useState(false);
@@ -186,7 +202,18 @@ export default function App() {
     }
   }, [currentView, perbaruiHargaPasar]);
 
-  // ===== Google Drive Direct Synchronization =====
+  // ===== Google Drive Direct Synchronization & Auto-Sync =====
+
+  const transaksiRef = React.useRef(transaksi);
+  transaksiRef.current = transaksi;
+  const asetRef = React.useRef(aset);
+  asetRef.current = aset;
+  const hargaRef = React.useRef(harga);
+  hargaRef.current = harga;
+
+  const autoSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncPendingRef = React.useRef<boolean>(false);
+  const initialPullDoneRef = React.useRef<boolean>(false);
 
   const periksaDriveOtomatis = useCallback(async (token: string) => {
     setMemuatDrive(true);
@@ -211,13 +238,305 @@ export default function App() {
     }
   }, []);
 
-  // Firebase Google Auth Listener (Sesi 3 Bulan Aktif)
+  const jalankanAutoKirimKeDrive = useCallback(async () => {
+    let token = await getAccessToken();
+    if (!token) {
+      syncPendingRef.current = false;
+      return;
+    }
+    const statusSesi = cekStatusSesiGoogle();
+    if (!statusSesi.aktif) {
+      syncPendingRef.current = false;
+      return;
+    }
+
+    if (!navigator.onLine) {
+      syncPendingRef.current = true;
+      setSyncStatus({ pesan: "Belum tersinkron", status: "tunggu" });
+      return;
+    }
+
+    setSyncStatus({ pesan: "Menyinkronkan ke Drive…", status: "kerja" });
+    try {
+      await kirimSemuaKeDrive(token, transaksiRef.current, asetRef.current);
+      syncPendingRef.current = false;
+      setSyncStatus({ pesan: "Data tersinkron ke Google Drive", status: "sukses" });
+      setTimeout(() => {
+        setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev));
+      }, 3500);
+    } catch (err: any) {
+      console.warn("Auto-sync ke Drive gagal:", err);
+      syncPendingRef.current = true;
+      setSyncStatus({ pesan: "Belum tersinkron", status: "gagal" });
+    }
+  }, []);
+
+  const jadwalkanAutoSync = useCallback(() => {
+    syncPendingRef.current = true;
+    if (autoSyncTimerRef.current) {
+      clearTimeout(autoSyncTimerRef.current);
+    }
+
+    if (!navigator.onLine) {
+      setSyncStatus({ pesan: "Belum tersinkron", status: "tunggu" });
+      return;
+    }
+
+    // Kirim ke Drive sekitar 5 detik kemudian tanpa dialog konfirmasi
+    autoSyncTimerRef.current = setTimeout(() => {
+      void jalankanAutoKirimKeDrive();
+    }, 5000);
+  }, [jalankanAutoKirimKeDrive]);
+
+  // Unggah bukti transaksi ke Google Drive atau simpan ke antrean offline jika jaringan belum siap
+  const prosesUnggahBuktiTransaksi = useCallback(
+    async (trx: Transaksi) => {
+      if (!trx.bukti || trx.bukti.length === 0) return;
+      const buktiPerluDiunggah = trx.bukti.filter((b) => !b.driveLink && b.dataUrl);
+      if (buktiPerluDiunggah.length === 0) return;
+
+      const token = await getAccessToken();
+      const statusSesi = cekStatusSesiGoogle();
+      const online = navigator.onLine && token && statusSesi.aktif;
+
+      if (!online) {
+        // Simpan foto di IndexedDB untuk diunggah otomatis saat online (Requirement A6)
+        for (const b of buktiPerluDiunggah) {
+          try {
+            const blob = konversiDataUrlKeBlob(b.dataUrl!);
+            const ext = b.tipe === "application/pdf" ? "pdf" : "jpg";
+            const namaFile = formatNamaFileBukti(trx.tanggal, trx.deskripsi, b.id, ext);
+            await simpanBuktiOffline({
+              id: b.id,
+              trxId: trx.id,
+              namaFile,
+              tipe: b.tipe,
+              blob,
+              dana: trx.dana,
+              waktu: b.waktu || new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn("Gagal menyimpan bukti ke antrean offline:", e);
+          }
+        }
+        return;
+      }
+
+      // Online: unggah langsung ke folder target Drive (Requirement A3 & A4)
+      try {
+        let folder = await cariFolderKeuangan(token);
+        if (!folder) {
+          folder = await buatFolderKeuangan(token);
+        }
+        const targetFolder = await dapatkanFolderBuktiTarget(token, folder.id, trx.dana);
+
+        let adaPerubahan = false;
+        const buktiBaru = [...trx.bukti];
+
+        for (let i = 0; i < buktiBaru.length; i++) {
+          const item = buktiBaru[i];
+          if (!item.driveLink && item.dataUrl) {
+            try {
+              const blob = konversiDataUrlKeBlob(item.dataUrl);
+              const ext = item.tipe === "application/pdf" ? "pdf" : "jpg";
+              const namaFile = formatNamaFileBukti(trx.tanggal, trx.deskripsi, item.id, ext);
+              const hasilUnggah = await unggahBuktiKeDrive(
+                token,
+                targetFolder.id,
+                blob,
+                namaFile,
+                item.tipe
+              );
+              buktiBaru[i] = {
+                ...item,
+                driveId: hasilUnggah.driveId,
+                driveLink: hasilUnggah.driveLink,
+              };
+              adaPerubahan = true;
+            } catch (errUnggah) {
+              console.warn("Gagal mengunggah bukti ke Drive, menyimpan ke antrean offline:", errUnggah);
+              const blob = konversiDataUrlKeBlob(item.dataUrl);
+              const ext = item.tipe === "application/pdf" ? "pdf" : "jpg";
+              const namaFile = formatNamaFileBukti(trx.tanggal, trx.deskripsi, item.id, ext);
+              await simpanBuktiOffline({
+                id: item.id,
+                trxId: trx.id,
+                namaFile,
+                tipe: item.tipe,
+                blob,
+                dana: trx.dana,
+                waktu: item.waktu || new Date().toISOString(),
+              });
+            }
+          }
+        }
+
+        if (adaPerubahan) {
+          const updatedTrx = { ...trx, bukti: buktiBaru, diubah: new Date().toISOString() };
+          perbaruiTransaksi(
+            transaksiRef.current.map((t) => (t.id === updatedTrx.id ? updatedTrx : t))
+          );
+          jadwalkanAutoSync();
+        }
+      } catch (err: any) {
+        console.warn("Proses unggah bukti transaksi gagal:", err);
+      }
+    },
+    [jadwalkanAutoSync, perbaruiTransaksi]
+  );
+
+  // Proses antrean foto/file bukti yang tersimpan di IndexedDB saat offline
+  const prosesAntreanBuktiOffline = useCallback(async () => {
+    const token = await getAccessToken();
+    if (!token) return;
+    const statusSesi = cekStatusSesiGoogle();
+    if (!statusSesi.aktif || !navigator.onLine) return;
+
+    try {
+      const antrean = await ambilSemuaBuktiOffline();
+      if (!antrean || antrean.length === 0) return;
+
+      let folder = await cariFolderKeuangan(token);
+      if (!folder) {
+        folder = await buatFolderKeuangan(token);
+      }
+
+      let adaPerubahan = false;
+      let listTrx = [...transaksiRef.current];
+
+      for (const item of antrean) {
+        try {
+          const targetFolder = await dapatkanFolderBuktiTarget(token, folder.id, item.dana);
+          const hasilUnggah = await unggahBuktiKeDrive(
+            token,
+            targetFolder.id,
+            item.blob,
+            item.namaFile,
+            item.tipe
+          );
+
+          // Update transaksi bersangkutan
+          listTrx = listTrx.map((t) => {
+            if (t.id === item.trxId && t.bukti) {
+              const buktiTerupdate = t.bukti.map((b) =>
+                b.id === item.id
+                  ? { ...b, driveId: hasilUnggah.driveId, driveLink: hasilUnggah.driveLink }
+                  : b
+              );
+              return { ...t, bukti: buktiTerupdate, diubah: new Date().toISOString() };
+            }
+            return t;
+          });
+
+          await hapusBuktiOffline(item.id);
+          adaPerubahan = true;
+        } catch (errUpload) {
+          console.warn(`Gagal memproses antrean bukti ${item.id}:`, errUpload);
+        }
+      }
+
+      if (adaPerubahan) {
+        perbaruiTransaksi(listTrx);
+        jadwalkanAutoSync();
+      }
+    } catch (err: any) {
+      console.warn("Gagal memproses antrean bukti offline:", err);
+    }
+  }, [jadwalkanAutoSync, perbaruiTransaksi]);
+
+  // Pantau status online/offline untuk otomatis mengirim ulang saat kembali online
+  useEffect(() => {
+    const handleOnline = () => {
+      void prosesAntreanBuktiOffline();
+      if (syncPendingRef.current) {
+        void jalankanAutoKirimKeDrive();
+      }
+    };
+
+    const handleOffline = () => {
+      if (syncPendingRef.current) {
+        setSyncStatus({ pesan: "Belum tersinkron", status: "tunggu" });
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [jalankanAutoKirimKeDrive, prosesAntreanBuktiOffline]);
+
+  const handleTarikDariDrive = async (isAuto = false) => {
+    let token = await getAccessToken();
+    if (!token) {
+      if (isAuto) return;
+      token = await handleGoogleLogin();
+      if (!token) return;
+    }
+
+    setMemuatDrive(true);
+    setSyncStatus({
+      pesan: isAuto ? "Menyinkronkan data dari Google Drive…" : "Menarik data dari folder Keuangan Google Drive…",
+      status: "kerja",
+    });
+
+    try {
+      const res = await tarikSemuaDariDrive(
+        token,
+        transaksiRef.current,
+        asetRef.current,
+        hargaRef.current
+      );
+
+      perbaruiTransaksi(res.transaksi);
+      perbaruiAset(res.aset);
+      perbaruiHargaState(res.harga);
+      setDriveContents(res.contents);
+
+      if (res.transaksi.length > 0) {
+        const blnTerbaru = res.transaksi[0].tanggal.slice(0, 7);
+        const adaDiBulanIni = res.transaksi.some((t) => t.tanggal.startsWith(bulanTerpilih));
+        if (!adaDiBulanIni && blnTerbaru) {
+          setBulanTerpilih(blnTerbaru);
+        }
+      }
+
+      const pesanSukses = `Sinkronisasi berhasil: ${res.totalTrxDitarik} transaksi dan ${res.totalAsetDitarik} aset ditarik dari folder 'Keuangan' Google Drive.`;
+      setSyncPesan(pesanSukses);
+      setSyncStatus({ pesan: "Data tersinkron dari Google Drive", status: "sukses" });
+      setTimeout(() => {
+        setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev));
+      }, 4000);
+    } catch (err: any) {
+      const msg = `Gagal menarik dari Drive: ${err.message}`;
+      setSyncPesan(msg);
+      setSyncStatus({
+        pesan: isAuto ? "Belum tersinkron" : `Sinkron Drive gagal: ${err.message}`,
+        status: "gagal",
+      });
+    } finally {
+      setMemuatDrive(false);
+    }
+  };
+
+  // Firebase Google Auth Listener & Auto-pull saat aplikasi dibuka jika sudah login
   useEffect(() => {
     const unsubscribe = initAuth(
       (user, token) => {
         setGoogleUser(user);
         if (token) {
           void periksaDriveOtomatis(token);
+          void prosesAntreanBuktiOffline();
+          // Saat aplikasi dibuka dan sudah login, tarik data sekali otomatis
+          if (!initialPullDoneRef.current) {
+            initialPullDoneRef.current = true;
+            if (navigator.onLine) {
+              void handleTarikDariDrive(true);
+            } else {
+              setSyncStatus({ pesan: "Belum tersinkron", status: "tunggu" });
+            }
+          }
         }
       },
       (alasan) => {
@@ -229,7 +548,7 @@ export default function App() {
       }
     );
     return () => unsubscribe();
-  }, [periksaDriveOtomatis]);
+  }, [periksaDriveOtomatis, prosesAntreanBuktiOffline]);
 
   const handleGoogleLogin = async (): Promise<string | null> => {
     setGoogleLoading(true);
@@ -239,6 +558,7 @@ export default function App() {
         setGoogleUser(res.user);
         setSyncStatus({ pesan: "Terhubung ke Google Drive", status: "sukses" });
         await periksaDriveOtomatis(res.accessToken);
+        void prosesAntreanBuktiOffline();
         return res.accessToken;
       }
       return null;
@@ -259,141 +579,6 @@ export default function App() {
     setSyncStatus({ pesan: "", status: "idle" });
   };
 
-  const handleTarikDariDrive = async () => {
-    let token = await getAccessToken();
-    if (!token) {
-      // Jika belum login, picu login Google terlebih dahulu
-      token = await handleGoogleLogin();
-      if (!token) return;
-    }
-
-    setMemuatDrive(true);
-    setSyncStatus({ pesan: "Menarik data dari folder Keuangan Google Drive…", status: "kerja" });
-
-    try {
-      let folder = await cariFolderKeuangan(token);
-      if (!folder) {
-        throw new Error("Folder 'Keuangan' tidak ditemukan di Google Drive Anda.");
-      }
-
-      const contents = await ambilIsiFolderKeuangan(token, folder.id);
-      setDriveContents(contents);
-
-      let totalTrxDitarik = 0;
-      const trxMap = new Map<string, Transaksi>();
-
-      // Muat data lokal lama terlebih dahulu
-      for (const t of transaksi) {
-        trxMap.set(t.id, t);
-      }
-
-      // 1. Tarik dari Keuangan Pribadi (file terpisah atau dari daftar spreadsheet)
-      const sheetPribadiTarget = contents.sheetPribadi || contents.spreadsheets[0];
-      if (sheetPribadiTarget) {
-        try {
-          const trxPribadi = await bacaTransaksiDariSpreadsheet(
-            token,
-            sheetPribadiTarget.id,
-            "Dana Pribadi"
-          );
-          for (const t of trxPribadi) {
-            trxMap.set(t.id, t);
-          }
-          totalTrxDitarik += trxPribadi.length;
-        } catch (e: any) {
-          console.warn("Gagal membaca Keuangan Pribadi:", e.message);
-        }
-      }
-
-      // 2. Tarik dari Keuangan Kegiatan (file terpisah atau spreadsheet kedua atau spreadsheet yang sama)
-      const sheetKegiatanTarget =
-        contents.sheetKegiatan ||
-        (contents.spreadsheets.length > 1 ? contents.spreadsheets[1] : contents.spreadsheets[0]);
-
-      if (sheetKegiatanTarget && sheetKegiatanTarget !== sheetPribadiTarget) {
-        try {
-          const trxKegiatan = await bacaTransaksiDariSpreadsheet(
-            token,
-            sheetKegiatanTarget.id,
-            "Dana Kegiatan"
-          );
-          for (const t of trxKegiatan) {
-            trxMap.set(t.id, t);
-          }
-          totalTrxDitarik += trxKegiatan.length;
-        } catch (e: any) {
-          console.warn("Gagal membaca Keuangan Kegiatan:", e.message);
-        }
-      } else if (sheetPribadiTarget) {
-        // Coba baca tab kegiatan dari spreadsheet yang sama
-        try {
-          const trxKegiatan = await bacaTransaksiDariSpreadsheet(
-            token,
-            sheetPribadiTarget.id,
-            "Dana Kegiatan"
-          );
-          for (const t of trxKegiatan) {
-            trxMap.set(t.id, t);
-          }
-          totalTrxDitarik += trxKegiatan.length;
-        } catch (e: any) {
-          // tab kegiatan mungkin tidak ada di file ini
-        }
-      }
-
-      const listTrxGabungan = Array.from(trxMap.values()).sort((a, b) =>
-        b.tanggal.localeCompare(a.tanggal)
-      );
-
-      perbaruiTransaksi(listTrxGabungan);
-
-      // 3. Tarik dari Aset.json
-      let totalAsetDitarik = 0;
-      if (contents.fileAset) {
-        try {
-          const asetDrive = await bacaAsetDariDrive(token, contents.fileAset.id);
-          if (Array.isArray(asetDrive) && asetDrive.length > 0) {
-            perbaruiAset(asetDrive);
-            totalAsetDitarik = asetDrive.length;
-          }
-        } catch (e: any) {
-          console.warn("Gagal membaca Aset.json:", e.message);
-        }
-      }
-
-      // 4. Tarik dari Harga Pasar.json jika ada
-      if (contents.fileHarga) {
-        try {
-          const hargaDrive = await bacaHargaDariDrive(token, contents.fileHarga.id);
-          if (hargaDrive) {
-            perbaruiHargaState({ ...harga, ...hargaDrive });
-          }
-        } catch (e: any) {
-          console.warn("Gagal membaca Harga Pasar.json:", e.message);
-        }
-      }
-
-      // Jika bulan terpilih belum ada transaksi, otomatis geser ke bulan transaksi terbaru
-      if (listTrxGabungan.length > 0) {
-        const blnTerbaru = listTrxGabungan[0].tanggal.slice(0, 7);
-        const adaDiBulanIni = listTrxGabungan.some((t) => t.tanggal.startsWith(bulanTerpilih));
-        if (!adaDiBulanIni && blnTerbaru) {
-          setBulanTerpilih(blnTerbaru);
-        }
-      }
-
-      const pesanSukses = `Sinkronisasi berhasil: ${totalTrxDitarik} transaksi dan ${totalAsetDitarik} aset ditarik dari folder 'Keuangan' Google Drive.`;
-      setSyncPesan(pesanSukses);
-      setSyncStatus({ pesan: "Data tersinkron dari Google Drive", status: "sukses" });
-      setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 4500);
-    } catch (err: any) {
-      setSyncPesan(`Gagal menarik dari Drive: ${err.message}`);
-      setSyncStatus({ pesan: `Sinkron Drive gagal: ${err.message}`, status: "gagal" });
-    } finally {
-      setMemuatDrive(false);
-    }
-  };
-
   const handleKirimKeDrive = async () => {
     let token = await getAccessToken();
     if (!token) {
@@ -401,9 +586,9 @@ export default function App() {
       if (!token) return;
     }
 
-    // Konfirmasi eksplisit wajib (Workspace Integration User Confirmation for Destructive Operations)
+    // Konfirmasi eksplisit untuk tombol manual
     const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet\n- ${aset.length} aset ke file Aset.json\n\nLanjutkan pembaruan?`
+      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n\nLanjutkan pembaruan?`
     );
     if (!confirmed) return;
 
@@ -420,41 +605,14 @@ export default function App() {
         folder = await buatFolderKeuangan(token);
       }
 
+      const res = await kirimSemuaKeDrive(token, transaksi, aset);
+      syncPendingRef.current = false;
+
       const contents = await ambilIsiFolderKeuangan(token, folder.id);
       setDriveContents(contents);
 
-      let jumlahTrxPribadi = 0;
-      let jumlahTrxKegiatan = 0;
-
-      if (contents.sheetPribadi) {
-        jumlahTrxPribadi = await simpanTransaksiKeSpreadsheet(
-          token,
-          contents.sheetPribadi.id,
-          transaksi,
-          "Dana Pribadi"
-        );
-      }
-
-      if (contents.sheetKegiatan) {
-        jumlahTrxKegiatan = await simpanTransaksiKeSpreadsheet(
-          token,
-          contents.sheetKegiatan.id,
-          transaksi,
-          "Dana Kegiatan"
-        );
-      }
-
-      // Simpan Aset.json
-      await simpanAsetKeDrive(
-        token,
-        folder.id,
-        contents.fileAset ? contents.fileAset.id : null,
-        aset
-      );
-
-      const totalTrxTersimpan = jumlahTrxPribadi + jumlahTrxKegiatan;
       setSyncPesan(
-        `Berhasil disimpan ke Google Drive: ${totalTrxTersimpan} transaksi diperbarui di spreadsheet dan ${aset.length} aset disimpan di Aset.json.`
+        `Berhasil disimpan ke Google Drive: ${res.jumlahTrx} transaksi diperbarui di spreadsheet dan ${res.jumlahAset} aset disimpan di Aset.json.`
       );
       setSyncStatus({ pesan: "Data tersimpan di Google Drive", status: "sukses" });
       setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 4000);
@@ -466,18 +624,26 @@ export default function App() {
     }
   };
 
-  // Transaction CRUD handlers
+  // Transaction CRUD handlers dengan field diubah dan auto-sync
   const handleSimpanTransaksi = (t: Transaksi) => {
-    const ada = transaksi.some((x) => x.id === t.id);
-    const baru = ada ? transaksi.map((x) => (x.id === t.id ? t : x)) : [t, ...transaksi];
+    const tBaru: Transaksi = {
+      ...t,
+      diubah: new Date().toISOString(),
+    };
+    const ada = transaksi.some((x) => x.id === tBaru.id);
+    const baru = ada ? transaksi.map((x) => (x.id === tBaru.id ? tBaru : x)) : [tBaru, ...transaksi];
     perbaruiTransaksi(baru);
     setEditTransaksi(null);
     setCurrentView("riwayat");
+    jadwalkanAutoSync();
+    void prosesUnggahBuktiTransaksi(tBaru);
   };
 
   const handleHapusTransaksi = (id: string) => {
+    tambahIdTerhapus(id);
     const baru = transaksi.filter((t) => t.id !== id);
     perbaruiTransaksi(baru);
+    jadwalkanAutoSync();
   };
 
   const handleMulaiEditTransaksi = (t: Transaksi) => {
@@ -577,106 +743,140 @@ export default function App() {
       <div className="energi" id="energi" aria-hidden="true" />
       <div className="pulsa" id="pulsa" aria-hidden="true" />
 
-      <Topbar
-        karakter={karakter}
-        bulanTerpilih={bulanTerpilih}
-        onPilihBulan={setBulanTerpilih}
-        transaksi={transaksi}
-      />
-
-      <main className="container">
-        {currentView === "riwayat" && (
-          <RiwayatView
-            transaksi={transaksi}
-            bulanTerpilih={bulanTerpilih}
-            anggaran={anggaran}
-            syncStatus={syncStatus}
-            onEdit={handleMulaiEditTransaksi}
-            onDelete={handleHapusTransaksi}
-            onGeserBulan={(delta) => {
-              const [th, bl] = bulanTerpilih.split("-").map(Number);
-              const d = new Date(th, bl - 1 + delta, 1);
-              setBulanTerpilih(
-                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-              );
+      <div className="app-layout">
+        <aside className="sidebar" aria-label="Bilah navigasi samping">
+          <Sidebar
+            currentView={currentView === "tambah" ? lastActiveTab : currentView}
+            onSelectView={(v) => {
+              if (editTransaksi) setEditTransaksi(null);
+              setCurrentView(v);
+              setLastActiveTab(v);
+              window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
             }}
-            onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
-            jumlahJatuhTempo={jumlahJatuhTempo}
-          />
-        )}
-
-        {currentView === "aset" && (
-          <AsetView
-            aset={aset}
-            harga={harga}
-            onTambahAset={handleTambahAset}
-            onUbahAset={handleUbahAset}
-            onHapusAset={handleHapusAset}
-            onPerbaruiHarga={perbaruiHargaPasar}
-            onSimpanHargaManual={handleSimpanHargaManual}
-            memuatHarga={memuatHarga}
-            googleUser={googleUser}
-            onTarikDrive={handleTarikDariDrive}
-            onKirimDrive={handleKirimKeDrive}
-            memuatDrive={memuatDrive}
-          />
-        )}
-
-        {currentView === "tambah" && (
-          <TambahView
-            editTransaksi={editTransaksi}
-            onSimpan={handleSimpanTransaksi}
-            onBatalEdit={() => {
+            onBukaMenuTambah={() => {
               setEditTransaksi(null);
               setInitialScanMode(null);
-              setCurrentView("riwayat");
+              setCurrentView("tambah");
             }}
-            initialScanMode={initialScanMode}
-            onResetInitialScanMode={() => setInitialScanMode(null)}
-            onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
-            jumlahJatuhTempo={jumlahJatuhTempo}
-            daftarBerulang={daftarBerulang}
-          />
-        )}
-
-        {currentView === "grafik" && (
-          <GrafikView
-            transaksi={transaksi}
-            bulanTerpilih={bulanTerpilih}
-            anggaran={anggaran}
-            onSetAnggaran={handleSetAnggaran}
-          />
-        )}
-
-        {currentView === "saya" && (
-          <SayaView
-            tema={tema}
             karakter={karakter}
-            onGantiTema={setTema}
-            onGantiKarakter={setKarakter}
-            googleUser={googleUser}
-            googleLoading={googleLoading}
-            onGoogleLogin={async () => {
-              await handleGoogleLogin();
-            }}
-            onGoogleLogout={handleGoogleLogout}
-            driveContents={driveContents}
-            memuatDrive={memuatDrive}
-            onPeriksaDrive={async () => {
-              const token = await getAccessToken();
-              if (token) await periksaDriveOtomatis(token);
-              else alert("Silakan masuk dengan Google terlebih dahulu.");
-            }}
-            onTarikDariDrive={handleTarikDariDrive}
-            onKirimKeDrive={handleKirimKeDrive}
-            transaksi={transaksi}
-            aset={aset}
-            syncStatusPesan={syncPesan}
-            onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
-            jumlahTransaksiBerulang={daftarBerulang.filter((d) => d.aktif).length}
           />
-        )}
-      </main>
+        </aside>
+
+        <div className="main-content-wrapper">
+          <Topbar
+            karakter={karakter}
+            bulanTerpilih={bulanTerpilih}
+            onPilihBulan={setBulanTerpilih}
+            transaksi={transaksi}
+          />
+
+          <main className="container">
+            {(currentView === "riwayat" || (currentView === "tambah" && lastActiveTab === "riwayat")) && (
+              <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                <RiwayatView
+                  transaksi={transaksi}
+                  bulanTerpilih={bulanTerpilih}
+                  anggaran={anggaran}
+                  syncStatus={syncStatus}
+                  onEdit={handleMulaiEditTransaksi}
+                  onDelete={handleHapusTransaksi}
+                  onGeserBulan={(delta) => {
+                    const [th, bl] = bulanTerpilih.split("-").map(Number);
+                    const d = new Date(th, bl - 1 + delta, 1);
+                    setBulanTerpilih(
+                      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+                    );
+                  }}
+                  onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
+                  jumlahJatuhTempo={jumlahJatuhTempo}
+                />
+              </div>
+            )}
+
+            {(currentView === "aset" || (currentView === "tambah" && lastActiveTab === "aset")) && (
+              <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                <AsetView
+                  aset={aset}
+                  harga={harga}
+                  onTambahAset={handleTambahAset}
+                  onUbahAset={handleUbahAset}
+                  onHapusAset={handleHapusAset}
+                  onPerbaruiHarga={perbaruiHargaPasar}
+                  onSimpanHargaManual={handleSimpanHargaManual}
+                  memuatHarga={memuatHarga}
+                  googleUser={googleUser}
+                  onTarikDrive={handleTarikDariDrive}
+                  onKirimDrive={handleKirimKeDrive}
+                  memuatDrive={memuatDrive}
+                />
+              </div>
+            )}
+
+            {(currentView === "grafik" || (currentView === "tambah" && lastActiveTab === "grafik")) && (
+              <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                <GrafikView
+                  transaksi={transaksi}
+                  bulanTerpilih={bulanTerpilih}
+                  anggaran={anggaran}
+                  onSetAnggaran={handleSetAnggaran}
+                />
+              </div>
+            )}
+
+            {(currentView === "saya" || (currentView === "tambah" && lastActiveTab === "saya")) && (
+              <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                <SayaView
+                  tema={tema}
+                  karakter={karakter}
+                  onGantiTema={setTema}
+                  onGantiKarakter={setKarakter}
+                  googleUser={googleUser}
+                  googleLoading={googleLoading}
+                  onGoogleLogin={async () => {
+                    await handleGoogleLogin();
+                  }}
+                  onGoogleLogout={handleGoogleLogout}
+                  driveContents={driveContents}
+                  memuatDrive={memuatDrive}
+                  onPeriksaDrive={async () => {
+                    const token = await getAccessToken();
+                    if (token) await periksaDriveOtomatis(token);
+                    else alert("Silakan masuk dengan Google terlebih dahulu.");
+                  }}
+                  onTarikDariDrive={handleTarikDariDrive}
+                  onKirimKeDrive={handleKirimKeDrive}
+                  transaksi={transaksi}
+                  aset={aset}
+                  syncStatusPesan={syncPesan}
+                  onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
+                  jumlahTransaksiBerulang={daftarBerulang.filter((d) => d.aktif).length}
+                />
+              </div>
+            )}
+
+            {currentView === "tambah" && (
+              <TambahView
+                editTransaksi={editTransaksi}
+                onSimpan={(trx) => {
+                  handleSimpanTransaksi(trx);
+                  setCurrentView(lastActiveTab);
+                }}
+                onBatalEdit={() => {
+                  setEditTransaksi(null);
+                  setInitialScanMode(null);
+                  setCurrentView(lastActiveTab);
+                }}
+                initialScanMode={initialScanMode}
+                onResetInitialScanMode={() => setInitialScanMode(null)}
+                onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
+                jumlahJatuhTempo={jumlahJatuhTempo}
+                daftarBerulang={daftarBerulang}
+                daftarTransaksi={transaksi}
+              />
+            )}
+          </main>
+        </div>
+      </div>
 
       <Navbar
         currentView={currentView}

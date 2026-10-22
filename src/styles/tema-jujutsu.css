@@ -938,3 +938,38 @@ html[data-tema="jujutsu"] .tabel-tren th,
 html[data-tema="jujutsu"] .tabel-tren td {
   border-color: rgba(var(--k1), 0.2);
 }
+
+/* Sidebar & Dialog Bertema Jujutsu untuk PC */
+html[data-tema="jujutsu"] .sidebar {
+  background: var(--surface);
+  border-right: 1px solid rgba(var(--k1), 0.35);
+}
+
+html[data-tema="jujutsu"] .sidebar-brand {
+  border-bottom: 1px solid rgba(var(--k1), 0.35);
+}
+
+html[data-tema="jujutsu"] .sidebar-nav-item[aria-current="page"],
+html[data-tema="jujutsu"] .sidebar-nav-item.active {
+  background: rgba(var(--k1), 0.2);
+  border-color: rgba(var(--k1), 0.5);
+  color: #fff;
+  text-shadow: 0 0 8px rgba(var(--k1), 0.5);
+}
+
+html[data-tema="jujutsu"] .sidebar-btn-tambah {
+  background: linear-gradient(135deg, rgba(var(--k1), 0.95), rgba(var(--k2), 0.85));
+  box-shadow: 0 4px 16px rgba(var(--k1), 0.45);
+}
+
+html[data-tema="jujutsu"] .tambah-dialog-box {
+  background: var(--surface);
+  border: 1px solid rgba(var(--k1), 0.45);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 24px rgba(var(--k1), 0.3);
+}
+
+html[data-tema="jujutsu"] .aset-form-dialog-wrapper #kartu-form-aset {
+  background: var(--surface);
+  border: 1px solid rgba(var(--k1), 0.45);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 24px rgba(var(--k1), 0.3);
+}

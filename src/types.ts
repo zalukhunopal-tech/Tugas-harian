@@ -1,6 +1,16 @@
 export type JenisTransaksi = "pengeluaran" | "pemasukan";
 export type NamaDana = "Dana Pribadi" | "Dana Kegiatan";
 
+export interface BuktiItem {
+  id: string;
+  nama: string;
+  tipe: string;
+  dataUrl?: string;
+  driveId?: string;
+  driveLink?: string;
+  waktu?: string;
+}
+
 export interface Transaksi {
   id: string;
   jenis: JenisTransaksi;
@@ -13,6 +23,20 @@ export interface Transaksi {
   kaitan: string;
   catatan: string;
   tanpaId?: boolean;
+  diubah?: string; // Waktu ISO
+  bukti?: BuktiItem[];
+  pasanganId?: string; // ID transaksi pasangan untuk Pindah Dana
+  isTalangan?: boolean; // Penanda apakah transaksi ini merupakan talangan
+  statusTalangan?: "belum_diganti" | "sudah_diganti";
+  talanganUntuk?: string;
+}
+
+export type AnggaranKategoriMap = Record<NamaDana, Record<string, number>>;
+
+export interface PengaturanKeuangan {
+  anggaranHarian: number;
+  anggaranKategori: AnggaranKategoriMap;
+  terakhirDiubah?: string;
 }
 
 export type JenisAset = "emas" | "crypto" | "jmo" | "investasi";
