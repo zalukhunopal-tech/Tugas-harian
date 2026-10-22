@@ -3053,3 +3053,24 @@ button {
     border-color: #cccccc !important;
   }
 }
+
+/* App Lock & Keypad Animations */
+@keyframes shakeKeypad {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.shake-anim {
+  animation: shakeKeypad 0.4s ease-in-out;
+}
+
+.btn-keypad:active {
+  transform: scale(0.92);
+  background: var(--surface-hover, rgba(255, 255, 255, 0.15)) !important;
+}
+
+.btn-keypad:hover {
+  filter: brightness(1.15);
+}
+

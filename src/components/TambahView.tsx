@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang, BuktiItem } from "../types";
+import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang, BuktiItem, TargetTabunganItem } from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
@@ -21,6 +21,8 @@ interface TambahViewProps {
   jumlahJatuhTempo?: number;
   daftarBerulang?: TransaksiBerulang[];
   daftarTransaksi?: Transaksi[];
+  daftarTargetTabungan?: TargetTabunganItem[];
+  targetTabunganAwalId?: string;
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -35,6 +37,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
   jumlahJatuhTempo = 0,
   daftarBerulang = [],
   daftarTransaksi = [],
+  daftarTargetTabungan = [],
+  targetTabunganAwalId = "",
 }) => {
   const [modeTransaksi, setModeTransaksi] = useState<"pengeluaran" | "pemasukan" | "pindah_dana">("pengeluaran");
   const [danaAsal, setDanaAsal] = useState<NamaDana>("Dana Pribadi");
@@ -42,6 +46,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [isTalangan, setIsTalangan] = useState<boolean>(false);
   const [statusTalangan, setStatusTalangan] = useState<"belum_diganti" | "sudah_diganti">("belum_diganti");
   const [talanganUntuk, setTalanganUntuk] = useState<string>("");
+  const [targetTabunganId, setTargetTabunganId] = useState<string>(targetTabunganAwalId);
 
   const [jenis, setJenis] = useState<JenisTransaksi>("pengeluaran");
   const [dana, setDana] = useState<NamaDana>("Dana Pribadi");
@@ -98,6 +103,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setIsTalangan(Boolean(editTransaksi.isTalangan));
       setStatusTalangan(editTransaksi.statusTalangan || "belum_diganti");
       setTalanganUntuk(editTransaksi.talanganUntuk || "");
+      setTargetTabunganId(editTransaksi.targetTabunganId || "");
     } else {
       setModeTransaksi("pengeluaran");
       setJenis("pengeluaran");
@@ -114,10 +120,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setIsTalangan(false);
       setStatusTalangan("belum_diganti");
       setTalanganUntuk("");
-      const defaultKategori = KATEGORI["Dana Pribadi"].pengeluaran[0];
+      setTargetTabunganId(targetTabunganAwalId || "");
+      const defaultKategori = targetTabunganAwalId ? "Tabungan" : KATEGORI["Dana Pribadi"].pengeluaran[0];
       setKategori(defaultKategori);
     }
-  }, [editTransaksi]);
+  }, [editTransaksi, targetTabunganAwalId]);
 
   // Update default kategori when dana or jenis changes
   useEffect(() => {
@@ -363,6 +370,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         isTalangan,
         statusTalangan: isTalangan ? statusTalangan : undefined,
         talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
+        targetTabunganId: kategori === "Tabungan" && targetTabunganId ? targetTabunganId : undefined,
         diubah: new Date().toISOString(),
         bukti,
       };
@@ -379,6 +387,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setIsTalangan(false);
       setStatusTalangan("belum_diganti");
       setTalanganUntuk("");
+      setTargetTabunganId("");
       handleResetScan();
     }
   };
@@ -882,6 +891,37 @@ export const TambahView: React.FC<TambahViewProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {modeTransaksi !== "pindah_dana" && kategori === "Tabungan" && daftarTargetTabungan && daftarTargetTabungan.length > 0 && (
+            <div
+              className="field"
+              style={{
+                background: "rgba(16, 185, 129, 0.08)",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+              }}
+            >
+              <label htmlFor="target-tabungan" style={{ color: "#10b981", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>🎯</span> Alokasikan ke Target Tabungan:
+              </label>
+              <select
+                id="target-tabungan"
+                value={targetTabunganId}
+                onChange={(e) => setTargetTabunganId(e.target.value)}
+              >
+                <option value="">-- Tabungan Umum (Semua Target) --</option>
+                {daftarTargetTabungan.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    🎯 {t.nama} (Target: {formatRupiah(t.targetJumlah)})
+                  </option>
+                ))}
+              </select>
+              <span className="help" style={{ fontSize: "0.76rem", margin: "4px 0 0" }}>
+                Nominal transaksi ini akan otomatis menambahkan progres capaian target tabungan yang dipilih.
+              </span>
             </div>
           )}
 

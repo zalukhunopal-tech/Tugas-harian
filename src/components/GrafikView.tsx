@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Transaksi, NamaDana, AnggaranKategoriMap } from "../types";
 import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from "../lib/constants";
 import { LaporanView } from "./LaporanView";
+import { RingkasanTahunanView } from "./RingkasanTahunanView";
 
 interface GrafikViewProps {
   transaksi: Transaksi[];
@@ -20,7 +21,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   anggaranKategori = { "Dana Pribadi": {}, "Dana Kegiatan": {} },
   onSetAnggaranKategori,
 }) => {
-  const [subTab, setSubTab] = useState<"grafik" | "laporan">("grafik");
+  const [subTab, setSubTab] = useState<"grafik" | "tahunan" | "laporan">("grafik");
   const [inputBatas, setInputBatas] = useState(anggaran > 0 ? String(anggaran) : "");
 
   // Tab pemilihan dana untuk anggaran kategori
@@ -109,6 +110,16 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
         <button
           type="button"
           className="chip"
+          aria-checked={subTab === "tahunan"}
+          role="tab"
+          onClick={() => setSubTab("tahunan")}
+          style={{ minHeight: "44px", fontWeight: 700 }}
+        >
+          📅 Ringkasan Tahunan
+        </button>
+        <button
+          type="button"
+          className="chip"
           aria-checked={subTab === "laporan"}
           role="tab"
           onClick={() => setSubTab("laporan")}
@@ -120,6 +131,11 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
 
       {subTab === "laporan" ? (
         <LaporanView transaksi={transaksi} />
+      ) : subTab === "tahunan" ? (
+        <RingkasanTahunanView
+          transaksi={transaksi}
+          tahunAwal={Number(bulanTerpilih.slice(0, 4))}
+        />
       ) : (
         <>
           <div className="card card-tren">

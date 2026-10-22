@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { KarakterId, TemaId, Transaksi, AsetItem } from "../types";
+import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig } from "../types";
 import { KARAKTER } from "../lib/constants";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
 import { cekStatusSesiGoogle } from "../lib/googleAuth";
+import { AppLockKelolaModal } from "./AppLockKelolaModal";
 
 interface SayaViewProps {
   tema: TemaId;
@@ -28,6 +29,9 @@ interface SayaViewProps {
   syncStatusPesan: string;
   onBukaTransaksiBerulang?: () => void;
   jumlahTransaksiBerulang?: number;
+
+  appLockConfig?: AppLockConfig;
+  onSimpanAppLockConfig?: (config: AppLockConfig) => void;
 }
 
 export const SayaView: React.FC<SayaViewProps> = ({
@@ -49,7 +53,10 @@ export const SayaView: React.FC<SayaViewProps> = ({
   syncStatusPesan,
   onBukaTransaksiBerulang,
   jumlahTransaksiBerulang = 0,
+  appLockConfig = { enabled: false, pinHash: "", salt: "", webAuthnEnabled: false },
+  onSimpanAppLockConfig,
 }) => {
+  const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
   const handleExportCSV = () => {
     if (transaksi.length === 0) {
       alert("Belum ada transaksi untuk diunduh.");
@@ -418,6 +425,67 @@ export const SayaView: React.FC<SayaViewProps> = ({
           )}
         </div>
       </details>
+
+      {/* ===== Folder 5: Keamanan & Kunci Aplikasi (PIN & Biometrik) ===== */}
+      <details className="folder" id="folder-kunci" open>
+        <summary>
+          <span className="folder-icon" aria-hidden="true">🔒</span>
+          <span className="folder-title">Kunci Aplikasi (PIN &amp; Biometrik)</span>
+          <span className="folder-hint" id="hint-kunci">
+            {appLockConfig.enabled ? "aktif" : "nonaktif"}
+          </span>
+        </summary>
+        <div className="folder-body">
+          <p className="help">
+            Amankan privasi data keuangan Anda dengan PIN 4–6 digit angka dan autentikasi biometrik
+            (Sidik Jari / Face ID melalui WebAuthn). Aplikasi otomatis terkunci setelah ditinggal di latar belakang selama 1 menit.
+          </p>
+
+          <div
+            style={{
+              padding: "14px 16px",
+              borderRadius: "14px",
+              background: appLockConfig.enabled ? "rgba(16, 185, 129, 0.12)" : "var(--surface-hover, rgba(255, 255, 255, 0.04))",
+              border: `1px solid ${appLockConfig.enabled ? "#10b981" : "var(--border)"}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "12px",
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: appLockConfig.enabled ? "#10b981" : "var(--text)" }}>
+                {appLockConfig.enabled ? "🔒 Kunci Aplikasi Aktif" : "🔓 Kunci Aplikasi Nonaktif"}
+              </div>
+              <span className="help" style={{ fontSize: "0.78rem" }}>
+                {appLockConfig.enabled
+                  ? `PIN tersimpan aman (SHA-256)${appLockConfig.webAuthnEnabled ? " • Biometrik aktif" : ""}`
+                  : "Aplikasi dapat dibuka langsung tanpa verifikasi"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className={appLockConfig.enabled ? "btn-secondary" : "btn-primary"}
+              onClick={() => setModalAppLockBuka(true)}
+              style={{ fontSize: "0.85rem", padding: "8px 16px", fontWeight: 700 }}
+            >
+              {appLockConfig.enabled ? "Kelola Kunci / PIN" : "Aktifkan Kunci Aplikasi"}
+            </button>
+          </div>
+        </div>
+      </details>
+
+      {onSimpanAppLockConfig && (
+        <AppLockKelolaModal
+          isOpen={modalAppLockBuka}
+          onClose={() => setModalAppLockBuka(false)}
+          config={appLockConfig}
+          onSimpanConfig={onSimpanAppLockConfig}
+        />
+      )}
 
     </section>
   );

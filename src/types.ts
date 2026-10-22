@@ -29,6 +29,49 @@ export interface Transaksi {
   isTalangan?: boolean; // Penanda apakah transaksi ini merupakan talangan
   statusTalangan?: "belum_diganti" | "sudah_diganti";
   talanganUntuk?: string;
+  targetTabunganId?: string; // Alokasi untuk target tabungan
+}
+
+export interface CicilanItem {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  jumlah: number;
+  catatan?: string;
+  diubah?: string;
+}
+
+export type JenisHutang = "utang" | "piutang";
+
+export interface ItemHutangPiutang {
+  id: string;
+  jenis: JenisHutang; // "utang" (kita meminjam) atau "piutang" (orang lain meminjam ke kita)
+  namaOrang: string;
+  jumlah: number;
+  jatuhTempo: string; // YYYY-MM-DD
+  catatan?: string;
+  dana?: NamaDana;
+  cicilan: CicilanItem[];
+  dibuat: string;
+  diubah?: string;
+}
+
+export interface TargetTabunganItem {
+  id: string;
+  nama: string;
+  targetJumlah: number;
+  tenggat: string; // YYYY-MM-DD
+  catatan?: string;
+  dibuat: string;
+  diubah?: string;
+}
+
+export interface AppLockConfig {
+  enabled: boolean;
+  pinHash: string;
+  salt: string;
+  webAuthnEnabled: boolean;
+  credentialId?: string;
+  diubah?: string;
 }
 
 export type AnggaranKategoriMap = Record<NamaDana, Record<string, number>>;
@@ -36,7 +79,11 @@ export type AnggaranKategoriMap = Record<NamaDana, Record<string, number>>;
 export interface PengaturanKeuangan {
   anggaranHarian: number;
   anggaranKategori: AnggaranKategoriMap;
+  utangPiutang?: ItemHutangPiutang[];
+  targetTabungan?: TargetTabunganItem[];
+  appLock?: AppLockConfig;
   terakhirDiubah?: string;
+  diubah?: string;
 }
 
 export type JenisAset = "emas" | "crypto" | "jmo" | "investasi";

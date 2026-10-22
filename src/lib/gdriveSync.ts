@@ -1,4 +1,4 @@
-import { Transaksi, AsetItem, NamaDana, DataHarga } from "../types";
+import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan } from "../types";
 import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus } from "./storage";
 
 export interface GDriveFolder {
@@ -1295,6 +1295,7 @@ export async function tarikSemuaDariDrive(
   transaksi: Transaksi[];
   aset: AsetItem[];
   harga: DataHarga;
+  pengaturan?: PengaturanKeuangan;
   contents: KeuanganDriveContents;
   totalTrxDitarik: number;
   totalAsetDitarik: number;
