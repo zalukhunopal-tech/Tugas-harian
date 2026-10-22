@@ -1,17 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Transaksi, NamaDana } from "../types";
-import { formatRupiah, formatAngka, hariIni, namaBulan, namaBulanPendek, namaHari } from "../lib/constants";
+import {
+  formatRupiah,
+  formatAngka,
+  hariIni,
+  namaBulan,
+  namaBulanPendek,
+  namaHari,
+  METODE_BAYAR,
+  KATEGORI,
+} from "../lib/constants";
+import { BuktiPreviewModal } from "./BuktiPreviewModal";
 
 interface RiwayatViewProps {
   transaksi: Transaksi[];
   bulanTerpilih: string;
   anggaran: number;
-  syncStatus?: { pesan: string; status: "kerja" | "sukses" | "gagal" | "idle" } | null;
+  syncStatus?: { pesan: string; status: "kerja" | "sukses" | "gagal" | "idle" | "tunggu" } | null;
   onEdit: (t: Transaksi) => void;
   onDelete: (id: string) => void;
   onGeserBulan: (delta: number) => void;
   onBukaTransaksiBerulang?: () => void;
   jumlahJatuhTempo?: number;
+  onToggleStatusTalangan?: (id: string) => void;
 }
 
 function inisialKategori(k: string): string {
@@ -29,10 +40,38 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onGeserBulan,
   onBukaTransaksiBerulang,
   jumlahJatuhTempo = 0,
+  onToggleStatusTalangan,
 }) => {
+  // Filter States
   const [filterDana, setFilterDana] = useState<string>("");
+  const [cariTeks, setCariTeks] = useState<string>("");
+  const [filterKategori, setFilterKategori] = useState<string>("");
+  const [filterMetode, setFilterMetode] = useState<string>("");
+  const [filterTglMulai, setFilterTglMulai] = useState<string>("");
+  const [filterTglSelesai, setFilterTglSelesai] = useState<string>("");
+  const [filterStatusTalangan, setFilterStatusTalangan] = useState<string>("");
+  const [panelSaringBuka, setPanelSaringBuka] = useState<boolean>(false);
 
-  // Saldo keseluruhan per dana (sepanjang waktu)
+  const [talanganBuka, setTalanganBuka] = useState<boolean>(true);
+  const [transaksiLihatBukti, setTransaksiLihatBukti] = useState<Transaksi | null>(null);
+
+  // Daftar Kategori Unik dari semua transaksi & konstanta
+  const daftarKategoriTersedia = useMemo(() => {
+    const set = new Set<string>();
+    // Tambahkan dari konstanta
+    KATEGORI["Dana Pribadi"].pengeluaran.forEach((k) => set.add(k));
+    KATEGORI["Dana Pribadi"].pemasukan.forEach((k) => set.add(k));
+    KATEGORI["Dana Kegiatan"].pengeluaran.forEach((k) => set.add(k));
+    KATEGORI["Dana Kegiatan"].pemasukan.forEach((k) => set.add(k));
+    set.add("Pindah Dana");
+    // Tambahkan dari data transaksi nyata
+    transaksi.forEach((t) => {
+      if (t.kategori && t.kategori.trim()) set.add(t.kategori.trim());
+    });
+    return Array.from(set).sort();
+  }, [transaksi]);
+
+  // Saldo keseluruhan per dana (sepanjang waktu - Pindah Dana ikut memengaruhi saldo per dana)
   const hitungSaldoKumulatif = (dana: NamaDana) => {
     const trx = transaksi.filter((p) => p.dana === dana);
     const masuk = trx.filter((p) => p.jenis === "pemasukan").reduce((s, p) => s + p.jumlah, 0);
@@ -40,9 +79,11 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
     return masuk - keluar;
   };
 
-  // Arus bulan ini per dana
+  // Arus bulan ini per dana (Kategori Pindah Dana TIDAK dihitung sebagai pemasukan/pengeluaran)
   const hitungArusBulan = (dana: NamaDana) => {
-    const trx = transaksi.filter((p) => p.dana === dana && p.tanggal.startsWith(bulanTerpilih));
+    const trx = transaksi.filter(
+      (p) => p.dana === dana && p.tanggal.startsWith(bulanTerpilih) && p.kategori !== "Pindah Dana"
+    );
     const masuk = trx.filter((p) => p.jenis === "pemasukan").reduce((s, p) => s + p.jumlah, 0);
     const keluar = trx.filter((p) => p.jenis === "pengeluaran").reduce((s, p) => s + p.jumlah, 0);
     return { masuk, keluar };
@@ -56,24 +97,123 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   const [thBln, blBln] = bulanTerpilih.split("-").map(Number);
   const teksNamaBulan = namaBulan.format(new Date(thBln, blBln - 1, 1));
 
-  // Transaksi bulan terpilih & difilter
-  const transaksiBulan = transaksi
-    .filter((t) => t.tanggal.startsWith(bulanTerpilih))
-    .filter((t) => (!filterDana ? true : t.dana === filterDana));
+  // Daftar talangan yang belum diganti (sepanjang waktu)
+  const daftarTalanganBelum = useMemo(() => {
+    return transaksi.filter((t) => t.isTalangan && t.statusTalangan !== "sudah_diganti");
+  }, [transaksi]);
+
+  const totalTalanganBelum = useMemo(() => {
+    return daftarTalanganBelum.reduce((sum, t) => sum + t.jumlah, 0);
+  }, [daftarTalanganBelum]);
+
+  // Apakah saringan kustom sedang aktif?
+  const saringanAktif = Boolean(
+    cariTeks.trim() ||
+      filterKategori ||
+      filterMetode ||
+      filterTglMulai ||
+      filterTglSelesai ||
+      filterStatusTalangan ||
+      filterDana
+  );
+
+  const resetSemuaSaringan = () => {
+    setCariTeks("");
+    setFilterKategori("");
+    setFilterMetode("");
+    setFilterTglMulai("");
+    setFilterTglSelesai("");
+    setFilterStatusTalangan("");
+    setFilterDana("");
+  };
+
+  // Filter Transaksi berdasarkan pencarian dan parameter
+  const transaksiDifilter = useMemo(() => {
+    const q = cariTeks.trim().toLowerCase();
+
+    return transaksi.filter((t) => {
+      // 1. Saring Dana
+      if (filterDana && t.dana !== filterDana) return false;
+
+      // 2. Saring Kategori
+      if (filterKategori && t.kategori !== filterKategori) return false;
+
+      // 3. Saring Metode Bayar
+      if (filterMetode && t.metode !== filterMetode) return false;
+
+      // 4. Saring Status Talangan
+      if (filterStatusTalangan === "semua_talangan" && !t.isTalangan) return false;
+      if (filterStatusTalangan === "belum_diganti" && (!t.isTalangan || t.statusTalangan === "sudah_diganti")) {
+        return false;
+      }
+      if (filterStatusTalangan === "sudah_diganti" && (!t.isTalangan || t.statusTalangan !== "sudah_diganti")) {
+        return false;
+      }
+
+      // 5. Saring Rentang Tanggal atau Bulan Terpilih
+      if (filterTglMulai || filterTglSelesai) {
+        if (filterTglMulai && t.tanggal < filterTglMulai) return false;
+        if (filterTglSelesai && t.tanggal > filterTglSelesai) return false;
+      } else {
+        if (!t.tanggal.startsWith(bulanTerpilih)) return false;
+      }
+
+      // 6. Kotak Pencarian: Uraian, Catatan, Sumber/Tujuan, Kaitan Kegiatan, dan Keterangan Talangan
+      if (q) {
+        const teksDeskripsi = (t.deskripsi || "").toLowerCase();
+        const teksCatatan = (t.catatan || "").toLowerCase();
+        const teksKaitan = (t.kaitan || "").toLowerCase();
+        const teksTalangan = (t.talanganUntuk || "").toLowerCase();
+
+        const cocok =
+          teksDeskripsi.includes(q) ||
+          teksCatatan.includes(q) ||
+          teksKaitan.includes(q) ||
+          teksTalangan.includes(q);
+
+        if (!cocok) return false;
+      }
+
+      return true;
+    });
+  }, [
+    transaksi,
+    filterDana,
+    filterKategori,
+    filterMetode,
+    filterStatusTalangan,
+    filterTglMulai,
+    filterTglSelesai,
+    cariTeks,
+    bulanTerpilih,
+  ]);
+
+  // Total Pemasukan dan Pengeluaran hasil saringan (Kategori Pindah Dana TIDAK dihitung)
+  const totalSaringMasuk = useMemo(() => {
+    return transaksiDifilter
+      .filter((t) => t.jenis === "pemasukan" && t.kategori !== "Pindah Dana")
+      .reduce((s, t) => s + t.jumlah, 0);
+  }, [transaksiDifilter]);
+
+  const totalSaringKeluar = useMemo(() => {
+    return transaksiDifilter
+      .filter((t) => t.jenis === "pengeluaran" && t.kategori !== "Pindah Dana")
+      .reduce((s, t) => s + t.jumlah, 0);
+  }, [transaksiDifilter]);
 
   // Kelompokkan per tanggal (descending)
   const perHariMap = new Map<string, Transaksi[]>();
-  for (const t of transaksiBulan) {
+  for (const t of transaksiDifilter) {
     const list = perHariMap.get(t.tanggal) || [];
     list.push(t);
     perHariMap.set(t.tanggal, list);
   }
   const daftarTanggal = Array.from(perHariMap.keys()).sort((a, b) => b.localeCompare(a));
 
-  // Anggaran pengeluaran hari ini
+  // Anggaran pengeluaran hari ini (Kategori Pindah Dana tidak dihitung)
   const tglHariIni = hariIni();
   const keluarHariIni = transaksi
-    .filter((t) => t.tanggal === tglHariIni && t.jenis === "pengeluaran")
+    .filter((t) => t.tanggal === tglHariIni && t.jenis === "pengeluaran" && t.kategori !== "Pindah Dana")
     .reduce((s, t) => s + t.jumlah, 0);
 
   const persenAnggaran = anggaran > 0 ? (keluarHariIni / anggaran) * 100 : 0;
@@ -118,6 +258,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         </div>
       )}
 
+      {/* Card Ringkasan Saldo per Dana */}
       <section className="balances" aria-label="Saldo per dana">
         <div className="balance" data-dana="Dana Pribadi">
           <span className="stat-label">Saldo Dana Pribadi</span>
@@ -143,12 +284,124 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         </div>
       </section>
 
+      {/* Banner / Card Daftar Talangan yang Belum Diganti (Requirement 2) */}
+      {daftarTalanganBelum.length > 0 && (
+        <section
+          className="card"
+          style={{
+            marginBottom: "16px",
+            border: "1.5px solid var(--keluar)",
+            background: "color-mix(in srgb, var(--keluar) 8%, var(--surface))",
+            padding: "14px 16px",
+            borderRadius: "14px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+            onClick={() => setTalanganBuka((prev) => !prev)}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "1.3rem" }}>🤝</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "0.95rem", color: "var(--keluar)", fontWeight: 700 }}>
+                  Daftar Talangan Belum Diganti ({daftarTalanganBelum.length} transaksi)
+                </h3>
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  Total yang perlu diganti:{" "}
+                  <strong style={{ color: "var(--keluar)", fontWeight: 800 }}>
+                    {formatRupiah(totalTalanganBelum)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-ikon"
+              style={{ fontSize: "1.1rem", background: "none", border: "none", cursor: "pointer" }}
+              aria-label={talanganBuka ? "Tutup rincian talangan" : "Buka rincian talangan"}
+            >
+              {talanganBuka ? "▲" : "▼"}
+            </button>
+          </div>
+
+          {talanganBuka && (
+            <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              {daftarTalanganBelum.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "var(--surface)",
+                    borderRadius: "10px",
+                    border: "1px solid var(--border)",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ minWidth: "180px", flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>
+                      {item.deskripsi}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                      <span>📅 {item.tanggal}</span> · <span>🏷️ {item.kategori}</span> ·{" "}
+                      <span>💼 {item.dana}</span>
+                      {item.talanganUntuk && (
+                        <span style={{ color: "var(--accent)", marginLeft: "4px" }}>
+                          ({item.talanganUntuk})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontWeight: 800, fontSize: "0.95rem", color: "var(--keluar)" }}>
+                      {formatRupiah(item.jumlah)}
+                    </span>
+                    {onToggleStatusTalangan && (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{
+                          fontSize: "0.76rem",
+                          padding: "4px 10px",
+                          borderRadius: "8px",
+                          background: "#16a34a",
+                          borderColor: "#16a34a",
+                        }}
+                        onClick={() => onToggleStatusTalangan(item.id)}
+                        title="Tandai talangan ini telah diganti / lunas"
+                      >
+                        ✓ Tandai Lunas
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {syncStatus && syncStatus.status !== "idle" && (
-        <p className="sync-pill" data-keadaan={syncStatus.status} id="sync-status">
+        <p
+          className="sync-pill"
+          data-keadaan={syncStatus.status === "sukses" ? "ok" : syncStatus.status}
+          id="sync-status"
+        >
           {syncStatus.pesan}
         </p>
       )}
 
+      {/* Saringan Cepat Dana */}
       <div className="filter-chips" role="radiogroup" aria-label="Saring dana">
         <button
           type="button"
@@ -182,6 +435,213 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         </button>
       </div>
 
+      {/* Section Kotak Pencarian & Saringan Riwayat (Requirement 1) */}
+      <section
+        className="card card-cari-saring"
+        style={{
+          marginBottom: "16px",
+          padding: "14px 16px",
+          borderRadius: "14px",
+          border: saringanAktif ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+          background: "var(--surface)",
+        }}
+      >
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <input
+              type="search"
+              placeholder="🔍 Cari uraian, catatan, sumber/tujuan, kaitan kegiatan..."
+              value={cariTeks}
+              onChange={(e) => setCariTeks(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "9px 12px",
+                fontSize: "0.88rem",
+                borderRadius: "10px",
+                border: "1px solid var(--border)",
+                background: "var(--background)",
+                color: "var(--text)",
+              }}
+            />
+            {cariTeks && (
+              <button
+                type="button"
+                onClick={() => setCariTeks("")}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: "0.9rem",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{
+              padding: "8px 12px",
+              fontSize: "0.84rem",
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              borderColor: panelSaringBuka ? "var(--accent)" : "var(--border)",
+            }}
+            onClick={() => setPanelSaringBuka((prev) => !prev)}
+            title="Buka / Tutup Filter Lengkap"
+          >
+            <span>⚙️ Filter</span>
+            <span style={{ fontSize: "0.72rem" }}>{panelSaringBuka ? "▲" : "▼"}</span>
+          </button>
+        </div>
+
+        {/* Panel Filter Terperinci: Kategori, Metode Bayar, Rentang Tanggal, Talangan */}
+        {panelSaringBuka && (
+          <div
+            style={{
+              marginTop: "12px",
+              paddingTop: "12px",
+              borderTop: "1px dashed var(--border)",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "10px",
+            }}
+          >
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                Kategori
+              </label>
+              <select
+                value={filterKategori}
+                onChange={(e) => setFilterKategori(e.target.value)}
+                style={{ width: "100%", padding: "7px 10px", fontSize: "0.82rem" }}
+              >
+                <option value="">Semua Kategori</option>
+                {daftarKategoriTersedia.map((kat) => (
+                  <option key={kat} value={kat}>
+                    {kat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                Metode Bayar
+              </label>
+              <select
+                value={filterMetode}
+                onChange={(e) => setFilterMetode(e.target.value)}
+                style={{ width: "100%", padding: "7px 10px", fontSize: "0.82rem" }}
+              >
+                <option value="">Semua Metode</option>
+                {METODE_BAYAR.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                Tanggal Mulai
+              </label>
+              <input
+                type="date"
+                value={filterTglMulai}
+                onChange={(e) => setFilterTglMulai(e.target.value)}
+                style={{ width: "100%", padding: "6px 10px", fontSize: "0.82rem" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                Tanggal Selesai
+              </label>
+              <input
+                type="date"
+                value={filterTglSelesai}
+                onChange={(e) => setFilterTglSelesai(e.target.value)}
+                style={{ width: "100%", padding: "6px 10px", fontSize: "0.82rem" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: "0.78rem", fontWeight: 700, display: "block", marginBottom: "4px" }}>
+                Status Talangan
+              </label>
+              <select
+                value={filterStatusTalangan}
+                onChange={(e) => setFilterStatusTalangan(e.target.value)}
+                style={{ width: "100%", padding: "7px 10px", fontSize: "0.82rem" }}
+              >
+                <option value="">Semua Status</option>
+                <option value="semua_talangan">Semua Talangan</option>
+                <option value="belum_diganti">Talangan Belum Diganti</option>
+                <option value="sudah_diganti">Talangan Sudah Diganti</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Bar Ringkasan Hasil Saringan (Requirement 1: Tampilkan total pemasukan/pengeluaran) */}
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "8px 12px",
+            background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+            borderRadius: "10px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "8px",
+            fontSize: "0.83rem",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span>
+              <strong>{transaksiDifilter.length}</strong> transaksi ditemukan
+            </span>
+            <span>·</span>
+            <span style={{ color: "var(--masuk)", fontWeight: 700 }}>
+              Masuk: +{formatRupiah(totalSaringMasuk)}
+            </span>
+            <span>·</span>
+            <span style={{ color: "var(--keluar)", fontWeight: 700 }}>
+              Keluar: -{formatRupiah(totalSaringKeluar)}
+            </span>
+          </div>
+
+          {saringanAktif && (
+            <button
+              type="button"
+              className="btn-small"
+              onClick={resetSemuaSaringan}
+              style={{
+                fontSize: "0.75rem",
+                padding: "3px 8px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                cursor: "pointer",
+              }}
+            >
+              ✕ Reset Saringan
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Anggaran Harian Meter */}
       <div className="budget" id="kartu-anggaran">
         <div className="budget-row">
           <span className="budget-judul">Anggaran pengeluaran hari ini</span>
@@ -218,14 +678,15 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         )}
       </div>
 
+      {/* Daftar Transaksi per Hari */}
       <div id="daftar-hari" className="daftar-hari">
         {daftarTanggal.map((tgl) => {
           const itemHari = perHariMap.get(tgl) || [];
           const keluarHari = itemHari
-            .filter((x) => x.jenis === "pengeluaran")
+            .filter((x) => x.jenis === "pengeluaran" && x.kategori !== "Pindah Dana")
             .reduce((s, x) => s + x.jumlah, 0);
           const masukHari = itemHari
-            .filter((x) => x.jenis === "pemasukan")
+            .filter((x) => x.jenis === "pemasukan" && x.kategori !== "Pindah Dana")
             .reduce((s, x) => s + x.jumlah, 0);
 
           const [y, m, d] = tgl.split("-").map(Number);
@@ -257,15 +718,123 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                     item.kaitan,
                   ].filter(Boolean);
 
+                  const isPindah = item.kategori === "Pindah Dana" || Boolean(item.pasanganId);
+
                   return (
                     <li key={item.id} className="expense-item">
                       <div className={`ikon-kategori ${item.jenis}`}>
-                        {inisialKategori(item.kategori)}
+                        {isPindah ? "🔄" : inisialKategori(item.kategori)}
                       </div>
                       <div className="expense-info">
-                        <div className="expense-desc">{item.deskripsi}</div>
+                        <div className="expense-desc">
+                          {item.deskripsi}
+
+                          {/* Badge Pindah Dana */}
+                          {isPindah && (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                marginLeft: "6px",
+                                padding: "2px 7px",
+                                borderRadius: "8px",
+                                fontSize: "0.74rem",
+                                fontWeight: 700,
+                                background: "rgba(56, 189, 248, 0.15)",
+                                color: "#0284c7",
+                                border: "1px solid #38bdf8",
+                                verticalAlign: "middle",
+                              }}
+                            >
+                              🔄 Pindah Dana
+                            </span>
+                          )}
+
+                          {/* Badge Talangan (Interactive toggle) */}
+                          {item.isTalangan && (
+                            <button
+                              type="button"
+                              className="btn-small"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                marginLeft: "6px",
+                                padding: "2px 8px",
+                                borderRadius: "8px",
+                                fontSize: "0.74rem",
+                                fontWeight: 700,
+                                background:
+                                  item.statusTalangan === "sudah_diganti"
+                                    ? "rgba(34,197,94,0.15)"
+                                    : "rgba(239,68,68,0.15)",
+                                color:
+                                  item.statusTalangan === "sudah_diganti"
+                                    ? "var(--masuk)"
+                                    : "var(--keluar)",
+                                border:
+                                  item.statusTalangan === "sudah_diganti"
+                                    ? "1px solid var(--masuk)"
+                                    : "1px solid var(--keluar)",
+                                cursor: onToggleStatusTalangan ? "pointer" : "default",
+                                verticalAlign: "middle",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onToggleStatusTalangan) {
+                                  onToggleStatusTalangan(item.id);
+                                }
+                              }}
+                              title={
+                                item.statusTalangan === "sudah_diganti"
+                                  ? "Status: Sudah diganti. Klik untuk ubah ke Belum diganti"
+                                  : "Status: Belum diganti. Klik untuk tandai Sudah diganti"
+                              }
+                            >
+                              {item.statusTalangan === "sudah_diganti"
+                                ? "✓ Talangan Lunas"
+                                : "⏳ Talangan Belum Diganti"}
+                            </button>
+                          )}
+
+                          {/* Tombol Bukti Transaksi */}
+                          {item.bukti && item.bukti.length > 0 && (
+                            <button
+                              type="button"
+                              className="btn-small"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                marginLeft: "6px",
+                                padding: "2px 7px",
+                                borderRadius: "8px",
+                                fontSize: "0.76rem",
+                                fontWeight: 700,
+                                background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
+                                color: "var(--accent)",
+                                border: "1px solid var(--accent)",
+                                cursor: "pointer",
+                                verticalAlign: "middle",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTransaksiLihatBukti(item);
+                              }}
+                              title={`Lihat ${item.bukti.length} berkas bukti transaksi`}
+                            >
+                              📎 {item.bukti.length > 1 ? item.bukti.length : ""}
+                            </button>
+                          )}
+                        </div>
                         <div className="expense-meta">
                           {item.kategori} · {metaBagian.join(" · ")}
+                          {item.talanganUntuk && (
+                            <span style={{ color: "var(--accent)", marginLeft: "4px" }}>
+                              · Talangan: {item.talanganUntuk}
+                            </span>
+                          )}
                         </div>
                         {item.catatan && (
                           <div className="expense-note">{item.catatan}</div>
@@ -292,7 +861,10 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                             type="button"
                             className="btn-small btn-delete"
                             onClick={() => {
-                              if (confirm(`Hapus transaksi "${item.deskripsi}"?`)) {
+                              const pesan = isPindah
+                                ? `Transaksi "${item.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
+                                : `Hapus transaksi "${item.deskripsi}"?`;
+                              if (confirm(pesan)) {
                                 onDelete(item.id);
                               }
                             }}
@@ -312,20 +884,31 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
 
       {daftarTanggal.length === 0 && (
         <p id="kosong" className="empty">
-          Belum ada transaksi pada bulan ini.
+          {saringanAktif
+            ? "Tidak ada transaksi yang cocok dengan kriteria pencarian dan saringan."
+            : "Belum ada transaksi pada bulan ini."}
         </p>
       )}
 
-      <div className="actions tengah">
-        <button
-          type="button"
-          id="bulan-lalu"
-          className="btn-secondary btn-pil"
-          onClick={() => onGeserBulan(-1)}
-        >
-          {labelBulanLalu}
-        </button>
-      </div>
+      {/* Navigasi Bulan Lalu */}
+      {!filterTglMulai && !filterTglSelesai && (
+        <div className="actions tengah">
+          <button
+            type="button"
+            id="bulan-lalu"
+            className="btn-secondary btn-pil"
+            onClick={() => onGeserBulan(-1)}
+          >
+            {labelBulanLalu}
+          </button>
+        </div>
+      )}
+
+      <BuktiPreviewModal
+        transaksi={transaksiLihatBukti}
+        isOpen={Boolean(transaksiLihatBukti)}
+        onClose={() => setTransaksiLihatBukti(null)}
+      />
     </section>
   );
 };
