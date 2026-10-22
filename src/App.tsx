@@ -8,6 +8,11 @@ import {
   TemaId,
   ViewTab,
   TransaksiBerulang,
+  NamaDana,
+  PengaturanKeuangan,
+  ItemHutangPiutang,
+  TargetTabunganItem,
+  AppLockConfig,
 } from "./types";
 import {
   BUDGET_KEY,
@@ -27,6 +32,14 @@ import {
   bacaStorage,
   tulisStorage,
   tambahIdTerhapus,
+  muatPengaturan,
+  simpanPengaturan,
+  muatUtangPiutang,
+  simpanUtangPiutang,
+  muatTargetTabungan,
+  simpanTargetTabungan,
+  muatAppLock,
+  simpanAppLock,
 } from "./lib/storage";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
 import {
@@ -69,12 +82,29 @@ import { TambahView } from "./components/TambahView";
 import { GrafikView } from "./components/GrafikView";
 import { SayaView } from "./components/SayaView";
 import { TransaksiBerulangModal } from "./components/TransaksiBerulangModal";
+import { AppLockModal } from "./components/AppLockModal";
 
 export default function App() {
   const [transaksi, setTransaksi] = useState<Transaksi[]>(() => muatTransaksi());
   const [aset, setAset] = useState<AsetItem[]>(() => muatAset());
   const [harga, setHarga] = useState<DataHarga>(() => muatHarga());
-  const [anggaran, setAnggaran] = useState<number>(() => Number(bacaStorage(BUDGET_KEY, "0")) || 0);
+  const [pengaturan, setPengaturan] = useState<PengaturanKeuangan>(() => muatPengaturan());
+  const [daftarUtangPiutang, setDaftarUtangPiutang] = useState<ItemHutangPiutang[]>(() => muatUtangPiutang());
+  const [daftarTargetTabungan, setDaftarTargetTabungan] = useState<TargetTabunganItem[]>(() => muatTargetTabungan());
+  const [appLockConfig, setAppLockConfig] = useState<AppLockConfig>(() => muatAppLock());
+  const [isAppLocked, setIsAppLocked] = useState<boolean>(() => {
+    const c = muatAppLock();
+    return Boolean(c?.enabled);
+  });
+  const [targetTabunganAwalId, setTargetTabunganAwalId] = useState<string>("");
+
+  const [anggaran, setAnggaran] = useState<number>(() => {
+    const p = muatPengaturan();
+    if (typeof p.anggaranHarian === "number" && p.anggaranHarian > 0) {
+      return p.anggaranHarian;
+    }
+    return Number(bacaStorage(BUDGET_KEY, "0")) || 0;
+  });
 
   const [daftarBerulang, setDaftarBerulang] = useState<TransaksiBerulang[]>(() =>
     muatTransaksiBerulang()
@@ -128,6 +158,32 @@ export default function App() {
   useEffect(() => {
     document.body.dataset.view = currentView;
   }, [currentView]);
+
+  // Kunci otomatis setelah 1 menit di latar belakang
+  const backgroundTimerRef = React.useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!appLockConfig.enabled) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        backgroundTimerRef.current = Date.now();
+      } else if (document.visibilityState === "visible") {
+        if (backgroundTimerRef.current) {
+          const elapsedMs = Date.now() - backgroundTimerRef.current;
+          if (elapsedMs >= 60 * 1000) {
+            setIsAppLocked(true);
+          }
+        }
+        backgroundTimerRef.current = null;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [appLockConfig.enabled]);
 
 
 
@@ -210,6 +266,8 @@ export default function App() {
   asetRef.current = aset;
   const hargaRef = React.useRef(harga);
   hargaRef.current = harga;
+  const pengaturanRef = React.useRef(pengaturan);
+  pengaturanRef.current = pengaturan;
 
   const autoSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncPendingRef = React.useRef<boolean>(false);
@@ -258,7 +316,12 @@ export default function App() {
 
     setSyncStatus({ pesan: "Menyinkronkan ke Drive…", status: "kerja" });
     try {
-      await kirimSemuaKeDrive(token, transaksiRef.current, asetRef.current);
+      await kirimSemuaKeDrive(
+        token,
+        transaksiRef.current,
+        asetRef.current,
+        pengaturanRef.current
+      );
       syncPendingRef.current = false;
       setSyncStatus({ pesan: "Data tersinkron ke Google Drive", status: "sukses" });
       setTimeout(() => {
@@ -494,6 +557,27 @@ export default function App() {
       perbaruiHargaState(res.harga);
       setDriveContents(res.contents);
 
+      if (res.pengaturan) {
+        setPengaturan(res.pengaturan);
+        simpanPengaturan(res.pengaturan);
+        if (typeof res.pengaturan.anggaranHarian === "number" && res.pengaturan.anggaranHarian > 0) {
+          setAnggaran(res.pengaturan.anggaranHarian);
+          tulisStorage(BUDGET_KEY, String(res.pengaturan.anggaranHarian));
+        }
+        if (Array.isArray(res.pengaturan.utangPiutang)) {
+          setDaftarUtangPiutang(res.pengaturan.utangPiutang);
+          simpanUtangPiutang(res.pengaturan.utangPiutang);
+        }
+        if (Array.isArray(res.pengaturan.targetTabungan)) {
+          setDaftarTargetTabungan(res.pengaturan.targetTabungan);
+          simpanTargetTabungan(res.pengaturan.targetTabungan);
+        }
+        if (res.pengaturan.appLock) {
+          setAppLockConfig(res.pengaturan.appLock);
+          simpanAppLock(res.pengaturan.appLock);
+        }
+      }
+
       if (res.transaksi.length > 0) {
         const blnTerbaru = res.transaksi[0].tanggal.slice(0, 7);
         const adaDiBulanIni = res.transaksi.some((t) => t.tanggal.startsWith(bulanTerpilih));
@@ -502,7 +586,7 @@ export default function App() {
         }
       }
 
-      const pesanSukses = `Sinkronisasi berhasil: ${res.totalTrxDitarik} transaksi dan ${res.totalAsetDitarik} aset ditarik dari folder 'Keuangan' Google Drive.`;
+      const pesanSukses = `Sinkronisasi berhasil: ${res.totalTrxDitarik} transaksi, ${res.totalAsetDitarik} aset, dan pengaturan ditarik dari folder 'Keuangan' Google Drive.`;
       setSyncPesan(pesanSukses);
       setSyncStatus({ pesan: "Data tersinkron dari Google Drive", status: "sukses" });
       setTimeout(() => {
@@ -588,7 +672,7 @@ export default function App() {
 
     // Konfirmasi eksplisit untuk tombol manual
     const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n\nLanjutkan pembaruan?`
+      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n- Anggaran & pengaturan ke file Pengaturan.json\n\nLanjutkan pembaruan?`
     );
     if (!confirmed) return;
 
@@ -605,14 +689,14 @@ export default function App() {
         folder = await buatFolderKeuangan(token);
       }
 
-      const res = await kirimSemuaKeDrive(token, transaksi, aset);
+      const res = await kirimSemuaKeDrive(token, transaksi, aset, pengaturan);
       syncPendingRef.current = false;
 
       const contents = await ambilIsiFolderKeuangan(token, folder.id);
       setDriveContents(contents);
 
       setSyncPesan(
-        `Berhasil disimpan ke Google Drive: ${res.jumlahTrx} transaksi diperbarui di spreadsheet dan ${res.jumlahAset} aset disimpan di Aset.json.`
+        `Berhasil disimpan ke Google Drive: ${res.jumlahTrx} transaksi diperbarui di spreadsheet, ${res.jumlahAset} aset disimpan di Aset.json, dan Pengaturan.json diperbarui.`
       );
       setSyncStatus({ pesan: "Data tersimpan di Google Drive", status: "sukses" });
       setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 4000);
@@ -625,23 +709,65 @@ export default function App() {
   };
 
   // Transaction CRUD handlers dengan field diubah dan auto-sync
-  const handleSimpanTransaksi = (t: Transaksi) => {
-    const tBaru: Transaksi = {
-      ...t,
+  const handleSimpanTransaksi = (t: Transaksi | Transaksi[]) => {
+    const listBaru = Array.isArray(t) ? t : [t];
+    const daftarTerupdate = listBaru.map((item) => ({
+      ...item,
       diubah: new Date().toISOString(),
-    };
-    const ada = transaksi.some((x) => x.id === tBaru.id);
-    const baru = ada ? transaksi.map((x) => (x.id === tBaru.id ? tBaru : x)) : [tBaru, ...transaksi];
-    perbaruiTransaksi(baru);
+    }));
+
+    let hasilTransaksi = [...transaksi];
+    for (const item of daftarTerupdate) {
+      const idx = hasilTransaksi.findIndex((x) => x.id === item.id);
+      if (idx >= 0) {
+        hasilTransaksi[idx] = item;
+      } else {
+        hasilTransaksi = [item, ...hasilTransaksi];
+      }
+    }
+
+    perbaruiTransaksi(hasilTransaksi);
     setEditTransaksi(null);
     setCurrentView("riwayat");
     jadwalkanAutoSync();
-    void prosesUnggahBuktiTransaksi(tBaru);
+    for (const item of daftarTerupdate) {
+      void prosesUnggahBuktiTransaksi(item);
+    }
   };
 
   const handleHapusTransaksi = (id: string) => {
-    tambahIdTerhapus(id);
-    const baru = transaksi.filter((t) => t.id !== id);
+    const target = transaksi.find((t) => t.id === id);
+    const idsToHapus = [id];
+    if (target?.pasanganId) {
+      const pasangan = transaksi.find((t) => t.pasanganId === target.pasanganId && t.id !== id);
+      if (pasangan) {
+        idsToHapus.push(pasangan.id);
+      }
+    }
+
+    idsToHapus.forEach((hId) => tambahIdTerhapus(hId));
+    const baru = transaksi.filter((t) => !idsToHapus.includes(t.id));
+    perbaruiTransaksi(baru);
+    jadwalkanAutoSync();
+  };
+
+  const handleToggleStatusTalangan = (id: string) => {
+    const target = transaksi.find((t) => t.id === id);
+    if (!target) return;
+    const statusBaru: "belum_diganti" | "sudah_diganti" =
+      target.statusTalangan === "sudah_diganti" ? "belum_diganti" : "sudah_diganti";
+
+    const baru: Transaksi[] = transaksi.map((t) => {
+      if (t.id === id || (target.pasanganId && t.pasanganId === target.pasanganId)) {
+        return {
+          ...t,
+          statusTalangan: statusBaru,
+          diubah: new Date().toISOString(),
+        };
+      }
+      return t;
+    });
+
     perbaruiTransaksi(baru);
     jadwalkanAutoSync();
   };
@@ -736,6 +862,111 @@ export default function App() {
   const handleSetAnggaran = (nilai: number) => {
     setAnggaran(nilai);
     tulisStorage(BUDGET_KEY, String(nilai));
+    const baruPengaturan: PengaturanKeuangan = {
+      ...pengaturan,
+      anggaranHarian: nilai,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(baruPengaturan);
+    simpanPengaturan(baruPengaturan);
+    jadwalkanAutoSync();
+  };
+
+  const handleSetAnggaranKategori = (dana: NamaDana, kategori: string, nilai: number) => {
+    const baruPengaturan: PengaturanKeuangan = {
+      ...pengaturan,
+      anggaranKategori: {
+        ...(pengaturan.anggaranKategori || { "Dana Pribadi": {}, "Dana Kegiatan": {} }),
+        [dana]: {
+          ...(pengaturan.anggaranKategori?.[dana] || {}),
+          [kategori]: nilai,
+        },
+      },
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(baruPengaturan);
+    simpanPengaturan(baruPengaturan);
+    jadwalkanAutoSync();
+  };
+
+  const handleSimpanUtangPiutang = (item: ItemHutangPiutang) => {
+    const ada = daftarUtangPiutang.some((x) => x.id === item.id);
+    const baru = ada
+      ? daftarUtangPiutang.map((x) => (x.id === item.id ? item : x))
+      : [item, ...daftarUtangPiutang];
+    setDaftarUtangPiutang(baru);
+    simpanUtangPiutang(baru);
+
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturan,
+      utangPiutang: baru,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
+  };
+
+  const handleHapusUtangPiutang = (id: string) => {
+    const baru = daftarUtangPiutang.filter((x) => x.id !== id);
+    setDaftarUtangPiutang(baru);
+    simpanUtangPiutang(baru);
+
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturan,
+      utangPiutang: baru,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
+  };
+
+  const handleSimpanTargetTabungan = (item: TargetTabunganItem) => {
+    const ada = daftarTargetTabungan.some((x) => x.id === item.id);
+    const baru = ada
+      ? daftarTargetTabungan.map((x) => (x.id === item.id ? item : x))
+      : [item, ...daftarTargetTabungan];
+    setDaftarTargetTabungan(baru);
+    simpanTargetTabungan(baru);
+
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturan,
+      targetTabungan: baru,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
+  };
+
+  const handleHapusTargetTabungan = (id: string) => {
+    const baru = daftarTargetTabungan.filter((x) => x.id !== id);
+    setDaftarTargetTabungan(baru);
+    simpanTargetTabungan(baru);
+
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturan,
+      targetTabungan: baru,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
+  };
+
+  const handleSimpanAppLockConfig = (cfg: AppLockConfig) => {
+    setAppLockConfig(cfg);
+    simpanAppLock(cfg);
+
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturan,
+      appLock: cfg,
+      diubah: new Date().toISOString(),
+    };
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
   };
 
   return (
@@ -780,6 +1011,7 @@ export default function App() {
                   syncStatus={syncStatus}
                   onEdit={handleMulaiEditTransaksi}
                   onDelete={handleHapusTransaksi}
+                  onToggleStatusTalangan={handleToggleStatusTalangan}
                   onGeserBulan={(delta) => {
                     const [th, bl] = bulanTerpilih.split("-").map(Number);
                     const d = new Date(th, bl - 1 + delta, 1);
@@ -789,6 +1021,18 @@ export default function App() {
                   }}
                   onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
                   jumlahJatuhTempo={jumlahJatuhTempo}
+                  daftarUtangPiutang={daftarUtangPiutang}
+                  onSimpanUtangPiutang={handleSimpanUtangPiutang}
+                  onHapusUtangPiutang={handleHapusUtangPiutang}
+                  daftarTargetTabungan={daftarTargetTabungan}
+                  onSimpanTargetTabungan={handleSimpanTargetTabungan}
+                  onHapusTargetTabungan={handleHapusTargetTabungan}
+                  onBukaTambahTabungan={(targetId, targetNama) => {
+                    setTargetTabunganAwalId(targetId);
+                    setEditTransaksi(null);
+                    setInitialScanMode(null);
+                    setCurrentView("tambah");
+                  }}
                 />
               </div>
             )}
@@ -819,6 +1063,8 @@ export default function App() {
                   bulanTerpilih={bulanTerpilih}
                   anggaran={anggaran}
                   onSetAnggaran={handleSetAnggaran}
+                  anggaranKategori={pengaturan.anggaranKategori}
+                  onSetAnggaranKategori={handleSetAnggaranKategori}
                 />
               </div>
             )}
@@ -850,6 +1096,8 @@ export default function App() {
                   syncStatusPesan={syncPesan}
                   onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
                   jumlahTransaksiBerulang={daftarBerulang.filter((d) => d.aktif).length}
+                  appLockConfig={appLockConfig}
+                  onSimpanAppLockConfig={handleSimpanAppLockConfig}
                 />
               </div>
             )}
@@ -859,11 +1107,13 @@ export default function App() {
                 editTransaksi={editTransaksi}
                 onSimpan={(trx) => {
                   handleSimpanTransaksi(trx);
+                  setTargetTabunganAwalId("");
                   setCurrentView(lastActiveTab);
                 }}
                 onBatalEdit={() => {
                   setEditTransaksi(null);
                   setInitialScanMode(null);
+                  setTargetTabunganAwalId("");
                   setCurrentView(lastActiveTab);
                 }}
                 initialScanMode={initialScanMode}
@@ -872,6 +1122,8 @@ export default function App() {
                 jumlahJatuhTempo={jumlahJatuhTempo}
                 daftarBerulang={daftarBerulang}
                 daftarTransaksi={transaksi}
+                daftarTargetTabungan={daftarTargetTabungan}
+                targetTabunganAwalId={targetTabunganAwalId}
               />
             )}
           </main>
@@ -1009,6 +1261,15 @@ export default function App() {
           handleSimpanTransaksi(t);
         }}
       />
+
+      {/* Layar Kunci Aplikasi (PIN 4–6 digit & WebAuthn Biometrik) */}
+      {isAppLocked && appLockConfig.enabled && (
+        <AppLockModal
+          config={appLockConfig}
+          karakter={karakter}
+          onUnlock={() => setIsAppLocked(false)}
+        />
+      )}
     </>
   );
 }

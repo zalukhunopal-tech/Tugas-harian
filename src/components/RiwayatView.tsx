@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Transaksi, NamaDana } from "../types";
+import { Transaksi, NamaDana, ItemHutangPiutang, TargetTabunganItem } from "../types";
 import {
   formatRupiah,
   formatAngka,
@@ -11,6 +11,8 @@ import {
   KATEGORI,
 } from "../lib/constants";
 import { BuktiPreviewModal } from "./BuktiPreviewModal";
+import { UtangPiutangView } from "./UtangPiutangView";
+import { TargetTabunganView } from "./TargetTabunganView";
 
 interface RiwayatViewProps {
   transaksi: Transaksi[];
@@ -23,6 +25,14 @@ interface RiwayatViewProps {
   onBukaTransaksiBerulang?: () => void;
   jumlahJatuhTempo?: number;
   onToggleStatusTalangan?: (id: string) => void;
+  daftarUtangPiutang?: ItemHutangPiutang[];
+  onSimpanUtangPiutang?: (item: ItemHutangPiutang) => void;
+  onHapusUtangPiutang?: (id: string) => void;
+  daftarTargetTabungan?: TargetTabunganItem[];
+  onSimpanTargetTabungan?: (item: TargetTabunganItem) => void;
+  onHapusTargetTabungan?: (id: string) => void;
+  onBukaTambahTabungan?: (targetId: string, targetNama: string) => void;
+  subTabAwal?: "transaksi" | "utang_piutang" | "target_tabungan";
 }
 
 function inisialKategori(k: string): string {
@@ -41,7 +51,16 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onBukaTransaksiBerulang,
   jumlahJatuhTempo = 0,
   onToggleStatusTalangan,
+  daftarUtangPiutang = [],
+  onSimpanUtangPiutang,
+  onHapusUtangPiutang,
+  daftarTargetTabungan = [],
+  onSimpanTargetTabungan,
+  onHapusTargetTabungan,
+  onBukaTambahTabungan,
+  subTabAwal = "transaksi",
 }) => {
+  const [subTab, setSubTab] = useState<"transaksi" | "utang_piutang" | "target_tabungan">(subTabAwal);
   // Filter States
   const [filterDana, setFilterDana] = useState<string>("");
   const [cariTeks, setCariTeks] = useState<string>("");
@@ -224,9 +243,86 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   const tglBulanLalu = new Date(th, bl - 2, 1);
   const labelBulanLalu = `${namaBulanPendek.format(tglBulanLalu)} ${tglBulanLalu.getFullYear()} ←`;
 
+  const jumlahOverdueUtang = useMemo(() => {
+    const today = hariIni();
+    return (daftarUtangPiutang || []).filter((item) => {
+      const totalCicilan = (item.cicilan || []).reduce((s, c) => s + c.jumlah, 0);
+      const sisa = Math.max(0, item.jumlah - totalCicilan);
+      return sisa > 0 && item.jatuhTempo < today;
+    }).length;
+  }, [daftarUtangPiutang]);
+
   return (
     <section className="view" id="view-riwayat" data-view="riwayat">
-      {jumlahJatuhTempo > 0 && onBukaTransaksiBerulang && (
+      {/* Sub-Tabs Navigasi Riwayat: Transaksi, Utang & Piutang, Target Tabungan */}
+      <div className="filter-chips no-print" style={{ marginBottom: "16px" }} role="tablist">
+        <button
+          type="button"
+          className="chip"
+          aria-checked={subTab === "transaksi"}
+          role="tab"
+          onClick={() => setSubTab("transaksi")}
+          style={{ minHeight: "44px", fontWeight: 700 }}
+        >
+          📝 Riwayat Transaksi
+        </button>
+        <button
+          type="button"
+          className="chip"
+          aria-checked={subTab === "utang_piutang"}
+          role="tab"
+          onClick={() => setSubTab("utang_piutang")}
+          style={{
+            minHeight: "44px",
+            fontWeight: 700,
+            borderColor: jumlahOverdueUtang > 0 ? "#ef4444" : undefined,
+          }}
+        >
+          💳 Utang &amp; Piutang
+          {jumlahOverdueUtang > 0 && (
+            <span
+              style={{
+                marginLeft: "6px",
+                padding: "2px 7px",
+                borderRadius: "10px",
+                background: "#ef4444",
+                color: "#fff",
+                fontSize: "0.75rem",
+              }}
+            >
+              {jumlahOverdueUtang}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          className="chip"
+          aria-checked={subTab === "target_tabungan"}
+          role="tab"
+          onClick={() => setSubTab("target_tabungan")}
+          style={{ minHeight: "44px", fontWeight: 700 }}
+        >
+          🎯 Target Tabungan {daftarTargetTabungan.length > 0 ? `(${daftarTargetTabungan.length})` : ""}
+        </button>
+      </div>
+
+      {subTab === "utang_piutang" ? (
+        <UtangPiutangView
+          daftar={daftarUtangPiutang}
+          onSimpan={onSimpanUtangPiutang || (() => {})}
+          onHapus={onHapusUtangPiutang || (() => {})}
+        />
+      ) : subTab === "target_tabungan" ? (
+        <TargetTabunganView
+          daftarTarget={daftarTargetTabungan}
+          transaksi={transaksi}
+          onSimpanTarget={onSimpanTargetTabungan || (() => {})}
+          onHapusTarget={onHapusTargetTabungan || (() => {})}
+          onBukaTambahTabungan={onBukaTambahTabungan}
+        />
+      ) : (
+        <>
+          {jumlahJatuhTempo > 0 && onBukaTransaksiBerulang && (
         <div
           style={{
             marginBottom: "12px",
@@ -902,6 +998,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
             {labelBulanLalu}
           </button>
         </div>
+      )}
+        </>
       )}
 
       <BuktiPreviewModal
