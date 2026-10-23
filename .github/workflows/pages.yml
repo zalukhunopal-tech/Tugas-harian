@@ -1,0 +1,85 @@
+# Membangun aplikasi dengan Vite lalu menyajikannya lewat GitHub Pages.
+#
+# Kenapa perlu: index.html di root repo adalah SUMBER Vite (memuat /src/main.tsx). Kalau Pages menyajikan
+# repo apa adanya, browser tidak bisa menjalankan TypeScript dan halaman kosong. Hasil build harus disajikan.
+#
+# Sekali saja, di GitHub: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+#
+# Alur dengan Google AI Studio: AI Studio mendorong ke `main`, workflow ini berjalan otomatis, dan situs
+# ter-update. Build memakai `vite build` TANPA `tsc`, jadi kesalahan tipe dari edit di AI Studio tidak
+# menghentikan deploy; tipe diperiksa terpisah di workflow "Keamanan & uji" (job `tipe`).
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Pasang dependensi (tanpa skrip instalasi)
+        run: npm install --no-audit --no-fund --ignore-scripts
+
+      - name: Build (vite)
+        run: npx vite build
+
+      - name: Sesuaikan manifest PWA untuk alamat di subfolder (github.io/<repo>/)
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const f = "dist/manifest.webmanifest";
+            if (!fs.existsSync(f)) {
+              console.log("Tidak ada manifest PWA; dilewati.");
+              process.exit(0);
+            }
+            const m = JSON.parse(fs.readFileSync(f, "utf8"));
+            const rel = (p) => (typeof p === "string" && p.startsWith("/") ? "." + p : p);
+            m.id = rel(m.id);
+            m.start_url = rel(m.start_url);
+            m.scope = rel(m.scope);
+            m.icons = (m.icons || []).map((i) => ({ ...i, src: rel(i.src) }));
+            fs.writeFileSync(f, JSON.stringify(m));
+            console.log("Manifest disesuaikan:", m.start_url, m.scope);
+          '
+
+      - name: Cegah rahasia ikut tersaji di situs
+        run: |
+          if grep -rEl 'GEMINI_API_KEY|ya29\.|client_secret|-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----' dist; then
+            echo "::error::Hasil build memuat pola rahasia. Situs tidak dideploy."
+            exit 1
+          fi
+          echo "Hasil build bersih dari pola rahasia."
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
