@@ -2,13 +2,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { ubahKonfirmasi } from "./ubah-konfirmasi";
 
 /**
  * Build khusus artefak Claude. Berbeda dari `vite.config.ts` di akar repo (yang dikelola Google AI Studio):
  * - tanpa PWA/service worker (tidak jalan di sandbox artefak);
  * - modul login Google diganti `googleAuth.artefak.ts` (konektor Drive/Sheets, bukan Firebase);
  * - operasi tulis `gdriveSync` diserialkan lewat antrean (`gdriveSync.artefak.ts`);
- * - `window.fetch` ke googleapis.com diterjemahkan ke konektor, `confirm`/`alert` diganti dialog di halaman.
+ * - `window.fetch` ke googleapis.com diterjemahkan ke konektor, `alert` diganti dialog di halaman, dan setiap
+ *   `confirm(...)` di `src/` diubah saat build menjadi `await` pada dialog di halaman (ubah-konfirmasi.ts).
  * Kode aplikasi di `src/` tidak diubah. Pakai: `npx vite build --config artefak/vite.config.ts`.
  */
 const akar = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,10 +62,24 @@ function teksArtefak(): Plugin {
   };
 }
 
+function konfirmasiAsync(): Plugin {
+  return {
+    name: "konfirmasi-async",
+    enforce: "pre", // sebelum esbuild/React mengubah TSX
+    transform(kode, id) {
+      const berkas = id.split("?")[0];
+      if (!/\/src\/.*\.(tsx?|jsx?)$/.test(berkas)) return null;
+      const hasil = ubahKonfirmasi(kode, berkas);
+      for (const w of hasil.peringatan) this.warn(w);
+      return hasil.jumlah > 0 ? { code: hasil.kode, map: null } : null;
+    },
+  };
+}
+
 export default defineConfig({
   root: akar,
   base: "./",
-  plugins: [react(), entriArtefak(), teksArtefak()],
+  plugins: [konfirmasiAsync(), react(), entriArtefak(), teksArtefak()],
   resolve: {
     alias: [
       {
