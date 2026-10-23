@@ -10,7 +10,8 @@ interface AsetViewProps {
   onUbahAset: (item: AsetItem) => void;
   onHapusAset: (id: string) => void;
   onPerbaruiHarga: () => Promise<void>;
-  onSimpanHargaManual: (jual: number, buyback?: number) => void;
+  /** Tidak dipakai lagi sejak menu "Harga pasar & sumber" dihapus; dibiarkan agar pemanggil tidak perlu diubah. */
+  onSimpanHargaManual?: (jual: number, buyback?: number) => void;
   memuatHarga: boolean;
   googleUser?: any;
   onTarikDrive?: () => void;
@@ -39,7 +40,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
   onUbahAset,
   onHapusAset,
   onPerbaruiHarga,
-  onSimpanHargaManual,
   memuatHarga,
   googleUser,
   onTarikDrive,
@@ -76,14 +76,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
   const [mulaiInvestasi, setMulaiInvestasi] = useState("");
   const [bungaInvestasi, setBungaInvestasi] = useState("");
   const [skemaInvestasi, setSkemaInvestasi] = useState<SkemaInvestasi>("majemuk-bulanan");
-
-  // Manual Gold form state
-  const [emasJualManual, setEmasJualManual] = useState(
-    harga.manual?.emas?.jual ? String(harga.manual.emas.jual) : ""
-  );
-  const [emasBuybackManual, setEmasBuybackManual] = useState(
-    harga.manual?.emas?.buyback ? String(harga.manual.emas.buyback) : ""
-  );
 
   const ringkasan = ringkasAset(aset, harga);
 
@@ -189,14 +181,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
       onTambahAset(itemDasar);
     }
     setFormBuka(false);
-  };
-
-  const submitHargaManual = (e: React.FormEvent) => {
-    e.preventDefault();
-    const jual = Number(emasJualManual);
-    if (!jual || jual <= 0) return;
-    const buyback = Number(emasBuybackManual) || undefined;
-    onSimpanHargaManual(jual, buyback);
   };
 
   const infoWaktuHarga = harga.waktu
@@ -688,59 +672,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
         </div>
       </div>
       )}
-
-      <details className="folder" id="folder-harga">
-        <summary>
-          <span className="folder-icon" aria-hidden="true"></span>
-          <span className="folder-title">Harga pasar &amp; sumber</span>
-        </summary>
-        <div className="folder-body">
-          <ul className="help daftar-sumber">
-            <li>
-              <strong>Emas:</strong> harga jual Antam 1 gram dari Logam Mulia (nilai memakai harga jual, buyback ditampilkan sebagai info).
-            </li>
-            <li>
-              <strong>Kripto:</strong> harga IDR dari CoinGecko (real-time dari browser).
-            </li>
-            <li>
-              <strong>JMO / JHT:</strong> tidak ada API publik. Nilai dihitung dari saldo terakhir di aplikasi JMO + iuran 5,7% upah per bulan + hasil pengembangan tahunan BPJS Ketenagakerjaan.
-            </li>
-            <li>
-              <strong>Investasi lain:</strong> modal tumbuh sesuai bunga rata-rata dan skema yang dipilih.
-            </li>
-          </ul>
-          <form id="form-harga-manual" className="sync-form" onSubmit={submitHargaManual}>
-            <label htmlFor="emas-manual">
-              Harga jual emas 1 gr hari ini (Rp), isi manual bila otomatis gagal
-            </label>
-            <input
-              type="number"
-              id="emas-manual"
-              min="0"
-              step="1"
-              placeholder="1250000"
-              value={emasJualManual}
-              onChange={(e) => setEmasJualManual(e.target.value)}
-              required
-            />
-            <label htmlFor="emas-buyback-manual">Harga buyback 1 gr (Rp, opsional)</label>
-            <input
-              type="number"
-              id="emas-buyback-manual"
-              min="0"
-              step="1"
-              placeholder="1150000"
-              value={emasBuybackManual}
-              onChange={(e) => setEmasBuybackManual(e.target.value)}
-            />
-            <div className="sync-buttons">
-              <button type="submit" className="btn-secondary">
-                Simpan harga manual
-              </button>
-            </div>
-          </form>
-        </div>
-      </details>
     </section>
   );
 };
