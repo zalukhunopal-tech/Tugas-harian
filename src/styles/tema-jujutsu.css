@@ -330,6 +330,14 @@ html[data-tema="jujutsu"] .container {
   z-index: 1;
 }
 
+/* Lembar detail transaksi dan menu tekan-lama (.lembar-backdrop) hidup di dalam .container, yang di tema ini
+   membentuk stacking context ber-z-index 1: seberapa besar pun z-index lembar, ia tetap DI BAWAH navbar (50),
+   sehingga bilah Ubah/Hapus di dasar lembar tertutup navigasi dan tidak bisa ditekan. Selama lembar terbuka,
+   angkat .container di atas navbar dan sidebar (100), tetap di bawah lapisan Perluasan Domain (1000). */
+html[data-tema="jujutsu"] .container:has(.lembar-backdrop) {
+  z-index: 999;
+}
+
 .partikel {
   position: absolute;
   bottom: -20px;

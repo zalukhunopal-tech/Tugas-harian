@@ -5,15 +5,20 @@
  * `alert()` tidak menampilkan apa-apa. Akibatnya semua tombol yang meminta konfirmasi (hapus transaksi,
  * hapus aset, kirim ke Drive secara manual) diam saja.
  *
- * `confirm()` bersifat sinkron sehingga tidak bisa menunggu dialog buatan sendiri. Jalan keluarnya:
- *   1. `confirm(pesan)` menampilkan dialog di halaman dan mengembalikan false (aksi dibatalkan dulu);
- *   2. bila pengguna memilih "Lanjutkan", pesan itu ditandai disetujui lalu tombol yang tadi diklik
- *      diklik ulang secara terprogram;
- *   3. pada klik ulang, `confirm(pesan)` yang sama mengembalikan true dan aksi berjalan.
- * Semua pemanggilan `confirm` di aplikasi berasal dari klik tombol, jadi pola ini cukup.
+ * Jalur utama: `__konfirmasi(pesan)` mengembalikan Promise<boolean> dan menampilkan dialog di halaman. Saat
+ * build artefak, `ubah-konfirmasi.ts` mengubah setiap `confirm(...)` di `src/` menjadi
+ * `(await __konfirmasi(...))`, sehingga fungsi menunggu jawaban pengguna di tempat.
  *
- * Persetujuan milik SATU klik pengguna: setiap klik asli (isTrusted) di luar dialog menghapus semua
- * persetujuan. Jadi klik "Hapus" pada item lain dengan pesan yang sama selalu memunculkan dialog lagi,
+ * Jalur cadangan: `window.confirm` yang tersisa (panggilan yang tidak bisa diubah menjadi await, atau kode baru
+ * yang belum tercakup) bersifat sinkron, jadi hanya bisa begini:
+ *   1. `confirm(pesan)` menampilkan dialog dan mengembalikan false (aksi dibatalkan dulu);
+ *   2. bila pengguna memilih "Lanjutkan", pesan itu ditandai disetujui lalu tombol yang tadi diklik diklik ulang;
+ *   3. pada klik ulang, `confirm(pesan)` yang sama mengembalikan true dan aksi berjalan.
+ * Cara ini gagal bila tombol pemicunya sudah hilang saat `confirm` dipanggil (klik ulang tidak ada sasarannya),
+ * karena itu jalur utama dipakai untuk semua yang bisa.
+ *
+ * Persetujuan jalur cadangan milik SATU klik pengguna: setiap klik asli (isTrusted) di luar dialog menghapus
+ * semua persetujuan. Jadi klik "Hapus" pada item lain dengan pesan yang sama selalu memunculkan dialog lagi,
  * sedangkan klik ulang terprogram (bukan klik asli) tidak menghapusnya, sehingga alur yang meminta dua
  * konfirmasi berurutan tetap bisa selesai.
  */
@@ -42,8 +47,20 @@ function pasangGaya(): void {
   document.head.appendChild(el);
 }
 
-function tampilkan(pesan: string, tombolBatal: boolean, saatLanjut: () => void): void {
-  if (dialogTerbuka) return;
+interface Permintaan {
+  pesan: string;
+  tombolBatal: boolean;
+  saatLanjut: () => void;
+  saatBatal: () => void;
+}
+
+const menunggu: Permintaan[] = [];
+
+function tampilkan(p: Permintaan): void {
+  if (dialogTerbuka) {
+    menunggu.push(p);
+    return;
+  }
   dialogTerbuka = true;
   pasangGaya();
   const fokusAwal = document.activeElement as HTMLElement | null;
@@ -52,42 +69,46 @@ function tampilkan(pesan: string, tombolBatal: boolean, saatLanjut: () => void):
   latar.className = "dlg-artefak";
   const kotak = document.createElement("div");
   kotak.className = "dlg-artefak__kotak";
-  kotak.setAttribute("role", tombolBatal ? "alertdialog" : "dialog");
+  kotak.setAttribute("role", p.tombolBatal ? "alertdialog" : "dialog");
   kotak.setAttribute("aria-modal", "true");
   const teks = document.createElement("p");
   teks.className = "dlg-artefak__pesan";
-  teks.textContent = pesan;
+  teks.textContent = p.pesan;
   const aksi = document.createElement("div");
   aksi.className = "dlg-artefak__aksi";
 
-  const tutup = () => {
+  let selesai = false;
+  const tutup = (lanjut: boolean) => {
+    if (selesai) return;
+    selesai = true;
     latar.remove();
     document.removeEventListener("keydown", tekanTombol, true);
     dialogTerbuka = false;
     fokusAwal?.focus?.();
+    if (lanjut) p.saatLanjut();
+    else p.saatBatal();
+    const berikut = menunggu.shift();
+    if (berikut) tampilkan(berikut);
   };
   const tekanTombol = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      tutup();
+      tutup(false);
     }
   };
 
-  if (tombolBatal) {
+  if (p.tombolBatal) {
     const batal = document.createElement("button");
     batal.type = "button";
     batal.textContent = "Batal";
-    batal.onclick = tutup;
+    batal.onclick = () => tutup(false);
     aksi.appendChild(batal);
   }
   const lanjut = document.createElement("button");
   lanjut.type = "button";
   lanjut.className = "utama";
-  lanjut.textContent = tombolBatal ? "Lanjutkan" : "Mengerti";
-  lanjut.onclick = () => {
-    tutup();
-    saatLanjut();
-  };
+  lanjut.textContent = p.tombolBatal ? "Lanjutkan" : "Mengerti";
+  lanjut.onclick = () => tutup(true);
   aksi.appendChild(lanjut);
 
   kotak.append(teks, aksi);
@@ -95,7 +116,14 @@ function tampilkan(pesan: string, tombolBatal: boolean, saatLanjut: () => void):
   document.body.appendChild(latar);
   document.addEventListener("keydown", tekanTombol, true);
   // Untuk konfirmasi, fokus awal di "Batal" supaya Enter tidak langsung menyetujui aksi.
-  ((tombolBatal ? aksi.firstElementChild : lanjut) as HTMLElement | null)?.focus();
+  ((p.tombolBatal ? aksi.firstElementChild : lanjut) as HTMLElement | null)?.focus();
+}
+
+declare global {
+  interface Window {
+    /** Dipakai kode hasil `ubah-konfirmasi.ts`. */
+    __konfirmasi?: (pesan?: unknown) => Promise<boolean>;
+  }
 }
 
 export function pasangDialog(): void {
@@ -110,20 +138,31 @@ export function pasangDialog(): void {
     true
   );
 
+  window.__konfirmasi = (pesan?: unknown): Promise<boolean> =>
+    new Promise((selesai) => {
+      tampilkan({ pesan: String(pesan ?? ""), tombolBatal: true, saatLanjut: () => selesai(true), saatBatal: () => selesai(false) });
+    });
+
+  // Jalur cadangan (lihat catatan di atas).
   window.confirm = (pesan?: string): boolean => {
     const kunci = String(pesan ?? "");
     const batas = disetujui.get(kunci);
     if (batas && batas > Date.now()) return true;
 
     const sumber = klikTerakhir;
-    tampilkan(kunci, true, () => {
-      disetujui.set(kunci, Date.now() + MASA_BERLAKU_MS);
-      if (sumber && sumber.isConnected) (sumber as HTMLElement).click();
+    tampilkan({
+      pesan: kunci,
+      tombolBatal: true,
+      saatLanjut: () => {
+        disetujui.set(kunci, Date.now() + MASA_BERLAKU_MS);
+        if (sumber && sumber.isConnected) (sumber as HTMLElement).click();
+      },
+      saatBatal: () => {},
     });
     return false;
   };
 
   window.alert = (pesan?: unknown): void => {
-    tampilkan(String(pesan ?? ""), false, () => {});
+    tampilkan({ pesan: String(pesan ?? ""), tombolBatal: false, saatLanjut: () => {}, saatBatal: () => {} });
   };
 }
