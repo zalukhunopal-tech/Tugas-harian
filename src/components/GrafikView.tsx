@@ -3,6 +3,7 @@ import { Transaksi, NamaDana, AnggaranKategoriMap, ProfilPelapor, DataKegiatan }
 import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from "../lib/constants";
 import { LaporanView } from "./LaporanView";
 import { RingkasanTahunanView } from "./RingkasanTahunanView";
+import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 
 interface GrafikViewProps {
   transaksi: Transaksi[];
@@ -223,21 +224,48 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
         <h3>Pengeluaran</h3>
         {kategoriKeluar.length > 0 ? (
           <ul id="ringkasan-keluar" className="category-list">
-            {kategoriKeluar.map(({ nama, jml, persen, barPersen }) => (
-              <li
-                key={nama}
-                className="category-row"
-                title={`${nama}: ${formatRupiah(jml)} (${persen}% dari total bulan ini)`}
-              >
-                <span className="category-name">{nama}</span>
-                <span className="category-value">
-                  {formatRupiah(jml)} · {persen}%
-                </span>
-                <div className="category-bar">
-                  <div className="category-fill" style={{ width: `${barPersen}%` }} />
-                </div>
-              </li>
-            ))}
+            {kategoriKeluar.map(({ nama, jml, persen, barPersen }) => {
+              const info = dapatkanInfoKategori(nama);
+              const Ikon = info.ikon;
+              return (
+                <li
+                  key={nama}
+                  className="category-row"
+                  title={`${nama}: ${formatRupiah(jml)} (${persen}% dari total bulan ini)`}
+                >
+                  <span
+                    className="category-name"
+                    style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                  >
+                    <span
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "6px",
+                        background: info.warna,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Ikon size={14} strokeWidth={2.2} />
+                    </span>
+                    <span>{nama}</span>
+                  </span>
+                  <span className="category-value">
+                    {formatRupiah(jml)} · {persen}%
+                  </span>
+                  <div className="category-bar">
+                    <div
+                      className="category-fill"
+                      style={{ width: `${barPersen}%`, background: info.warna }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p id="keluar-kosong" className="empty">
@@ -248,21 +276,48 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
         <h3>Pemasukan</h3>
         {kategoriMasuk.length > 0 ? (
           <ul id="ringkasan-masuk" className="category-list">
-            {kategoriMasuk.map(({ nama, jml, persen, barPersen }) => (
-              <li
-                key={nama}
-                className="category-row"
-                title={`${nama}: ${formatRupiah(jml)} (${persen}% dari total bulan ini)`}
-              >
-                <span className="category-name">{nama}</span>
-                <span className="category-value">
-                  {formatRupiah(jml)} · {persen}%
-                </span>
-                <div className="category-bar">
-                  <div className="category-fill" style={{ width: `${barPersen}%` }} />
-                </div>
-              </li>
-            ))}
+            {kategoriMasuk.map(({ nama, jml, persen, barPersen }) => {
+              const info = dapatkanInfoKategori(nama);
+              const Ikon = info.ikon;
+              return (
+                <li
+                  key={nama}
+                  className="category-row"
+                  title={`${nama}: ${formatRupiah(jml)} (${persen}% dari total bulan ini)`}
+                >
+                  <span
+                    className="category-name"
+                    style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                  >
+                    <span
+                      style={{
+                        width: "24px",
+                        height: "24px",
+                        borderRadius: "6px",
+                        background: info.warna,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Ikon size={14} strokeWidth={2.2} />
+                    </span>
+                    <span>{nama}</span>
+                  </span>
+                  <span className="category-value">
+                    {formatRupiah(jml)} · {persen}%
+                  </span>
+                  <div className="category-bar">
+                    <div
+                      className="category-fill"
+                      style={{ width: `${barPersen}%`, background: info.warna }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p id="masuk-kosong" className="empty">
@@ -376,7 +431,23 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
-                  <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{kat}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                    <span
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "6px",
+                        background: dapatkanInfoKategori(kat).warna,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                      }}
+                    >
+                      {React.createElement(dapatkanInfoKategori(kat).ikon, { size: 13, strokeWidth: 2.2 })}
+                    </span>
+                    {kat}
+                  </span>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "0.84rem" }}>
                       <strong>{formatRupiah(terpakai)}</strong>

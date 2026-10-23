@@ -10,8 +10,8 @@
   --danger: #b42318;
   --track: #e8edf2;
   --highlight: #ecfdf8;
-  --masuk: #0f766e;
-  --keluar: #b45309;
+  --masuk: #16a34a;
+  --keluar: #dc2626;
   --topbar-bg: #fde68a;
   --topbar-text: #1f2933;
   --nav-bg: #ffffff;
@@ -32,8 +32,8 @@
     --danger: #f97066;
     --track: #262d36;
     --highlight: #13302d;
-    --masuk: #2dd4bf;
-    --keluar: #fbbf24;
+    --masuk: #22c55e;
+    --keluar: #ef4444;
     --topbar-bg: #3b3410;
     --topbar-text: #fef3c7;
     --nav-bg: #1b2027;
@@ -3073,4 +3073,136 @@ button {
 .btn-keypad:hover {
   filter: brightness(1.15);
 }
+
+/* ==========================================================================
+   A. Kartu Transaksi Bertingkat & Lembar Detail Responsive
+   ========================================================================== */
+
+.kartu-transaksi-bertingkat {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.kartu-transaksi-bertingkat:hover {
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent));
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.pc-hover-actions {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .kartu-transaksi-bertingkat:hover .pc-hover-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: var(--surface);
+    padding: 3px 6px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+    border: 1px solid var(--border);
+    z-index: 5;
+  }
+}
+
+.btn-icon-hover {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.btn-icon-hover:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.btn-icon-hover.btn-delete-hover:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Lembar Detail Dialog di PC / Bottom Sheet di HP */
+.lembar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1040;
+  padding: 0;
+}
+
+.lembar-detail-card {
+  width: 100%;
+  max-width: 540px;
+  max-height: 88vh;
+  background: var(--surface);
+  color: var(--text);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lembar-drag-handle {
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+  padding-bottom: 6px;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .lembar-backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+  .lembar-detail-card {
+    border-radius: 20px !important;
+    max-height: 85vh;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    animation: fadeInModal 0.2s ease-out;
+  }
+  .lembar-drag-handle {
+    display: none;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 

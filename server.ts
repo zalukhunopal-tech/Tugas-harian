@@ -133,6 +133,8 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
       pesan: `Gagal membaca struk: ${error.message || "Terjadi kesalahan pada server AI"}`,
     });
   }
+});
+
 // Endpoint untuk menyusun 2-3 paragraf narasi surat justifikasi ketidaklengkapan dokumen
 app.post("/api/gemini/susun-surat-justifikasi", async (req, res) => {
   try {

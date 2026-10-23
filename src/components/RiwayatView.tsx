@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Transaksi, NamaDana, ItemHutangPiutang, TargetTabunganItem } from "../types";
 import {
   formatRupiah,
@@ -13,6 +13,9 @@ import {
 import { BuktiPreviewModal } from "./BuktiPreviewModal";
 import { UtangPiutangView } from "./UtangPiutangView";
 import { TargetTabunganView } from "./TargetTabunganView";
+import { UbinKategori, ChipKategori } from "../lib/kategoriIcon";
+import { LembarDetailTransaksi } from "./LembarDetailTransaksi";
+import { Edit2, Trash2 } from "lucide-react";
 
 interface RiwayatViewProps {
   transaksi: Transaksi[];
@@ -33,11 +36,7 @@ interface RiwayatViewProps {
   onHapusTargetTabungan?: (id: string) => void;
   onBukaTambahTabungan?: (targetId: string, targetNama: string) => void;
   subTabAwal?: "transaksi" | "utang_piutang" | "target_tabungan";
-}
-
-function inisialKategori(k: string): string {
-  const kata = String(k || "?").replace(/&/g, "").split(/\s+/).filter(Boolean);
-  return (kata.length > 1 ? kata[0][0] + kata[1][0] : kata[0].slice(0, 2)).toUpperCase();
+  googleToken?: string;
 }
 
 export const RiwayatView: React.FC<RiwayatViewProps> = ({
@@ -59,8 +58,34 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onHapusTargetTabungan,
   onBukaTambahTabungan,
   subTabAwal = "transaksi",
+  googleToken,
 }) => {
   const [subTab, setSubTab] = useState<"transaksi" | "utang_piutang" | "target_tabungan">(subTabAwal);
+  const [transaksiDetail, setTransaksiDetail] = useState<Transaksi | null>(null);
+  const [menuLongPress, setMenuLongPress] = useState<Transaksi | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef<boolean>(false);
+
+  const handleTouchStart = (item: Transaksi) => {
+    longPressTriggeredRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        try {
+          navigator.vibrate(40);
+        } catch (_) {}
+      }
+      setMenuLongPress(item);
+    }, 500);
+  };
+
+  const handleTouchEndOrMove = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
   // Filter States
   const [filterDana, setFilterDana] = useState<string>("");
   const [cariTeks, setCariTeks] = useState<string>("");
@@ -795,179 +820,261 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                   <strong>
                     {d} {namaBulanPendek.format(dObj)}
                   </strong>{" "}
-                  <span className="hari-nama">{namaHari.format(dObj)}</span>
+                  <span className="hari-nama">· {namaHari.format(dObj)}</span>
                 </span>
-                <span className="hari-total">
-                  {[
-                    keluarHari ? `Pengeluaran: ${formatAngka(keluarHari)}` : "",
-                    masukHari ? `Pemasukan: ${formatAngka(masukHari)}` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginLeft: "auto",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {keluarHari > 0 && (
+                    <span
+                      style={{
+                        color: "var(--keluar)",
+                        fontWeight: 700,
+                        fontSize: "0.82rem",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      −Rp{formatAngka(keluarHari)}
+                    </span>
+                  )}
+                  {masukHari > 0 && (
+                    <span
+                      style={{
+                        color: "var(--masuk)",
+                        fontWeight: 700,
+                        fontSize: "0.82rem",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      +Rp{formatAngka(masukHari)}
+                    </span>
+                  )}
+                </div>
               </div>
-              <ul className="expense-list">
+
+              <ul className="expense-list" style={{ listStyle: "none", padding: 0, margin: "8px 0 0" }}>
                 {itemHari.map((item) => {
-                  const metaBagian = [
-                    item.dana,
-                    item.metode,
-                    item.kaitan,
-                  ].filter(Boolean);
-
-                  const isPindah = item.kategori === "Pindah Dana" || Boolean(item.pasanganId);
-
                   return (
-                    <li key={item.id} className="expense-item">
-                      <div className={`ikon-kategori ${item.jenis}`}>
-                        {isPindah ? "🔄" : inisialKategori(item.kategori)}
-                      </div>
-                      <div className="expense-info">
-                        <div className="expense-desc">
-                          {item.deskripsi}
+                    <li
+                      key={item.id}
+                      className="kartu-transaksi-bertingkat"
+                      onClick={() => {
+                        if (longPressTriggeredRef.current) {
+                          longPressTriggeredRef.current = false;
+                          return;
+                        }
+                        setTransaksiDetail(item);
+                      }}
+                      onTouchStart={() => handleTouchStart(item)}
+                      onTouchMove={handleTouchEndOrMove}
+                      onTouchEnd={handleTouchEndOrMove}
+                      onTouchCancel={handleTouchEndOrMove}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "44px minmax(0, 1fr) auto",
+                        gap: "12px",
+                        alignItems: "flex-start",
+                        padding: "12px 14px",
+                        borderRadius: "16px",
+                        marginBottom: "8px",
+                        borderLeft: `3px solid ${
+                          item.jenis === "pemasukan" ? "var(--masuk)" : "var(--keluar)"
+                        }`,
+                        background: "var(--surface)",
+                        borderTop: "1px solid var(--border)",
+                        borderRight: "1px solid var(--border)",
+                        borderBottom: "1px solid var(--border)",
+                        position: "relative",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {/* Kolom 1: Ikon 44 px */}
+                      <UbinKategori kategori={item.kategori} ukuran={44} sudut={14} ukuranIkon={22} />
 
-                          {/* Badge Pindah Dana */}
-                          {isPindah && (
+                      {/* Kolom 2: Isi bertingkat (min-width: 0) */}
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
+                        {/* Baris 1: Uraian tebal, maks 2 baris lalu "…" */}
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "0.93rem",
+                            lineHeight: 1.35,
+                            color: "var(--text)",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {item.deskripsi}
+                        </div>
+
+                        {/* Baris 2: Chip kategori, teks kecil abu "Dana Pribadi · QRIS", chip "📎 1 bukti" */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "6px 8px",
+                            marginTop: "2px",
+                          }}
+                        >
+                          <ChipKategori kategori={item.kategori} />
+                          <span
+                            style={{
+                              fontSize: "0.78rem",
+                              color: "var(--muted)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {[item.dana, item.metode].filter(Boolean).join(" · ")}
+                          </span>
+                          {item.bukti && item.bukti.length > 0 && (
                             <span
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "3px",
-                                marginLeft: "6px",
                                 padding: "2px 7px",
-                                borderRadius: "8px",
+                                borderRadius: "999px",
                                 fontSize: "0.74rem",
-                                fontWeight: 700,
-                                background: "rgba(56, 189, 248, 0.15)",
-                                color: "#0284c7",
-                                border: "1px solid #38bdf8",
-                                verticalAlign: "middle",
+                                fontWeight: 600,
+                                background: "color-mix(in srgb, var(--accent) 14%, var(--surface))",
+                                color: "var(--accent)",
+                                whiteSpace: "nowrap",
                               }}
                             >
-                              🔄 Pindah Dana
+                              📎 {item.bukti.length} bukti
                             </span>
                           )}
-
-                          {/* Badge Talangan (Interactive toggle) */}
                           {item.isTalangan && (
-                            <button
-                              type="button"
-                              className="btn-small"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                marginLeft: "6px",
-                                padding: "2px 8px",
-                                borderRadius: "8px",
-                                fontSize: "0.74rem",
-                                fontWeight: 700,
-                                background:
-                                  item.statusTalangan === "sudah_diganti"
-                                    ? "rgba(34,197,94,0.15)"
-                                    : "rgba(239,68,68,0.15)",
-                                color:
-                                  item.statusTalangan === "sudah_diganti"
-                                    ? "var(--masuk)"
-                                    : "var(--keluar)",
-                                border:
-                                  item.statusTalangan === "sudah_diganti"
-                                    ? "1px solid var(--masuk)"
-                                    : "1px solid var(--keluar)",
-                                cursor: onToggleStatusTalangan ? "pointer" : "default",
-                                verticalAlign: "middle",
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (onToggleStatusTalangan) {
-                                  onToggleStatusTalangan(item.id);
-                                }
-                              }}
-                              title={
-                                item.statusTalangan === "sudah_diganti"
-                                  ? "Status: Sudah diganti. Klik untuk ubah ke Belum diganti"
-                                  : "Status: Belum diganti. Klik untuk tandai Sudah diganti"
-                              }
-                            >
-                              {item.statusTalangan === "sudah_diganti"
-                                ? "✓ Talangan Lunas"
-                                : "⏳ Talangan Belum Diganti"}
-                            </button>
-                          )}
-
-                          {/* Tombol Bukti Transaksi */}
-                          {item.bukti && item.bukti.length > 0 && (
-                            <button
-                              type="button"
-                              className="btn-small"
+                            <span
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "3px",
-                                marginLeft: "6px",
                                 padding: "2px 7px",
-                                borderRadius: "8px",
-                                fontSize: "0.76rem",
-                                fontWeight: 700,
-                                background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
-                                color: "var(--accent)",
-                                border: "1px solid var(--accent)",
-                                cursor: "pointer",
-                                verticalAlign: "middle",
+                                borderRadius: "999px",
+                                fontSize: "0.72rem",
+                                fontWeight: 600,
+                                background:
+                                  item.statusTalangan === "sudah_diganti"
+                                    ? "rgba(34,197,94,0.12)"
+                                    : "rgba(239,68,68,0.12)",
+                                color:
+                                  item.statusTalangan === "sudah_diganti"
+                                    ? "var(--masuk)"
+                                    : "var(--keluar)",
+                                whiteSpace: "nowrap",
                               }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTransaksiLihatBukti(item);
-                              }}
-                              title={`Lihat ${item.bukti.length} berkas bukti transaksi`}
                             >
-                              📎 {item.bukti.length > 1 ? item.bukti.length : ""}
-                            </button>
-                          )}
-                        </div>
-                        <div className="expense-meta">
-                          {item.kategori} · {metaBagian.join(" · ")}
-                          {item.talanganUntuk && (
-                            <span style={{ color: "var(--accent)", marginLeft: "4px" }}>
-                              · Talangan: {item.talanganUntuk}
+                              {item.statusTalangan === "sudah_diganti" ? "✓ Lunas" : "⏳ Talangan"}
                             </span>
                           )}
                         </div>
+
+                        {/* Baris 3 (bila ada): Sumber/Tujuan atau Kaitan Kegiatan */}
+                        {item.kaitan && (
+                          <div
+                            style={{
+                              fontSize: "0.8rem",
+                              color: "var(--muted)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              lineHeight: 1.35,
+                              marginTop: "1px",
+                            }}
+                            title={item.kaitan}
+                          >
+                            {item.kaitan}
+                          </div>
+                        )}
+
+                        {/* Baris 4 (bila ada): Catatan miring */}
                         {item.catatan && (
-                          <div className="expense-note">{item.catatan}</div>
+                          <div
+                            style={{
+                              fontSize: "0.78rem",
+                              fontStyle: "italic",
+                              color: "var(--muted)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              lineHeight: 1.35,
+                              marginTop: "1px",
+                            }}
+                            title={item.catatan}
+                          >
+                            {item.catatan}
+                          </div>
                         )}
                       </div>
-                      <div className="expense-kanan">
+
+                      {/* Kolom 3: Nominal */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          justifyContent: "flex-start",
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         <span
-                          className={`expense-amount ${
-                            item.jenis === "pemasukan" ? "amount-in" : ""
-                          }`}
+                          style={{
+                            fontWeight: 800,
+                            fontSize: "0.95rem",
+                            fontVariantNumeric: "tabular-nums",
+                            whiteSpace: "nowrap",
+                            lineHeight: 1.35,
+                            color: item.jenis === "pemasukan" ? "var(--masuk)" : "var(--keluar)",
+                          }}
                         >
-                          {item.jenis === "pemasukan" ? "+" : "-"}
-                          {formatRupiah(item.jumlah)}
+                          {item.jenis === "pemasukan"
+                            ? `+Rp${formatAngka(item.jumlah)}`
+                            : `−Rp${formatAngka(item.jumlah)}`}
                         </span>
-                        <div className="expense-buttons">
-                          <button
-                            type="button"
-                            className="btn-small"
-                            onClick={() => onEdit(item)}
-                          >
-                            Ubah
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-small btn-delete"
-                            onClick={() => {
-                              const pesan = isPindah
-                                ? `Transaksi "${item.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
-                                : `Hapus transaksi "${item.deskripsi}"?`;
-                              if (confirm(pesan)) {
-                                onDelete(item.id);
-                              }
-                            }}
-                          >
-                            Hapus
-                          </button>
-                        </div>
+                      </div>
+
+                      {/* Tombol Aksi PC Hover */}
+                      <div className="pc-hover-actions">
+                        <button
+                          type="button"
+                          className="btn-icon-hover"
+                          title="Ubah transaksi"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(item);
+                          }}
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon-hover btn-delete-hover"
+                          title="Hapus transaksi"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isPindah = item.kategori === "Pindah Dana" || Boolean(item.pasanganId);
+                            const pesan = isPindah
+                              ? `Transaksi "${item.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
+                              : `Hapus transaksi "${item.deskripsi}" (${item.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(item.jumlah)})?`;
+                            if (window.confirm(pesan)) {
+                              onDelete(item.id);
+                            }
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
                       </div>
                     </li>
                   );
@@ -1000,6 +1107,110 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         </div>
       )}
         </>
+      )}
+
+      {/* Lembar Detail Transaksi (Bottom Sheet di HP / Dialog di PC) */}
+      <LembarDetailTransaksi
+        transaksi={transaksiDetail}
+        isOpen={Boolean(transaksiDetail)}
+        onClose={() => setTransaksiDetail(null)}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onToggleStatusTalangan={onToggleStatusTalangan}
+        googleToken={googleToken}
+      />
+
+      {/* Menu Tekan Lama (Long Press) di HP */}
+      {menuLongPress && (
+        <div
+          className="lembar-backdrop"
+          onClick={() => setMenuLongPress(null)}
+          style={{ zIndex: 1050 }}
+        >
+          <div
+            className="lembar-detail-card"
+            style={{ padding: "18px 20px 24px", maxWidth: "420px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lembar-drag-handle" onClick={() => setMenuLongPress(null)}>
+              <div
+                style={{
+                  width: "40px",
+                  height: "5px",
+                  borderRadius: "999px",
+                  backgroundColor: "var(--border)",
+                }}
+              />
+            </div>
+            <h3 style={{ margin: "4px 0 2px", fontSize: "1.05rem", fontWeight: 800 }}>
+              {menuLongPress.deskripsi}
+            </h3>
+            <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "var(--muted)" }}>
+              {menuLongPress.jenis === "pemasukan" ? "+" : "−"}Rp{formatAngka(menuLongPress.jumlah)} · {menuLongPress.kategori}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "12px",
+                  fontWeight: 700,
+                }}
+                onClick={() => {
+                  const trx = menuLongPress;
+                  setMenuLongPress(null);
+                  onEdit(trx);
+                }}
+              >
+                <Edit2 size={18} />
+                <span>Ubah Transaksi</span>
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "12px",
+                  background: "rgba(239, 68, 68, 0.12)",
+                  color: "#ef4444",
+                  border: "1px solid #ef4444",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  const trx = menuLongPress;
+                  setMenuLongPress(null);
+                  const isPindah = trx.kategori === "Pindah Dana" || Boolean(trx.pasanganId);
+                  const pesan = isPindah
+                    ? `Transaksi "${trx.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
+                    : `Hapus transaksi "${trx.deskripsi}" (${trx.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(trx.jumlah)})?`;
+                  if (window.confirm(pesan)) {
+                    onDelete(trx.id);
+                  }
+                }}
+              >
+                <Trash2 size={18} />
+                <span>Hapus Transaksi</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: "10px" }}
+                onClick={() => setMenuLongPress(null)}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <BuktiPreviewModal

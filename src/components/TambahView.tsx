@@ -26,6 +26,7 @@ import {
   HasilBacaStruk,
 } from "../lib/geminiStruk";
 import { DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
+import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
@@ -1045,6 +1046,59 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {modeTransaksi !== "pindah_dana" && (
             <div className="field">
               <label htmlFor="kategori">Kategori</label>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  marginBottom: "8px",
+                }}
+              >
+                {daftarKategori.map((kat) => {
+                  const info = dapatkanInfoKategori(kat);
+                  const Ikon = info.ikon;
+                  const isSelected = kategori === kat;
+                  return (
+                    <button
+                      key={kat}
+                      type="button"
+                      onClick={() => setKategori(kat)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "5px 10px",
+                        borderRadius: "999px",
+                        fontSize: "0.8rem",
+                        fontWeight: isSelected ? 700 : 500,
+                        border: isSelected ? `2px solid ${info.warna}` : "1px solid var(--border)",
+                        background: isSelected
+                          ? `color-mix(in srgb, ${info.warna} 22%, var(--surface))`
+                          : "var(--surface)",
+                        color: isSelected ? info.warna : "var(--text)",
+                        cursor: "pointer",
+                        transition: "all 0.12s ease",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "6px",
+                          background: info.warna,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                        }}
+                      >
+                        <Ikon size={12} strokeWidth={2.5} />
+                      </span>
+                      <span>{kat}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <select
                 id="kategori"
                 value={kategori}
