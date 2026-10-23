@@ -1,15 +1,23 @@
 import React, { useState, useMemo } from "react";
-import { Transaksi, NamaDana } from "../types";
-import { formatRupiah, formatAngka, hariIni, formatTanggalLengkap } from "../lib/constants";
+import { Transaksi, NamaDana, ProfilPelapor, DataKegiatan } from "../types";
+import { formatRupiah, formatAngka, hariIni, formatTanggalLengkap, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
 import { BuktiPreviewModal } from "./BuktiPreviewModal";
+import { hitungBatasLaporanFisik } from "../lib/ketentuanKegiatan";
 
 interface LaporanViewProps {
   transaksi: Transaksi[];
+  profilPelapor?: ProfilPelapor;
+  daftarKegiatan?: DataKegiatan[];
 }
 
-export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
+export const LaporanView: React.FC<LaporanViewProps> = ({
+  transaksi,
+  profilPelapor = PROFIL_PELAPOR_DEFAULT,
+  daftarKegiatan = [],
+}) => {
   // 1. Pilihan filter
   const [dana, setDana] = useState<string>("Dana Kegiatan"); // default Dana Kegiatan
+  const [pilihKegiatanId, setPilihKegiatanId] = useState<string>("");
   
   // Default rentang tanggal: awal bulan ini sampai hari ini
   const tglSekarang = hariIni();
@@ -54,18 +62,33 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
     }
   };
 
+  const kegiatanTerpilih = useMemo(() => {
+    return daftarKegiatan.find((k) => k.id === pilihKegiatanId);
+  }, [daftarKegiatan, pilihKegiatanId]);
+
+  const batasLaporanFisik = useMemo(() => {
+    return kegiatanTerpilih?.tanggalSelesai
+      ? hitungBatasLaporanFisik(kegiatanTerpilih.tanggalSelesai)
+      : null;
+  }, [kegiatanTerpilih]);
+
   // 2. Perhitungan Saldo Awal (sebelum tglMulai)
   const saldoAwal = useMemo(() => {
     return transaksi
       .filter((t) => {
         if (dana !== "Semua" && t.dana !== dana) return false;
         if (filterKaitan !== "Semua" && t.kaitan !== filterKaitan) return false;
+        if (pilihKegiatanId) {
+          const cocokId = t.kegiatanId === pilihKegiatanId;
+          const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
+          if (!cocokId && !cocokNama) return false;
+        }
         return t.tanggal < tglMulai;
       })
       .reduce((acc, t) => {
         return acc + (t.jenis === "pemasukan" ? t.jumlah : -t.jumlah);
       }, 0);
-  }, [transaksi, dana, filterKaitan, tglMulai]);
+  }, [transaksi, dana, filterKaitan, tglMulai, pilihKegiatanId, kegiatanTerpilih]);
 
   // Transaksi dalam rentang tanggal dan kaitan
   const transaksiLaporan = useMemo(() => {
@@ -73,10 +96,15 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
       .filter((t) => {
         if (dana !== "Semua" && t.dana !== dana) return false;
         if (filterKaitan !== "Semua" && t.kaitan !== filterKaitan) return false;
+        if (pilihKegiatanId) {
+          const cocokId = t.kegiatanId === pilihKegiatanId;
+          const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
+          if (!cocokId && !cocokNama) return false;
+        }
         return t.tanggal >= tglMulai && t.tanggal <= tglSelesai;
       })
       .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-  }, [transaksi, dana, filterKaitan, tglMulai, tglSelesai]);
+  }, [transaksi, dana, filterKaitan, tglMulai, tglSelesai, pilihKegiatanId, kegiatanTerpilih]);
 
   // Total Penerimaan & Pengeluaran dalam periode (Kategori Pindah Dana tidak dihitung)
   const totalPenerimaan = useMemo(() => {
@@ -311,24 +339,55 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
           </button>
         </div>
 
-        {/* Kaitan Kegiatan */}
-        <div>
-          <label htmlFor="lap-kaitan" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "4px" }}>
-            Kaitan Kegiatan / Sumber
-          </label>
-          <select
-            id="lap-kaitan"
-            value={filterKaitan}
-            onChange={(e) => setFilterKaitan(e.target.value)}
-            style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}
-          >
-            <option value="Semua">Semua Kaitan ({daftarKaitanUnik.length} kegiatan ditemukan)</option>
-            {daftarKaitanUnik.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+        {/* Kaitan Kegiatan / Kegiatan Lapangan */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", marginBottom: "6px" }}>
+          {dana === "Dana Kegiatan" && daftarKegiatan.length > 0 && (
+            <div>
+              <label htmlFor="lap-kegiatan-select" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "4px" }}>
+                Pilih Kegiatan Lapangan
+              </label>
+              <select
+                id="lap-kegiatan-select"
+                value={pilihKegiatanId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setPilihKegiatanId(id);
+                  const kg = daftarKegiatan.find((k) => k.id === id);
+                  if (kg) {
+                    setTglMulai(kg.tanggalMulai);
+                    setTglSelesai(kg.tanggalSelesai);
+                  }
+                }}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}
+              >
+                <option value="">Semua Kegiatan Lapangan</option>
+                {daftarKegiatan.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    📌 {k.nama} ({k.lokasi || "Lokasi tidak dicatat"})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="lap-kaitan" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "4px" }}>
+              Kaitan Kegiatan / Sumber
+            </label>
+            <select
+              id="lap-kaitan"
+              value={filterKaitan}
+              onChange={(e) => setFilterKaitan(e.target.value)}
+              style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text)" }}
+            >
+              <option value="Semua">Semua Kaitan ({daftarKaitanUnik.length} ditemukan)</option>
+              {daftarKaitanUnik.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -338,22 +397,77 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
         <div className="report-header" style={{ borderBottom: "2px solid var(--border)", paddingBottom: "16px", marginBottom: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
             <div>
-              <h1 style={{ margin: "0 0 6px 0", fontSize: "1.4rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <h1 style={{ margin: "0 0 6px 0", fontSize: "1.35rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 {judulLaporan}
               </h1>
               <div style={{ fontSize: "0.88rem", color: "var(--text)" }}>
-                <strong>Periode:</strong> {formatTanggalLengkap(tglMulai)} s.d. {formatTanggalLengkap(tglSelesai)}
+                <strong>Periode Kegiatan:</strong> {formatTanggalLengkap(tglMulai)} s.d. {formatTanggalLengkap(tglSelesai)}
               </div>
               <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "2px" }}>
-                <strong>Kaitan / Agenda:</strong> {filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan}
+                <strong>Kaitan / Agenda:</strong> {kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan}
+                {kegiatanTerpilih?.lokasi && ` · Lokasi: ${kegiatanTerpilih.lokasi}`}
               </div>
             </div>
             <div style={{ textAlign: "right", fontSize: "0.78rem", color: "var(--muted)" }}>
-              <div>Dokumen Laporan Keuangan</div>
+              <div>Dokumen Laporan Pertanggungjawaban (SPJ)</div>
               <div>Dicetak: {new Date().toLocaleDateString("id-ID")}</div>
             </div>
           </div>
         </div>
+
+        {/* Profil Pelapor & Batas Penyerahan Laporan Fisik */}
+        {dana === "Dana Kegiatan" && (
+          <div
+            style={{
+              padding: "12px 16px",
+              borderRadius: "12px",
+              background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+              border: "1.5px solid var(--accent)",
+              marginBottom: "20px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <div style={{ fontSize: "0.74rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--accent)", fontWeight: 700 }}>
+                Pelapor / Penanggung Jawab Lapangan:
+              </div>
+              <div style={{ fontSize: "1.05rem", fontWeight: 800, marginTop: "2px" }}>
+                {profilPelapor.nama}
+              </div>
+              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                {profilPelapor.jabatan} · {profilPelapor.lembaga} (Proyek: {profilPelapor.proyek})
+              </div>
+            </div>
+
+            {batasLaporanFisik && (
+              <div
+                style={{
+                  textAlign: "right",
+                  padding: "8px 14px",
+                  borderRadius: "10px",
+                  background: batasLaporanFisik.hariTersisa < 0 ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)",
+                  border: `1.5px solid ${batasLaporanFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981"}`,
+                }}
+              >
+                <div style={{ fontSize: "0.72rem", color: "var(--muted)", fontWeight: 600 }}>
+                  Batas Penyerahan SPJ Fisik (+14 Hari)
+                </div>
+                <div style={{ fontWeight: 800, fontSize: "0.98rem", color: batasLaporanFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981" }}>
+                  {batasLaporanFisik.formatTeks}
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                  {batasLaporanFisik.hariTersisa < 0
+                    ? `Terlewat ${Math.abs(batasLaporanFisik.hariTersisa)} hari lalu`
+                    : `${batasLaporanFisik.hariTersisa} hari tersisa`}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* PERINGATAN TRANSAKSI TANPA BUKTI */}
         {pengeluaranTanpaBukti.length > 0 && (
@@ -502,12 +616,64 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
                         <td style={{ padding: "8px 10px" }}>{idx + 1}</td>
                         <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>{t.tanggal}</td>
                         <td style={{ padding: "8px 10px" }}>
-                          <div style={{ fontWeight: 600 }}>{t.deskripsi}</div>
-                          {t.kaitan && (
-                            <div style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
-                              Kaitan: {t.kaitan}
+                          <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{t.deskripsi}</div>
+                          {t.detailKegiatan?.keteranganLaporan && (
+                            <div style={{ fontSize: "0.78rem", color: "var(--text)", fontStyle: "italic", marginTop: "2px" }}>
+                              "{t.detailKegiatan.keteranganLaporan}"
                             </div>
                           )}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px", fontSize: "0.72rem" }}>
+                            {t.detailKegiatan?.jenisBukti && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.06)", border: "1px solid var(--border)", fontWeight: 600 }}>
+                                📄 {t.detailKegiatan.jenisBukti}
+                              </span>
+                            )}
+                            {t.detailKegiatan?.rincian && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "#10b981", fontWeight: 700 }}>
+                                🔢 {t.detailKegiatan.rincian.banyaknya} {t.detailKegiatan.rincian.satuan} × {formatRupiah(t.detailKegiatan.rincian.hargaSatuan)}
+                              </span>
+                            )}
+                            {t.detailKegiatan?.perluSuratJustifikasi && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(239,68,68,0.12)", color: "var(--keluar)", fontWeight: 700 }}>
+                                ⚠️ Justifikasi: {t.detailKegiatan.alasanJustifikasi || "Perlu surat"}
+                              </span>
+                            )}
+                            {t.detailKegiatan?.transportasi?.moda && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                🚗 {t.detailKegiatan.transportasi.dari} → {t.detailKegiatan.transportasi.ke} ({t.detailKegiatan.transportasi.moda})
+                              </span>
+                            )}
+                            {t.detailKegiatan?.rentalKendaraan?.jenisMerk && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                🚙 {t.detailKegiatan.rentalKendaraan.jenisMerk} ({t.detailKegiatan.rentalKendaraan.noPolisi}) · {t.detailKegiatan.rentalKendaraan.jumlahHari || 1} hari
+                              </span>
+                            )}
+                            {t.detailKegiatan?.bbm?.jarakTempuh && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                ⛽ {t.detailKegiatan.bbm.jarakTempuh} km (KM: {t.detailKegiatan.bbm.kmSaatIsi})
+                              </span>
+                            )}
+                            {t.detailKegiatan?.akomodasi?.lokasi && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                🏨 {t.detailKegiatan.akomodasi.lokasi} ({t.detailKegiatan.akomodasi.jumlahMalam || 1} malam)
+                              </span>
+                            )}
+                            {t.detailKegiatan?.konsumsi?.jumlahPeserta && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                🍽️ {t.detailKegiatan.konsumsi.jumlahPeserta} peserta
+                              </span>
+                            )}
+                            {t.detailKegiatan?.honorarium?.namaPenerima && (
+                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
+                                💼 {t.detailKegiatan.honorarium.namaPenerima} ({t.detailKegiatan.honorarium.isPNS ? "PNS" : "Non-PNS"})
+                              </span>
+                            )}
+                            {t.kaitan && (
+                              <span style={{ color: "var(--muted)" }}>
+                                📌 {t.kaitan}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: "8px 10px" }}>{t.kategori}</td>
                         <td style={{ padding: "8px 10px" }}>{t.metode || "Tunai"}</td>
@@ -576,14 +742,18 @@ export const LaporanView: React.FC<LaporanViewProps> = ({ transaksi }) => {
           }}
         >
           <div>
-            <p>Mengetahui,</p>
+            <p>Mengetahui / Menyetujui,</p>
             <div style={{ height: "60px" }}></div>
-            <p style={{ fontWeight: 700, textDecoration: "underline" }}>( Penanggung Jawab )</p>
+            <p style={{ fontWeight: 700, textDecoration: "underline" }}>( Koordinator Lapangan )</p>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)", margin: 0 }}>{profilPelapor.lembaga}</p>
           </div>
           <div>
-            <p>Dibuat Oleh,</p>
+            <p>Pelapor / Pengelola Dana,</p>
             <div style={{ height: "60px" }}></div>
-            <p style={{ fontWeight: 700, textDecoration: "underline" }}>( Bendahara / Pengelola )</p>
+            <p style={{ fontWeight: 700, textDecoration: "underline" }}>{profilPelapor.nama}</p>
+            <p style={{ fontSize: "0.78rem", color: "var(--muted)", margin: 0 }}>
+              {profilPelapor.jabatan} · Proyek {profilPelapor.proyek}
+            </p>
           </div>
         </div>
       </div>

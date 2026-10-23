@@ -30,18 +30,58 @@ export const KATEGORI: Record<NamaDana, { pemasukan: string[]; pengeluaran: stri
   "Dana Kegiatan": {
     pemasukan: ["Penerimaan Dana"],
     pengeluaran: [
-      "Transportasi & BBM",
-      "Konsumsi",
+      "Transportasi",
+      "Rental Kendaraan",
+      "BBM",
       "Akomodasi",
-      "Honor & Upah Lokal",
-      "Logistik & Perlengkapan",
-      "ATK & Cetak",
-      "Komunikasi & Pulsa",
-      "Perizinan & Administrasi",
+      "Konsumsi",
+      "Honorarium & Ganti Hari",
+      "Pengadaan Barang & Perlengkapan",
+      "Komunikasi, Listrik & Kurir",
+      "Perdiem",
       "Lain-lain",
     ],
   },
 };
+
+export const KELOMPOK_DANA_KEGIATAN = KATEGORI["Dana Kegiatan"].pengeluaran;
+
+export const PEMETAAN_KATEGORI_LAMA_KEGIATAN: Record<string, string> = {
+  "Transportasi & BBM": "Transportasi",
+  "Honor & Upah Lokal": "Honorarium & Ganti Hari",
+  "Logistik & Perlengkapan": "Pengadaan Barang & Perlengkapan",
+  "ATK & Cetak": "Pengadaan Barang & Perlengkapan",
+  "Komunikasi & Pulsa": "Komunikasi, Listrik & Kurir",
+  "Perizinan & Administrasi": "Lain-lain",
+};
+
+export function petakanKategoriLama(kategori: string, dana: NamaDana): string {
+  if (dana === "Dana Kegiatan" && PEMETAAN_KATEGORI_LAMA_KEGIATAN[kategori]) {
+    return PEMETAAN_KATEGORI_LAMA_KEGIATAN[kategori];
+  }
+  return kategori;
+}
+
+export const LAPORAN_KEGIATAN_KEY = "keuangan-laporan-kegiatan";
+export const PROFIL_PELAPOR_KEY = "keuangan-profil-pelapor";
+export const DAFTAR_KEGIATAN_KEY = "keuangan-daftar-kegiatan";
+
+export const PROFIL_PELAPOR_DEFAULT = {
+  nama: "Adrila Nopal Prastian Zalukhu",
+  jabatan: "Surveyor",
+  lembaga: "KKI Warsi",
+  proyek: "Kayan-Mentarang",
+};
+
+export const DAFTAR_JENIS_BUKTI = [
+  "Kwitansi",
+  "Nota",
+  "Struk thermal (minimarket/SPBU)",
+  "Tiket",
+  "Tiket pesawat/e-ticket",
+  "Invoice + kwitansi",
+  "Bukti tidak lengkap",
+] as const;
 
 export const DANA_DEFAULT: NamaDana = "Dana Pribadi";
 

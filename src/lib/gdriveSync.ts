@@ -1,5 +1,5 @@
-import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan } from "../types";
-import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus } from "./storage";
+import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan, LaporanKegiatanFileContent } from "../types";
+import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile } from "./storage";
 
 export interface GDriveFolder {
   id: string;
@@ -29,6 +29,7 @@ export interface KeuanganDriveContents {
   fileHarga?: GDriveFileInfo;
   fileSinkron?: GDriveFileInfo;
   filePengaturan?: GDriveFileInfo;
+  fileLaporanKegiatan?: GDriveFileInfo;
   allFiles: GDriveFileInfo[];
 }
 
@@ -155,6 +156,8 @@ export async function ambilIsiFolderKeuangan(
       contents.fileSinkron = f;
     } else if (f.name === "Pengaturan.json" || namaLower.includes("pengaturan.json")) {
       contents.filePengaturan = f;
+    } else if (f.name === "Laporan Kegiatan.json" || namaLower.includes("laporan kegiatan.json")) {
+      contents.fileLaporanKegiatan = f;
     }
   }
 
@@ -911,6 +914,71 @@ export async function simpanPengaturanKeDrive(
   }
 }
 
+export async function bacaLaporanKegiatanDariDrive(
+  token: string,
+  fileId: string
+): Promise<LaporanKegiatanFileContent | null> {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as LaporanKegiatanFileContent;
+  } catch (e) {
+    console.warn("Gagal membaca Laporan Kegiatan.json dari Drive:", e);
+    return null;
+  }
+}
+
+export async function simpanLaporanKegiatanKeDrive(
+  token: string,
+  folderId: string,
+  fileId: string | null,
+  data: LaporanKegiatanFileContent
+): Promise<string> {
+  const konten = JSON.stringify(data, null, 2);
+
+  if (fileId) {
+    const res = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: konten,
+      }
+    );
+    if (!res.ok) throw new Error("Gagal memperbarui file Laporan Kegiatan.json di Drive");
+    return fileId;
+  } else {
+    const metadata = {
+      name: "Laporan Kegiatan.json",
+      parents: [folderId],
+      mimeType: "application/json",
+    };
+    const form = new FormData();
+    form.append(
+      "metadata",
+      new Blob([JSON.stringify(metadata)], { type: "application/json" })
+    );
+    form.append("file", new Blob([konten], { type: "application/json" }));
+
+    const res = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      }
+    );
+    if (!res.ok) throw new Error("Gagal membuat file Laporan Kegiatan.json di Drive");
+    const json = await res.json();
+    return json.id;
+  }
+}
+
 /**
  * Mencari atau menyalin file spreadsheet untuk dana dan tahun tertentu ("Keuangan Pribadi 2026", "Keuangan Kegiatan 2026").
  * Jika belum ada, buat salinan dari file tahun sebelumnya (atau template lain yang tersedia) lalu kosongkan baris datanya (mulai baris 7).
@@ -1086,7 +1154,8 @@ export async function kirimSemuaKeDrive(
   token: string,
   transaksiList: Transaksi[],
   asetList: AsetItem[],
-  pengaturan?: import("../types").PengaturanKeuangan
+  pengaturan?: import("../types").PengaturanKeuangan,
+  laporanKegiatan?: LaporanKegiatanFileContent
 ): Promise<{ jumlahTrx: number; jumlahAset: number }> {
   // 1. Temukan atau buat folder Keuangan
   let folder = await cariFolderKeuangan(token);
@@ -1273,6 +1342,19 @@ export async function kirimSemuaKeDrive(
     }
   }
 
+  // 7. Simpan Laporan Kegiatan.json
+  try {
+    const dataLaporan = laporanKegiatan || muatLaporanKegiatanFile();
+    await simpanLaporanKegiatanKeDrive(
+      token,
+      folder.id,
+      contents.fileLaporanKegiatan ? contents.fileLaporanKegiatan.id : null,
+      dataLaporan
+    );
+  } catch (e: any) {
+    console.warn("Gagal menyimpan Laporan Kegiatan.json ke Drive:", e.message);
+  }
+
   return {
     jumlahTrx: transaksiAktif.length,
     jumlahAset: asetList.length,
@@ -1296,6 +1378,7 @@ export async function tarikSemuaDariDrive(
   aset: AsetItem[];
   harga: DataHarga;
   pengaturan?: PengaturanKeuangan;
+  laporanKegiatan?: LaporanKegiatanFileContent;
   contents: KeuanganDriveContents;
   totalTrxDitarik: number;
   totalAsetDitarik: number;
@@ -1376,13 +1459,123 @@ export async function tarikSemuaDariDrive(
     }
   }
 
+  // 7. Tarik Laporan Kegiatan.json jika ada
+  let laporanKegiatanBaru: LaporanKegiatanFileContent | undefined;
+  if (contents.fileLaporanKegiatan) {
+    try {
+      const lDrive = await bacaLaporanKegiatanDariDrive(token, contents.fileLaporanKegiatan.id);
+      if (lDrive) {
+        laporanKegiatanBaru = lDrive;
+        simpanLaporanKegiatanFile(lDrive);
+      }
+    } catch (e: any) {
+      console.warn("Gagal membaca Laporan Kegiatan.json dari Drive:", e.message);
+    }
+  }
+
   return {
     transaksi: hasilGabungTrx,
     aset: asetBaru,
     harga: hargaBaru,
     pengaturan: pengaturanBaru,
+    laporanKegiatan: laporanKegiatanBaru,
     contents,
     totalTrxDitarik: remoteTrx.length,
     totalAsetDitarik,
   };
 }
+
+/**
+ * Mencari atau membuat subfolder "Laporan Kegiatan" di dalam folder Keuangan
+ */
+export async function dapatkanFolderLaporanKegiatan(
+  token: string,
+  folderKeuanganId: string
+): Promise<GDriveFolder> {
+  return await temukanAtauBuatSubfolder(token, folderKeuanganId, "Laporan Kegiatan");
+}
+
+/**
+ * Menyimpan atau memperbarui file Word (.docx) laporan keuangan kegiatan di Google Drive.
+ * Timpa file jika nama file sudah ada di folder agar tidak membuat duplikat.
+ */
+export async function simpanDocxLaporanKeDrive(
+  token: string,
+  folderLaporanId: string,
+  namaFileDocx: string,
+  fileDocxBlob: Blob,
+  fileIdTerdahulu?: string
+): Promise<{ id: string; webViewLink?: string }> {
+  let fileId = fileIdTerdahulu;
+
+  // Jika belum ada ID, cari apakah sudah ada file dengan nama sama di folder Laporan Kegiatan
+  if (!fileId) {
+    const q = `'${folderLaporanId}' in parents and name = '${namaFileDocx.replace(/'/g, "\\'")}' and trashed = false`;
+    try {
+      const searchRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink)`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        if (data.files && data.files.length > 0) {
+          fileId = data.files[0].id;
+        }
+      }
+    } catch (e) {
+      console.warn("Pencarian file Word di Drive gagal:", e);
+    }
+  }
+
+  const mimeTypeDocx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  if (fileId) {
+    // Timpa file yang sama (PATCH)
+    const res = await fetch(
+      `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": mimeTypeDocx,
+        },
+        body: fileDocxBlob,
+      }
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gagal memperbarui file Laporan Word di Google Drive: ${err}`);
+    }
+    const data = await res.json();
+    return { id: fileId, webViewLink: data.webViewLink };
+  } else {
+    // Buat file baru (POST multipart)
+    const metadata = {
+      name: namaFileDocx,
+      parents: [folderLaporanId],
+      mimeType: mimeTypeDocx,
+    };
+    const form = new FormData();
+    form.append(
+      "metadata",
+      new Blob([JSON.stringify(metadata)], { type: "application/json" })
+    );
+    form.append("file", fileDocxBlob);
+
+    const res = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      }
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gagal membuat file Laporan Word di Google Drive: ${err}`);
+    }
+    const data = await res.json();
+    return { id: data.id, webViewLink: data.webViewLink };
+  }
+}
+

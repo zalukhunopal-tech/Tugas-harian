@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig } from "../types";
-import { KARAKTER } from "../lib/constants";
+import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor } from "../types";
+import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
@@ -32,6 +32,9 @@ interface SayaViewProps {
 
   appLockConfig?: AppLockConfig;
   onSimpanAppLockConfig?: (config: AppLockConfig) => void;
+
+  profilPelapor?: ProfilPelapor;
+  onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
 }
 
 export const SayaView: React.FC<SayaViewProps> = ({
@@ -55,8 +58,33 @@ export const SayaView: React.FC<SayaViewProps> = ({
   jumlahTransaksiBerulang = 0,
   appLockConfig = { enabled: false, pinHash: "", salt: "", webAuthnEnabled: false },
   onSimpanAppLockConfig,
+  profilPelapor,
+  onSimpanProfilPelapor,
 }) => {
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
+  const [profilForm, setProfilForm] = useState<ProfilPelapor>(() => {
+    return profilPelapor || PROFIL_PELAPOR_DEFAULT;
+  });
+  const [statusSimpanProfil, setStatusSimpanProfil] = useState<string>("");
+
+  React.useEffect(() => {
+    if (profilPelapor) {
+      setProfilForm(profilPelapor);
+    }
+  }, [profilPelapor]);
+
+  const handleSimpanProfil = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onSimpanProfilPelapor) {
+      onSimpanProfilPelapor({
+        ...profilForm,
+        diubah: new Date().toISOString(),
+      });
+      setStatusSimpanProfil("Profil pelapor tersimpan");
+      setTimeout(() => setStatusSimpanProfil(""), 3000);
+    }
+  };
+
   const handleExportCSV = () => {
     if (transaksi.length === 0) {
       alert("Belum ada transaksi untuk diunduh.");
@@ -272,6 +300,9 @@ export const SayaView: React.FC<SayaViewProps> = ({
                     <span className={`gdrive-badge ${driveContents.fileAset ? "ok" : ""}`}>
                       {driveContents.fileAset ? "✓ Aset.json" : "— Aset.json"}
                     </span>
+                    <span className={`gdrive-badge ${driveContents.fileLaporanKegiatan ? "ok" : ""}`}>
+                      {driveContents.fileLaporanKegiatan ? "✓ Laporan Kegiatan.json" : "— Laporan Kegiatan.json"}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -313,6 +344,91 @@ export const SayaView: React.FC<SayaViewProps> = ({
               {syncStatusPesan}
             </p>
           )}
+        </div>
+      </details>
+
+      {/* ===== Folder: Profil Pelapor (Dana Kegiatan) ===== */}
+      <details className="folder" id="folder-profil-pelapor" open>
+        <summary>
+          <span className="folder-icon" aria-hidden="true">📋</span>
+          <span className="folder-title">Profil Pelapor Dana Kegiatan</span>
+          <span className="folder-hint" id="hint-profil-pelapor">
+            {profilForm.nama ? `${profilForm.jabatan} • ${profilForm.lembaga}` : "belum diatur"}
+          </span>
+        </summary>
+        <div className="folder-body">
+          <p className="help">
+            Profil pelapor digunakan sebagai identitas resmi penyusun Laporan Pertanggungjawaban (SPJ) Dana Kegiatan.
+            Data ini tersimpan aman di berkas <code>Laporan Kegiatan.json</code> di folder Keuangan dan tersinkronisasi otomatis.
+          </p>
+
+          <form onSubmit={handleSimpanProfil} style={{ display: "grid", gap: "12px", marginTop: "12px" }}>
+            <div className="input-field">
+              <label htmlFor="profil-nama" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Nama Lengkap Pelapor</label>
+              <input
+                id="profil-nama"
+                type="text"
+                value={profilForm.nama}
+                onChange={(e) => setProfilForm({ ...profilForm, nama: e.target.value })}
+                placeholder="Nama pelapor"
+                required
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+              <div className="input-field">
+                <label htmlFor="profil-jabatan" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Jabatan</label>
+                <input
+                  id="profil-jabatan"
+                  type="text"
+                  value={profilForm.jabatan}
+                  onChange={(e) => setProfilForm({ ...profilForm, jabatan: e.target.value })}
+                  placeholder="Contoh: Surveyor"
+                  required
+                />
+              </div>
+
+              <div className="input-field">
+                <label htmlFor="profil-lembaga" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Lembaga / Organisasi</label>
+                <input
+                  id="profil-lembaga"
+                  type="text"
+                  value={profilForm.lembaga}
+                  onChange={(e) => setProfilForm({ ...profilForm, lembaga: e.target.value })}
+                  placeholder="Contoh: KKI Warsi"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="input-field">
+              <label htmlFor="profil-proyek" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Nama Proyek / Lanskap</label>
+              <input
+                id="profil-proyek"
+                type="text"
+                value={profilForm.proyek}
+                onChange={(e) => setProfilForm({ ...profilForm, proyek: e.target.value })}
+                placeholder="Contoh: Kayan-Mentarang"
+                required
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "4px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                Awal: Adrila Nopal Prastian Zalukhu (Surveyor, KKI Warsi, Kayan-Mentarang)
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                {statusSimpanProfil && (
+                  <span style={{ fontSize: "0.82rem", color: "#10b981", fontWeight: 700 }}>
+                    ✓ {statusSimpanProfil}
+                  </span>
+                )}
+                <button type="submit" className="btn-primary" style={{ padding: "8px 20px", fontSize: "0.88rem" }}>
+                  Simpan Profil Pelapor
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
       </details>
 
