@@ -14,7 +14,7 @@ export const RECURRING_KEY = "keuangan-transaksi-berulang";
 
 export const KATEGORI: Record<NamaDana, { pemasukan: string[]; pengeluaran: string[] }> = {
   "Dana Pribadi": {
-    pemasukan: ["Pemasukan Gaji", "Pemasukan Lain"],
+    pemasukan: ["Pemasukan Gaji", "Pemasukan Lain", "Perdiem"],
     pengeluaran: [
       "Makan & Minum",
       "Transportasi",
