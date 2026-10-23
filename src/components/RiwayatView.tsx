@@ -16,6 +16,7 @@ import { TargetTabunganView } from "./TargetTabunganView";
 import { UbinKategori, ChipKategori } from "../lib/kategoriIcon";
 import { LembarDetailTransaksi } from "./LembarDetailTransaksi";
 import { Edit2, Trash2 } from "lucide-react";
+import { pesanHapusPerdiem } from "../lib/perdiemOtomatis";
 
 interface RiwayatViewProps {
   transaksi: Transaksi[];
@@ -1067,7 +1068,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                             const isPindah = item.kategori === "Pindah Dana" || Boolean(item.pasanganId);
                             const pesan = isPindah
                               ? `Transaksi "${item.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
-                              : `Hapus transaksi "${item.deskripsi}" (${item.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(item.jumlah)})?`;
+                              : pesanHapusPerdiem(item, transaksi) ??
+                                `Hapus transaksi "${item.deskripsi}" (${item.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(item.jumlah)})?`;
                             if (window.confirm(pesan)) {
                               onDelete(item.id);
                             }
@@ -1118,6 +1120,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         onDelete={onDelete}
         onToggleStatusTalangan={onToggleStatusTalangan}
         googleToken={googleToken}
+        daftarTransaksi={transaksi}
       />
 
       {/* Menu Tekan Lama (Long Press) di HP */}
@@ -1191,7 +1194,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                   const isPindah = trx.kategori === "Pindah Dana" || Boolean(trx.pasanganId);
                   const pesan = isPindah
                     ? `Transaksi "${trx.deskripsi}" merupakan transaksi Pindah Dana. Menghapus transaksi ini juga akan otomatis menghapus transaksi pasangannya di dana terkait. Lanjutkan?`
-                    : `Hapus transaksi "${trx.deskripsi}" (${trx.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(trx.jumlah)})?`;
+                    : pesanHapusPerdiem(trx, transaksi) ??
+                      `Hapus transaksi "${trx.deskripsi}" (${trx.jenis === "pemasukan" ? "+" : "−"}Rp${formatAngka(trx.jumlah)})?`;
                   if (window.confirm(pesan)) {
                     onDelete(trx.id);
                   }

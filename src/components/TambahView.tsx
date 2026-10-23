@@ -19,7 +19,7 @@ import {
   DataKhususKegiatan,
 } from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
-import { buatId } from "../lib/storage";
+import { buatId, muatIdTerhapus } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import {
   optimalkanGambarStruk,
@@ -28,11 +28,25 @@ import {
 } from "../lib/geminiStruk";
 import { DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
+import {
+  PERDIEM_RENTANG_AWAL,
+  PerdiemRentang,
+  buatPemasukanPribadiDariPerdiem,
+  cariPasanganPerdiem,
+  hitungRentangPerdiem,
+  idPemasukanPribadi,
+  rencanakanPerdiemRentang,
+  tanggalPendek,
+  tanggalSudahAdaPerdiem,
+} from "../lib/perdiemOtomatis";
 
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
-  onSimpan: (t: Transaksi | Transaksi[]) => void;
+  /** `hapusIds`: transaksi yang harus ikut dihapus bersama penyimpanan ini (mis. pemasukan pribadi perdiem yang dilepas). */
+  onSimpan: (t: Transaksi | Transaksi[], hapusIds?: string[]) => void;
   onBatalEdit: () => void;
+  /** True bila form ini dibuka dari pemasukan pribadi otomatis dan dialihkan ke perdiem Dana Kegiatan-nya. */
+  dialihkanDariPerdiemPribadi?: boolean;
   initialScanFile?: File | null;
   onResetInitialScan?: () => void;
   initialScanMode?: "kamera" | "galeri" | null;
@@ -51,6 +65,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   editTransaksi,
   onSimpan,
   onBatalEdit,
+  dialihkanDariPerdiemPribadi = false,
   initialScanFile = null,
   onResetInitialScan,
   initialScanMode = null,
@@ -110,6 +125,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
     jumlahHari: 1,
   });
   const [perdiem, setPerdiem] = useState<DetailPerdiem>({});
+  // Perdiem otomatis: pengisian sekaligus per rentang tanggal dan pemasukan pribadi yang menyertai perdiem
+  const [perdiemRentang, setPerdiemRentang] = useState<PerdiemRentang>(PERDIEM_RENTANG_AWAL);
+  const [catatPerdiemPribadi, setCatatPerdiemPribadi] = useState<boolean>(true);
+  const [galatForm, setGalatForm] = useState<string>("");
 
   // Bukti Transaksi States
   const [bukti, setBukti] = useState<BuktiItem[]>([]);
@@ -183,6 +202,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setPerdiem(dk.perdiem || {});
         }
       }
+      // Perdiem yang sudah punya pemasukan pribadi otomatis: pilihan awalnya tetap terhubung.
+      setPerdiemRentang(PERDIEM_RENTANG_AWAL);
+      setCatatPerdiemPribadi(Boolean(cariPasanganPerdiem(editTransaksi, daftarTransaksi)));
+      setGalatForm("");
     } else {
       setModeTransaksi("pengeluaran");
       setJenis("pengeluaran");
@@ -221,6 +244,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
       setPerdiem({});
+      setPerdiemRentang(PERDIEM_RENTANG_AWAL);
+      setCatatPerdiemPribadi(true);
+      setGalatForm("");
     }
   }, [editTransaksi, targetTabunganAwalId]);
 
@@ -497,64 +523,132 @@ export const TambahView: React.FC<TambahViewProps> = ({
       onSimpan([trxKeluar, trxMasuk]);
     } else {
       if (!deskripsi.trim()) return;
+      setGalatForm("");
 
-      let detailKegiatanData: DataKhususKegiatan | undefined = undefined;
-      if (dana === "Dana Kegiatan") {
-        const subtotal =
-          Number(rincianBanyaknya) > 0 && Number(rincianHargaSatuan) > 0
-            ? Number(rincianBanyaknya) * Number(rincianHargaSatuan)
-            : undefined;
+      const perdiemKegiatan = dana === "Dana Kegiatan" && jenis === "pengeluaran" && kategori === "Perdiem";
 
-        detailKegiatanData = {
-          jenisBukti,
-          namaPenjualPenyedia: namaPenjualPenyedia.trim() || undefined,
-          rincian:
-            subtotal !== undefined
-              ? {
-                  banyaknya: Number(rincianBanyaknya),
-                  satuan: rincianSatuan.trim() || "unit",
-                  hargaSatuan: Number(rincianHargaSatuan),
-                  total: subtotal,
-                }
-              : undefined,
-          keteranganLaporan: keteranganLaporan.trim() || undefined,
-          perluSuratJustifikasi: Boolean(
-            perluSuratJustifikasi || jenisBukti === "Bukti tidak lengkap"
-          ),
-          alasanJustifikasi: alasanJustifikasi.trim() || undefined,
-          fotoPendukung: fotoPendukung.length > 0 ? fotoPendukung : undefined,
-          transportasi: kategori === "Transportasi" ? transportasi : undefined,
-          rentalKendaraan: kategori === "Rental Kendaraan" ? rentalKendaraan : undefined,
-          bbm: kategori === "BBM" ? bbm : undefined,
-          akomodasi: kategori === "Akomodasi" ? akomodasi : undefined,
-          konsumsi: kategori === "Konsumsi" ? konsumsi : undefined,
-          honorarium: kategori === "Honorarium & Ganti Hari" ? honorarium : undefined,
-          perdiem: kategori === "Perdiem" ? perdiem : undefined,
+      // Membangun satu transaksi dari isian form. Pada pengisian perdiem sekaligus fungsi ini dipanggil sekali
+      // per transaksi dengan tanggal, jumlah, dan rincian perdiem masing-masing; lampiran (bukti dan foto
+      // pendukung) hanya dilekatkan pada transaksi pertama supaya tidak digandakan puluhan kali.
+      const bangunTransaksi = (o: {
+        id: string;
+        tanggal: string;
+        deskripsi: string;
+        jumlah: number;
+        perdiem?: DetailPerdiem;
+        denganLampiran: boolean;
+      }): Transaksi => {
+        let detailKegiatanData: DataKhususKegiatan | undefined = undefined;
+        if (dana === "Dana Kegiatan") {
+          const subtotal =
+            Number(rincianBanyaknya) > 0 && Number(rincianHargaSatuan) > 0
+              ? Number(rincianBanyaknya) * Number(rincianHargaSatuan)
+              : undefined;
+
+          detailKegiatanData = {
+            jenisBukti,
+            namaPenjualPenyedia: namaPenjualPenyedia.trim() || undefined,
+            rincian:
+              subtotal !== undefined
+                ? {
+                    banyaknya: Number(rincianBanyaknya),
+                    satuan: rincianSatuan.trim() || "unit",
+                    hargaSatuan: Number(rincianHargaSatuan),
+                    total: subtotal,
+                  }
+                : undefined,
+            keteranganLaporan: keteranganLaporan.trim() || undefined,
+            perluSuratJustifikasi: Boolean(
+              perluSuratJustifikasi || jenisBukti === "Bukti tidak lengkap"
+            ),
+            alasanJustifikasi: alasanJustifikasi.trim() || undefined,
+            fotoPendukung: o.denganLampiran && fotoPendukung.length > 0 ? fotoPendukung : undefined,
+            transportasi: kategori === "Transportasi" ? transportasi : undefined,
+            rentalKendaraan: kategori === "Rental Kendaraan" ? rentalKendaraan : undefined,
+            bbm: kategori === "BBM" ? bbm : undefined,
+            akomodasi: kategori === "Akomodasi" ? akomodasi : undefined,
+            konsumsi: kategori === "Konsumsi" ? konsumsi : undefined,
+            honorarium: kategori === "Honorarium & Ganti Hari" ? honorarium : undefined,
+            perdiem: kategori === "Perdiem" ? o.perdiem ?? perdiem : undefined,
+          };
+        }
+
+        return {
+          id: o.id,
+          jenis,
+          dana,
+          tanggal: o.tanggal,
+          deskripsi: o.deskripsi,
+          kategori: kategori || daftarKategori[0] || "Lain-lain",
+          jumlah: o.jumlah,
+          metode,
+          kaitan: kaitan.trim(),
+          catatan: catatan.trim(),
+          isTalangan,
+          statusTalangan: isTalangan ? statusTalangan : undefined,
+          talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
+          targetTabunganId: kategori === "Tabungan" && targetTabunganId ? targetTabunganId : undefined,
+          kegiatanId: dana === "Dana Kegiatan" && kegiatanId ? kegiatanId : undefined,
+          detailKegiatan: detailKegiatanData,
+          diubah: new Date().toISOString(),
+          bukti: o.denganLampiran ? bukti : [],
         };
-      }
-
-      const trx: Transaksi = {
-        id: editTransaksi ? editTransaksi.id : buatId(),
-        jenis,
-        dana,
-        tanggal,
-        deskripsi: deskripsi.trim(),
-        kategori: kategori || daftarKategori[0] || "Lain-lain",
-        jumlah: jml,
-        metode,
-        kaitan: kaitan.trim(),
-        catatan: catatan.trim(),
-        isTalangan,
-        statusTalangan: isTalangan ? statusTalangan : undefined,
-        talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
-        targetTabunganId: kategori === "Tabungan" && targetTabunganId ? targetTabunganId : undefined,
-        kegiatanId: dana === "Dana Kegiatan" && kegiatanId ? kegiatanId : undefined,
-        detailKegiatan: detailKegiatanData,
-        diubah: new Date().toISOString(),
-        bukti,
       };
 
-      onSimpan(trx);
+      if (perdiemKegiatan && !editTransaksi && perdiemRentang.aktif) {
+        // Perdiem sekaligus untuk rentang tanggal (mis. 20 Sep - 28 Okt): satu transaksi per hari atau satu gabungan.
+        const tarif = Number(perdiem.tarifPerHari) || 0;
+        const hitungan = hitungRentangPerdiem(perdiemRentang, tarif);
+        const idTerpakai = new Set(daftarTransaksi.map((t) => t.id));
+        const idBaru = () => {
+          let id = buatId();
+          while (idTerpakai.has(id)) id = buatId();
+          idTerpakai.add(id);
+          return id;
+        };
+        const uraian = deskripsi.trim();
+        const rencana = rencanakanPerdiemRentang({
+          rentang: perdiemRentang,
+          tarifPerHari: tarif,
+          catatPribadi: catatPerdiemPribadi,
+          sudahAda: tanggalSudahAdaPerdiem(daftarTransaksi, kegiatanId, hitungan.dipakai),
+          buat: (u) =>
+            bangunTransaksi({
+              id: idBaru(),
+              tanggal: u.tanggal,
+              deskripsi: `${uraian} · ${u.labelRentang ?? tanggalPendek(u.tanggal)}`,
+              jumlah: u.jumlah,
+              perdiem: {
+                jumlahHari: u.hari,
+                tarifPerHari: Math.round(tarif),
+                keterangan: [perdiem.keterangan?.trim(), u.labelRentang].filter(Boolean).join(" · ") || undefined,
+              },
+              denganLampiran: u.urutan === 0,
+            }),
+        });
+        if (rencana.galat) {
+          setGalatForm(rencana.galat);
+          return;
+        }
+        onSimpan(rencana.semua);
+      } else {
+        const trx = bangunTransaksi({
+          id: editTransaksi ? editTransaksi.id : buatId(),
+          tanggal,
+          deskripsi: deskripsi.trim(),
+          jumlah: jml,
+          denganLampiran: true,
+        });
+        // Pemasukan pribadi otomatis milik perdiem yang sedang diubah (bila ada). Dipertahankan bila perdiem
+        // tetap perdiem Dana Kegiatan dan pilihannya masih aktif; selain itu dilepas dan dihapus.
+        const pasanganLama = editTransaksi ? cariPasanganPerdiem(editTransaksi, daftarTransaksi) : undefined;
+        if (perdiemKegiatan && catatPerdiemPribadi) {
+          const idPasangan = pasanganLama?.id ?? idPemasukanPribadi(trx.id, muatIdTerhapus());
+          onSimpan([trx, buatPemasukanPribadiDariPerdiem(trx, idPasangan)]);
+        } else {
+          onSimpan(trx, pasanganLama ? [pasanganLama.id] : undefined);
+        }
+      }
     }
 
     if (!editTransaksi) {
@@ -584,9 +678,18 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
       setPerdiem({});
+      setPerdiemRentang(PERDIEM_RENTANG_AWAL);
       handleResetScan();
     }
   };
+
+  const rentangPerdiemAktif =
+    !editTransaksi &&
+    perdiemRentang.aktif &&
+    modeTransaksi !== "pindah_dana" &&
+    dana === "Dana Kegiatan" &&
+    jenis === "pengeluaran" &&
+    kategori === "Perdiem";
 
   const handlePilihJadwal = (item: TransaksiBerulang) => {
     setJenis(item.jenis);
@@ -912,6 +1015,22 @@ export const TambahView: React.FC<TambahViewProps> = ({
       <section className="card" id="kartu-form">
         <h2 id="judul-form">{editTransaksi ? "Ubah Transaksi" : "Formulir Transaksi"}</h2>
         <form id="form-transaksi" ref={formRef} onSubmit={handleSubmit}>
+          {dialihkanDariPerdiemPribadi && (
+            <p
+              id="info-dialihkan-perdiem"
+              style={{
+                margin: "0 0 12px",
+                padding: "8px 12px",
+                fontSize: "0.82rem",
+                borderRadius: "10px",
+                border: "1px solid var(--border)",
+                background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
+              }}
+            >
+              Pemasukan ini dibuat otomatis dari perdiem di Dana Kegiatan, jadi yang dibuka adalah perdiem-nya.
+              Perubahan di sini ikut mengubah pemasukan pribadinya.
+            </p>
+          )}
           <fieldset className="field segmented">
             <legend>Jenis Transaksi</legend>
             <div className="segmented-options" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -1050,8 +1169,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <input
               type="date"
               id="tanggal"
-              value={tanggal}
+              value={rentangPerdiemAktif ? perdiemRentang.mulai || tanggal : tanggal}
               onChange={(e) => setTanggal(e.target.value)}
+              disabled={rentangPerdiemAktif}
+              title={rentangPerdiemAktif ? "Tanggal mengikuti rentang perdiem di bawah" : undefined}
               required
             />
           </div>
@@ -1247,6 +1368,14 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 onUpdateHonorarium={setHonorarium}
                 perdiem={perdiem}
                 onUpdatePerdiem={setPerdiem}
+                rentangPerdiem={perdiemRentang}
+                onUpdateRentangPerdiem={setPerdiemRentang}
+                catatPerdiemPribadi={catatPerdiemPribadi}
+                onUpdateCatatPerdiemPribadi={setCatatPerdiemPribadi}
+                bolehIsiSekaligus={!editTransaksi}
+                tanggalForm={tanggal}
+                daftarTransaksi={daftarTransaksi}
+                sudahTerhubungPribadi={Boolean(editTransaksi && cariPasanganPerdiem(editTransaksi, daftarTransaksi))}
               />
             </div>
           ) : (
@@ -1564,6 +1693,12 @@ export const TambahView: React.FC<TambahViewProps> = ({
               </div>
             )}
           </div>
+
+          {galatForm && (
+            <p id="galat-form" role="alert" style={{ margin: "0 0 10px", fontSize: "0.85rem", color: "var(--keluar)" }}>
+              {galatForm}
+            </p>
+          )}
 
           <div className="form-actions">
             <button

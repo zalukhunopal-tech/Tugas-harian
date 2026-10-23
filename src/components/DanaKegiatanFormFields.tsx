@@ -18,6 +18,8 @@ import {
 import { DAFTAR_JENIS_BUKTI, formatRupiah, hariIni } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
+import { PerdiemRentang, hitungRentangPerdiem } from "../lib/perdiemOtomatis";
+import { PerdiemSekaligus, kontrolPilihan } from "./PerdiemSekaligus";
 import {
   hitungBatasLaporanFisik,
   cekKetentuanTransaksi,
@@ -74,6 +76,18 @@ interface DanaKegiatanFormFieldsProps {
   onUpdateHonorarium: (h: DetailHonorarium) => void;
   perdiem: DetailPerdiem;
   onUpdatePerdiem: (p: DetailPerdiem) => void;
+
+  // Perdiem otomatis: isi sekaligus per rentang tanggal dan pemasukan pribadi yang menyertainya
+  rentangPerdiem: PerdiemRentang;
+  onUpdateRentangPerdiem: (r: PerdiemRentang) => void;
+  catatPerdiemPribadi: boolean;
+  onUpdateCatatPerdiemPribadi: (v: boolean) => void;
+  /** False saat mengubah transaksi yang sudah ada: pengisian sekaligus hanya untuk transaksi baru. */
+  bolehIsiSekaligus: boolean;
+  tanggalForm: string;
+  daftarTransaksi: Transaksi[];
+  /** True bila perdiem yang sedang diubah sudah punya pemasukan pribadi otomatis. */
+  sudahTerhubungPribadi: boolean;
 }
 
 const KUNCI_TARIF_PERDIEM = "keuangan-tarif-perdiem";
@@ -142,6 +156,14 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   onUpdateHonorarium,
   perdiem,
   onUpdatePerdiem,
+  rentangPerdiem,
+  onUpdateRentangPerdiem,
+  catatPerdiemPribadi,
+  onUpdateCatatPerdiemPribadi,
+  bolehIsiSekaligus,
+  tanggalForm,
+  daftarTransaksi,
+  sudahTerhubungPribadi,
 }) => {
   // Modal Buat Kegiatan Baru
   const [modalKegiatanBaru, setModalKegiatanBaru] = useState(false);
@@ -182,14 +204,26 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
   // Perdiem: hak uang harian = jumlah hari x tarif per hari. Jumlah transaksi diisi otomatis saat pengguna
   // mengubah hari atau tarif; mengubah jumlah langsung tidak menimpa apa pun.
+  const rentangAktif = bolehIsiSekaligus && rentangPerdiem.aktif && kategori === "Perdiem";
   const ubahPerdiem = (berubah: Partial<DetailPerdiem>) => {
     const baru = { ...perdiem, ...berubah };
     onUpdatePerdiem(baru);
     const hari = Number(baru.jumlahHari) || 0;
     const tarif = Number(baru.tarifPerHari) || 0;
     if (tarif > 0 && berubah.tarifPerHari !== undefined) simpanTarifPerdiemTerakhir(tarif);
-    if (hari > 0 && tarif > 0) onUpdateJumlah(String(Math.round(hari * tarif)));
+    // Pada pengisian sekaligus, kolom Jumlah diatur oleh efek di bawah, bukan oleh jumlah hari manual.
+    if (!rentangAktif && hari > 0 && tarif > 0) onUpdateJumlah(String(Math.round(hari * tarif)));
   };
+
+  // Pengisian sekaligus: kolom Jumlah mengikuti hitungan rentang (per hari = tarif sehari, gabungan = total),
+  // supaya validasi form dan tampilan tetap konsisten. Yang disimpan dihitung ulang dari rentang saat simpan.
+  useEffect(() => {
+    if (!rentangAktif) return;
+    const tarif = Number(perdiem.tarifPerHari) || 0;
+    const hitung = hitungRentangPerdiem(rentangPerdiem, tarif);
+    const nilai = rentangPerdiem.satuPerHari ? Math.round(tarif) : hitung.total;
+    onUpdateJumlah(nilai > 0 && !hitung.galat ? String(nilai) : "");
+  }, [rentangAktif, rentangPerdiem, perdiem.tarifPerHari]);
 
   // Perdiem baru: isi tarif dengan tarif terakhir yang dipakai (bukan saat mengubah perdiem yang sudah ada).
   useEffect(() => {
@@ -1091,19 +1125,21 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             📅 Perdiem (hak uang harian di lapangan)
           </strong>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
-            <div>
-              <label htmlFor="perdiem-hari" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Hari</label>
-              <input
-                id="perdiem-hari"
-                type="number"
-                min="1"
-                inputMode="numeric"
-                placeholder="5"
-                value={perdiem.jumlahHari || ""}
-                onChange={(e) => ubahPerdiem({ jumlahHari: Number(e.target.value) })}
-                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
-              />
-            </div>
+            {!rentangAktif && (
+              <div>
+                <label htmlFor="perdiem-hari" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Hari</label>
+                <input
+                  id="perdiem-hari"
+                  type="number"
+                  min="1"
+                  inputMode="numeric"
+                  placeholder="5"
+                  value={perdiem.jumlahHari || ""}
+                  onChange={(e) => ubahPerdiem({ jumlahHari: Number(e.target.value) })}
+                  style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+                />
+              </div>
+            )}
             <div>
               <label htmlFor="perdiem-tarif" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tarif per Hari (Rp)</label>
               <input
@@ -1129,13 +1165,44 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               />
             </div>
           </div>
-          {Number(perdiem.jumlahHari) > 0 && Number(perdiem.tarifPerHari) > 0 && (
-            <div style={{ fontSize: "0.82rem" }}>
+          {bolehIsiSekaligus && (
+            <PerdiemSekaligus
+              rentang={rentangPerdiem}
+              onUpdateRentang={onUpdateRentangPerdiem}
+              tarifPerHari={Number(perdiem.tarifPerHari) || 0}
+              tanggalForm={tanggalForm}
+              daftarTransaksi={daftarTransaksi}
+              kegiatanId={kegiatanId}
+              catatPribadi={catatPerdiemPribadi}
+            />
+          )}
+          {!rentangAktif && Number(perdiem.jumlahHari) > 0 && Number(perdiem.tarifPerHari) > 0 && (
+            <div style={{ fontSize: "0.82rem", marginBottom: "10px" }}>
               {perdiem.jumlahHari} hari × {formatRupiah(Number(perdiem.tarifPerHari))} ={" "}
               <strong>{formatRupiah(Math.round(Number(perdiem.jumlahHari) * Number(perdiem.tarifPerHari)))}</strong>{" "}
               <span style={{ color: "var(--muted)" }}>(mengisi kolom Jumlah)</span>
             </div>
           )}
+          <label
+            htmlFor="perdiem-pribadi"
+            style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600 }}
+          >
+            <input
+              id="perdiem-pribadi"
+              type="checkbox"
+              checked={catatPerdiemPribadi}
+              onChange={(e) => onUpdateCatatPerdiemPribadi(e.target.checked)}
+              style={kontrolPilihan}
+            />
+            <span>
+              Catat juga sebagai pemasukan di Dana Pribadi
+              <span style={{ display: "block", fontWeight: 400, fontSize: "0.75rem", color: "var(--muted)" }}>
+                {sudahTerhubungPribadi
+                  ? "Perdiem ini sudah terhubung dengan pemasukan pribadi. Mengubah atau menghapusnya ikut mengubah atau menghapus pemasukan itu."
+                  : "Perdiem adalah hak uang harian Anda: keluar dari Dana Kegiatan dan masuk sebagai pendapatan pribadi dengan jumlah dan tanggal yang sama."}
+              </span>
+            </span>
+          </label>
           <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
             Perdiem ikut dihitung sebagai pengeluaran yang diakui pada penyelesaian akhir dana kegiatan.
           </p>
