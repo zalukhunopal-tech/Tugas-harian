@@ -2840,7 +2840,7 @@ button {
     width: 100%;
   }
 
-  /* - Aset: kartu total nilai aset selebar penuh dengan tombol-tombolnya sebaris; daftar aset dalam grid 2 kolom; "Harga pasar & sumber" di bawahnya. */
+  /* - Aset: kartu total nilai aset selebar penuh dengan tombol-tombolnya sebaris; daftar aset satu kolom (kolom isi hanya 760 px). */
   .card.aset-total {
     width: 100%;
     margin-bottom: 24px;
@@ -2863,7 +2863,7 @@ button {
 
   .daftar-aset {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
     margin-bottom: 24px;
     align-items: start;
@@ -2878,10 +2878,10 @@ button {
     margin-bottom: 24px;
   }
 
-  /* - Grafik: "Tren 6 bulan terakhir" selebar penuh; "Ringkasan per Kategori" dan "Anggaran pengeluaran harian" berdampingan 2 kolom. */
+  /* - Grafik: semua kartu satu kolom, selebar kolom isi. */
   #view-grafik {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
@@ -2894,32 +2894,32 @@ button {
 
   #view-grafik .card-ringkasan-kategori,
   #view-grafik > .card:nth-of-type(2) {
-    grid-column: 1 / 2;
+    grid-column: 1 / -1;
     margin-bottom: 0;
   }
 
   #view-grafik .card-anggaran-harian,
   #view-grafik > .card:nth-of-type(3) {
-    grid-column: 2 / 3;
+    grid-column: 1 / -1;
     margin-bottom: 0;
   }
 
-  /* - Saya: "Folder Keuangan di Google Drive" dan "Transaksi Berulang" berdampingan 2 kolom; "Tema & Karakter" selebar penuh dengan pilihan karakter 3 kolom. */
+  /* - Saya: semua kartu satu kolom, selebar kolom isi; pilihan karakter di "Tema & Karakter" 3 kolom. */
   #view-saya {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
     align-items: start;
   }
 
   #view-saya #folder-drive {
-    grid-column: 1 / 2;
+    grid-column: 1 / -1;
     order: 1;
     margin-bottom: 0;
   }
 
   #view-saya #folder-berulang {
-    grid-column: 2 / 3;
+    grid-column: 1 / -1;
     order: 2;
     margin-bottom: 0;
   }
@@ -3702,5 +3702,19 @@ button {
 
   .navbar .nav-item {
     min-width: 0;
+  }
+}
+
+/* Jarak baris judul ke kartu Pengeluaran, Pemasukan, dan Saldo di tablet dan PC. Aturan tablet untuk
+   .topbar-row (margin: 0 auto) menimpa margin bawah .topbar-row-utama sehingga kartu menempel ke judul.
+   Hanya 640px ke atas: HP tidak berubah. */
+@media (min-width: 640px) {
+  .topbar-row-utama {
+    margin-bottom: 24px;
+  }
+
+  /* Isi halaman tidak menempel ke garis bawah bilah atas (di PC padding atasnya 0; di tablet sudah 24 px). */
+  .container {
+    padding-top: 24px;
   }
 }
