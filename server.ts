@@ -202,6 +202,11 @@ INSTRUKSI:
 });
 
 
+// Health check endpoint untuk memverifikasi kesiapan container server
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Setup Vite middleware untuk mode development
 const isDev = process.env.NODE_ENV !== "production";
 
