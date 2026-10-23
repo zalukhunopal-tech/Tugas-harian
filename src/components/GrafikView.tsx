@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Transaksi, NamaDana, AnggaranKategoriMap } from "../types";
+import { Transaksi, NamaDana, AnggaranKategoriMap, ProfilPelapor, DataKegiatan } from "../types";
 import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from "../lib/constants";
 import { LaporanView } from "./LaporanView";
 import { RingkasanTahunanView } from "./RingkasanTahunanView";
@@ -11,6 +11,11 @@ interface GrafikViewProps {
   onSetAnggaran: (nilai: number) => void;
   anggaranKategori?: AnggaranKategoriMap;
   onSetAnggaranKategori?: (dana: NamaDana, kategori: string, nilai: number) => void;
+  profilPelapor?: ProfilPelapor;
+  daftarKegiatan?: DataKegiatan[];
+  onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
+  googleToken?: string;
+  isLoggedInGoogle?: boolean;
 }
 
 export const GrafikView: React.FC<GrafikViewProps> = ({
@@ -20,6 +25,11 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   onSetAnggaran,
   anggaranKategori = { "Dana Pribadi": {}, "Dana Kegiatan": {} },
   onSetAnggaranKategori,
+  profilPelapor,
+  daftarKegiatan,
+  onUpdateKegiatan,
+  googleToken,
+  isLoggedInGoogle,
 }) => {
   const [subTab, setSubTab] = useState<"grafik" | "tahunan" | "laporan">("grafik");
   const [inputBatas, setInputBatas] = useState(anggaran > 0 ? String(anggaran) : "");
@@ -130,7 +140,14 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
       </div>
 
       {subTab === "laporan" ? (
-        <LaporanView transaksi={transaksi} />
+        <LaporanView
+          transaksi={transaksi}
+          profilPelapor={profilPelapor}
+          daftarKegiatan={daftarKegiatan}
+          onUpdateKegiatan={onUpdateKegiatan}
+          googleToken={googleToken}
+          isLoggedInGoogle={isLoggedInGoogle}
+        />
       ) : subTab === "tahunan" ? (
         <RingkasanTahunanView
           transaksi={transaksi}

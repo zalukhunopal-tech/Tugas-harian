@@ -13,6 +13,8 @@ import {
   ItemHutangPiutang,
   TargetTabunganItem,
   AppLockConfig,
+  ProfilPelapor,
+  DataKegiatan,
 } from "./types";
 import {
   BUDGET_KEY,
@@ -40,6 +42,11 @@ import {
   simpanTargetTabungan,
   muatAppLock,
   simpanAppLock,
+  muatProfilPelapor,
+  simpanProfilPelapor,
+  muatDaftarKegiatan,
+  simpanDaftarKegiatan,
+  muatLaporanKegiatanFile,
 } from "./lib/storage";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
 import {
@@ -97,6 +104,8 @@ export default function App() {
     return Boolean(c?.enabled);
   });
   const [targetTabunganAwalId, setTargetTabunganAwalId] = useState<string>("");
+  const [profilPelapor, setProfilPelapor] = useState<ProfilPelapor>(() => muatProfilPelapor());
+  const [daftarKegiatan, setDaftarKegiatan] = useState<DataKegiatan[]>(() => muatDaftarKegiatan());
 
   const [anggaran, setAnggaran] = useState<number>(() => {
     const p = muatPengaturan();
@@ -320,7 +329,8 @@ export default function App() {
         token,
         transaksiRef.current,
         asetRef.current,
-        pengaturanRef.current
+        pengaturanRef.current,
+        muatLaporanKegiatanFile()
       );
       syncPendingRef.current = false;
       setSyncStatus({ pesan: "Data tersinkron ke Google Drive", status: "sukses" });
@@ -578,6 +588,17 @@ export default function App() {
         }
       }
 
+      if (res.laporanKegiatan) {
+        if (res.laporanKegiatan.profilPelapor) {
+          setProfilPelapor(res.laporanKegiatan.profilPelapor);
+        }
+        if (Array.isArray(res.laporanKegiatan.daftarKegiatan)) {
+          setDaftarKegiatan(res.laporanKegiatan.daftarKegiatan);
+        }
+        // Muat ulang transaksi lokal jika rincian kegiatan disinkronkan
+        perbaruiTransaksi(muatTransaksi());
+      }
+
       if (res.transaksi.length > 0) {
         const blnTerbaru = res.transaksi[0].tanggal.slice(0, 7);
         const adaDiBulanIni = res.transaksi.some((t) => t.tanggal.startsWith(bulanTerpilih));
@@ -672,7 +693,7 @@ export default function App() {
 
     // Konfirmasi eksplisit untuk tombol manual
     const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n- Anggaran & pengaturan ke file Pengaturan.json\n\nLanjutkan pembaruan?`
+      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n- Anggaran & pengaturan ke file Pengaturan.json\n- Data kegiatan & pelapor ke file Laporan Kegiatan.json\n\nLanjutkan pembaruan?`
     );
     if (!confirmed) return;
 
@@ -689,14 +710,20 @@ export default function App() {
         folder = await buatFolderKeuangan(token);
       }
 
-      const res = await kirimSemuaKeDrive(token, transaksi, aset, pengaturan);
+      const res = await kirimSemuaKeDrive(
+        token,
+        transaksi,
+        aset,
+        pengaturan,
+        muatLaporanKegiatanFile()
+      );
       syncPendingRef.current = false;
 
       const contents = await ambilIsiFolderKeuangan(token, folder.id);
       setDriveContents(contents);
 
       setSyncPesan(
-        `Berhasil disimpan ke Google Drive: ${res.jumlahTrx} transaksi diperbarui di spreadsheet, ${res.jumlahAset} aset disimpan di Aset.json, dan Pengaturan.json diperbarui.`
+        `Berhasil disimpan ke Google Drive: ${res.jumlahTrx} transaksi diperbarui di spreadsheet, ${res.jumlahAset} aset disimpan di Aset.json, Pengaturan.json diperbarui, dan Laporan Kegiatan.json disinkronkan.`
       );
       setSyncStatus({ pesan: "Data tersimpan di Google Drive", status: "sukses" });
       setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 4000);
@@ -707,6 +734,21 @@ export default function App() {
       setMemuatDrive(false);
     }
   };
+
+  const handleSimpanProfilPelapor = useCallback((p: ProfilPelapor) => {
+    setProfilPelapor(p);
+    simpanProfilPelapor(p);
+    jadwalkanAutoSync();
+  }, [jadwalkanAutoSync]);
+
+  const handleTambahKegiatan = useCallback((kegiatan: DataKegiatan) => {
+    setDaftarKegiatan((prev) => {
+      const baru = [...prev.filter((k) => k.id !== kegiatan.id), kegiatan];
+      simpanDaftarKegiatan(baru);
+      return baru;
+    });
+    jadwalkanAutoSync();
+  }, [jadwalkanAutoSync]);
 
   // Transaction CRUD handlers dengan field diubah dan auto-sync
   const handleSimpanTransaksi = (t: Transaksi | Transaksi[]) => {
@@ -1065,6 +1107,8 @@ export default function App() {
                   onSetAnggaran={handleSetAnggaran}
                   anggaranKategori={pengaturan.anggaranKategori}
                   onSetAnggaranKategori={handleSetAnggaranKategori}
+                  profilPelapor={profilPelapor}
+                  daftarKegiatan={daftarKegiatan}
                 />
               </div>
             )}
@@ -1098,6 +1142,8 @@ export default function App() {
                   jumlahTransaksiBerulang={daftarBerulang.filter((d) => d.aktif).length}
                   appLockConfig={appLockConfig}
                   onSimpanAppLockConfig={handleSimpanAppLockConfig}
+                  profilPelapor={profilPelapor}
+                  onSimpanProfilPelapor={handleSimpanProfilPelapor}
                 />
               </div>
             )}
@@ -1124,6 +1170,8 @@ export default function App() {
                 daftarTransaksi={transaksi}
                 daftarTargetTabungan={daftarTargetTabungan}
                 targetTabunganAwalId={targetTabunganAwalId}
+                daftarKegiatan={daftarKegiatan}
+                onTambahKegiatan={handleTambahKegiatan}
               />
             )}
           </main>

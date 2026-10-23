@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Transaksi, JenisTransaksi, NamaDana, TransaksiBerulang, BuktiItem, TargetTabunganItem } from "../types";
+import {
+  Transaksi,
+  JenisTransaksi,
+  NamaDana,
+  TransaksiBerulang,
+  BuktiItem,
+  TargetTabunganItem,
+  DataKegiatan,
+  JenisBukti,
+  FotoPendukung,
+  DetailTransportasi,
+  DetailRentalKendaraan,
+  DetailBBM,
+  DetailAkomodasi,
+  DetailKonsumsi,
+  DetailHonorarium,
+  DataKhususKegiatan,
+} from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
@@ -8,6 +25,7 @@ import {
   prosesStrukDenganGemini,
   HasilBacaStruk,
 } from "../lib/geminiStruk";
+import { DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
@@ -23,6 +41,8 @@ interface TambahViewProps {
   daftarTransaksi?: Transaksi[];
   daftarTargetTabungan?: TargetTabunganItem[];
   targetTabunganAwalId?: string;
+  daftarKegiatan?: DataKegiatan[];
+  onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -39,6 +59,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
   daftarTransaksi = [],
   daftarTargetTabungan = [],
   targetTabunganAwalId = "",
+  daftarKegiatan = [],
+  onTambahKegiatan,
 }) => {
   const [modeTransaksi, setModeTransaksi] = useState<"pengeluaran" | "pemasukan" | "pindah_dana">("pengeluaran");
   const [danaAsal, setDanaAsal] = useState<NamaDana>("Dana Pribadi");
@@ -57,6 +79,34 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [metode, setMetode] = useState<string>("Tunai");
   const [kaitan, setKaitan] = useState<string>("");
   const [catatan, setCatatan] = useState<string>("");
+
+  // Dana Kegiatan States
+  const [kegiatanId, setKegiatanId] = useState<string>("");
+  const [jenisBukti, setJenisBukti] = useState<JenisBukti>("Kwitansi");
+  const [namaPenjualPenyedia, setNamaPenjualPenyedia] = useState<string>("");
+  const [rincianBanyaknya, setRincianBanyaknya] = useState<string>("");
+  const [rincianSatuan, setRincianSatuan] = useState<string>("");
+  const [rincianHargaSatuan, setRincianHargaSatuan] = useState<string>("");
+  const [keteranganLaporan, setKeteranganLaporan] = useState<string>("");
+  const [perluSuratJustifikasi, setPerluSuratJustifikasi] = useState<boolean>(false);
+  const [alasanJustifikasi, setAlasanJustifikasi] = useState<string>("");
+  const [fotoPendukung, setFotoPendukung] = useState<FotoPendukung[]>([]);
+
+  // Sub-kelompok states
+  const [transportasi, setTransportasi] = useState<DetailTransportasi>({});
+  const [rentalKendaraan, setRentalKendaraan] = useState<DetailRentalKendaraan>({
+    persenGrossUpPajak: 2,
+    timesheet: [],
+  });
+  const [bbm, setBBM] = useState<DetailBBM>({});
+  const [akomodasi, setAkomodasi] = useState<DetailAkomodasi>({});
+  const [konsumsi, setKonsumsi] = useState<DetailKonsumsi>({});
+  const [honorarium, setHonorarium] = useState<DetailHonorarium>({
+    isPNS: false,
+    hasNPWP: true,
+    jumlahOrang: 1,
+    jumlahHari: 1,
+  });
 
   // Bukti Transaksi States
   const [bukti, setBukti] = useState<BuktiItem[]>([]);
@@ -104,6 +154,31 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setStatusTalangan(editTransaksi.statusTalangan || "belum_diganti");
       setTalanganUntuk(editTransaksi.talanganUntuk || "");
       setTargetTabunganId(editTransaksi.targetTabunganId || "");
+
+      // Dana Kegiatan Data
+      if (editTransaksi.dana === "Dana Kegiatan") {
+        setKegiatanId(editTransaksi.kegiatanId || "");
+        if (editTransaksi.detailKegiatan) {
+          const dk = editTransaksi.detailKegiatan;
+          if (dk.jenisBukti) setJenisBukti(dk.jenisBukti);
+          if (dk.namaPenjualPenyedia) setNamaPenjualPenyedia(dk.namaPenjualPenyedia);
+          if (dk.rincian) {
+            setRincianBanyaknya(String(dk.rincian.banyaknya || ""));
+            setRincianSatuan(dk.rincian.satuan || "");
+            setRincianHargaSatuan(String(dk.rincian.hargaSatuan || ""));
+          }
+          if (dk.keteranganLaporan) setKeteranganLaporan(dk.keteranganLaporan);
+          setPerluSuratJustifikasi(Boolean(dk.perluSuratJustifikasi));
+          setAlasanJustifikasi(dk.alasanJustifikasi || "");
+          setFotoPendukung(dk.fotoPendukung || []);
+          if (dk.transportasi) setTransportasi(dk.transportasi);
+          if (dk.rentalKendaraan) setRentalKendaraan(dk.rentalKendaraan);
+          if (dk.bbm) setBBM(dk.bbm);
+          if (dk.akomodasi) setAkomodasi(dk.akomodasi);
+          if (dk.konsumsi) setKonsumsi(dk.konsumsi);
+          if (dk.honorarium) setHonorarium(dk.honorarium);
+        }
+      }
     } else {
       setModeTransaksi("pengeluaran");
       setJenis("pengeluaran");
@@ -123,6 +198,24 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setTargetTabunganId(targetTabunganAwalId || "");
       const defaultKategori = targetTabunganAwalId ? "Tabungan" : KATEGORI["Dana Pribadi"].pengeluaran[0];
       setKategori(defaultKategori);
+
+      // Reset Dana Kegiatan
+      setKegiatanId("");
+      setJenisBukti("Kwitansi");
+      setNamaPenjualPenyedia("");
+      setRincianBanyaknya("");
+      setRincianSatuan("");
+      setRincianHargaSatuan("");
+      setKeteranganLaporan("");
+      setPerluSuratJustifikasi(false);
+      setAlasanJustifikasi("");
+      setFotoPendukung([]);
+      setTransportasi({});
+      setRentalKendaraan({ persenGrossUpPajak: 2, timesheet: [] });
+      setBBM({});
+      setAkomodasi({});
+      setKonsumsi({});
+      setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
     }
   }, [editTransaksi, targetTabunganAwalId]);
 
@@ -201,6 +294,25 @@ export const TambahView: React.FC<TambahViewProps> = ({
         }
         if (hasil.catatan) {
           setCatatan(hasil.catatan);
+        }
+
+        // Isian Khusus Dana Kegiatan dari Gemini
+        if (hasil.jenisBukti) {
+          setJenisBukti(hasil.jenisBukti);
+        }
+        if (hasil.namaPenjualPenyedia) {
+          setNamaPenjualPenyedia(hasil.namaPenjualPenyedia);
+        }
+        if (hasil.rincian) {
+          if (hasil.rincian.banyaknya) setRincianBanyaknya(String(hasil.rincian.banyaknya));
+          if (hasil.rincian.satuan) setRincianSatuan(hasil.rincian.satuan);
+          if (hasil.rincian.hargaSatuan) setRincianHargaSatuan(String(hasil.rincian.hargaSatuan));
+        }
+        if (hasil.keteranganLaporan) {
+          setKeteranganLaporan(hasil.keteranganLaporan);
+        }
+        if (dana === "Dana Kegiatan" && hasil.kategoriDanaKegiatan) {
+          setKategori(hasil.kategoriDanaKegiatan);
         }
 
         // Scroll halus ke formulir yang sudah terisi otomatis
@@ -356,6 +468,41 @@ export const TambahView: React.FC<TambahViewProps> = ({
       onSimpan([trxKeluar, trxMasuk]);
     } else {
       if (!deskripsi.trim()) return;
+
+      let detailKegiatanData: DataKhususKegiatan | undefined = undefined;
+      if (dana === "Dana Kegiatan") {
+        const subtotal =
+          Number(rincianBanyaknya) > 0 && Number(rincianHargaSatuan) > 0
+            ? Number(rincianBanyaknya) * Number(rincianHargaSatuan)
+            : undefined;
+
+        detailKegiatanData = {
+          jenisBukti,
+          namaPenjualPenyedia: namaPenjualPenyedia.trim() || undefined,
+          rincian:
+            subtotal !== undefined
+              ? {
+                  banyaknya: Number(rincianBanyaknya),
+                  satuan: rincianSatuan.trim() || "unit",
+                  hargaSatuan: Number(rincianHargaSatuan),
+                  total: subtotal,
+                }
+              : undefined,
+          keteranganLaporan: keteranganLaporan.trim() || undefined,
+          perluSuratJustifikasi: Boolean(
+            perluSuratJustifikasi || jenisBukti === "Bukti tidak lengkap"
+          ),
+          alasanJustifikasi: alasanJustifikasi.trim() || undefined,
+          fotoPendukung: fotoPendukung.length > 0 ? fotoPendukung : undefined,
+          transportasi: kategori === "Transportasi" ? transportasi : undefined,
+          rentalKendaraan: kategori === "Rental Kendaraan" ? rentalKendaraan : undefined,
+          bbm: kategori === "BBM" ? bbm : undefined,
+          akomodasi: kategori === "Akomodasi" ? akomodasi : undefined,
+          konsumsi: kategori === "Konsumsi" ? konsumsi : undefined,
+          honorarium: kategori === "Honorarium & Ganti Hari" ? honorarium : undefined,
+        };
+      }
+
       const trx: Transaksi = {
         id: editTransaksi ? editTransaksi.id : buatId(),
         jenis,
@@ -371,6 +518,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
         statusTalangan: isTalangan ? statusTalangan : undefined,
         talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
         targetTabunganId: kategori === "Tabungan" && targetTabunganId ? targetTabunganId : undefined,
+        kegiatanId: dana === "Dana Kegiatan" && kegiatanId ? kegiatanId : undefined,
+        detailKegiatan: detailKegiatanData,
         diubah: new Date().toISOString(),
         bukti,
       };
@@ -388,6 +537,22 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setStatusTalangan("belum_diganti");
       setTalanganUntuk("");
       setTargetTabunganId("");
+      setKegiatanId("");
+      setJenisBukti("Kwitansi");
+      setNamaPenjualPenyedia("");
+      setRincianBanyaknya("");
+      setRincianSatuan("");
+      setRincianHargaSatuan("");
+      setKeteranganLaporan("");
+      setPerluSuratJustifikasi(false);
+      setAlasanJustifikasi("");
+      setFotoPendukung([]);
+      setTransportasi({});
+      setRentalKendaraan({ persenGrossUpPajak: 2, timesheet: [] });
+      setBBM({});
+      setAkomodasi({});
+      setKonsumsi({});
+      setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
       handleResetScan();
     }
   };
@@ -954,49 +1119,95 @@ export const TambahView: React.FC<TambahViewProps> = ({
             </select>
           </div>
 
-          <div className="field">
-            <label htmlFor="kaitan" id="label-kaitan">
-              {kaitanMeta.label}
-            </label>
-            <input
-              type="text"
-              id="kaitan"
-              list="list-saran-kaitan"
-              placeholder={kaitanMeta.placeholder}
-              maxLength={150}
-              value={kaitan}
-              onChange={(e) => setKaitan(e.target.value)}
-            />
-            <datalist id="list-saran-kaitan">
-              {saranKaitan.map((s, idx) => (
-                <option key={idx} value={s} />
-              ))}
-            </datalist>
-            {saranKaitan.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "6px" }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>Saran:</span>
-                {saranKaitan.slice(0, 5).map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    className="btn-small"
-                    style={{
-                      fontSize: "0.74rem",
-                      padding: "2px 8px",
-                      borderRadius: "12px",
-                      border: "1px solid var(--border)",
-                      background: kaitan === s ? "var(--accent)" : "var(--surface)",
-                      color: kaitan === s ? "#fff" : "var(--text)",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setKaitan(s)}
-                  >
-                    {s}
-                  </button>
+          {dana === "Dana Kegiatan" && modeTransaksi !== "pindah_dana" ? (
+            <div className="field wide" style={{ padding: 0 }}>
+              <DanaKegiatanFormFields
+                kategori={kategori}
+                jumlah={jumlah}
+                onUpdateJumlah={setJumlah}
+                kaitan={kaitan}
+                onUpdateKaitan={setKaitan}
+                kegiatanId={kegiatanId}
+                onUpdateKegiatanId={setKegiatanId}
+                daftarKegiatan={daftarKegiatan}
+                onTambahKegiatan={onTambahKegiatan || (() => {})}
+                jenisBukti={jenisBukti}
+                onUpdateJenisBukti={setJenisBukti}
+                namaPenjualPenyedia={namaPenjualPenyedia}
+                onUpdateNamaPenjualPenyedia={setNamaPenjualPenyedia}
+                rincianBanyaknya={rincianBanyaknya}
+                onUpdateRincianBanyaknya={setRincianBanyaknya}
+                rincianSatuan={rincianSatuan}
+                onUpdateRincianSatuan={setRincianSatuan}
+                rincianHargaSatuan={rincianHargaSatuan}
+                onUpdateRincianHargaSatuan={setRincianHargaSatuan}
+                keteranganLaporan={keteranganLaporan}
+                onUpdateKeteranganLaporan={setKeteranganLaporan}
+                perluSuratJustifikasi={perluSuratJustifikasi}
+                onUpdatePerluSuratJustifikasi={setPerluSuratJustifikasi}
+                alasanJustifikasi={alasanJustifikasi}
+                onUpdateAlasanJustifikasi={setAlasanJustifikasi}
+                fotoPendukung={fotoPendukung}
+                onUpdateFotoPendukung={setFotoPendukung}
+                transportasi={transportasi}
+                onUpdateTransportasi={setTransportasi}
+                rentalKendaraan={rentalKendaraan}
+                onUpdateRentalKendaraan={setRentalKendaraan}
+                bbm={bbm}
+                onUpdateBBM={setBBM}
+                akomodasi={akomodasi}
+                onUpdateAkomodasi={setAkomodasi}
+                konsumsi={konsumsi}
+                onUpdateKonsumsi={setKonsumsi}
+                honorarium={honorarium}
+                onUpdateHonorarium={setHonorarium}
+              />
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="kaitan" id="label-kaitan">
+                {kaitanMeta.label}
+              </label>
+              <input
+                type="text"
+                id="kaitan"
+                list="list-saran-kaitan"
+                placeholder={kaitanMeta.placeholder}
+                maxLength={150}
+                value={kaitan}
+                onChange={(e) => setKaitan(e.target.value)}
+              />
+              <datalist id="list-saran-kaitan">
+                {saranKaitan.map((s, idx) => (
+                  <option key={idx} value={s} />
                 ))}
-              </div>
-            )}
-          </div>
+              </datalist>
+              {saranKaitan.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                  <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>Saran:</span>
+                  {saranKaitan.slice(0, 5).map((s, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="btn-small"
+                      style={{
+                        fontSize: "0.74rem",
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        border: "1px solid var(--border)",
+                        background: kaitan === s ? "var(--accent)" : "var(--surface)",
+                        color: kaitan === s ? "#fff" : "var(--text)",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => setKaitan(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="field wide">
             <label htmlFor="catatan">Catatan (opsional)</label>

@@ -30,6 +30,8 @@ export interface Transaksi {
   statusTalangan?: "belum_diganti" | "sudah_diganti";
   talanganUntuk?: string;
   targetTabunganId?: string; // Alokasi untuk target tabungan
+  kegiatanId?: string; // ID kegiatan yang terhubung
+  detailKegiatan?: DataKhususKegiatan; // Rincian khusus Dana Kegiatan
 }
 
 export interface CicilanItem {
@@ -199,3 +201,151 @@ export interface TransaksiBerulang {
   aktif: boolean;
 }
 
+
+// --- Fitur Laporan Dana Kegiatan (Revisi) ---
+
+export type JenisBukti =
+  | "Kwitansi"
+  | "Nota"
+  | "Struk thermal (minimarket/SPBU)"
+  | "Tiket"
+  | "Tiket pesawat/e-ticket"
+  | "Invoice + kwitansi"
+  | "Bukti tidak lengkap";
+
+export interface ProfilPelapor {
+  nama: string;
+  jabatan: string;
+  lembaga: string;
+  proyek: string;
+  diubah?: string;
+}
+
+export interface DataKegiatan {
+  id: string;
+  nama: string;
+  lokasi: string;
+  tanggalMulai: string; // YYYY-MM-DD
+  tanggalSelesai: string; // YYYY-MM-DD
+  catatan?: string;
+  urutanTransaksi?: string[]; // Urutan manual ID transaksi untuk WiMIS
+  sertakanDaftarPeriksa?: boolean; // Opsi sertakan halaman daftar periksa SPJ
+  docxDriveId?: string; // ID file docx di folder Keuangan/Laporan Kegiatan
+  dibuat?: string;
+  diubah?: string;
+}
+
+export interface RincianBarangJasa {
+  banyaknya: number;
+  satuan: string;
+  hargaSatuan: number;
+  total?: number;
+  keteranganItem?: string;
+}
+
+export interface FotoPendukung {
+  id: string;
+  nama: string;
+  tipe?: string;
+  dataUrl?: string;
+  driveId?: string;
+  driveLink?: string;
+  kategoriFoto?: "barang" | "kendaraan" | "kegiatan" | "lainnya";
+  keterangan?: string;
+  waktu?: string;
+}
+
+export interface DetailTransportasi {
+  dari?: string;
+  ke?: string;
+  moda?: string;
+  namaSopir?: string;
+  noTelpSopir?: string;
+  noPolisi?: string;
+}
+
+export interface TimesheetRentalItem {
+  id: string;
+  tanggal: string; // YYYY-MM-DD
+  lokasiBasecampRute: string;
+  cakupanAktivitas: string;
+  jarakKm: number;
+}
+
+export interface DetailRentalKendaraan {
+  jenisMerk?: string;
+  tahun?: string | number;
+  noPolisi?: string;
+  namaPemilik?: string;
+  tarifPerHari?: number;
+  tanggalMulai?: string; // YYYY-MM-DD
+  tanggalSelesai?: string; // YYYY-MM-DD
+  jumlahHari?: number;
+  timesheet?: TimesheetRentalItem[];
+  persenGrossUpPajak?: number; // default 2, boleh 0
+  pajakGrossUpNominal?: number;
+}
+
+export interface DetailBBM {
+  kmSaatIsi?: number;
+  jarakTempuh?: number;
+  dari?: string;
+  ke?: string;
+  noPolisi?: string;
+  liter?: number;
+  hargaPerLiter?: number;
+}
+
+export interface DetailAkomodasi {
+  lokasi?: string;
+  tanggalMasuk?: string; // YYYY-MM-DD
+  tanggalKeluar?: string; // YYYY-MM-DD
+  jumlahMalam?: number;
+  namaPemilik?: string;
+  noTelp?: string;
+}
+
+export interface DetailKonsumsi {
+  penyedia?: string;
+  noTelp?: string;
+  lokasi?: string;
+  jumlahPeserta?: number;
+}
+
+export interface DetailHonorarium {
+  namaPenerima?: string;
+  isPNS?: boolean;
+  hasNPWP?: boolean;
+  jumlahOrang?: number;
+  jumlahHari?: number;
+  nomorAbsen?: string;
+  honorBruto?: number;
+  tarifPajakPersen?: number;
+  pajakDipotong?: number;
+  honorNetto?: number;
+}
+
+export interface DataKhususKegiatan {
+  kegiatanId?: string;
+  jenisBukti?: JenisBukti;
+  namaPenjualPenyedia?: string;
+  rincian?: RincianBarangJasa;
+  keteranganLaporan?: string;
+  perluSuratJustifikasi?: boolean;
+  alasanJustifikasi?: string;
+  fotoPendukung?: FotoPendukung[];
+  transportasi?: DetailTransportasi;
+  rentalKendaraan?: DetailRentalKendaraan;
+  bbm?: DetailBBM;
+  akomodasi?: DetailAkomodasi;
+  konsumsi?: DetailKonsumsi;
+  honorarium?: DetailHonorarium;
+}
+
+export interface LaporanKegiatanFileContent {
+  versi: number;
+  terakhirDiubah: string;
+  profilPelapor: ProfilPelapor;
+  daftarKegiatan: DataKegiatan[];
+  rincianTransaksi?: Record<string, DataKhususKegiatan>;
+}

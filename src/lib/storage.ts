@@ -1,4 +1,12 @@
-import { Transaksi, AsetItem, DataHarga } from "../types";
+import {
+  Transaksi,
+  AsetItem,
+  DataHarga,
+  ProfilPelapor,
+  DataKegiatan,
+  DataKhususKegiatan,
+  LaporanKegiatanFileContent,
+} from "../types";
 import { STORAGE_KEY, BUDGET_KEY, TEMA_KEY, KARAKTER_KEY, SYNC_URL_KEY, SYNC_KUNCI_KEY, SYNC_QUEUE_KEY, SYNC_TIME_KEY, ASET_KEY, HARGA_KEY, DANA_DEFAULT } from "./constants";
 
 export function bacaStorage(kunci: string, cadangan: string = ""): string {
@@ -56,14 +64,21 @@ export function buatId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+import { petakanKategoriLama, PROFIL_PELAPOR_DEFAULT, PROFIL_PELAPOR_KEY, DAFTAR_KEGIATAN_KEY, LAPORAN_KEGIATAN_KEY } from "./constants";
+
+
 export function normalisasiTransaksi(p: Partial<Transaksi>): Transaksi {
+  const dana = p.dana === "Dana Kegiatan" ? "Dana Kegiatan" : DANA_DEFAULT;
+  const rawKategori = p.kategori || "Lain-lain";
+  const kategori = petakanKategoriLama(rawKategori, dana);
+
   return {
     id: p.id || buatId(),
     jenis: p.jenis === "pemasukan" ? "pemasukan" : "pengeluaran",
-    dana: p.dana === "Dana Kegiatan" ? "Dana Kegiatan" : DANA_DEFAULT,
+    dana,
     tanggal: p.tanggal || new Date().toISOString().slice(0, 10),
     deskripsi: p.deskripsi || "",
-    kategori: p.kategori || "Lain-lain",
+    kategori,
     jumlah: Number(p.jumlah) || 0,
     metode: p.metode || "Tunai",
     kaitan: p.kaitan || "",
@@ -75,6 +90,8 @@ export function normalisasiTransaksi(p: Partial<Transaksi>): Transaksi {
     statusTalangan: p.statusTalangan || (p.isTalangan ? "belum_diganti" : undefined),
     talanganUntuk: p.talanganUntuk || undefined,
     targetTabunganId: p.targetTabunganId || undefined,
+    kegiatanId: p.kegiatanId || undefined,
+    detailKegiatan: p.detailKegiatan || undefined,
   };
 }
 
@@ -210,4 +227,83 @@ export function simpanPengaturan(data: import("../types").PengaturanKeuangan): v
   }
 }
 
+
+
+export function muatProfilPelapor(): ProfilPelapor {
+  const data = bacaJsonStorage<ProfilPelapor>(PROFIL_PELAPOR_KEY, PROFIL_PELAPOR_DEFAULT);
+  return {
+    nama: data?.nama || PROFIL_PELAPOR_DEFAULT.nama,
+    jabatan: data?.jabatan || PROFIL_PELAPOR_DEFAULT.jabatan,
+    lembaga: data?.lembaga || PROFIL_PELAPOR_DEFAULT.lembaga,
+    proyek: data?.proyek || PROFIL_PELAPOR_DEFAULT.proyek,
+    diubah: data?.diubah,
+  };
+}
+
+export function simpanProfilPelapor(profil: ProfilPelapor): void {
+  tulisStorage(PROFIL_PELAPOR_KEY, JSON.stringify(profil));
+}
+
+export function muatDaftarKegiatan(): DataKegiatan[] {
+  const data = bacaJsonStorage<DataKegiatan[]>(DAFTAR_KEGIATAN_KEY, []);
+  return Array.isArray(data) ? data : [];
+}
+
+export function simpanDaftarKegiatan(daftar: DataKegiatan[]): void {
+  tulisStorage(DAFTAR_KEGIATAN_KEY, JSON.stringify(daftar));
+}
+
+export function muatLaporanKegiatanFile(): LaporanKegiatanFileContent {
+  const trxList = muatTransaksi();
+  const rincianMap: Record<string, DataKhususKegiatan> = {};
+  for (const t of trxList) {
+    if (t.dana === "Dana Kegiatan" && (t.detailKegiatan || t.kegiatanId)) {
+      rincianMap[t.id] = {
+        ...(t.detailKegiatan || {}),
+        kegiatanId: t.kegiatanId || t.detailKegiatan?.kegiatanId,
+      };
+    }
+  }
+
+  const profil = muatProfilPelapor();
+  const kegiatan = muatDaftarKegiatan();
+
+  return {
+    versi: 1,
+    terakhirDiubah: new Date().toISOString(),
+    profilPelapor: profil,
+    daftarKegiatan: kegiatan,
+    rincianTransaksi: rincianMap,
+  };
+}
+
+export function simpanLaporanKegiatanFile(fileContent: LaporanKegiatanFileContent): void {
+  tulisStorage(LAPORAN_KEGIATAN_KEY, JSON.stringify(fileContent));
+  if (fileContent.profilPelapor) {
+    simpanProfilPelapor(fileContent.profilPelapor);
+  }
+  if (fileContent.daftarKegiatan) {
+    simpanDaftarKegiatan(fileContent.daftarKegiatan);
+  }
+  if (fileContent.rincianTransaksi) {
+    const listTrx = muatTransaksi();
+    let adaPerubahan = false;
+    const rincianMap = fileContent.rincianTransaksi;
+    const updated = listTrx.map((t) => {
+      const extra = rincianMap[t.id];
+      if (extra && (!t.detailKegiatan || !t.kegiatanId)) {
+        adaPerubahan = true;
+        return {
+          ...t,
+          kegiatanId: t.kegiatanId || extra.kegiatanId,
+          detailKegiatan: t.detailKegiatan || extra,
+        };
+      }
+      return t;
+    });
+    if (adaPerubahan) {
+      simpanTransaksi(updated);
+    }
+  }
+}
 

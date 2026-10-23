@@ -1,13 +1,20 @@
+import { JenisBukti, RincianBarangJasa } from "../types";
+
 export interface HasilBacaStruk {
   sukses: boolean;
   deskripsi?: string;
   jumlah?: number;
   tanggal?: string;
   kategori?: string;
+  kategoriDanaKegiatan?: string;
   metode?: string;
   catatan?: string;
   ringkasan?: string;
   pesan?: string;
+  jenisBukti?: JenisBukti;
+  namaPenjualPenyedia?: string;
+  rincian?: RincianBarangJasa;
+  keteranganLaporan?: string;
 }
 
 /**
