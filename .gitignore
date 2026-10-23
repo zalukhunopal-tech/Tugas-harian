@@ -7,3 +7,6 @@ rahasia*.txt
 node_modules/
 .DS_Store
 *.log
+
+# Hasil build (disajikan lewat GitHub Pages dari workflow, jangan di-commit)
+dist/

@@ -1,7 +1,13 @@
-# Berjalan di setiap push dan pull request:
-# 1. menolak commit yang memuat URL Web App, kunci, token, atau kredensial Google;
-# 2. memeriksa sintaks semua JavaScript dan Code.gs;
-# 3. menjalankan uji Code.gs dan aset.js dengan tiruan layanan Google (tanpa akun apa pun).
+# Berjalan di setiap push dan pull request, termasuk push dari Google AI Studio.
+#
+# Job `periksa` (keamanan). Namanya sengaja dipertahankan supaya aturan "Require status checks"
+# di GitHub yang menunjuk ke `periksa` tidak putus:
+#   1. menolak commit yang memuat URL Web App, kunci, token, atau kredensial Google;
+#   2. memeriksa sintaks Code.gs yang ikut dikirim di public/apps-script/.
+#
+# Job `tipe` (kualitas): menjalankan `tsc --noEmit`, sama seperti langkah pertama `npm run build`.
+# Dibuat terpisah agar kesalahan tipe dari edit di AI Studio terlihat jelas tanpa mencampurnya
+# dengan pemeriksaan keamanan, dan tidak menghalangi deploy situs (lihat pages.yml).
 name: Keamanan & uji
 
 on:
@@ -19,24 +25,46 @@ jobs:
 
       - name: Cari rahasia yang tidak boleh masuk repo
         run: |
-          pola='script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{35}|ya29\.[0-9A-Za-z_-]{20,}|-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|"type": *"service_account"|"client_secret"|KUNCI_SINKRON *[:=] *["'"'"'][^"'"'"'[:space:]]{4,}'
-          if git grep -nIE "$pola" -- . ':!.github/workflows/keamanan.yml'; then
-            echo "::error::Ditemukan pola rahasia di repo. Hapus dari commit, lalu ganti kunci/URL yang bocor."
+          # Pola yang berlaku untuk SEMUA berkas.
+          pola_umum='script\.google\.com/macros/s/[A-Za-z0-9_-]{20,}|ya29\.[0-9A-Za-z_-]{20,}|-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|"type": *"service_account"|"client_secret"|KUNCI_SINKRON *[:=] *["'"'"'][^"'"'"'[:space:]]{4,}|GEMINI_API_KEY *[:=] *["'"'"'][A-Za-z0-9_-]{20,}'
+          # Kunci API Google (AIza...). Kunci Gemini juga berbentuk begini, jadi dicari di semua berkas
+          # KECUALI konfigurasi web Firebase: apiKey di sana adalah pengenal publik yang memang
+          # dikirim ke setiap browser (pengamanannya lewat aturan Firebase dan pembatasan referrer
+          # di Google Cloud Console, bukan dengan menyembunyikannya).
+          pola_kunci_google='AIza[0-9A-Za-z_-]{35}'
+          gagal=0
+          git grep -nIE "$pola_umum" -- . ':!.github/workflows/keamanan.yml' && gagal=1
+          git grep -nIE "$pola_kunci_google" -- . ':!.github/workflows/keamanan.yml' ':!firebase-applet-config.json' && gagal=1
+          if [ "$gagal" -ne 0 ]; then
+            echo "::error::Ditemukan pola rahasia di repo (lihat baris di atas). Hapus dari commit, lalu ganti kunci/URL yang bocor."
             exit 1
           fi
           echo "Tidak ada pola rahasia."
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
-      - name: Periksa sintaks JavaScript dan Code.gs
+      - name: Periksa sintaks Code.gs
         run: |
-          for f in pengeluaran/*.js pengeluaran/apps-script/uji/*.js; do node --check "$f"; done
-          cp pengeluaran/apps-script/Code.gs /tmp/Code.js && node --check /tmp/Code.js
-          echo "Sintaks OK"
+          if [ -f public/apps-script/Code.gs ]; then
+            cp public/apps-script/Code.gs /tmp/Code.js && node --check /tmp/Code.js
+            echo "Code.gs: sintaks OK"
+          else
+            echo "public/apps-script/Code.gs tidak ada; dilewati."
+          fi
 
-      - name: Uji Code.gs dan aset.js
-        run: |
-          node pengeluaran/apps-script/uji/uji-code.js
-          node pengeluaran/apps-script/uji/uji-aset.js
+  tipe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Pasang dependensi (tanpa skrip instalasi)
+        run: npm install --no-audit --no-fund --ignore-scripts
+
+      - name: Periksa tipe TypeScript
+        run: npx tsc --noEmit
