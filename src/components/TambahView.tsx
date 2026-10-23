@@ -222,13 +222,37 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
   // Update default kategori when dana or jenis changes
   useEffect(() => {
+    // Saat mengubah transaksi, kategori tersimpan adalah sumber kebenaran: jangan ditimpa default.
+    // Tanpa penjagaan ini, efek di atas (yang mengisi form dari transaksi) dan efek ini berjalan bersamaan
+    // pada render pertama dengan nilai lama (kategori masih ""), sehingga kategori tersimpan tertimpa
+    // kategori pertama di daftar. Penjagaan berhenti berlaku begitu pengguna mengganti jenis atau dana.
+    if (
+      editTransaksi &&
+      editTransaksi.kategori !== "Pindah Dana" &&
+      (kategori === "" ||
+        (kategori === editTransaksi.kategori && dana === editTransaksi.dana && jenis === editTransaksi.jenis))
+    ) {
+      return;
+    }
     const list = KATEGORI[dana]?.[jenis] || [];
     if (!list.includes(kategori)) {
       setKategori(list[0] || "Lain-lain");
     }
-  }, [dana, jenis, kategori]);
+  }, [dana, jenis, kategori, editTransaksi]);
 
-  const daftarKategori = KATEGORI[dana]?.[jenis] || [];
+  const daftarKategoriBaku = KATEGORI[dana]?.[jenis] || [];
+  // Kategori tersimpan yang tidak ada di daftar baku (mis. dari spreadsheet atau versi lama) tetap tampil
+  // sebagai pilihan selama transaksi itu diubah, supaya tidak hilang diam-diam.
+  const kategoriTersimpanKustom =
+    editTransaksi &&
+    editTransaksi.kategori &&
+    editTransaksi.kategori !== "Pindah Dana" &&
+    dana === editTransaksi.dana &&
+    jenis === editTransaksi.jenis &&
+    !daftarKategoriBaku.includes(editTransaksi.kategori)
+      ? editTransaksi.kategori
+      : null;
+  const daftarKategori = kategoriTersimpanKustom ? [...daftarKategoriBaku, kategoriTersimpanKustom] : daftarKategoriBaku;
   const kaitanMeta = KAITAN[dana] || KAITAN["Dana Pribadi"];
 
   // Saran otomatis untuk Kaitan Kegiatan / Sumber & Tujuan
