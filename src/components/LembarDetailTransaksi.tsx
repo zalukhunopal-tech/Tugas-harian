@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Transaksi, BuktiItem } from "../types";
 import { formatRupiah, formatAngka, formatTanggalLengkap } from "../lib/constants";
 import { UbinKategori, ChipKategori } from "../lib/kategoriIcon";
+import { pesanHapusPerdiem } from "../lib/perdiemOtomatis";
 import {
   muatPratinjauBukti,
   GambarPengganti,
@@ -29,6 +30,8 @@ interface LembarDetailTransaksiProps {
   onDelete: (id: string) => void;
   onToggleStatusTalangan?: (id: string) => void;
   googleToken?: string;
+  /** Seluruh transaksi, untuk mengetahui apakah transaksi ini berpasangan (perdiem dan pemasukan pribadinya). */
+  daftarTransaksi?: Transaksi[];
 }
 
 export const LembarDetailTransaksi: React.FC<LembarDetailTransaksiProps> = ({
@@ -39,6 +42,7 @@ export const LembarDetailTransaksi: React.FC<LembarDetailTransaksiProps> = ({
   onDelete,
   onToggleStatusTalangan,
   googleToken,
+  daftarTransaksi,
 }) => {
   const [activeBuktiPenuh, setActiveBuktiPenuh] = useState<{
     item: BuktiItem;
@@ -56,9 +60,10 @@ export const LembarDetailTransaksi: React.FC<LembarDetailTransaksiProps> = ({
 
   const handleKonfirmasiHapus = () => {
     const konfirm = window.confirm(
-      `Apakah Anda yakin ingin menghapus transaksi:\n"${transaksi.deskripsi}" (${tanda}Rp${formatAngka(
-        transaksi.jumlah
-      )})?`
+      (daftarTransaksi ? pesanHapusPerdiem(transaksi, daftarTransaksi) : null) ??
+        `Apakah Anda yakin ingin menghapus transaksi:\n"${transaksi.deskripsi}" (${tanda}Rp${formatAngka(
+          transaksi.jumlah
+        )})?`
     );
     if (konfirm) {
       onDelete(transaksi.id);
