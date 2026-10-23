@@ -594,10 +594,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
         </div>
       </details>
 
-      <p className="help" id="tes-sinkron" style={{ textAlign: "center", opacity: 0.7, marginTop: "16px" }}>
-        Tes sinkron GitHub → AI Studio · diubah dari GitHub, 23 Okt 2026
-      </p>
-
       {onSimpanAppLockConfig && (
         <AppLockKelolaModal
           isOpen={modalAppLockBuka}
