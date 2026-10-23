@@ -2531,34 +2531,7 @@ button {
     gap: 16px;
   }
 
-  /* Navigasi bawah tetap, rata tengah & item tersebar simetris */
-  .navbar {
-    display: flex !important;
-    justify-content: space-around !important;
-    align-items: center !important;
-    position: fixed !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: 0 !important;
-    transform: translateX(-50%) !important;
-    width: 100% !important;
-    max-width: 480px !important;
-    margin: 0 !important;
-    border-radius: 16px 16px 0 0 !important;
-    border-left: 1px solid var(--border) !important;
-    border-right: 1px solid var(--border) !important;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12) !important;
-  }
-
-  .navbar .nav-item {
-    flex: 1 1 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 0 !important;
-    text-align: center !important;
-  }
+  /* Navigasi bawah di tablet dan PC diatur oleh blok "Navigasi bawah di layar lebar" di akhir berkas ini. */
 }
 
 /* ============================================================
@@ -2708,36 +2681,6 @@ button {
   .sidebar-nav-label {
     flex: 1;
     min-width: 0;
-  }
-
-  /* Bottom Navigation Bar tetap aktif & rata tengah di PC */
-  .navbar {
-    display: flex !important;
-    justify-content: space-around !important;
-    align-items: center !important;
-    position: fixed !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: 0 !important;
-    transform: translateX(-50%) !important;
-    width: 100% !important;
-    max-width: 480px !important;
-    margin: 0 !important;
-    border-radius: 16px 16px 0 0 !important;
-    border-left: 1px solid var(--border) !important;
-    border-right: 1px solid var(--border) !important;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12) !important;
-    z-index: 50 !important;
-  }
-
-  .navbar .nav-item {
-    flex: 1 1 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 0 !important;
-    text-align: center !important;
   }
 
   /* Sembunyikan tombol "+" mengambang di PC */
@@ -3731,5 +3674,33 @@ button {
 
   .laporan-kop__data dd {
     color: #000000 !important;
+  }
+}
+
+/* ============================================================
+   Navigasi bawah di layar lebar (tablet dan PC, 640px ke atas)
+   Pita selebar layar seperti pita judul di atas; kelima item berada tepat di kolom isi
+   (760 px dikurangi padding 24 px di kiri-kanan), sehingga tepinya sejajar dengan kartu.
+   ============================================================ */
+@media (min-width: 640px) {
+  .navbar {
+    --lebar-kolom-isi: 760px;
+    --jarak-kolom-isi: 24px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    transform: none;
+    box-sizing: border-box;
+    padding-left: max(var(--jarak-kolom-isi), calc((100% - var(--lebar-kolom-isi)) / 2 + var(--jarak-kolom-isi)));
+    padding-right: max(var(--jarak-kolom-isi), calc((100% - var(--lebar-kolom-isi)) / 2 + var(--jarak-kolom-isi)));
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  .navbar .nav-item {
+    min-width: 0;
   }
 }
