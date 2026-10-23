@@ -147,16 +147,15 @@ with sync_playwright() as p:
     kartu = lambda teks: pg.locator("li.kartu-transaksi-bertingkat", has_text=teks)
     kartu("Uji makan siang").click()
     pg.wait_for_timeout(400)
-    # Di app, bilah Ubah/Hapus pada lembar detail tertutup bilah navigasi bawah (z-index), sehingga klik
-    # sungguhan mengenai navigasi. Klik dikirim langsung ke tombolnya; yang diuji di sini hanya dialognya.
-    pg.get_by_role("button", name="Hapus", exact=True).dispatch_event("click")
+    # Klik sungguhan: bilah Ubah/Hapus di dasar lembar harus berada di atas navbar (tema-jujutsu.css).
+    pg.get_by_role("button", name="Hapus", exact=True).click()
     pg.wait_for_timeout(300)
     cek(pg.locator(".dlg-artefak").count() == 1, "dialog konfirmasi tampil di halaman")
     cek("Uji makan siang" in pg.locator(".dlg-artefak").inner_text(), "dialog memuat pesan konfirmasi")
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
     cek(kartu("Uji makan siang").count() == 1, "Batal/Esc: transaksi tetap ada")
-    pg.get_by_role("button", name="Hapus", exact=True).dispatch_event("click")
+    pg.get_by_role("button", name="Hapus", exact=True).click()
     setujui_dialog(pg)
     pg.wait_for_timeout(300)
     cek(kartu("Uji makan siang").count() == 0, "Lanjutkan: transaksi terhapus")
