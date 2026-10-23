@@ -53,8 +53,14 @@ aplikasi dengan data di browser masing-masing.
 cari/baca/unggah file, buat folder, salin file, baca/tulis/kosongkan sel sheet. Permintaan lain dijawab `501`
 dengan pesan yang jelas. Bila `gdriveSync.ts` memakai endpoint baru, tambahkan terjemahannya di `tangani()`.
 
+- **Tarik dulu, baru kirim.** Artefak dibuka dengan data lokal kosong, sedangkan "kirim" menulis ulang sheet
+  dari data lokal dan mengosongkan sheet tahun yang tidak ada di data lokal. Karena itu sambungan pertama
+  langsung menarik data (seperti login Firebase di aplikasi), dan `gdriveSync.artefak.ts` menolak "kirim"
+  sampai satu "tarik" selesai tanpa galat baca. Galat baca per spreadsheet ditelan aplikasi, jadi
+  kelengkapan tarik dinilai dari hitungan galat di `konektor.ts`.
 - **Menimpa isi file** tidak ada di konektor Drive. `Aset/Sinkron/Pengaturan/Laporan Kegiatan.json` dan laporan
-  `.docx` ditimpa dengan membuat file baru lalu memindahkan yang lama ke **Sampah** (ID file berubah). Isi yang
+  `.docx` ditimpa dengan membuat file baru lalu memindahkan yang lama ke **Sampah** (ID file berubah; ID lama
+  tetap diarahkan ke file terbaru supaya tidak muncul file kembar). Isi yang
   sama (selain cap waktu `terakhirSinkron`/`terakhirDiubah`) dilewati supaya Sampah tidak menumpuk. File lain
   ditolak (`403`).
 - **Membuat spreadsheet baru** tidak ada di konektor Sheets. Tahun baru dibuat lewat salinan file tahun lalu
@@ -80,4 +86,4 @@ python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,
 file keadaan tidak ditimpa bila tak berubah, pemulihan sambungan, konektor/izin tidak ada, indeks pencarian
-lambat, dan jawaban tulis tanpa `id`.
+lambat, jawaban tulis tanpa `id`, penjaga tarik-dulu, dan penimpaan lewat ID lama.
