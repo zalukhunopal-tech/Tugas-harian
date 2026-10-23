@@ -320,6 +320,35 @@ export function hariIni(): string {
   return new Date(d.getTime() - offset).toISOString().slice(0, 10);
 }
 
+const namaBulanSaja = new Intl.DateTimeFormat("id-ID", { month: "long" });
+
+function pecahTanggal(iso: string): { th: number; bl: number; tg: number } | null {
+  const [th, bl, tg] = (iso || "").split("-").map(Number);
+  return th && bl && tg ? { th, bl, tg } : null;
+}
+
+/** "2026-10-23" -> "23 Oktober 2026" (tanpa nama hari). */
+export function formatTanggalPanjang(iso: string): string {
+  const p = pecahTanggal(iso);
+  return p ? `${p.tg} ${namaBulanSaja.format(new Date(p.th, p.bl - 1, p.tg))} ${p.th}` : "";
+}
+
+/**
+ * Rentang tanggal ringkas tanpa nama hari: "23 Oktober 2026", "1 – 23 Oktober 2026",
+ * "1 Oktober – 3 November 2026", atau "20 Desember 2026 – 3 Januari 2027".
+ */
+export function formatRentangTanggal(mulai: string, selesai: string): string {
+  const a = pecahTanggal(mulai);
+  const b = pecahTanggal(selesai);
+  if (!a || !b) return formatTanggalPanjang(mulai || selesai);
+  if (mulai === selesai) return formatTanggalPanjang(mulai);
+  if (a.th === b.th && a.bl === b.bl) return `${a.tg} – ${formatTanggalPanjang(selesai)}`;
+  if (a.th === b.th) {
+    return `${a.tg} ${namaBulanSaja.format(new Date(a.th, a.bl - 1, a.tg))} – ${formatTanggalPanjang(selesai)}`;
+  }
+  return `${formatTanggalPanjang(mulai)} – ${formatTanggalPanjang(selesai)}`;
+}
+
 export function formatTanggalLengkap(iso: string): string {
   if (!iso) return "";
   const [th, bl, tg] = iso.split("-").map(Number);
