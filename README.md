@@ -76,3 +76,4 @@ perubahan tidak saling menimpa:
    (lihat [SECURITY.md](SECURITY.md)).
 5. Setelah merge ke `main`, workflow *Deploy GitHub Pages* memperbarui situs otomatis, dan *Keamanan & uji*
    memeriksa rahasia serta tipe TypeScript (`npx tsc --noEmit`).
+6. **Artefak Claude** dibangun terpisah dari folder `artefak/` (lihat [artefak/README.md](artefak/README.md)); build biasa dan GitHub Pages tidak memakainya, dan AI Studio tidak perlu mengubahnya.
