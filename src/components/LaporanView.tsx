@@ -8,6 +8,11 @@ interface LaporanViewProps {
   transaksi: Transaksi[];
   profilPelapor?: ProfilPelapor;
   daftarKegiatan?: DataKegiatan[];
+  // Diteruskan oleh GrafikView; belum dipakai LaporanView. Dideklarasikan agar `npm run build`
+  // (tsc && vite build) lolos dan sambungannya tidak hilang saat fitur ini dilanjutkan.
+  onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
+  googleToken?: string;
+  isLoggedInGoogle?: boolean;
 }
 
 export const LaporanView: React.FC<LaporanViewProps> = ({
