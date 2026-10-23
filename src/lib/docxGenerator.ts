@@ -33,6 +33,7 @@ import {
   hariIni,
 } from "./constants";
 import { hitungBatasLaporanFisik, KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
+import { hitungPenyelesaian } from "./penyelesaianDana";
 import { ambilSemuaBuktiOffline } from "./buktiStorage";
 
 export interface OpsiLaporanDocx {
@@ -419,10 +420,6 @@ export async function buatDokumenLaporanKegiatanDocx(
         (t.kaitan && t.kaitan.toLowerCase() === kegiatan.nama.toLowerCase()))
   );
 
-  const penerimaan = trxKegiatan
-    .filter((t) => t.jenis === "pemasukan")
-    .reduce((s, t) => s + t.jumlah, 0);
-
   const pengeluaranRaw = trxKegiatan.filter((t) => t.jenis === "pengeluaran");
 
   // 2. Tentukan urutan transaksi pengeluaran (Berdasarkan manual urutanTransaksiIds jika ada, atau default kelompok lalu tanggal)
@@ -458,7 +455,8 @@ export async function buatDokumenLaporanKegiatanDocx(
   daftarPengeluaran.forEach((t, i) => mapNomorUrut.set(t.id, i + 1));
 
   const totalPengeluaran = daftarPengeluaran.reduce((s, t) => s + t.jumlah, 0);
-  const sisaDana = penerimaan - totalPengeluaran;
+  // Penyelesaian akhir dana kegiatan (dana awal vs realisasi + perdiem), aturan di lib/penyelesaianDana.ts
+  const penyelesaian = hitungPenyelesaian(trxKegiatan);
 
   const periodeFmt = `${formatTanggalIndo(kegiatan.tanggalMulai)} s.d. ${formatTanggalIndo(kegiatan.tanggalSelesai)}`;
   const batasLaporan = hitungBatasLaporanFisik(kegiatan.tanggalSelesai);
@@ -818,47 +816,47 @@ export async function buatDokumenLaporanKegiatanDocx(
     })
   );
 
-  // Baris bertitik rata kanan di bawah ringkasan
-  const labelDiterima = "Dana diterima (total Penerimaan Dana kegiatan ini)";
-  const labelKeluar = "Total pengeluaran";
-  const labelSisa = sisaDana >= 0 ? "Sisa dana" : "Kurang bayar";
+  // Baris bertitik rata kanan di bawah ringkasan: penyelesaian akhir dana kegiatan
+  const barisPenyelesaian = (
+    label: string,
+    nilai: number,
+    opsi: { tebal?: boolean; warna?: string; setelah?: number } = {}
+  ) =>
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: opsi.setelah ?? 30 },
+      children: [
+        new TextRun({
+          text: `${label} ........................................ ${formatRupiah(nilai)}`,
+          bold: opsi.tebal,
+          font: "Arial",
+          size: opsi.tebal ? 21 : 20,
+          color: opsi.warna,
+        }),
+      ],
+    });
 
   childrenSections.push(
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { before: 120, after: 30 },
-      children: [
-        new TextRun({
-          text: `${labelDiterima} ........................................ ${formatRupiah(penerimaan)}`,
-          font: "Arial",
-          size: 20,
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: 30 },
-      children: [
-        new TextRun({
-          text: `${labelKeluar} ....................................................................... ${formatRupiah(totalPengeluaran)}`,
-          font: "Arial",
-          size: 20,
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: 200 },
-      children: [
-        new TextRun({
-          text: `${labelSisa} ....................................................................... ${formatRupiah(Math.abs(sisaDana))}`,
-          bold: true,
-          font: "Arial",
-          size: 21,
-          color: sisaDana < 0 ? "B00020" : "0D652D",
-        }),
-      ],
-    })
+    new Paragraph({ spacing: { before: 120, after: 0 }, children: [] }),
+    barisPenyelesaian("Dana awal kegiatan (uang muka dari lembaga)", penyelesaian.danaAwal),
+    barisPenyelesaian("Realisasi pengeluaran kegiatan", penyelesaian.realisasiOperasional),
+    barisPenyelesaian("Total perdiem", penyelesaian.totalPerdiem),
+    barisPenyelesaian("Total pengeluaran yang diakui", penyelesaian.totalDiakui, { tebal: true })
+  );
+
+  // Status penyelesaian akhir: sisa dana dikembalikan, atau kelebihan biaya diganti lembaga
+  childrenSections.push(
+    penyelesaian.status === "nihil"
+      ? new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: penyelesaian.labelStatus, bold: true, font: "Arial", size: 21, color: "1D4ED8" })],
+        })
+      : barisPenyelesaian(penyelesaian.labelStatus, penyelesaian.jumlahStatus, {
+          tebal: true,
+          warna: penyelesaian.status === "reimbursement" ? "B00020" : "0D652D",
+          setelah: 200,
+        })
   );
 
   // ==========================================

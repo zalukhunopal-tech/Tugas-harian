@@ -15,6 +15,7 @@ import {
   DetailAkomodasi,
   DetailKonsumsi,
   DetailHonorarium,
+  DetailPerdiem,
   DataKhususKegiatan,
 } from "../types";
 import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah } from "../lib/constants";
@@ -108,6 +109,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
     jumlahOrang: 1,
     jumlahHari: 1,
   });
+  const [perdiem, setPerdiem] = useState<DetailPerdiem>({});
 
   // Bukti Transaksi States
   const [bukti, setBukti] = useState<BuktiItem[]>([]);
@@ -178,6 +180,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           if (dk.akomodasi) setAkomodasi(dk.akomodasi);
           if (dk.konsumsi) setKonsumsi(dk.konsumsi);
           if (dk.honorarium) setHonorarium(dk.honorarium);
+          setPerdiem(dk.perdiem || {});
         }
       }
     } else {
@@ -217,6 +220,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setAkomodasi({});
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
+      setPerdiem({});
     }
   }, [editTransaksi, targetTabunganAwalId]);
 
@@ -525,6 +529,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           akomodasi: kategori === "Akomodasi" ? akomodasi : undefined,
           konsumsi: kategori === "Konsumsi" ? konsumsi : undefined,
           honorarium: kategori === "Honorarium & Ganti Hari" ? honorarium : undefined,
+          perdiem: kategori === "Perdiem" ? perdiem : undefined,
         };
       }
 
@@ -578,6 +583,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setAkomodasi({});
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
+      setPerdiem({});
       handleResetScan();
     }
   };
@@ -1239,6 +1245,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 onUpdateKonsumsi={setKonsumsi}
                 honorarium={honorarium}
                 onUpdateHonorarium={setHonorarium}
+                perdiem={perdiem}
+                onUpdatePerdiem={setPerdiem}
               />
             </div>
           ) : (

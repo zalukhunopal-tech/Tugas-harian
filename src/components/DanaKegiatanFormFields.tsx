@@ -10,6 +10,7 @@ import {
   DetailAkomodasi,
   DetailKonsumsi,
   DetailHonorarium,
+  DetailPerdiem,
   TimesheetRentalItem,
   DataKhususKegiatan,
   Transaksi,
@@ -71,6 +72,27 @@ interface DanaKegiatanFormFieldsProps {
   onUpdateKonsumsi: (k: DetailKonsumsi) => void;
   honorarium: DetailHonorarium;
   onUpdateHonorarium: (h: DetailHonorarium) => void;
+  perdiem: DetailPerdiem;
+  onUpdatePerdiem: (p: DetailPerdiem) => void;
+}
+
+const KUNCI_TARIF_PERDIEM = "keuangan-tarif-perdiem";
+
+function bacaTarifPerdiemTerakhir(): number {
+  try {
+    const n = Number(localStorage.getItem(KUNCI_TARIF_PERDIEM));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function simpanTarifPerdiemTerakhir(tarif: number): void {
+  try {
+    if (tarif > 0) localStorage.setItem(KUNCI_TARIF_PERDIEM, String(tarif));
+  } catch {
+    // penyimpanan tidak tersedia: tarif hanya tidak diingat
+  }
 }
 
 export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
@@ -118,6 +140,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   onUpdateKonsumsi,
   honorarium,
   onUpdateHonorarium,
+  perdiem,
+  onUpdatePerdiem,
 }) => {
   // Modal Buat Kegiatan Baru
   const [modalKegiatanBaru, setModalKegiatanBaru] = useState(false);
@@ -155,6 +179,25 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       onUpdateJumlah(String(subtotalRincian));
     }
   };
+
+  // Perdiem: hak uang harian = jumlah hari x tarif per hari. Jumlah transaksi diisi otomatis saat pengguna
+  // mengubah hari atau tarif; mengubah jumlah langsung tidak menimpa apa pun.
+  const ubahPerdiem = (berubah: Partial<DetailPerdiem>) => {
+    const baru = { ...perdiem, ...berubah };
+    onUpdatePerdiem(baru);
+    const hari = Number(baru.jumlahHari) || 0;
+    const tarif = Number(baru.tarifPerHari) || 0;
+    if (tarif > 0 && berubah.tarifPerHari !== undefined) simpanTarifPerdiemTerakhir(tarif);
+    if (hari > 0 && tarif > 0) onUpdateJumlah(String(Math.round(hari * tarif)));
+  };
+
+  // Perdiem baru: isi tarif dengan tarif terakhir yang dipakai (bukan saat mengubah perdiem yang sudah ada).
+  useEffect(() => {
+    if (kategori === "Perdiem" && !perdiem.tarifPerHari) {
+      const terakhir = bacaTarifPerdiemTerakhir();
+      if (terakhir > 0) onUpdatePerdiem({ ...perdiem, tarifPerHari: terakhir });
+    }
+  }, [kategori]);
 
   // Simpan Kegiatan Baru
   const handleSimpanKegiatanBaru = (e: React.FormEvent) => {
@@ -286,6 +329,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       akomodasi,
       konsumsi,
       honorarium,
+      perdiem: kategori === "Perdiem" ? perdiem : undefined,
     },
   };
 
@@ -1038,6 +1082,63 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {kategori === "Perdiem" && (
+        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+          <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
+            📅 Perdiem (hak uang harian di lapangan)
+          </strong>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
+            <div>
+              <label htmlFor="perdiem-hari" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Hari</label>
+              <input
+                id="perdiem-hari"
+                type="number"
+                min="1"
+                inputMode="numeric"
+                placeholder="5"
+                value={perdiem.jumlahHari || ""}
+                onChange={(e) => ubahPerdiem({ jumlahHari: Number(e.target.value) })}
+                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+              />
+            </div>
+            <div>
+              <label htmlFor="perdiem-tarif" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tarif per Hari (Rp)</label>
+              <input
+                id="perdiem-tarif"
+                type="number"
+                min="0"
+                inputMode="numeric"
+                placeholder="200000"
+                value={perdiem.tarifPerHari || ""}
+                onChange={(e) => ubahPerdiem({ tarifPerHari: Number(e.target.value) })}
+                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+              />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="perdiem-ket" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Keterangan (wilayah / rentang tanggal)</label>
+              <input
+                id="perdiem-ket"
+                type="text"
+                placeholder="Contoh: Kalimantan, 20-24 Sep 2026"
+                value={perdiem.keterangan || ""}
+                onChange={(e) => ubahPerdiem({ keterangan: e.target.value })}
+                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+              />
+            </div>
+          </div>
+          {Number(perdiem.jumlahHari) > 0 && Number(perdiem.tarifPerHari) > 0 && (
+            <div style={{ fontSize: "0.82rem" }}>
+              {perdiem.jumlahHari} hari × {formatRupiah(Number(perdiem.tarifPerHari))} ={" "}
+              <strong>{formatRupiah(Math.round(Number(perdiem.jumlahHari) * Number(perdiem.tarifPerHari)))}</strong>{" "}
+              <span style={{ color: "var(--muted)" }}>(mengisi kolom Jumlah)</span>
+            </div>
+          )}
+          <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
+            Perdiem ikut dihitung sebagai pengeluaran yang diakui pada penyelesaian akhir dana kegiatan.
+          </p>
         </div>
       )}
 
