@@ -3578,3 +3578,66 @@ button {
     break-inside: auto;
   }
 }
+
+/* Kop laporan (judul, periode, kaitan, tanggal cetak): rapi di layar HP dan di kertas */
+.laporan-kop {
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.laporan-kop__jenis {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.laporan-kop__judul {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.laporan-kop__data {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.laporan-kop__data > div {
+  display: contents;
+}
+
+.laporan-kop__data dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.laporan-kop__data dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  .laporan-kop__jenis,
+  .laporan-kop__data dt {
+    color: #444444 !important;
+  }
+
+  .laporan-kop__data dd {
+    color: #000000 !important;
+  }
+}
