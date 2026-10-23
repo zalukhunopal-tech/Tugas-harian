@@ -36,8 +36,10 @@ jobs:
       - name: Pasang dependensi (tanpa skrip instalasi)
         run: npm install --no-audit --no-fund --ignore-scripts
 
+      # --base=./ menimpa `base` di vite.config.ts (dikelola Google AI Studio, bisa saja "/"): situs ini
+      # disajikan di subfolder /<repo>/, jadi alamat aset harus relatif.
       - name: Build (vite)
-        run: npx vite build
+        run: npx vite build --base=./
 
       - name: Sesuaikan manifest PWA untuk alamat di subfolder (github.io/<repo>/)
         run: |
