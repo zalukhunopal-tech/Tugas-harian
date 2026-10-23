@@ -76,10 +76,29 @@ function konfirmasiAsync(): Plugin {
   };
 }
 
+/**
+ * Penerbitan artefak menolak karakter pengganti U+FFFD di berkas JS. Karakter itu muncul sebagai string literal
+ * di polyfill `string_decoder` milik pustaka pihak ketiga (pembuat .docx); menuliskannya sebagai escape `\ufffd`
+ * tidak mengubah artinya.
+ */
+function escapeKarakterPengganti(): Plugin {
+  return {
+    name: "escape-karakter-pengganti",
+    enforce: "post",
+    generateBundle(_opsi, bundel) {
+      for (const berkas of Object.values(bundel)) {
+        if (berkas.type === "chunk" && berkas.code.includes("\ufffd")) {
+          berkas.code = berkas.code.split("\ufffd").join("\\ufffd");
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
   root: akar,
   base: "./",
-  plugins: [konfirmasiAsync(), react(), entriArtefak(), teksArtefak()],
+  plugins: [konfirmasiAsync(), react(), entriArtefak(), teksArtefak(), escapeKarakterPengganti()],
   resolve: {
     alias: [
       {
