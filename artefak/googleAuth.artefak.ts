@@ -34,6 +34,11 @@ const PROFIL: ProfilPenggunaGoogle = {
 
 let aktif = false;
 
+// Pendengar yang didaftarkan App lewat initAuth. Di Firebase, onAuthStateChanged ikut terpanggil setelah
+// popup login berhasil, dan App memakainya untuk menarik data dari Drive sekali. Tanpa itu, sambungan
+// pertama tidak menarik data apa pun dan sinkron berikutnya akan menimpa Drive dengan data lokal yang kosong.
+let saatBerhasil: ((user: User, token: string) => void) | undefined;
+
 function bacaFlag(): boolean {
   try {
     return localStorage.getItem(KEY_AKTIF) === "1";
@@ -80,6 +85,7 @@ export const initAuth = (
   onAuthFailure?: (pesanAlasan?: string) => void
 ) => {
   let dibatalkan = false;
+  saatBerhasil = onAuthSuccess;
   void (async () => {
     if (!bacaFlag()) {
       onAuthFailure?.();
@@ -98,6 +104,7 @@ export const initAuth = (
   })();
   return () => {
     dibatalkan = true;
+    if (saatBerhasil === onAuthSuccess) saatBerhasil = undefined;
   };
 };
 
@@ -118,16 +125,19 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
   }
 
-  const daftar = await mcp.listTools().catch((err: { message?: string }) => {
-    throw new Error(err?.message || "Daftar konektor tidak bisa dibaca.");
-  });
-  for (const nama of [SERVER_DRIVE, SERVER_SHEETS]) {
-    const server = daftar.servers.find((s) => s.server === nama);
-    if (!server || server.tools.length === 0) {
-      throw new Error(`Konektor ${nama} belum tersambung di akun Claude ini. Tambahkan di claude.ai → Settings → Connectors.`);
-    }
-    if (server.authStatus === "needs_reauth") {
-      throw new Error(`Sambungan ${nama} kedaluwarsa. Sambungkan ulang di claude.ai → Settings → Connectors.`);
+  // Pemeriksaan awal yang ramah; runtime lama mungkin tidak punya listTools, dan itu bukan alasan menolak.
+  const daftar = await Promise.resolve()
+    .then(() => mcp.listTools())
+    .catch(() => null);
+  if (daftar && Array.isArray(daftar.servers)) {
+    for (const nama of [SERVER_DRIVE, SERVER_SHEETS]) {
+      const server = daftar.servers.find((s) => s.server === nama);
+      if (!server || server.tools.length === 0) {
+        throw new Error(`Konektor ${nama} belum tersambung di akun Claude ini. Tambahkan di claude.ai → Settings → Connectors.`);
+      }
+      if (server.authStatus === "needs_reauth") {
+        throw new Error(`Sambungan ${nama} kedaluwarsa. Sambungkan ulang di claude.ai → Settings → Connectors.`);
+      }
     }
   }
 
@@ -143,6 +153,8 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 
   aktif = true;
   tulisFlag(true);
+  // Seperti onAuthStateChanged Firebase: App menarik data dari Drive sekali setelah tersambung.
+  saatBerhasil?.(PROFIL as unknown as User, TOKEN_KONEKTOR);
   return { user: PROFIL as unknown as User, accessToken: TOKEN_KONEKTOR };
 };
 

@@ -148,7 +148,26 @@ async function panggil(server: string, tool: string, input: unknown, boleh_ulang
   }
 }
 
-const baca = (server: string, tool: string, input: unknown) => panggil(server, tool, input, true);
+let jumlahGalatBaca = 0;
+
+/**
+ * Banyaknya pembacaan yang gagal sejak halaman dibuka. Pembungkus gdriveSync memakainya untuk tahu apakah
+ * sebuah "tarik data" benar-benar utuh: aplikasi menelan galat baca per spreadsheet, jadi tarik yang
+ * sebagian gagal tampak seperti Drive yang kosong.
+ */
+export const hitungGalatBaca = () => jumlahGalatBaca;
+
+async function baca(server: string, tool: string, input: unknown): Promise<any> {
+  try {
+    return await panggil(server, tool, input, true);
+  } catch (err) {
+    // get_file_metadata dipakai untuk menjajaki folder bawaan yang boleh saja tidak ada; galat "alat menolak"
+    // dari Drive (mis. file tidak ditemukan) juga bukan tanda kegagalan sistem.
+    const galatTolakan = err instanceof GalatHttp && err.status === 400 && server === SERVER_DRIVE;
+    if (tool !== "get_file_metadata" && !galatTolakan) jumlahGalatBaca++;
+    throw err;
+  }
+}
 const tulis = (server: string, tool: string, input: unknown) => panggil(server, tool, input, false);
 
 /* ---------- pembantu ---------- */
@@ -242,6 +261,16 @@ export function terjemahkanKueri(q: string): string {
 // File yang baru dipindahkan ke Sampah oleh sesi ini; disaring dari daftar kalau pencarian masih memuatnya.
 const sudahDiSampah = new Set<string>();
 
+// ID lama -> ID pengganti, untuk file yang isinya "ditimpa" (dibuat ulang). Aplikasi menyimpan ID dari
+// daftar folder terakhir; tanpa pemetaan ini, penimpaan kedua lewat ID lama akan membuat file kembar.
+const penggantiId = new Map<string, string>();
+
+function idTerkini(id: string): string {
+  let sekarang = id;
+  for (let i = 0; i < 20 && penggantiId.has(sekarang); i++) sekarang = penggantiId.get(sekarang)!;
+  return sekarang;
+}
+
 // File yang baru dibuat oleh sesi ini; ditambahkan ke daftar bila indeks pencarian Drive belum memuatnya,
 // supaya sinkron berikutnya tidak membuat Aset.json atau Sinkron.json kembar.
 interface BerkasBaru {
@@ -308,12 +337,12 @@ async function daftarFile(url: URL): Promise<Response> {
 }
 
 async function metadataFile(id: string): Promise<Response> {
-  const f = await baca(SERVER_DRIVE, "get_file_metadata", { fileId: id, excludeContentSnippets: true });
+  const f = await baca(SERVER_DRIVE, "get_file_metadata", { fileId: idTerkini(id), excludeContentSnippets: true });
   return teksKeJson(bentukFileDrive(f));
 }
 
 async function unduhFile(id: string): Promise<Response> {
-  const r = await baca(SERVER_DRIVE, "download_file_content", { fileId: id });
+  const r = await baca(SERVER_DRIVE, "download_file_content", { fileId: idTerkini(id) });
   if (typeof r.content !== "string") throw new GalatHttp(400, "Konektor tidak mengembalikan isi file.");
   return new Response(base64KeByte(r.content), {
     status: 200,
@@ -411,7 +440,8 @@ function normalisasiJson(teks: string): string | null {
   }
 }
 
-async function timpaIsiFile(id: string, isi: Blob, tipeBadan: string): Promise<Response> {
+async function timpaIsiFile(idDiminta: string, isi: Blob, tipeBadan: string): Promise<Response> {
+  const id = idTerkini(idDiminta);
   const meta = await baca(SERVER_DRIVE, "get_file_metadata", { fileId: id, excludeContentSnippets: true });
   const nama: string = meta.title ?? "";
   if (!bolehDitimpa(nama)) {
@@ -438,6 +468,8 @@ async function timpaIsiFile(id: string, isi: Blob, tipeBadan: string): Promise<R
   }
 
   const baru = await buatFile({ name: nama, parents: meta.parentId ? [meta.parentId] : undefined, mimeType: tipe }, isi);
+  penggantiId.set(id, baru.id);
+  if (idDiminta !== id) penggantiId.set(idDiminta, baru.id);
   try {
     await tulis(SERVER_DRIVE, "trash_file", { fileId: id });
     sudahDiSampah.add(id);

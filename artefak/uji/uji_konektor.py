@@ -107,10 +107,22 @@ def tunggu_sinkron(pg, sebelum=0, detik=30):
     pg.wait_for_timeout(400)
 
 
-def hubungkan(pg):
+def tunggu_tarik(pg, jumlah_baca=2, detik=30):
+    """Tarik data selesai bila sheet Pribadi dan Kegiatan sudah dibaca (B7:L), lalu beri waktu state diperbarui."""
+    pg.wait_for_function(
+        """(n) => window.__drive.calls.filter(c => c.tool === 'get_values' && /B7:L$/.test(c.input.range)).length >= n""",
+        arg=jumlah_baca,
+        timeout=detik * 1000,
+    )
+    pg.wait_for_timeout(900)
+
+
+def hubungkan(pg, tunggu=True):
     nav(pg, "Saya")
     pg.get_by_role("button", name="Sambungkan konektor Google Drive").click()
     pg.get_by_text("Konektor Google Drive aktif").first.wait_for(timeout=10000)
+    if tunggu:
+        tunggu_tarik(pg)  # sambungan pertama menarik data otomatis, seperti login Firebase di aplikasi
 
 
 with sync_playwright() as p:
@@ -119,6 +131,8 @@ with sync_playwright() as p:
     hubungkan(pg)
     cek(pg.get_by_text("Folder Keuangan di Google Drive").count() > 0, "bagian Folder Keuangan tampil")
     cek("Login Google gagal" not in pg.content(), "tidak ada pesan 'Login Google gagal'")
+    cek(len(panggilan(pg, "get_values")) >= 2, "sambungan pertama langsung menarik data (tanpa klik Tarik)")
+    nav(pg, "Saya")
     pg.get_by_role("button", name="Tarik Data dari Folder Keuangan").click()
     pg.wait_for_timeout(2500)
     nav(pg, "Riwayat")
@@ -278,6 +292,46 @@ with sync_playwright() as p:
     tunggu_sinkron(pg, n0)
     cek(pg.get_by_text("Berhasil disimpan ke Google Drive").count() > 0, "kirim tetap berhasil")
     cek(len(file_di_folder(pg, "Sinkron.json")) == 1, "Sinkron.json terbuat satu kali")
+    b.close()
+
+    print("12. Penjaga tarik-dulu: galat baca membuat kirim ditolak dan tidak menulis apa pun")
+    b, pg, galat = buka(p)
+    pg.evaluate("window.__drive.gagal.get_values = {code: 'upstream_error', message: 'Google sedang bermasalah'}")
+    hubungkan(pg)
+    nav(pg, "Saya")
+    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    setujui_dialog(pg)
+    pg.get_by_text("Tarik data dari folder Keuangan dulu").first.wait_for(timeout=10000)
+    cek(True, "pesan 'tarik dulu' tampil")
+    tulis = [c["tool"] for c in panggilan(pg) if c["tool"] in ("create_file", "update_values", "batch_clear_values", "trash_file")]
+    cek(tulis == [], f"tidak ada panggilan tulis saat ditolak ({tulis})")
+    pg.evaluate("window.__drive.gagal = {}")
+    pg.get_by_role("button", name="Tarik Data dari Folder Keuangan").click()
+    pg.wait_for_timeout(3000)
+    n0 = len(panggilan(pg))
+    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    setujui_dialog(pg)
+    tunggu_sinkron(pg, n0)
+    cek(len(panggilan(pg, "batch_clear_values")) > 0, "setelah tarik utuh, kirim berjalan")
+    cek(len(baris_sheet(pg, "SP")) == 2, f"isi sheet Pribadi tetap utuh {baris_sheet(pg, 'SP')}")
+    b.close()
+
+    print("13. Menimpa lewat ID lama tidak membuat file kembar")
+    b, pg, galat = buka(p, denganAset=True)
+    hasil = pg.evaluate(
+        """async () => {
+          const url = (id) => `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`;
+          const kirim = (id, isi) => fetch(url(id), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: isi }).then(r => r.status);
+          const s1 = await kirim('AS', '[{"v":1}]');
+          const s2 = await kirim('AS', '[{"v":2}]'); // ID lama, sudah diganti pada panggilan pertama
+          return [s1, s2];
+        }"""
+    )
+    cek(hasil == [200, 200], f"dua penimpaan berhasil {hasil}")
+    fs = file_di_folder(pg, "Aset.json")
+    aktif = [f for f in fs if not f["trashed"]]
+    cek(len(aktif) == 1, f"tepat satu Aset.json aktif ({len(aktif)} aktif dari {len(fs)})")
+    cek(aktif and aktif[0]["isi"] == '[{"v":2}]', "isi yang aktif adalah yang terbaru")
     b.close()
 
 print()
