@@ -48,6 +48,7 @@ import {
   simpanDaftarKegiatan,
   muatLaporanKegiatanFile,
 } from "./lib/storage";
+import { adalahPemasukanPerdiemOtomatis, cariPasanganPerdiem } from "./lib/perdiemOtomatis";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
 import {
   koinDipakai,
@@ -139,6 +140,8 @@ export default function App() {
   }, [currentView]);
   const [bulanTerpilih, setBulanTerpilih] = useState<string>(() => hariIni().slice(0, 7));
   const [editTransaksi, setEditTransaksi] = useState<Transaksi | null>(null);
+  // True bila transaksi yang diubah dialihkan dari pemasukan pribadi otomatis ke perdiem Dana Kegiatan-nya.
+  const [editDialihkanDariPerdiem, setEditDialihkanDariPerdiem] = useState(false);
 
   // Google Drive Direct Sync States
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -882,7 +885,8 @@ export default function App() {
   );
 
   // Transaction CRUD handlers dengan field diubah dan auto-sync
-  const handleSimpanTransaksi = (t: Transaksi | Transaksi[]) => {
+  // `hapusIds`: transaksi yang ikut dihapus pada penyimpanan yang sama, mis. pemasukan pribadi perdiem yang dilepas.
+  const handleSimpanTransaksi = (t: Transaksi | Transaksi[], hapusIds: string[] = []) => {
     const listBaru = Array.isArray(t) ? t : [t];
     const daftarTerupdate = listBaru.map((item) => ({
       ...item,
@@ -899,12 +903,18 @@ export default function App() {
       }
     }
 
+    const dilepas = transaksi.filter((x) => hapusIds.includes(x.id));
+    if (dilepas.length > 0) {
+      dilepas.forEach((x) => tambahIdTerhapus(x.id));
+      hasilTransaksi = hasilTransaksi.filter((x) => !hapusIds.includes(x.id));
+    }
+
     perbaruiTransaksi(hasilTransaksi);
     setEditTransaksi(null);
     setCurrentView("riwayat");
     jadwalkanAutoSync();
 
-    const affectedKgIds = cariIdKegiatanTerdampak(daftarTerupdate);
+    const affectedKgIds = cariIdKegiatanTerdampak([...daftarTerupdate, ...dilepas]);
     if (affectedKgIds.length > 0) {
       jadwalkanAutoSyncDocx(affectedKgIds);
     }
@@ -922,6 +932,11 @@ export default function App() {
       if (pasangan) {
         idsToHapus.push(pasangan.id);
       }
+    }
+    // Perdiem Dana Kegiatan dan pemasukan pribadi otomatisnya satu kesatuan: hapus salah satu, hapus keduanya.
+    const pasanganPerdiem = target ? cariPasanganPerdiem(target, transaksi) : undefined;
+    if (pasanganPerdiem && !idsToHapus.includes(pasanganPerdiem.id)) {
+      idsToHapus.push(pasanganPerdiem.id);
     }
 
     const affectedKgIds = cariIdKegiatanTerdampak(
@@ -965,7 +980,10 @@ export default function App() {
   };
 
   const handleMulaiEditTransaksi = (t: Transaksi) => {
-    setEditTransaksi(t);
+    // Pemasukan pribadi otomatis tidak diubah sendiri: yang dibuka adalah perdiem Dana Kegiatan sumbernya.
+    const sumberPerdiem = adalahPemasukanPerdiemOtomatis(t) ? cariPasanganPerdiem(t, transaksi) : undefined;
+    setEditDialihkanDariPerdiem(Boolean(sumberPerdiem));
+    setEditTransaksi(sumberPerdiem ?? t);
     setCurrentView("tambah");
   };
 
@@ -1305,8 +1323,9 @@ export default function App() {
             {currentView === "tambah" && (
               <TambahView
                 editTransaksi={editTransaksi}
-                onSimpan={(trx) => {
-                  handleSimpanTransaksi(trx);
+                dialihkanDariPerdiemPribadi={Boolean(editTransaksi) && editDialihkanDariPerdiem}
+                onSimpan={(trx, hapusIds) => {
+                  handleSimpanTransaksi(trx, hapusIds);
                   setTargetTabunganAwalId("");
                   setCurrentView(lastActiveTab);
                 }}
