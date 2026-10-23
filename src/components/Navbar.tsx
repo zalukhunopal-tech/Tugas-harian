@@ -13,7 +13,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onBukaMenuTambah,
 }) => {
   return (
-    <nav className="navbar" aria-label="Navigasi utama">
+    <nav
+      className="navbar md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md md:flex md:justify-around md:items-center"
+      aria-label="Navigasi utama"
+    >
       <button
         type="button"
         className="nav-item"

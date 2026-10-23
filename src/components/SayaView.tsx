@@ -362,9 +362,15 @@ export const SayaView: React.FC<SayaViewProps> = ({
             Data ini tersimpan aman di berkas <code>Laporan Kegiatan.json</code> di folder Keuangan dan tersinkronisasi otomatis.
           </p>
 
-          <form onSubmit={handleSimpanProfil} style={{ display: "grid", gap: "12px", marginTop: "12px" }}>
-            <div className="input-field">
-              <label htmlFor="profil-nama" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Nama Lengkap Pelapor</label>
+          <form
+            onSubmit={handleSimpanProfil}
+            className="profil-pelapor-form md:grid-cols-2"
+          >
+            {/* Baris 1 kiri di PC: Nama Lengkap Pelapor */}
+            <div className="input-field profil-field-nama">
+              <label htmlFor="profil-nama" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                Nama Lengkap Pelapor
+              </label>
               <input
                 id="profil-nama"
                 type="text"
@@ -375,34 +381,41 @@ export const SayaView: React.FC<SayaViewProps> = ({
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
-              <div className="input-field">
-                <label htmlFor="profil-jabatan" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Jabatan</label>
-                <input
-                  id="profil-jabatan"
-                  type="text"
-                  value={profilForm.jabatan}
-                  onChange={(e) => setProfilForm({ ...profilForm, jabatan: e.target.value })}
-                  placeholder="Contoh: Surveyor"
-                  required
-                />
-              </div>
-
-              <div className="input-field">
-                <label htmlFor="profil-lembaga" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Lembaga / Organisasi</label>
-                <input
-                  id="profil-lembaga"
-                  type="text"
-                  value={profilForm.lembaga}
-                  onChange={(e) => setProfilForm({ ...profilForm, lembaga: e.target.value })}
-                  placeholder="Contoh: KKI Warsi"
-                  required
-                />
-              </div>
+            {/* Baris 1 kanan di PC: Jabatan */}
+            <div className="input-field profil-field-jabatan">
+              <label htmlFor="profil-jabatan" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                Jabatan
+              </label>
+              <input
+                id="profil-jabatan"
+                type="text"
+                value={profilForm.jabatan}
+                onChange={(e) => setProfilForm({ ...profilForm, jabatan: e.target.value })}
+                placeholder="Contoh: Surveyor"
+                required
+              />
             </div>
 
-            <div className="input-field">
-              <label htmlFor="profil-proyek" style={{ fontSize: "0.82rem", fontWeight: 600 }}>Nama Proyek / Lanskap</label>
+            {/* Baris 2 kiri di PC: Lembaga / Organisasi */}
+            <div className="input-field profil-field-lembaga">
+              <label htmlFor="profil-lembaga" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                Lembaga / Organisasi
+              </label>
+              <input
+                id="profil-lembaga"
+                type="text"
+                value={profilForm.lembaga}
+                onChange={(e) => setProfilForm({ ...profilForm, lembaga: e.target.value })}
+                placeholder="Contoh: KKI Warsi"
+                required
+              />
+            </div>
+
+            {/* Baris 2 kanan di PC: Nama Proyek / Lanskap */}
+            <div className="input-field profil-field-proyek">
+              <label htmlFor="profil-proyek" style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                Nama Proyek / Lanskap
+              </label>
               <input
                 id="profil-proyek"
                 type="text"
@@ -413,7 +426,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
               />
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "4px" }}>
+            {/* Baris terpisah di bawah: Keterangan Awal & Tombol Simpan (md:col-span-2) */}
+            <div className="profil-pelapor-footer md:col-span-2">
               <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
                 Awal: Adrila Nopal Prastian Zalukhu (Surveyor, KKI Warsi, Kayan-Mentarang)
               </span>
@@ -423,7 +437,11 @@ export const SayaView: React.FC<SayaViewProps> = ({
                     ✓ {statusSimpanProfil}
                   </span>
                 )}
-                <button type="submit" className="btn-primary" style={{ padding: "8px 20px", fontSize: "0.88rem" }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: "8px 20px", fontSize: "0.88rem", whiteSpace: "nowrap" }}
+                >
                   Simpan Profil Pelapor
                 </button>
               </div>
