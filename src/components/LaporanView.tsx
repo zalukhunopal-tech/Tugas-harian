@@ -4,7 +4,8 @@ import {
   formatRupiah,
   formatAngka,
   hariIni,
-  formatTanggalLengkap,
+  formatRentangTanggal,
+  formatTanggalPanjang,
   PROFIL_PELAPOR_DEFAULT,
   KELOMPOK_DANA_KEGIATAN,
 } from "../lib/constants";
@@ -418,7 +419,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     return hasil.jumlahTransaksi > 0 ? hasil : null;
   }, [dana, transaksiPenyelesaian]);
   const penyelesaianSementara = Boolean(kegiatanTerpilih && kegiatanTerpilih.tanggalSelesai >= hariIni());
-  const periodeTeks = `Periode laporan: ${formatTanggalLengkap(tglMulai)} s.d. ${formatTanggalLengkap(tglSelesai)}`;
+  const periodeTeks = `Periode laporan: ${formatRentangTanggal(tglMulai, tglSelesai)}`;
 
   return (
     <div className="laporan-container" style={{ width: "100%" }}>
@@ -836,26 +837,30 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       {/* ===== LEMBAR LAPORAN RESMI (TAMPIL DI LAYAR & TERCETAK RAPI DI PDF) ===== */}
       <div className="card printable-report" style={{ padding: "24px", marginBottom: "24px" }}>
         {/* KOP / JUDUL LAPORAN */}
-        <div className="report-header" style={{ borderBottom: "2px solid var(--border)", paddingBottom: "16px", marginBottom: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+        <header className="report-header laporan-kop">
+          <div className="laporan-kop__jenis">Dokumen Laporan Pertanggungjawaban (SPJ)</div>
+          <h1 className="laporan-kop__judul">{judulLaporan}</h1>
+          <dl className="laporan-kop__data">
             <div>
-              <h1 style={{ margin: "0 0 6px 0", fontSize: "1.35rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                {judulLaporan}
-              </h1>
-              <div style={{ fontSize: "0.88rem", color: "var(--text)" }}>
-                <strong>Periode Kegiatan:</strong> {formatTanggalLengkap(tglMulai)} s.d. {formatTanggalLengkap(tglSelesai)}
-              </div>
-              <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "2px" }}>
-                <strong>Kaitan / Agenda:</strong> {kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan}
-                {kegiatanTerpilih?.lokasi && ` · Lokasi: ${kegiatanTerpilih.lokasi}`}
-              </div>
+              <dt>Periode</dt>
+              <dd>{formatRentangTanggal(tglMulai, tglSelesai)}</dd>
             </div>
-            <div style={{ textAlign: "right", fontSize: "0.78rem", color: "var(--muted)" }}>
-              <div>Dokumen Laporan Pertanggungjawaban (SPJ)</div>
-              <div>Dicetak: {new Date().toLocaleDateString("id-ID")}</div>
+            <div>
+              <dt>Kaitan / Agenda</dt>
+              <dd>{kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan}</dd>
             </div>
-          </div>
-        </div>
+            {kegiatanTerpilih?.lokasi && (
+              <div>
+                <dt>Lokasi</dt>
+                <dd>{kegiatanTerpilih.lokasi}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Dicetak</dt>
+              <dd>{formatTanggalPanjang(hariIni())}</dd>
+            </div>
+          </dl>
+        </header>
 
         {/* Profil Pelapor & Batas Penyerahan Laporan Fisik */}
         {dana === "Dana Kegiatan" && (
