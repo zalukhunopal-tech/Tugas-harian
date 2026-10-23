@@ -3205,4 +3205,376 @@ button {
   }
 }
 
+/* ==========================================================================
+   Penyelesaian Dana Kegiatan (cash advance / advance settlement)
+   Ukuran memakai em agar ikut mengecil bersama kertas di preview dokumen.
+   ========================================================================== */
+.kartu-penyelesaian {
+  --warna-status: var(--accent);
+  border: 1.5px solid var(--border);
+  border-radius: 0.85em;
+  padding: 1em 1.1em;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
 
+.kartu-penyelesaian[data-status="kembalikan"] {
+  --warna-status: var(--masuk);
+}
+
+.kartu-penyelesaian[data-status="reimbursement"] {
+  --warna-status: var(--keluar);
+}
+
+.kartu-penyelesaian__judul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25em 0.6em;
+  margin-bottom: 0.7em;
+  font-size: 0.95em;
+}
+
+.kartu-penyelesaian__kegiatan {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.kartu-penyelesaian__sementara {
+  flex-basis: 100%;
+  font-size: 0.8em;
+  font-weight: 700;
+  color: var(--peringatan, #b45309);
+}
+
+.kartu-penyelesaian__baris {
+  margin: 0 0 0.8em;
+  display: grid;
+  gap: 0.3em;
+}
+
+.kartu-penyelesaian__baris > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8em;
+  font-size: 0.9em;
+}
+
+.kartu-penyelesaian__baris dt {
+  margin: 0;
+  min-width: 0;
+}
+
+.kartu-penyelesaian__baris dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kartu-penyelesaian__baris-tebal {
+  border-top: 1px solid var(--border);
+  padding-top: 0.3em;
+  font-weight: 800;
+}
+
+.kartu-penyelesaian__status {
+  display: flex;
+  gap: 0.7em;
+  align-items: center;
+  padding: 0.7em 0.85em;
+  border: 1.5px solid var(--warna-status);
+  border-radius: 0.7em;
+  background: color-mix(in srgb, var(--warna-status) 13%, transparent);
+  color: var(--warna-status);
+}
+
+.kartu-penyelesaian__status-label {
+  font-weight: 700;
+  font-size: 0.95em;
+  line-height: 1.3;
+}
+
+.kartu-penyelesaian__status-nilai {
+  font-weight: 800;
+  font-size: 1.3em;
+  margin-top: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kartu-penyelesaian__catatan {
+  margin: 0.8em 0 0;
+  font-size: 0.8em;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Preview Dokumen Siap Cetak (Laporan Dana Kegiatan)
+   Kertas selalu putih dengan tinta gelap, apa pun tema aplikasinya.
+   ========================================================================== */
+.dokumen-siap-cetak {
+  margin-top: 8px;
+}
+
+.dsc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dsc-toolbar__judul {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dsc-toolbar__ket {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.dsc-kosong {
+  text-align: center;
+  color: var(--muted);
+  padding: 20px 0;
+}
+
+.dsc-daftar-lembar {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.dsc-kertas {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 794px; /* A4 pada 96 dpi */
+  aspect-ratio: 210 / 297;
+  padding: clamp(14px, 5cqw, 44px);
+  /* Kertas tidak mengikuti tema: variabel warna disetel ulang supaya komponen di dalamnya tetap terbaca. */
+  --surface: #ffffff;
+  --text: #111111;
+  --muted: #555555;
+  --border: #bdbdbd;
+  --masuk: #0d652d;
+  --keluar: #b00020;
+  --accent: #1d4ed8;
+  --peringatan: #92400e;
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: clamp(9px, 1.9cqw, 13px);
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+}
+
+.dsc-kop {
+  border-bottom: 2px solid #111111;
+  padding-bottom: 0.6em;
+}
+
+.dsc-kop__judul {
+  font-size: 1.25em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dsc-kop__sub {
+  font-size: 0.9em;
+  color: #333333;
+  margin-top: 0.15em;
+}
+
+.dsc-judul-kelompok {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 800;
+}
+
+.dsc-daftar {
+  display: flex;
+  flex-direction: column;
+}
+
+.dsc-baris {
+  display: grid;
+  grid-template-columns: 2.6em 5.8em minmax(0, 1fr) auto;
+  gap: 0 0.8em;
+  padding: 0.45em 0;
+  border-bottom: 1px solid #d4d4d4;
+  align-items: start;
+}
+
+.dsc-baris--kepala {
+  font-weight: 800;
+  border-bottom: 2px solid #111111;
+  padding-top: 0;
+}
+
+.dsc-baris--total {
+  border-top: 2px solid #111111;
+  border-bottom: none;
+  font-weight: 800;
+}
+
+.dsc-baris--ringkas {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.dsc-jumlah {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dsc-no {
+  font-variant-numeric: tabular-nums;
+}
+
+.dsc-tgl {
+  white-space: nowrap;
+}
+
+.dsc-uraian {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dsc-uraian__utama {
+  font-weight: 700;
+}
+
+.dsc-uraian__detail {
+  font-size: 0.88em;
+  color: #444444;
+}
+
+/* Lembar lampiran: kertas kosong dengan foto bukti di tengahnya */
+.dsc-lampiran {
+  gap: 0.6em;
+}
+
+.dsc-lampiran__kop {
+  font-size: 0.9em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid #cfcfcf;
+  overflow-wrap: anywhere;
+}
+
+.dsc-lampiran__isi {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+  align-items: center;
+  justify-content: center;
+}
+
+.dsc-foto-kotak {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rasio asli dijaga: lebar/tinggi auto, dibatasi kotaknya, tidak diperbesar melebihi ukuran asli. */
+.dsc-foto {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+.dsc-lampiran-status {
+  font-size: 0.95em;
+  color: #555555;
+  text-align: center;
+  padding: 1em;
+}
+
+.dsc-penyelesaian .kartu-penyelesaian {
+  font-size: 1em;
+}
+
+.dsc-tanda-tangan {
+  margin-top: auto;
+  align-self: flex-end;
+  min-width: 17em;
+  text-align: center;
+}
+
+.dsc-tanda-tangan p {
+  margin: 0 0 0.3em;
+}
+
+.dsc-tanda-tangan__peran {
+  font-weight: 700;
+}
+
+.dsc-tanda-tangan__ruang {
+  height: 4.5em;
+}
+
+.dsc-tanda-tangan__nama {
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.dsc-tanda-tangan__jabatan {
+  font-size: 0.88em;
+  color: #444444;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .dsc-daftar-lembar {
+    display: block;
+  }
+
+  .dsc-kertas {
+    max-width: none;
+    width: auto;
+    height: 268mm; /* tinggi area cetak A4 (297 - 24) dikurangi sedikit agar tidak melebar ke halaman kosong */
+    aspect-ratio: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 10.5pt;
+    break-before: page;
+    break-inside: avoid;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Rincian kategori yang panjang dan lembar penutup boleh melanjut ke halaman berikutnya. */
+  .dsc-kertas:not(.dsc-lampiran) {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    break-inside: auto;
+  }
+}

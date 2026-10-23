@@ -8,7 +8,9 @@ import {
   PROFIL_PELAPOR_DEFAULT,
   KELOMPOK_DANA_KEGIATAN,
 } from "../lib/constants";
-import { BuktiPreviewModal } from "./BuktiPreviewModal";
+import { DokumenSiapCetak } from "./DokumenSiapCetak";
+import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
+import { hitungPenyelesaian } from "../lib/penyelesaianDana";
 import { hitungBatasLaporanFisik } from "../lib/ketentuanKegiatan";
 import { buatDokumenLaporanKegiatanDocx, unduhFileBlob } from "../lib/docxGenerator";
 import {
@@ -48,7 +50,6 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   const [tglSelesai, setTglSelesai] = useState<string>(tglSekarang);
 
   const [filterKaitan, setFilterKaitan] = useState<string>("Semua");
-  const [transaksiLihatBukti, setTransaksiLihatBukti] = useState<Transaksi | null>(null);
 
   // Daftar Kaitan Kegiatan dari transaksi yang pernah dipakai
   const daftarKaitanUnik = useMemo(() => {
@@ -397,6 +398,27 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     dana === "Dana Kegiatan"
       ? "Laporan Penggunaan Dana Kegiatan"
       : `Laporan Keuangan ${dana}`;
+
+  // Penyelesaian akhir dana kegiatan (cash advance). Untuk satu kegiatan dihitung dari SEMUA transaksinya,
+  // tidak dibatasi rentang tanggal laporan, karena dana awal biasanya diterima sebelum periode yang dipilih.
+  const transaksiPenyelesaian = useMemo(() => {
+    if (!kegiatanTerpilih) return transaksiLaporan;
+    const namaKecil = kegiatanTerpilih.nama.toLowerCase();
+    return transaksi.filter(
+      (t) =>
+        t.dana === "Dana Kegiatan" &&
+        (t.kegiatanId === kegiatanTerpilih.id || (t.kaitan && t.kaitan.toLowerCase() === namaKecil))
+    );
+  }, [transaksi, transaksiLaporan, kegiatanTerpilih]);
+
+  const penyelesaian = useMemo(() => {
+    if (dana !== "Dana Kegiatan") return null;
+    const hasil = hitungPenyelesaian(transaksiPenyelesaian);
+    // Tanpa transaksi satu pun, "dana awal sama dengan pengeluaran" (0 = 0) hanya menyesatkan.
+    return hasil.jumlahTransaksi > 0 ? hasil : null;
+  }, [dana, transaksiPenyelesaian]);
+  const penyelesaianSementara = Boolean(kegiatanTerpilih && kegiatanTerpilih.tanggalSelesai >= hariIni());
+  const periodeTeks = `Periode laporan: ${formatTanggalLengkap(tglMulai)} s.d. ${formatTanggalLengkap(tglSelesai)}`;
 
   return (
     <div className="laporan-container" style={{ width: "100%" }}>
@@ -951,6 +973,23 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </div>
         </div>
 
+        {/* PENYELESAIAN DANA KEGIATAN (di layar; di dokumen cetak ada di lembar penutup) */}
+        {dana === "Dana Kegiatan" && penyelesaian && (
+          <div className="no-print" style={{ marginBottom: "24px" }}>
+            <KartuPenyelesaianDana
+              ringkasan={penyelesaian}
+              namaKegiatan={kegiatanTerpilih?.nama}
+              sementara={penyelesaianSementara}
+            />
+            {!kegiatanTerpilih && (
+              <p style={{ margin: "6px 2px 0", fontSize: "0.76rem", color: "var(--muted)" }}>
+                Belum memilih kegiatan: dihitung dari transaksi pada rentang tanggal dan kaitan yang dipilih. Pilih
+                kegiatan untuk menghitung seluruh transaksinya.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* REKAPITULASI PENGELUARAN PER KATEGORI */}
         <div style={{ marginBottom: "24px" }}>
           <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: "0 0 10px 0", borderBottom: "1px solid var(--border)", paddingBottom: "6px" }}>
@@ -983,204 +1022,19 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           )}
         </div>
 
-        {/* TABEL DETAIL TRANSAKSI */}
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "10px" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>
-              Daftar Rincian Transaksi ({transaksiLaporan.length})
-            </h3>
-            <span style={{ fontSize: "0.78rem", color: "var(--muted)" }}>
-              Urut tanggal kronologis
-            </span>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "0.82rem",
-                textAlign: "left",
-              }}
-            >
-              <thead>
-                <tr style={{ background: "var(--surface)", borderBottom: "2px solid var(--border)" }}>
-                  <th style={{ padding: "8px 10px", width: "40px" }}>No</th>
-                  <th style={{ padding: "8px 10px", width: "95px" }}>Tanggal</th>
-                  <th style={{ padding: "8px 10px" }}>Uraian &amp; Kaitan</th>
-                  <th style={{ padding: "8px 10px", width: "120px" }}>Kategori</th>
-                  <th style={{ padding: "8px 10px", width: "90px" }}>Metode</th>
-                  <th style={{ padding: "8px 10px", textAlign: "right", width: "110px" }}>Masuk (Rp)</th>
-                  <th style={{ padding: "8px 10px", textAlign: "right", width: "110px" }}>Keluar (Rp)</th>
-                  <th style={{ padding: "8px 10px", textAlign: "center", width: "85px" }}>Bukti</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transaksiLaporan.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ padding: "20px", textAlign: "center", color: "var(--muted)" }}>
-                      Tidak ada transaksi pada parameter yang dipilih.
-                    </td>
-                  </tr>
-                ) : (
-                  transaksiLaporan.map((t, idx) => {
-                    const adaBukti = Boolean(t.bukti && t.bukti.length > 0);
-                    return (
-                      <tr
-                        key={t.id || idx}
-                        style={{
-                          borderBottom: "1px solid var(--border)",
-                          background: idx % 2 === 1 ? "rgba(0,0,0,0.02)" : "transparent",
-                        }}
-                      >
-                        <td style={{ padding: "8px 10px" }}>{idx + 1}</td>
-                        <td style={{ padding: "8px 10px", whiteSpace: "nowrap" }}>{t.tanggal}</td>
-                        <td style={{ padding: "8px 10px" }}>
-                          <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{t.deskripsi}</div>
-                          {t.detailKegiatan?.keteranganLaporan && (
-                            <div style={{ fontSize: "0.78rem", color: "var(--text)", fontStyle: "italic", marginTop: "2px" }}>
-                              "{t.detailKegiatan.keteranganLaporan}"
-                            </div>
-                          )}
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "4px", fontSize: "0.72rem" }}>
-                            {t.detailKegiatan?.jenisBukti && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.06)", border: "1px solid var(--border)", fontWeight: 600 }}>
-                                📄 {t.detailKegiatan.jenisBukti}
-                              </span>
-                            )}
-                            {t.detailKegiatan?.rincian && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(16,185,129,0.1)", color: "#10b981", fontWeight: 700 }}>
-                                🔢 {t.detailKegiatan.rincian.banyaknya} {t.detailKegiatan.rincian.satuan} × {formatRupiah(t.detailKegiatan.rincian.hargaSatuan)}
-                              </span>
-                            )}
-                            {t.detailKegiatan?.perluSuratJustifikasi && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(239,68,68,0.12)", color: "var(--keluar)", fontWeight: 700 }}>
-                                ⚠️ Justifikasi: {t.detailKegiatan.alasanJustifikasi || "Perlu surat"}
-                              </span>
-                            )}
-                            {t.detailKegiatan?.transportasi?.moda && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                🚗 {t.detailKegiatan.transportasi.dari} → {t.detailKegiatan.transportasi.ke} ({t.detailKegiatan.transportasi.moda})
-                              </span>
-                            )}
-                            {t.detailKegiatan?.rentalKendaraan?.jenisMerk && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                🚙 {t.detailKegiatan.rentalKendaraan.jenisMerk} ({t.detailKegiatan.rentalKendaraan.noPolisi}) · {t.detailKegiatan.rentalKendaraan.jumlahHari || 1} hari
-                              </span>
-                            )}
-                            {t.detailKegiatan?.bbm?.jarakTempuh && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                ⛽ {t.detailKegiatan.bbm.jarakTempuh} km (KM: {t.detailKegiatan.bbm.kmSaatIsi})
-                              </span>
-                            )}
-                            {t.detailKegiatan?.akomodasi?.lokasi && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                🏨 {t.detailKegiatan.akomodasi.lokasi} ({t.detailKegiatan.akomodasi.jumlahMalam || 1} malam)
-                              </span>
-                            )}
-                            {t.detailKegiatan?.konsumsi?.jumlahPeserta && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                🍽️ {t.detailKegiatan.konsumsi.jumlahPeserta} peserta
-                              </span>
-                            )}
-                            {t.detailKegiatan?.honorarium?.namaPenerima && (
-                              <span style={{ padding: "1px 6px", borderRadius: "4px", background: "rgba(0,0,0,0.05)" }}>
-                                💼 {t.detailKegiatan.honorarium.namaPenerima} ({t.detailKegiatan.honorarium.isPNS ? "PNS" : "Non-PNS"})
-                              </span>
-                            )}
-                            {t.kaitan && (
-                              <span style={{ color: "var(--muted)" }}>
-                                📌 {t.kaitan}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ padding: "8px 10px" }}>{t.kategori}</td>
-                        <td style={{ padding: "8px 10px" }}>{t.metode || "Tunai"}</td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: "var(--masuk)", fontWeight: t.jenis === "pemasukan" ? 700 : 400 }}>
-                          {t.jenis === "pemasukan" ? formatAngka(t.jumlah) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 10px", textAlign: "right", color: "var(--keluar)", fontWeight: t.jenis === "pengeluaran" ? 700 : 400 }}>
-                          {t.jenis === "pengeluaran" ? formatAngka(t.jumlah) : "—"}
-                        </td>
-                        <td style={{ padding: "8px 10px", textAlign: "center" }}>
-                          {adaBukti ? (
-                            <button
-                              type="button"
-                              className="btn-small no-print"
-                              style={{
-                                padding: "2px 6px",
-                                fontSize: "0.75rem",
-                                borderRadius: "4px",
-                                background: "rgba(34, 197, 94, 0.15)",
-                                color: "#16a34a",
-                                border: "1px solid #16a34a",
-                                cursor: "pointer",
-                              }}
-                              onClick={() => setTransaksiLihatBukti(t)}
-                              title="Lihat berkas bukti"
-                            >
-                              📎 Ada ({t.bukti?.length})
-                            </button>
-                          ) : (
-                            <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>—</span>
-                          )}
-                          <span className="print-only">
-                            {adaBukti ? `Ada (${t.bukti?.length})` : "—"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: "var(--surface)", borderTop: "2px solid var(--border)", fontWeight: 800 }}>
-                  <td colSpan={5} style={{ padding: "10px", textAlign: "right" }}>Total Dalam Periode:</td>
-                  <td style={{ padding: "10px", textAlign: "right", color: "var(--masuk)" }}>
-                    {formatAngka(totalPenerimaan)}
-                  </td>
-                  <td style={{ padding: "10px", textAlign: "right", color: "var(--keluar)" }}>
-                    {formatAngka(totalPengeluaran)}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-
-        {/* TANDA TANGAN PERTANGGUNGJAWABAN (KHUSUS CETAK PDF - TANPA BLOK PERSETUJUAN/MENGETAHUI) */}
-        <div
-          className="print-only"
-          style={{
-            marginTop: "40px",
-            display: "flex",
-            justifyContent: "flex-end",
-            textAlign: "center",
-            fontSize: "0.85rem",
-          }}
-        >
-          <div style={{ minWidth: "260px" }}>
-            <p style={{ margin: "0 0 6px" }}>
-              {kegiatanTerpilih?.lokasi || "Lokasi"}, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
-            </p>
-            <p style={{ margin: 0, fontWeight: 600 }}>Pelapor / Pengelola Dana,</p>
-            <div style={{ height: "60px" }}></div>
-            <p style={{ fontWeight: 700, textDecoration: "underline", margin: 0 }}>{profilPelapor.nama}</p>
-            <p style={{ fontSize: "0.78rem", color: "var(--muted)", margin: "2px 0 0" }}>
-              {profilPelapor.jabatan} · Proyek {profilPelapor.proyek}
-            </p>
-          </div>
-        </div>
+        {/* PREVIEW DOKUMEN SIAP CETAK (per kategori, lampiran bukti dengan rasio asli) */}
+        <DokumenSiapCetak
+          transaksi={transaksiLaporan}
+          judulLaporan={judulLaporan}
+          periodeTeks={periodeTeks}
+          adalahKegiatan={dana === "Dana Kegiatan"}
+          kegiatan={kegiatanTerpilih}
+          profilPelapor={profilPelapor}
+          googleToken={googleToken}
+          penyelesaian={penyelesaian}
+          penyelesaianSementara={penyelesaianSementara}
+        />
       </div>
-
-      {/* Modal Preview Bukti saat diklik dari tabel laporan */}
-      <BuktiPreviewModal
-        transaksi={transaksiLihatBukti}
-        isOpen={Boolean(transaksiLihatBukti)}
-        onClose={() => setTransaksiLihatBukti(null)}
-      />
     </div>
   );
 };

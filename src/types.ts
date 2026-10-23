@@ -325,6 +325,12 @@ export interface DetailHonorarium {
   honorNetto?: number;
 }
 
+export interface DetailPerdiem {
+  jumlahHari?: number;
+  tarifPerHari?: number;
+  keterangan?: string; // mis. wilayah atau rentang tanggal
+}
+
 export interface DataKhususKegiatan {
   kegiatanId?: string;
   jenisBukti?: JenisBukti;
@@ -340,6 +346,7 @@ export interface DataKhususKegiatan {
   akomodasi?: DetailAkomodasi;
   konsumsi?: DetailKonsumsi;
   honorarium?: DetailHonorarium;
+  perdiem?: DetailPerdiem;
 }
 
 export interface LaporanKegiatanFileContent {
