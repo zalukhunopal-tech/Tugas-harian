@@ -10,3 +10,4 @@ node_modules/
 
 # Hasil build (disajikan lewat GitHub Pages dari workflow, jangan di-commit)
 dist/
+dist-artefak/
