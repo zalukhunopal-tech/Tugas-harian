@@ -47,3 +47,32 @@ npm run dev
 # Membangun versi produksi
 npm run build
 ```
+
+## Situs (GitHub Pages)
+
+Situs dibangun dengan `vite build` oleh workflow `.github/workflows/pages.yml` setiap ada push ke `main`,
+lalu disajikan di <https://zalukhunopal-tech.github.io/Tugas-harian/>. Sekali saja, di GitHub:
+**Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+Situs ini statis, jadi fitur yang butuh `server.ts` (baca struk dan surat justifikasi dengan Gemini) hanya
+jalan saat aplikasi dijalankan dengan `npm run dev` / di Google AI Studio. Login Google di situs ini butuh
+domain `zalukhunopal-tech.github.io` terdaftar di Firebase → Authentication → Authorized domains
+(detail di [SECURITY.md](SECURITY.md)).
+
+## Alur kerja: Google AI Studio ↔ GitHub ↔ Claude
+
+Repo ini disinkronkan dua arah dengan Google AI Studio, dan Claude juga mengubah kode di sini. Supaya
+perubahan tidak saling menimpa:
+
+1. **Ambil dulu sebelum mengedit.** Sebelum mulai mengedit di AI Studio, ambil/impor versi terbaru dari
+   GitHub. Jika tidak, AI Studio bisa mendorong kembali versi lamanya dan menimpa perbaikan dari Claude
+   (misalnya tipe di `LaporanView.tsx` atau berkas di `.github/workflows/`).
+2. **Satu sisi dalam satu waktu.** Selesaikan dan sinkronkan satu sisi (AI Studio atau Claude) sebelum
+   mulai di sisi lain.
+3. **Berkas yang dikelola AI Studio** (`package.json`, `vite.config.ts`, `server.ts`,
+   `firebase-applet-config.json`, `metadata.json`) sengaja tidak diubah oleh perbaikan dari Claude kecuali
+   perlu.
+4. **Jangan aktifkan "Require a pull request" pada `main`** bila AI Studio mendorong langsung ke `main`
+   (lihat [SECURITY.md](SECURITY.md)).
+5. Setelah merge ke `main`, workflow *Deploy GitHub Pages* memperbarui situs otomatis, dan *Keamanan & uji*
+   memeriksa rahasia serta tipe TypeScript (`npx tsc --noEmit`).
