@@ -1133,6 +1133,58 @@ select:focus {
   outline-offset: 1px;
 }
 
+/* Profil Pelapor Dana Kegiatan Form (1 kolom di mobile, 2x2 sejajar di PC) */
+.profil-pelapor-form {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.profil-pelapor-form .input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profil-pelapor-form label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.profil-pelapor-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profil-pelapor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+  grid-column: 1 / -1 !important;
+}
+
+@media (min-width: 768px) {
+  .profil-pelapor-form,
+  .profil-pelapor-form.md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px 16px !important;
+    align-items: start !important;
+  }
+
+  .profil-pelapor-footer,
+  .profil-pelapor-footer.md\:col-span-2 {
+    grid-column: 1 / -1 !important;
+    margin-top: 6px !important;
+  }
+}
+
 .segmented-options {
   display: flex;
   border: 1px solid var(--border);
@@ -2479,9 +2531,33 @@ button {
     gap: 16px;
   }
 
-  /* Navigasi bawah tetap */
+  /* Navigasi bawah tetap, rata tengah & item tersebar simetris */
   .navbar {
     display: flex !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 480px !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-left: 1px solid var(--border) !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .navbar .nav-item {
+    flex: 1 1 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    text-align: center !important;
   }
 }
 
@@ -2489,30 +2565,16 @@ button {
    PC (1024px ke atas)
    ============================================================ */
 @media (min-width: 1024px) {
-  /* Layout utama PC: Sidebar di kiri + Area isi di kanan */
+  /* Layout utama PC */
   .app-layout {
-    display: flex;
-    flex-direction: row;
+    display: block;
     min-height: 100vh;
     width: 100%;
-    align-items: stretch;
   }
 
-  /* 4. Ganti navigasi bawah dengan sidebar kiri yang menempel (sticky), lebar sekitar 240 px */
+  /* Navigasi di PC menggunakan Bottom Navigation Bar yang rata tengah, sidebar dinonaktifkan */
   .sidebar {
-    display: block !important;
-    width: 240px;
-    min-width: 240px;
-    max-width: 240px;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    box-sizing: border-box;
-    z-index: 100;
+    display: none !important;
   }
 
   .sidebar-inner {
@@ -2648,8 +2710,37 @@ button {
     min-width: 0;
   }
 
-  /* Sembunyikan navigasi bawah dan tombol "+" mengambang di PC */
-  .navbar,
+  /* Bottom Navigation Bar tetap aktif & rata tengah di PC */
+  .navbar {
+    display: flex !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 0 !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 480px !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    border-left: 1px solid var(--border) !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12) !important;
+    z-index: 50 !important;
+  }
+
+  .navbar .nav-item {
+    flex: 1 1 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    text-align: center !important;
+  }
+
+  /* Sembunyikan tombol "+" mengambang di PC */
   #btn-tambah-mengambang,
   .btn-tambah-float,
   .btn-float {
@@ -2664,18 +2755,19 @@ button {
     flex-direction: column;
     background: var(--bg);
     overflow-x: hidden;
+    width: 100%;
   }
 
-  /* 3. Lebarkan wadah isi menjadi maksimal 1200 px di tengah, padding samping 32 px */
+  /* 3. Lebarkan wadah isi menjadi maksimal 760 px di tengah, padding samping 24 px */
   .container {
-    max-width: 1200px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 0 32px 64px 32px;
+    padding: 0 24px calc(var(--tinggi-nav, 76px) + 32px + env(safe-area-inset-bottom, 0px)) 24px;
     width: 100%;
     box-sizing: border-box;
   }
 
-  /* 5. Kartu ringkasan (Pengeluaran, Pemasukan, Saldo) dan pemilih bulan berada di atas area isi, tepinya sejajar dengan kartu di bawahnya */
+  /* 5. Kartu ringkasan (Pengeluaran, Pemasukan, Saldo) dan pemilih bulan berada di atas area isi */
   .topbar {
     background: transparent;
     padding: 24px 0 20px 0;
@@ -2684,22 +2776,22 @@ button {
   }
 
   .topbar-row {
-    max-width: 1200px;
+    max-width: 760px;
     margin: 0 auto;
-    padding: 0 32px;
+    padding: 0 24px;
     width: 100%;
     box-sizing: border-box;
   }
 
-  /* Di PC, avatar dan judul aplikasi ada di sidebar */
+  /* Di PC, avatar dan judul aplikasi tetap tampil di bilah atas */
   .topbar-row-utama .brand {
-    display: none;
+    display: flex !important;
   }
 
   .topbar-row-utama {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
     margin-bottom: 16px;
   }
 
