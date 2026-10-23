@@ -72,7 +72,10 @@ import {
   dapatkanFolderBuktiTarget,
   unggahBuktiKeDrive,
   KeuanganDriveContents,
+  dapatkanFolderLaporanKegiatan,
+  simpanDocxLaporanKeDrive,
 } from "./lib/gdriveSync";
+import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
 import {
   simpanBuktiOffline,
   ambilSemuaBuktiOffline,
@@ -139,6 +142,7 @@ export default function App() {
 
   // Google Drive Direct Sync States
   const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string>("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [driveContents, setDriveContents] = useState<KeuanganDriveContents | null>(null);
   const [memuatDrive, setMemuatDrive] = useState(false);
@@ -277,8 +281,14 @@ export default function App() {
   hargaRef.current = harga;
   const pengaturanRef = React.useRef(pengaturan);
   pengaturanRef.current = pengaturan;
+  const profilPelaporRef = React.useRef(profilPelapor);
+  profilPelaporRef.current = profilPelapor;
+  const daftarKegiatanRef = React.useRef(daftarKegiatan);
+  daftarKegiatanRef.current = daftarKegiatan;
 
   const autoSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSyncDocxTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDocxKegiatanIdsRef = React.useRef<Set<string>>(new Set());
   const syncPendingRef = React.useRef<boolean>(false);
   const initialPullDoneRef = React.useRef<boolean>(false);
 
@@ -360,6 +370,98 @@ export default function App() {
       void jalankanAutoKirimKeDrive();
     }, 5000);
   }, [jalankanAutoKirimKeDrive]);
+
+  // Otomatis buat dan perbarui dokumen Word SPJ di Drive: Keuangan / Laporan Kegiatan / "Laporan Keuangan – <nama kegiatan>.docx" (jeda ±10 detik)
+  const jalankanAutoSyncDocxKegiatan = useCallback(async () => {
+    let token = await getAccessToken();
+    if (!token) return;
+    const statusSesi = cekStatusSesiGoogle();
+    if (!statusSesi.aktif || !navigator.onLine) return;
+
+    const targetIds = Array.from(pendingDocxKegiatanIdsRef.current);
+    pendingDocxKegiatanIdsRef.current.clear();
+    if (targetIds.length === 0) return;
+
+    try {
+      let folderKeuangan = await cariFolderKeuangan(token);
+      if (!folderKeuangan) {
+        folderKeuangan = await buatFolderKeuangan(token);
+      }
+      const folderLaporan = await dapatkanFolderLaporanKegiatan(token, folderKeuangan.id);
+
+      for (const kgId of targetIds) {
+        const kg = daftarKegiatanRef.current.find((k) => k.id === kgId);
+        if (!kg) continue;
+
+        try {
+          const blob = await buatDokumenLaporanKegiatanDocx({
+            transaksi: transaksiRef.current,
+            kegiatan: kg,
+            profilPelapor: profilPelaporRef.current,
+            urutanTransaksiIds: kg.urutanTransaksi,
+            sertakanDaftarPeriksa: kg.sertakanDaftarPeriksa !== false,
+            googleToken: token,
+          });
+
+          const namaFileDrive = `Laporan Keuangan – ${kg.nama}.docx`;
+          const res = await simpanDocxLaporanKeDrive(
+            token,
+            folderLaporan.id,
+            namaFileDrive,
+            blob,
+            kg.docxDriveId
+          );
+
+          if (res.id && res.id !== kg.docxDriveId) {
+            setDaftarKegiatan((prev) => {
+              const updated = prev.map((item) =>
+                item.id === kg.id ? { ...item, docxDriveId: res.id } : item
+              );
+              simpanDaftarKegiatan(updated);
+              return updated;
+            });
+          }
+        } catch (errKg: any) {
+          console.warn(`Gagal auto-sync docx kegiatan ${kg.nama}:`, errKg);
+        }
+      }
+    } catch (err: any) {
+      console.warn("Gagal sinkron docx laporan kegiatan ke Drive:", err);
+    }
+  }, []);
+
+  const jadwalkanAutoSyncDocx = useCallback(
+    (kegiatanIds: string[]) => {
+      kegiatanIds.forEach((id) => pendingDocxKegiatanIdsRef.current.add(id));
+      if (autoSyncDocxTimerRef.current) {
+        clearTimeout(autoSyncDocxTimerRef.current);
+      }
+      if (!navigator.onLine) return;
+
+      // Jeda ±10 detik sesuai instruksi
+      autoSyncDocxTimerRef.current = setTimeout(() => {
+        void jalankanAutoSyncDocxKegiatan();
+      }, 10000);
+    },
+    [jalankanAutoSyncDocxKegiatan]
+  );
+
+  const cariIdKegiatanTerdampak = useCallback(
+    (daftarTrx: Transaksi[]): string[] => {
+      const ids = new Set<string>();
+      for (const t of daftarTrx) {
+        if (t.kegiatanId) {
+          ids.add(t.kegiatanId);
+        }
+        if (t.dana === "Dana Kegiatan" && t.kaitan) {
+          const kg = daftarKegiatanRef.current.find((k) => k.nama === t.kaitan);
+          if (kg) ids.add(kg.id);
+        }
+      }
+      return Array.from(ids);
+    },
+    []
+  );
 
   // Unggah bukti transaksi ke Google Drive atau simpan ke antrean offline jika jaringan belum siap
   const prosesUnggahBuktiTransaksi = useCallback(
@@ -450,12 +552,16 @@ export default function App() {
             transaksiRef.current.map((t) => (t.id === updatedTrx.id ? updatedTrx : t))
           );
           jadwalkanAutoSync();
+          const affectedKgIds = cariIdKegiatanTerdampak([updatedTrx]);
+          if (affectedKgIds.length > 0) {
+            jadwalkanAutoSyncDocx(affectedKgIds);
+          }
         }
       } catch (err: any) {
         console.warn("Proses unggah bukti transaksi gagal:", err);
       }
     },
-    [jadwalkanAutoSync, perbaruiTransaksi]
+    [jadwalkanAutoSync, perbaruiTransaksi, cariIdKegiatanTerdampak, jadwalkanAutoSyncDocx]
   );
 
   // Proses antrean foto/file bukti yang tersimpan di IndexedDB saat offline
@@ -511,11 +617,15 @@ export default function App() {
       if (adaPerubahan) {
         perbaruiTransaksi(listTrx);
         jadwalkanAutoSync();
+        const affectedKgIds = cariIdKegiatanTerdampak(listTrx);
+        if (affectedKgIds.length > 0) {
+          jadwalkanAutoSyncDocx(affectedKgIds);
+        }
       }
     } catch (err: any) {
       console.warn("Gagal memproses antrean bukti offline:", err);
     }
-  }, [jadwalkanAutoSync, perbaruiTransaksi]);
+  }, [jadwalkanAutoSync, perbaruiTransaksi, cariIdKegiatanTerdampak, jadwalkanAutoSyncDocx]);
 
   // Pantau status online/offline untuk otomatis mengirim ulang saat kembali online
   useEffect(() => {
@@ -631,6 +741,7 @@ export default function App() {
       (user, token) => {
         setGoogleUser(user);
         if (token) {
+          setGoogleAccessToken(token);
           void periksaDriveOtomatis(token);
           void prosesAntreanBuktiOffline();
           // Saat aplikasi dibuka dan sudah login, tarik data sekali otomatis
@@ -646,6 +757,7 @@ export default function App() {
       },
       (alasan) => {
         setGoogleUser(null);
+        setGoogleAccessToken("");
         setDriveContents(null);
         if (alasan) {
           setSyncPesan(alasan);
@@ -661,6 +773,7 @@ export default function App() {
       const res = await googleSignIn();
       if (res) {
         setGoogleUser(res.user);
+        setGoogleAccessToken(res.accessToken);
         setSyncStatus({ pesan: "Terhubung ke Google Drive", status: "sukses" });
         await periksaDriveOtomatis(res.accessToken);
         void prosesAntreanBuktiOffline();
@@ -679,6 +792,7 @@ export default function App() {
   const handleGoogleLogout = async () => {
     await logoutGoogle();
     setGoogleUser(null);
+    setGoogleAccessToken("");
     setDriveContents(null);
     setSyncPesan("Koneksi akun Google diputuskan.");
     setSyncStatus({ pesan: "", status: "idle" });
@@ -741,14 +855,31 @@ export default function App() {
     jadwalkanAutoSync();
   }, [jadwalkanAutoSync]);
 
-  const handleTambahKegiatan = useCallback((kegiatan: DataKegiatan) => {
-    setDaftarKegiatan((prev) => {
-      const baru = [...prev.filter((k) => k.id !== kegiatan.id), kegiatan];
-      simpanDaftarKegiatan(baru);
-      return baru;
-    });
-    jadwalkanAutoSync();
-  }, [jadwalkanAutoSync]);
+  const handleTambahKegiatan = useCallback(
+    (kegiatan: DataKegiatan) => {
+      setDaftarKegiatan((prev) => {
+        const baru = [...prev.filter((k) => k.id !== kegiatan.id), kegiatan];
+        simpanDaftarKegiatan(baru);
+        return baru;
+      });
+      jadwalkanAutoSync();
+      jadwalkanAutoSyncDocx([kegiatan.id]);
+    },
+    [jadwalkanAutoSync, jadwalkanAutoSyncDocx]
+  );
+
+  const handleUpdateKegiatan = useCallback(
+    (kegiatan: DataKegiatan) => {
+      setDaftarKegiatan((prev) => {
+        const baru = prev.map((k) => (k.id === kegiatan.id ? kegiatan : k));
+        simpanDaftarKegiatan(baru);
+        return baru;
+      });
+      jadwalkanAutoSync();
+      jadwalkanAutoSyncDocx([kegiatan.id]);
+    },
+    [jadwalkanAutoSync, jadwalkanAutoSyncDocx]
+  );
 
   // Transaction CRUD handlers dengan field diubah dan auto-sync
   const handleSimpanTransaksi = (t: Transaksi | Transaksi[]) => {
@@ -772,6 +903,12 @@ export default function App() {
     setEditTransaksi(null);
     setCurrentView("riwayat");
     jadwalkanAutoSync();
+
+    const affectedKgIds = cariIdKegiatanTerdampak(daftarTerupdate);
+    if (affectedKgIds.length > 0) {
+      jadwalkanAutoSyncDocx(affectedKgIds);
+    }
+
     for (const item of daftarTerupdate) {
       void prosesUnggahBuktiTransaksi(item);
     }
@@ -787,10 +924,18 @@ export default function App() {
       }
     }
 
+    const affectedKgIds = cariIdKegiatanTerdampak(
+      transaksi.filter((t) => idsToHapus.includes(t.id))
+    );
+
     idsToHapus.forEach((hId) => tambahIdTerhapus(hId));
     const baru = transaksi.filter((t) => !idsToHapus.includes(t.id));
     perbaruiTransaksi(baru);
     jadwalkanAutoSync();
+
+    if (affectedKgIds.length > 0) {
+      jadwalkanAutoSyncDocx(affectedKgIds);
+    }
   };
 
   const handleToggleStatusTalangan = (id: string) => {
@@ -812,6 +957,11 @@ export default function App() {
 
     perbaruiTransaksi(baru);
     jadwalkanAutoSync();
+
+    const affectedKgIds = cariIdKegiatanTerdampak([target]);
+    if (affectedKgIds.length > 0) {
+      jadwalkanAutoSyncDocx(affectedKgIds);
+    }
   };
 
   const handleMulaiEditTransaksi = (t: Transaksi) => {
@@ -1075,6 +1225,7 @@ export default function App() {
                     setInitialScanMode(null);
                     setCurrentView("tambah");
                   }}
+                  googleToken={googleAccessToken || undefined}
                 />
               </div>
             )}
@@ -1109,6 +1260,9 @@ export default function App() {
                   onSetAnggaranKategori={handleSetAnggaranKategori}
                   profilPelapor={profilPelapor}
                   daftarKegiatan={daftarKegiatan}
+                  onUpdateKegiatan={handleUpdateKegiatan}
+                  googleToken={googleAccessToken || undefined}
+                  isLoggedInGoogle={Boolean(googleUser)}
                 />
               </div>
             )}

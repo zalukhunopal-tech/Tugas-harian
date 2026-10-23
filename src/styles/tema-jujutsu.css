@@ -20,8 +20,8 @@ html[data-tema="jujutsu"] {
   --k2: 56, 189, 248;
   --k3: 200, 30, 58;
   --teks-tombol: #fff;
-  --masuk: #38bdf8;
-  --keluar: #f0abfc;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-bg: transparent;
   --topbar-text: #ece8ff;
   --nav-bg: rgba(12, 10, 26, 0.92);
@@ -43,8 +43,8 @@ html[data-tema="jujutsu"][data-karakter="gojo"] {
   --k2: 255, 255, 255;
   --k3: 99, 102, 241;
   --teks-tombol: #061224;
-  --masuk: #7dd3fc;
-  --keluar: #fda4af;
+  --masuk: #22c55e;
+  --keluar: #f43f5e;
   --topbar-text: #e6f4ff;
   --nav-bg: rgba(8, 14, 30, 0.94);
 }
@@ -65,8 +65,8 @@ html[data-tema="jujutsu"][data-karakter="sukuna"] {
   --k2: 255, 255, 255;
   --k3: 120, 0, 10;
   --teks-tombol: #fff;
-  --masuk: #fca5a5;
-  --keluar: #fb7185;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-text: #ffe4e6;
   --nav-bg: rgba(20, 4, 6, 0.94);
 }
@@ -87,8 +87,8 @@ html[data-tema="jujutsu"][data-karakter="jogo"] {
   --k2: 253, 224, 71;
   --k3: 200, 40, 0;
   --teks-tombol: #1a0a03;
-  --masuk: #fde68a;
-  --keluar: #fb923c;
+  --masuk: #22c55e;
+  --keluar: #ea580c;
   --topbar-text: #fff1e6;
   --nav-bg: rgba(20, 8, 4, 0.94);
 }
@@ -109,8 +109,8 @@ html[data-tema="jujutsu"][data-karakter="nanami"] {
   --k2: 255, 255, 255;
   --k3: 120, 90, 10;
   --teks-tombol: #1a1705;
-  --masuk: #fef08a;
-  --keluar: #fbbf24;
+  --masuk: #22c55e;
+  --keluar: #ea580c;
   --topbar-text: #fffbe6;
   --nav-bg: rgba(14, 14, 8, 0.94);
 }
@@ -131,7 +131,7 @@ html[data-tema="jujutsu"][data-karakter="itadori"] {
   --k2: 251, 146, 60;
   --k3: 159, 18, 57;
   --teks-tombol: #fff;
-  --masuk: #fed7aa;
+  --masuk: #22c55e;
   --keluar: #f43f5e;
   --topbar-text: #ffe4e6;
   --nav-bg: rgba(22, 6, 10, 0.94);
@@ -153,8 +153,8 @@ html[data-tema="jujutsu"][data-karakter="megumi"] {
   --k2: 56, 189, 248;
   --k3: 13, 148, 136;
   --teks-tombol: #022c22;
-  --masuk: #99f6e4;
-  --keluar: #a7f3d0;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-text: #e6fffa;
   --nav-bg: rgba(4, 16, 22, 0.94);
 }
@@ -175,8 +175,8 @@ html[data-tema="jujutsu"][data-karakter="nobara"] {
   --k2: 251, 113, 133;
   --k3: 190, 24, 93;
   --teks-tombol: #fff;
-  --masuk: #fbcfe8;
-  --keluar: #fb7185;
+  --masuk: #22c55e;
+  --keluar: #f43f5e;
   --topbar-text: #fdf2f8;
   --nav-bg: rgba(24, 5, 14, 0.94);
 }
@@ -197,8 +197,8 @@ html[data-tema="jujutsu"][data-karakter="yuta"] {
   --k2: 243, 232, 255;
   --k3: 126, 34, 206;
   --teks-tombol: #fff;
-  --masuk: #e9d5ff;
-  --keluar: #f0abfc;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-text: #faf5ff;
   --nav-bg: rgba(12, 8, 26, 0.94);
 }
@@ -219,8 +219,8 @@ html[data-tema="jujutsu"][data-karakter="toji"] {
   --k2: 34, 197, 94;
   --k3: 71, 85, 105;
   --teks-tombol: #020617;
-  --masuk: #86efac;
-  --keluar: #cbd5e1;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-text: #f1f5f9;
   --nav-bg: rgba(10, 14, 20, 0.95);
 }
@@ -241,8 +241,8 @@ html[data-tema="jujutsu"][data-karakter="geto"] {
   --k2: 74, 222, 128;
   --k3: 133, 77, 14;
   --teks-tombol: #1c1402;
-  --masuk: #fef08a;
-  --keluar: #fde047;
+  --masuk: #22c55e;
+  --keluar: #ea580c;
   --topbar-text: #fefce8;
   --nav-bg: rgba(16, 14, 6, 0.95);
 }
@@ -263,8 +263,8 @@ html[data-tema="jujutsu"][data-karakter="maki"] {
   --k2: 52, 211, 153;
   --k3: 159, 18, 57;
   --teks-tombol: #fff;
-  --masuk: #fecdd3;
-  --keluar: #fda4af;
+  --masuk: #22c55e;
+  --keluar: #f43f5e;
   --topbar-text: #ffe4e6;
   --nav-bg: rgba(22, 6, 10, 0.95);
 }
@@ -285,8 +285,8 @@ html[data-tema="jujutsu"][data-karakter="mahito"] {
   --k2: 192, 132, 252;
   --k3: 3, 105, 161;
   --teks-tombol: #041426;
-  --masuk: #bae6fd;
-  --keluar: #e9d5ff;
+  --masuk: #22c55e;
+  --keluar: #ef4444;
   --topbar-text: #f0f9ff;
   --nav-bg: rgba(8, 16, 26, 0.95);
 }
