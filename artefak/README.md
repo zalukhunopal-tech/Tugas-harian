@@ -14,10 +14,15 @@ itu build artefak berbeda dari build biasa:
 | Login Google lewat Firebase | "Masuk" = izin memakai konektor Google Drive dan Google Sheets milik akun Claude pemilik halaman | `googleAuth.artefak.ts` |
 | `fetch` ke `googleapis.com` dengan token | Diterjemahkan ke panggilan konektor (`claude.mcp.callTool`) | `konektor.ts` |
 | Sinkron Drive berjalan paralel | Operasi tulis diantre satu per satu | `antrean.ts`, `gdriveSync.artefak.ts` |
-| `confirm()` / `alert()` | Dialog di halaman (sandbox membuat `confirm()` selalu false, jadi tombol Hapus dan Kirim manual diam saja) | `dialog.ts` |
+| `confirm()` | Saat build, setiap `confirm(...)` di `src/` diubah menjadi `(await __konfirmasi(...))` dan fungsi pembungkusnya menjadi `async`; dialognya ada di halaman. Sandbox membuat `confirm()` selalu false, jadi tanpa ini tombol Hapus dan Kirim manual diam saja | `ubah-konfirmasi.ts`, `dialog.ts` |
+| `alert()` | Dialog di halaman | `dialog.ts` |
 | PWA / service worker | Dimatikan | `vite.config.ts` |
 
-`vite.config.ts` memasang semuanya lewat alias dan satu plugin HTML; tidak ada berkas di `src/` yang diedit.
+`vite.config.ts` memasang semuanya lewat alias dan plugin; tidak ada berkas di `src/` yang diedit (pengubah
+`confirm` bekerja pada kode di memori saat build, memakai API compiler TypeScript). Panggilan `confirm` yang tidak
+bisa diubah (di luar fungsi, di dalam method/konstruktor) dilaporkan sebagai peringatan build dan tetap
+ditangani pengganti sinkron lama di `dialog.ts`, yang bekerja dengan mengklik ulang tombol pemicu dan gagal
+bila tombol itu sudah hilang saat `confirm` dipanggil.
 Beberapa teks di `SayaView.tsx` ("Masuk dengan Google", "Sesi 3 bulan") diganti saat build; bila teks
 sumbernya berubah, penggantian dilewati dengan peringatan build.
 
@@ -79,6 +84,7 @@ get_spreadsheet diamati dari panggilan nyata; jawaban tulis ditiru dengan fallba
 
 ```bash
 npx tsx artefak/uji/uji_antrean.ts                        # antrean tulis, tanpa browser
+npx tsx artefak/uji/uji_ubah_konfirmasi.ts                # pengubah confirm -> await, termasuk seluruh src/
 npx vite build --config artefak/vite.config.ts
 python3 -m http.server 8766 --bind 127.0.0.1 --directory dist-artefak &
 python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
@@ -86,4 +92,5 @@ python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,
 file keadaan tidak ditimpa bila tak berubah, pemulihan sambungan, konektor/izin tidak ada, indeks pencarian
-lambat, jawaban tulis tanpa `id`, penjaga tarik-dulu, dan penimpaan lewat ID lama.
+lambat, jawaban tulis tanpa `id`, penjaga tarik-dulu, penimpaan lewat ID lama, dan hapus lewat menu tekan-lama
+(menu menutup dirinya sebelum meminta konfirmasi).
