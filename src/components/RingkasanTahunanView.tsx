@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Transaksi } from "../types";
 import { formatRupiah, formatAngka, namaBulan, hariIni } from "../lib/constants";
+import { Nominal, TeksLayar } from "./TeksLayar";
 
 interface RingkasanTahunanViewProps {
   transaksi: Transaksi[];
@@ -426,25 +427,33 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
         </div>
 
         {/* Tabel Rincian 12 Bulan */}
-        <div style={{ overflowX: "auto" }}>
-          <table className="tabel-rekap" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+        <div className="wadah-tabel-hp" style={{ overflowX: "auto" }}>
+          <table className="tabel-rekap tabel-rekap-12" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)" }}>
                 <th style={{ padding: "8px 6px" }}>Bulan</th>
-                <th style={{ padding: "8px 6px", textAlign: "right" }}>Pemasukan</th>
-                <th style={{ padding: "8px 6px", textAlign: "right" }}>Pengeluaran</th>
-                <th style={{ padding: "8px 6px", textAlign: "right" }}>Selisih</th>
+                <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                  <TeksLayar pc="Pemasukan" hp="Masuk (Rp)" />
+                </th>
+                <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                  <TeksLayar pc="Pengeluaran" hp="Keluar (Rp)" />
+                </th>
+                <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                  <TeksLayar pc="Selisih" hp="Selisih (Rp)" />
+                </th>
               </tr>
             </thead>
             <tbody>
               {rekap12Bulan.map((b) => (
                 <tr key={b.bulanIdx} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                  <td style={{ padding: "9px 6px", fontWeight: 600 }}>{b.nama}</td>
+                  <td style={{ padding: "9px 6px", fontWeight: 600 }}>
+                    <TeksLayar pc={b.nama} hp={b.namaPendek} />
+                  </td>
                   <td style={{ padding: "9px 6px", textAlign: "right", color: b.masuk > 0 ? "#10b981" : "inherit" }}>
-                    {b.masuk > 0 ? formatRupiah(b.masuk) : "—"}
+                    {b.masuk > 0 ? <Nominal n={b.masuk} /> : "—"}
                   </td>
                   <td style={{ padding: "9px 6px", textAlign: "right", color: b.keluar > 0 ? "#ef4444" : "inherit" }}>
-                    {b.keluar > 0 ? formatRupiah(b.keluar) : "—"}
+                    {b.keluar > 0 ? <Nominal n={b.keluar} /> : "—"}
                   </td>
                   <td
                     style={{
@@ -454,19 +463,21 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                       color: b.selisih >= 0 ? "#10b981" : "#f97316",
                     }}
                   >
-                    {b.masuk === 0 && b.keluar === 0 ? "—" : formatRupiah(b.selisih)}
+                    {b.masuk === 0 && b.keluar === 0 ? "—" : <Nominal n={b.selisih} />}
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: "2px solid var(--border)", fontWeight: 800 }}>
-                <td style={{ padding: "10px 6px" }}>Total Setahun</td>
+                <td style={{ padding: "10px 6px" }}>
+                  <TeksLayar pc="Total Setahun" hp="Total" />
+                </td>
                 <td style={{ padding: "10px 6px", textAlign: "right", color: "#10b981" }}>
-                  {formatRupiah(totalMasukTahunIni)}
+                  <Nominal n={totalMasukTahunIni} />
                 </td>
                 <td style={{ padding: "10px 6px", textAlign: "right", color: "#ef4444" }}>
-                  {formatRupiah(totalKeluarTahunIni)}
+                  <Nominal n={totalKeluarTahunIni} />
                 </td>
                 <td
                   style={{
@@ -475,7 +486,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                     color: selisihTahunIni >= 0 ? "#10b981" : "#f97316",
                   }}
                 >
-                  {formatRupiah(selisihTahunIni)}
+                  <Nominal n={selisihTahunIni} />
                 </td>
               </tr>
             </tfoot>
@@ -559,8 +570,8 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
             Belum ada perbandingan data untuk tahun {tahunPilihan} dan {tahunSebelumnya}.
           </p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="tabel-rekap" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
+          <div className="wadah-tabel-hp" style={{ overflowX: "auto" }}>
+            <table className="tabel-rekap tabel-perbandingan" style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.88rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)" }}>
                   <th style={{ padding: "8px 6px" }}>Kategori</th>
@@ -578,13 +589,14 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                   return (
                     <tr key={row.kategori} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
                       <td style={{ padding: "9px 6px", fontWeight: 600 }}>{row.kategori}</td>
-                      <td style={{ padding: "9px 6px", textAlign: "right", color: "var(--text-muted)" }}>
-                        {row.jmlLalu > 0 ? formatRupiah(row.jmlLalu) : "—"}
+                      <td data-label={`${tahunSebelumnya} (Rp)`} style={{ padding: "9px 6px", textAlign: "right", color: "var(--text-muted)" }}>
+                        {row.jmlLalu > 0 ? <Nominal n={row.jmlLalu} /> : "—"}
                       </td>
-                      <td style={{ padding: "9px 6px", textAlign: "right", fontWeight: 700 }}>
-                        {row.jmlIni > 0 ? formatRupiah(row.jmlIni) : "—"}
+                      <td data-label={`${tahunPilihan} (Rp)`} style={{ padding: "9px 6px", textAlign: "right", fontWeight: 700 }}>
+                        {row.jmlIni > 0 ? <Nominal n={row.jmlIni} /> : "—"}
                       </td>
                       <td
+                        data-label="Selisih (Rp)"
                         style={{
                           padding: "9px 6px",
                           textAlign: "right",
@@ -592,7 +604,13 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                           color: sama ? "var(--text-muted)" : hemat ? "#10b981" : "#ef4444",
                         }}
                       >
-                        {row.selisih > 0 ? `+${formatRupiah(row.selisih)}` : row.selisih < 0 ? `-${formatRupiah(Math.abs(row.selisih))}` : "0"}
+                        {row.selisih > 0 ? (
+                          <Nominal n={row.selisih} tanda="+" />
+                        ) : row.selisih < 0 ? (
+                          <Nominal n={Math.abs(row.selisih)} tanda="-" />
+                        ) : (
+                          "0"
+                        )}
                       </td>
                       <td style={{ padding: "9px 6px", textAlign: "right" }}>
                         {row.persen !== null ? (

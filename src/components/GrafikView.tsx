@@ -4,6 +4,7 @@ import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from 
 import { LaporanView } from "./LaporanView";
 import { RingkasanTahunanView } from "./RingkasanTahunanView";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
+import { TeksLayar } from "./TeksLayar";
 
 interface GrafikViewProps {
   transaksi: Transaksi[];
@@ -194,8 +195,12 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
             <thead>
               <tr>
                 <th>Bulan</th>
-                <th>Pemasukan</th>
-                <th>Pengeluaran</th>
+                <th>
+                  <TeksLayar pc="Pemasukan" hp="Masuk" />
+                </th>
+                <th>
+                  <TeksLayar pc="Pengeluaran" hp="Keluar" />
+                </th>
                 <th>Selisih</th>
               </tr>
             </thead>
