@@ -44,6 +44,67 @@ export const LABEL_STATUS_PENYELESAIAN: Record<StatusPenyelesaian, string> = {
   nihil: "Dana awal sama dengan total pengeluaran yang diakui: tidak ada sisa maupun kelebihan",
 };
 
+/** Data kegiatan yang dibutuhkan untuk menentukan transaksi miliknya (DataKegiatan memenuhi bentuk ini). */
+export interface RentangKegiatan {
+  id: string;
+  nama: string;
+  tanggalMulai: string; // YYYY-MM-DD
+  tanggalSelesai: string; // YYYY-MM-DD
+}
+
+const namaKecil = (s: string | undefined) => (s || "").trim().toLowerCase();
+
+/** Terhubung ke kegiatan lewat id, atau lewat nama kegiatan yang diisi di kolom kaitan. */
+function terhubungKe(t: Transaksi, k: RentangKegiatan): boolean {
+  return t.kegiatanId === k.id || (Boolean(namaKecil(t.kaitan)) && namaKecil(t.kaitan) === namaKecil(k.nama));
+}
+
+/**
+ * Transaksi Dana Kegiatan milik satu kegiatan: semua yang terhubung ke kegiatan itu (tanpa batas tanggal), ditambah
+ * penerimaan dana (dana awal) yang belum dikaitkan ke kegiatan mana pun tetapi tanggalnya dalam rentang kegiatan,
+ * supaya dana awal terisi otomatis walau pemasukannya dicatat tanpa memilih kegiatan.
+ */
+export function transaksiKegiatan(
+  transaksi: Transaksi[],
+  kegiatan: RentangKegiatan,
+  semuaKegiatan: RentangKegiatan[] = [kegiatan]
+): Transaksi[] {
+  return transaksi.filter((t) => {
+    if (t.dana !== "Dana Kegiatan") return false;
+    if (terhubungKe(t, kegiatan)) return true;
+    return (
+      t.jenis === "pemasukan" &&
+      t.kategori !== KATEGORI_PINDAH_DANA &&
+      !semuaKegiatan.some((k) => terhubungKe(t, k)) &&
+      t.tanggal >= kegiatan.tanggalMulai &&
+      t.tanggal <= kegiatan.tanggalSelesai
+    );
+  });
+}
+
+/** Kegiatan yang rentang tanggalnya beririsan dengan periode laporan. */
+export function kegiatanBerjalanDalam<K extends RentangKegiatan>(daftar: K[], mulai: string, selesai: string): K[] {
+  return daftar.filter((k) => k.tanggalMulai <= selesai && k.tanggalSelesai >= mulai);
+}
+
+/**
+ * Transaksi untuk penyelesaian dana pada laporan: transaksi pada periode laporan digabung dengan seluruh transaksi
+ * kegiatan yang tercakup (lihat transaksiKegiatan), tanpa duplikat.
+ */
+export function susunTransaksiPenyelesaian(
+  semua: Transaksi[],
+  periode: Transaksi[],
+  kegiatanTercakup: RentangKegiatan[],
+  semuaKegiatan: RentangKegiatan[]
+): Transaksi[] {
+  const hasil = new Map<string, Transaksi>();
+  for (const t of periode) hasil.set(t.id, t);
+  for (const k of kegiatanTercakup) {
+    for (const t of transaksiKegiatan(semua, k, semuaKegiatan)) hasil.set(t.id, t);
+  }
+  return [...hasil.values()];
+}
+
 /** Hanya transaksi Dana Kegiatan yang dihitung; sisanya diabaikan. */
 export function hitungPenyelesaian(daftar: Transaksi[]): RingkasanPenyelesaian {
   let danaAwal = 0;

@@ -6,6 +6,8 @@ interface KartuPenyelesaianDanaProps {
   ringkasan: RingkasanPenyelesaian;
   /** Nama kegiatan bila dihitung untuk satu kegiatan; kosong bila dihitung dari saringan laporan. */
   namaKegiatan?: string;
+  /** Rentang tanggal kegiatan yang dihitung, ditampilkan di samping nama kegiatan. */
+  rentangKegiatan?: string;
   /** True bila tanggal selesai kegiatan belum lewat: angka masih bisa berubah. */
   sementara?: boolean;
   /** Versi ringkas tanpa penjelasan, untuk lembar dokumen. */
@@ -25,6 +27,7 @@ const IKON_STATUS: Record<StatusPenyelesaian, string> = {
 export const KartuPenyelesaianDana: React.FC<KartuPenyelesaianDanaProps> = ({
   ringkasan,
   namaKegiatan,
+  rentangKegiatan,
   sementara = false,
   ringkas = false,
 }) => {
@@ -39,7 +42,13 @@ export const KartuPenyelesaianDana: React.FC<KartuPenyelesaianDanaProps> = ({
     <div className="kartu-penyelesaian" data-status={ringkasan.status}>
       <div className="kartu-penyelesaian__judul">
         <strong>Penyelesaian Dana Kegiatan</strong>
-        {namaKegiatan && <span className="kartu-penyelesaian__kegiatan"> · {namaKegiatan}</span>}
+        {namaKegiatan && (
+          <span className="kartu-penyelesaian__kegiatan">
+            {" "}
+            · {namaKegiatan}
+            {rentangKegiatan ? ` (${rentangKegiatan})` : ""}
+          </span>
+        )}
         {sementara && <span className="kartu-penyelesaian__sementara">Perhitungan sementara: kegiatan belum selesai</span>}
       </div>
 

@@ -16,6 +16,9 @@ interface DokumenSiapCetakProps {
   googleToken?: string;
   penyelesaian?: RingkasanPenyelesaian | null;
   penyelesaianSementara?: boolean;
+  /** Nama dan rentang kegiatan yang dihitung pada penyelesaian dana (bisa lebih dari periode laporan). */
+  namaKegiatanPenyelesaian?: string;
+  rentangKegiatanPenyelesaian?: string;
 }
 
 interface Kelompok {
@@ -221,6 +224,8 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
   googleToken,
   penyelesaian,
   penyelesaianSementara,
+  namaKegiatanPenyelesaian,
+  rentangKegiatanPenyelesaian,
 }) => {
   const kelompok = useMemo(
     () => susunKelompokDokumen(transaksi, adalahKegiatan, kegiatan?.urutanTransaksi),
@@ -383,7 +388,8 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
               <div className="dsc-penyelesaian">
                 <KartuPenyelesaianDana
                   ringkasan={penyelesaian}
-                  namaKegiatan={kegiatan?.nama}
+                  namaKegiatan={namaKegiatanPenyelesaian ?? kegiatan?.nama}
+                  rentangKegiatan={rentangKegiatanPenyelesaian}
                   sementara={penyelesaianSementara}
                   ringkas
                 />

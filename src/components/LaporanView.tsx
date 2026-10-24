@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Transaksi, NamaDana, ProfilPelapor, DataKegiatan } from "../types";
 import {
   formatRupiah,
@@ -8,10 +8,12 @@ import {
   formatTanggalPanjang,
   PROFIL_PELAPOR_DEFAULT,
   KELOMPOK_DANA_KEGIATAN,
+  LAPORAN_AGENDA_KEY,
 } from "../lib/constants";
+import { bacaJsonStorage, tulisStorage } from "../lib/storage";
 import { DokumenSiapCetak } from "./DokumenSiapCetak";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
-import { hitungPenyelesaian } from "../lib/penyelesaianDana";
+import { hitungPenyelesaian, kegiatanBerjalanDalam, susunTransaksiPenyelesaian } from "../lib/penyelesaianDana";
 import { hitungBatasLaporanFisik } from "../lib/ketentuanKegiatan";
 import { buatDokumenLaporanKegiatanDocx, unduhFileBlob } from "../lib/docxGenerator";
 import {
@@ -52,6 +54,15 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
 
   const [filterKaitan, setFilterKaitan] = useState<string>("Semua");
 
+  // "Kaitan / Agenda" di kop laporan: otomatis dari pilihan kegiatan/kaitan, tetapi bisa diubah. Teks yang diubah
+  // disimpan di browser per kombinasi pilihan (kegiatan + kaitan), jadi tidak hilang saat berpindah laporan.
+  const [agendaKustom, setAgendaKustom] = useState<Record<string, string>>(() => {
+    const data = bacaJsonStorage<Record<string, string>>(LAPORAN_AGENDA_KEY, {});
+    return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  });
+  const [sedangUbahAgenda, setSedangUbahAgenda] = useState<boolean>(false);
+  const [draftAgenda, setDraftAgenda] = useState<string>("");
+
   // Daftar Kaitan Kegiatan dari transaksi yang pernah dipakai
   const daftarKaitanUnik = useMemo(() => {
     const set = new Set<string>();
@@ -89,6 +100,41 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   const kegiatanTerpilih = useMemo(() => {
     return daftarKegiatan.find((k) => k.id === pilihKegiatanId);
   }, [daftarKegiatan, pilihKegiatanId]);
+
+  const kunciAgenda = `${pilihKegiatanId}|${filterKaitan}`;
+  const agendaOtomatis = kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan;
+  const agendaTersimpan = agendaKustom[kunciAgenda];
+  const agendaTampil = agendaTersimpan || agendaOtomatis;
+
+  useEffect(() => {
+    setSedangUbahAgenda(false);
+  }, [kunciAgenda]);
+
+  const simpanAgendaKustom = (nilai: Record<string, string>) => {
+    setAgendaKustom(nilai);
+    tulisStorage(LAPORAN_AGENDA_KEY, JSON.stringify(nilai));
+  };
+
+  const mulaiUbahAgenda = () => {
+    setDraftAgenda(agendaTampil);
+    setSedangUbahAgenda(true);
+  };
+
+  const terapkanAgenda = () => {
+    const teks = draftAgenda.trim().replace(/\s+/g, " ");
+    const baru = { ...agendaKustom };
+    if (!teks || teks === agendaOtomatis) delete baru[kunciAgenda];
+    else baru[kunciAgenda] = teks;
+    simpanAgendaKustom(baru);
+    setSedangUbahAgenda(false);
+  };
+
+  const kembalikanAgendaOtomatis = () => {
+    const baru = { ...agendaKustom };
+    delete baru[kunciAgenda];
+    simpanAgendaKustom(baru);
+    setSedangUbahAgenda(false);
+  };
 
   const batasLaporanFisik = useMemo(() => {
     return kegiatanTerpilih?.tanggalSelesai
@@ -327,6 +373,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       const blob = await buatDokumenLaporanKegiatanDocx({
         transaksi,
         kegiatan: kegiatanTerpilih,
+        daftarKegiatan,
         profilPelapor,
         urutanTransaksiIds: kegiatanTerpilih.urutanTransaksi,
         sertakanDaftarPeriksa: kegiatanTerpilih.sertakanDaftarPeriksa !== false,
@@ -400,17 +447,29 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       ? "Laporan Penggunaan Dana Kegiatan"
       : `Laporan Keuangan ${dana}`;
 
-  // Penyelesaian akhir dana kegiatan (cash advance). Untuk satu kegiatan dihitung dari SEMUA transaksinya,
-  // tidak dibatasi rentang tanggal laporan, karena dana awal biasanya diterima sebelum periode yang dipilih.
-  const transaksiPenyelesaian = useMemo(() => {
-    if (!kegiatanTerpilih) return transaksiLaporan;
-    const namaKecil = kegiatanTerpilih.nama.toLowerCase();
-    return transaksi.filter(
-      (t) =>
-        t.dana === "Dana Kegiatan" &&
-        (t.kegiatanId === kegiatanTerpilih.id || (t.kaitan && t.kaitan.toLowerCase() === namaKecil))
-    );
-  }, [transaksi, transaksiLaporan, kegiatanTerpilih]);
+  // Penyelesaian akhir dana kegiatan (cash advance). Dihitung dari SEMUA transaksi kegiatan yang tercakup, tidak
+  // dibatasi rentang tanggal laporan, karena dana awal biasanya diterima sebelum periode yang dipilih. Kegiatan yang
+  // tercakup: yang dipilih, atau yang kaitannya dipilih, atau (bila tidak ada pilihan) yang berjalan dalam periode
+  // laporan. Penerimaan dana pada rentang kegiatan ikut sebagai dana awal walau belum dikaitkan (lihat penyelesaianDana).
+  const kegiatanTercakup = useMemo(() => {
+    if (dana !== "Dana Kegiatan") return [];
+    if (kegiatanTerpilih) return [kegiatanTerpilih];
+    if (filterKaitan !== "Semua") {
+      const cocok = daftarKegiatan.find((k) => k.nama.trim().toLowerCase() === filterKaitan.trim().toLowerCase());
+      return cocok ? [cocok] : [];
+    }
+    return kegiatanBerjalanDalam(daftarKegiatan, tglMulai, tglSelesai);
+  }, [dana, kegiatanTerpilih, filterKaitan, daftarKegiatan, tglMulai, tglSelesai]);
+
+  const transaksiPenyelesaian = useMemo(
+    () => susunTransaksiPenyelesaian(transaksi, kegiatanTerpilih ? [] : transaksiLaporan, kegiatanTercakup, daftarKegiatan),
+    [transaksi, transaksiLaporan, kegiatanTerpilih, kegiatanTercakup, daftarKegiatan]
+  );
+  const namaCakupan = kegiatanTercakup.length > 0 ? kegiatanTercakup.map((k) => k.nama).join(", ") : undefined;
+  const rentangCakupan =
+    kegiatanTercakup.length === 1
+      ? formatRentangTanggal(kegiatanTercakup[0].tanggalMulai, kegiatanTercakup[0].tanggalSelesai)
+      : undefined;
 
   const penyelesaian = useMemo(() => {
     if (dana !== "Dana Kegiatan") return null;
@@ -418,7 +477,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     // Tanpa transaksi satu pun, "dana awal sama dengan pengeluaran" (0 = 0) hanya menyesatkan.
     return hasil.jumlahTransaksi > 0 ? hasil : null;
   }, [dana, transaksiPenyelesaian]);
-  const penyelesaianSementara = Boolean(kegiatanTerpilih && kegiatanTerpilih.tanggalSelesai >= hariIni());
+  const penyelesaianSementara = kegiatanTercakup.some((k) => k.tanggalSelesai >= hariIni());
   const periodeTeks = `Periode laporan: ${formatRentangTanggal(tglMulai, tglSelesai)}`;
 
   return (
@@ -847,7 +906,51 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
             </div>
             <div>
               <dt>Kaitan / Agenda</dt>
-              <dd>{kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan}</dd>
+              <dd className="laporan-kop__agenda">
+                {sedangUbahAgenda ? (
+                  <form
+                    className="laporan-kop__agenda-form no-print"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      terapkanAgenda();
+                    }}
+                  >
+                    <input
+                      id="lap-agenda-input"
+                      type="text"
+                      value={draftAgenda}
+                      onChange={(e) => setDraftAgenda(e.target.value)}
+                      placeholder={agendaOtomatis}
+                      maxLength={150}
+                      aria-label="Kaitan / Agenda"
+                      autoFocus
+                    />
+                    <button type="submit" className="btn-small">
+                      Simpan
+                    </button>
+                    <button type="button" className="laporan-kop__agenda-batal" onClick={() => setSedangUbahAgenda(false)}>
+                      Batal
+                    </button>
+                    {agendaTersimpan && (
+                      <button type="button" className="laporan-kop__agenda-batal" onClick={kembalikanAgendaOtomatis}>
+                        Kembalikan otomatis
+                      </button>
+                    )}
+                  </form>
+                ) : (
+                  <>
+                    <span id="lap-agenda-teks">{agendaTampil}</span>
+                    <button
+                      type="button"
+                      className="laporan-kop__agenda-ubah no-print"
+                      onClick={mulaiUbahAgenda}
+                      aria-label="Ubah Kaitan / Agenda"
+                    >
+                      ✎ Ubah
+                    </button>
+                  </>
+                )}
+              </dd>
             </div>
             {kegiatanTerpilih?.lokasi && (
               <div>
@@ -983,13 +1086,15 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           <div className="no-print" style={{ marginBottom: "24px" }}>
             <KartuPenyelesaianDana
               ringkasan={penyelesaian}
-              namaKegiatan={kegiatanTerpilih?.nama}
+              namaKegiatan={namaCakupan}
+              rentangKegiatan={rentangCakupan}
               sementara={penyelesaianSementara}
             />
             {!kegiatanTerpilih && (
               <p style={{ margin: "6px 2px 0", fontSize: "0.76rem", color: "var(--muted)" }}>
-                Belum memilih kegiatan: dihitung dari transaksi pada rentang tanggal dan kaitan yang dipilih. Pilih
-                kegiatan untuk menghitung seluruh transaksinya.
+                {kegiatanTercakup.length > 0
+                  ? "Belum memilih kegiatan: dihitung dari seluruh transaksi kegiatan yang berjalan pada periode laporan, termasuk dana awal yang diterima sebelum periode. Pilih kegiatan untuk menghitung satu kegiatan saja."
+                  : "Belum memilih kegiatan: dihitung dari transaksi pada rentang tanggal dan kaitan yang dipilih. Pilih kegiatan untuk menghitung seluruh transaksinya."}
               </p>
             )}
           </div>
@@ -1038,6 +1143,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           googleToken={googleToken}
           penyelesaian={penyelesaian}
           penyelesaianSementara={penyelesaianSementara}
+          namaKegiatanPenyelesaian={namaCakupan}
+          rentangKegiatanPenyelesaian={rentangCakupan}
         />
       </div>
     </div>
