@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor } from "../types";
 import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
+import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
@@ -501,28 +502,42 @@ export const SayaView: React.FC<SayaViewProps> = ({
               >
                 {(Object.keys(KARAKTER) as KarakterId[]).map((kId) => {
                   const k = KARAKTER[kId];
+                  const t = TOKOH_TEMA[kId];
                   const aktif = karakter === kId;
                   return (
                     <button
                       key={kId}
                       type="button"
-                      className={`karakter ${aktif ? "aktif" : ""}`}
+                      className={`tokoh-kartu ${aktif ? "aktif" : ""}`}
                       data-karakter={kId}
                       role="radio"
                       aria-checked={aktif}
                       onClick={() => onGantiKarakter(kId)}
+                      style={
+                        {
+                          "--tokoh": rgbTriplet(t.warna),
+                          "--tokoh-2": rgbTriplet(t.warnaKedua),
+                        } as React.CSSProperties
+                      }
                     >
-                      <span className="karakter-lambang">
-                        <KarakterAnimasi
-                          karakter={kId}
-                          ukuran={44}
-                          showAura={aktif}
-                        />
+                      <span className="tokoh-avatar" aria-hidden="true">
+                        {t.avatar ? (
+                          <img src={t.avatar} alt="" width={156} height={156} decoding="async" />
+                        ) : (
+                          <KarakterAnimasi karakter={kId} ukuran={48} showAura={aktif} />
+                        )}
                       </span>
-                      <div className="karakter-info">
-                        <span className="karakter-nama">{k.nama}</span>
-                        <span className="karakter-teknik">{k.teknik}</span>
-                      </div>
+                      <span className="tokoh-info">
+                        <span className="tokoh-nama">{k.nama}</span>
+                        <span className="tokoh-teknik">{k.teknik}</span>
+                      </span>
+                      <span className="tokoh-ilustrasi" aria-hidden="true">
+                        {t.banner ? (
+                          <img src={t.banner} alt="" loading="lazy" decoding="async" />
+                        ) : (
+                          <span className="tokoh-lambang">{k.lambang}</span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
