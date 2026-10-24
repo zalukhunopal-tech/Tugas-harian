@@ -629,22 +629,6 @@ html[data-tema="jujutsu"] .budget-status.over .meter-fill {
   }
 }
 
-/* Kartu pemilihan karakter. */
-html[data-tema="jujutsu"] .karakter-lambang {
-  background: transparent !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-html[data-tema="jujutsu"] .karakter[data-karakter] .karakter-lambang {
-  background: transparent !important;
-}
-
-html[data-tema="jujutsu"] .karakter[aria-checked="true"] {
-  box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px rgba(var(--k1), 0.45);
-}
-
 /* Denyut singkat dari tengah layar saat transaksi tersimpan. */
 html[data-tema="jujutsu"] .pulsa {
   display: block;
