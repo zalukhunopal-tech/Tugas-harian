@@ -27,6 +27,9 @@ const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
 const DRIVE = "https://www.googleapis.com/drive/v3/files";
 const BARIS_BACA = 200;
 
+/** Keterangan hari per file timesheet yang sudah dibaca sesi ini, diacu dengan waktu ubah file supaya tidak dibaca dua kali. */
+const cacheKeterangan = new Map<string, { diubah?: string; keterangan: string[] }>();
+
 export type StatusTimesheet = "diperbarui" | "tetap" | "belum-ada-file" | "dibuat";
 
 export interface HasilTimesheet {
@@ -118,6 +121,7 @@ export async function tarikTimesheetKegiatan(
   if (terbaru) return { kegiatan: k, status: "tetap", berubah: false };
 
   const isi = await bacaIsiFileTimesheet(token, berkas.id, { mulai: k.tanggalMulai, selesai: k.tanggalSelesai });
+  cacheKeterangan.set(berkas.id, { diubah: berkas.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) });
   const baris = barisUntukSimpan(isi.baris);
   const berubah =
     k.timesheetId !== berkas.id || k.timesheetNama !== berkas.nama || !samaBaris(k.timesheetBaris, baris);
@@ -131,6 +135,28 @@ export async function tarikTimesheetKegiatan(
     timesheetDibuatApp: k.timesheetId === berkas.id ? k.timesheetDibuatApp : undefined,
   };
   return { kegiatan, status: berubah ? "diperbarui" : "tetap", isi, berubah };
+}
+
+/**
+ * Keterangan semua hari di semua file timesheet di folder Keuangan (hanya baca; file yang tidak berubah tidak dibaca
+ * ulang dalam satu sesi). Dipakai untuk mengenali transaksi nyasar dari file itu, walau kegiatannya belum dicocokkan.
+ */
+export async function kumpulkanKeteranganTimesheet(token: string, contents: KeuanganDriveContents): Promise<string[]> {
+  const hasil = new Set<string>();
+  for (const f of contents.timesheets ?? []) {
+    try {
+      let cache = cacheKeterangan.get(f.id);
+      if (!cache || cache.diubah !== f.modifiedTime) {
+        const isi = await bacaIsiFileTimesheet(token, f.id);
+        cache = { diubah: f.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) };
+        cacheKeterangan.set(f.id, cache);
+      }
+      cache.keterangan.forEach((k) => hasil.add(k));
+    } catch (err) {
+      console.warn(`Timesheet "${f.name}" tidak terbaca untuk pemeriksaan transaksi nyasar:`, err);
+    }
+  }
+  return [...hasil];
 }
 
 /** Tarik timesheet untuk banyak kegiatan; satu kegiatan yang gagal tidak menggagalkan yang lain. */

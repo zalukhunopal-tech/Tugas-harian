@@ -10,6 +10,7 @@ import {
   barisUntukSimpan,
   batchDariJudul,
   batchDariNama,
+  cariCatatanMencurigakan,
   cariTransaksiNyasarTimesheet,
   cocokkanFileTimesheet,
   formatTanggalTimesheet,
@@ -207,6 +208,23 @@ const dibuang = cariTransaksiNyasarTimesheet(semuaTrx, daftarTs).map((t) => t.id
 cek("baris Total dan baris hari dari timesheet dikenali", dibuang === "j1,j2,j3", dibuang);
 cek("transaksi sungguhan tidak tersentuh (dana awal, ada kegiatan/catatan, pribadi, pengeluaran, perdiem)", !/s\d/.test(dibuang));
 cek("tanpa timesheet tersalin, hanya baris Total yang dikenali", cariTransaksiNyasarTimesheet(semuaTrx, []).map((t) => t.id).join() === "j1,j2");
+cek(
+  "keterangan dari file timesheet di Drive juga dikenali (kegiatan belum dicocokkan)",
+  cariTransaksiNyasarTimesheet(semuaTrx, [], ["Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat"]).map((t) => t.id).join() === "j1,j2,j3"
+);
+
+console.log("Catatan mencurigakan (konfirmasi pengguna)");
+const mencurigakan = cariCatatanMencurigakan([
+  nyasar({ id: "m1", deskripsi: "Teks tak dikenal", kategori: "Desa Ba' Liku", jumlah: 200000 }),
+  nyasar({ id: "m2", deskripsi: "Total", jumlah: 6800000 }),
+  nyasar({ id: "ok1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 26370000 }),
+  nyasar({ id: "ok2", deskripsi: "Pindah", kategori: "Pindah Dana" }),
+  nyasar({ id: "ok3", deskripsi: "Ada kegiatan", kategori: "Desa X", kegiatanId: "kg4" }),
+  nyasar({ id: "ok4", deskripsi: "Ada catatan", kategori: "Desa X", catatan: "dicatat sendiri" }),
+  trx({ id: "ok5", deskripsi: "Pengeluaran biasa", kategori: "Konsumsi" }),
+  trx({ id: "ok6", deskripsi: "Pribadi", dana: "Dana Pribadi", jenis: "pemasukan", kategori: "Pemasukan Gaji" }),
+]).map((t) => t.id).join();
+cek("hanya pemasukan Dana Kegiatan polos berkategori tidak resmi yang ditandai", mencurigakan === "m1,m2", mencurigakan);
 
 if (gagal) {
   console.log(`\n${gagal} uji gagal`);
