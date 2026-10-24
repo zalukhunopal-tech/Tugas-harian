@@ -461,9 +461,16 @@ export function susunDaftarPerdiem(
  */
 export function cariTransaksiNyasarTimesheet(
   transaksi: Transaksi[],
-  daftarKegiatan: Array<Pick<DataKegiatan, "timesheetBaris">>
+  daftarKegiatan: Array<Pick<DataKegiatan, "timesheetBaris">>,
+  keteranganFileTimesheet: Iterable<string> = []
 ): Transaksi[] {
+  // Keterangan yang dikenal: dari salinan di kegiatan, dan dari seluruh file timesheet di Drive (kegiatan yang belum
+  // dicocokkan dengan file tidak punya salinan, tetapi barisnya tetap bisa nyasar).
   const keterangan = new Set<string>();
+  for (const k of keteranganFileTimesheet) {
+    const teks = k.trim();
+    if (teks) keterangan.add(teks);
+  }
   for (const k of daftarKegiatan) {
     for (const b of k.timesheetBaris ?? []) {
       const teks = b.keterangan.trim();
@@ -476,4 +483,24 @@ export function cariTransaksiNyasarTimesheet(
     const uraian = t.deskripsi.trim();
     return uraian === "Total" || keterangan.has(uraian);
   });
+}
+
+/**
+ * Catatan yang mencurigakan menurut aturan aplikasi sendiri: pemasukan Dana Kegiatan polos yang kategorinya bukan
+ * "Penerimaan Dana" (satu-satunya kategori pemasukan Dana Kegiatan) maupun "Pindah Dana". Pola ini muncul pada sisa
+ * pembacaan keliru file timesheet (kategorinya terisi nama lokasi). Tidak dihapus otomatis: pengguna yang memutuskan.
+ */
+export function cariCatatanMencurigakan(transaksi: Transaksi[]): Transaksi[] {
+  return transaksi.filter(
+    (t) =>
+      t.dana === "Dana Kegiatan" &&
+      t.jenis === "pemasukan" &&
+      t.kategori !== "Penerimaan Dana" &&
+      t.kategori !== "Pindah Dana" &&
+      !t.kegiatanId &&
+      !t.kaitan &&
+      !t.catatan &&
+      !t.detailKegiatan &&
+      !(t.bukti && t.bukti.length > 0)
+  );
 }

@@ -347,6 +347,58 @@ with sync_playwright() as p:
     cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 
+    print("9. Kegiatan tidak cocok dengan file mana pun: sisa nyasar tetap dibersihkan lewat isi file timesheet di Drive")
+    b, pg, galat = buka(p)
+    junk = [{"id": f"junkM{i}", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-10-10", "deskripsi": f"Kegiatan lapangan hari ke-{i + 10}, bersama warga",
+             "kategori": "Desa Ba' Liku", "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""} for i in range(1, 5)]
+    # Tanggal kegiatan tidak beririsan dengan periode file: kegiatan tidak mungkin dicocokkan ke file timesheet.
+    kegs = [{"id": "kg4", "nama": "Kegiatan Tanpa Nomor", "lokasi": "Krayan", "tanggalMulai": "2026-12-01", "tanggalSelesai": "2026-12-05"}]
+    pg.evaluate("""([j, k]) => { const a = JSON.parse(localStorage.getItem('pengeluaran-harian')); localStorage.setItem('pengeluaran-harian', JSON.stringify(a.concat(j)));
+                     localStorage.setItem('keuangan-daftar-kegiatan', JSON.stringify(k)); }""", [junk, kegs])
+    pg.reload()
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(600)
+    hubungkan(pg)
+    pg.wait_for_timeout(2500)
+    trx = json.loads(pg.evaluate("localStorage.getItem('pengeluaran-harian')"))
+    cek(not [t for t in trx if t["id"].startswith("junk")], "4 catatan nyasar terhapus walau kegiatan belum cocok dengan file")
+    cek(not [k for k in kegiatan_lokal(pg) if k.get("timesheetId")], "kegiatan memang tidak terhubung ke file (kasus yang diuji)")
+    cek(len([t for t in trx if t["kategori"] == "Perdiem"]) == 34 and any(t["deskripsi"] == "Penerimaan Dana Awal Kegiatan" for t in trx), "perdiem dan dana awal sungguhan tetap")
+    cek(not galat, f"tanpa galat JS ({galat})")
+    b.close()
+
+    print("10. Catatan mencurigakan yang tidak ada di file mana pun: peringatan di Riwayat, dihapus hanya bila pengguna setuju")
+    b, pg, galat = buka(p)
+    aneh = [{"id": f"aneh{i}", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-10-10", "deskripsi": f"Baris asing {i}", "kategori": "Desa Ba' Liku",
+             "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""} for i in range(1, 4)]
+    pg.evaluate("(j) => { const a = JSON.parse(localStorage.getItem('pengeluaran-harian')); localStorage.setItem('pengeluaran-harian', JSON.stringify(a.concat(j))); }", aneh)
+    pg.reload()
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(1200)
+    kartu = pg.locator("[data-testid=kartu-mencurigakan]")
+    cek(kartu.count() == 1 and "3 catatan" in kartu.inner_text(), "peringatan tampil dengan jumlah yang benar")
+    trx = json.loads(pg.evaluate("localStorage.getItem('pengeluaran-harian')"))
+    cek(len([t for t in trx if t["id"].startswith("aneh")]) == 3, "belum ada yang dihapus sebelum pengguna setuju")
+    pg.get_by_role("button", name="Biarkan").click()
+    pg.wait_for_timeout(300)
+    cek(pg.locator("[data-testid=kartu-mencurigakan]").count() == 0, "Biarkan: peringatan hilang")
+    pg.reload()
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(1200)
+    cek(pg.locator("[data-testid=kartu-mencurigakan]").count() == 0, "Biarkan diingat setelah muat ulang")
+    pg.evaluate("localStorage.removeItem('keuangan-mencurigakan-diabaikan')")
+    pg.reload()
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(1200)
+    pg.get_by_role("button", name="Hapus 3 catatan ini").click()
+    pg.wait_for_timeout(500)
+    trx = json.loads(pg.evaluate("localStorage.getItem('pengeluaran-harian')"))
+    cek(not [t for t in trx if t["id"].startswith("aneh")], "Hapus: ketiganya terhapus")
+    cek(len([t for t in trx if t["kategori"] == "Perdiem"]) == 34 and any(t["deskripsi"] == "Penerimaan Dana Awal Kegiatan" for t in trx), "perdiem dan dana awal sungguhan tetap")
+    cek(pg.locator("[data-testid=kartu-mencurigakan]").count() == 0, "peringatan hilang setelah dihapus")
+    cek(not galat, f"tanpa galat JS ({galat})")
+    b.close()
+
 if gagal:
     print(f"\n{len(gagal)} uji gagal")
     sys.exit(1)
