@@ -51,6 +51,7 @@ import {
 import { adalahPemasukanPerdiemOtomatis, cariPasanganPerdiem } from "./lib/perdiemOtomatis";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
 import { TOKOH_TEMA } from "./lib/tokohTema";
+import { useGesekMenu } from "./lib/useGesekMenu";
 import {
   koinDipakai,
   ambilHargaCoinGecko,
@@ -132,6 +133,8 @@ export default function App() {
   );
 
   const [currentView, setCurrentView] = useState<ViewTab>("riwayat");
+  // Arah geser terakhir (bila pindah menu dengan menggeser jari), untuk animasi masuk halaman.
+  const [arahGeser, setArahGeser] = useState<"kiri" | "kanan" | null>(null);
   const [lastActiveTab, setLastActiveTab] = useState<ViewTab>("riwayat");
 
   useEffect(() => {
@@ -160,6 +163,23 @@ export default function App() {
   const [memuatHarga, setMemuatHarga] = useState(false);
   const [modalPilihanTambahBuka, setModalPilihanTambahBuka] = useState(false);
   const [initialScanMode, setInitialScanMode] = useState<"kamera" | "galeri" | null>(null);
+
+  // Geser jari ke kiri/kanan untuk pindah menu (urutan sama dengan navigasi bawah, tanpa tombol tambah).
+  useGesekMenu(currentView !== "tambah" && !modalPilihanTambahBuka, (arah) => {
+    const urutan: ViewTab[] = ["riwayat", "aset", "grafik", "saya"];
+    const tujuan = urutan[urutan.indexOf(currentView) + arah];
+    if (!tujuan || (isAppLocked && appLockConfig.enabled)) return;
+    setArahGeser(arah === 1 ? "kiri" : "kanan");
+    setCurrentView(tujuan);
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  });
+
+  // Arah geser hanya dibutuhkan selama animasi masuk halaman; setelah itu dihapus agar tidak terulang di halaman lain.
+  useEffect(() => {
+    if (!arahGeser) return;
+    const jeda = window.setTimeout(() => setArahGeser(null), 450);
+    return () => window.clearTimeout(jeda);
+  }, [arahGeser, currentView]);
 
   // Synchronize HTML attributes for theme and character
   useEffect(() => {
@@ -1224,7 +1244,7 @@ export default function App() {
             transaksi={transaksi}
           />
 
-          <main className="container">
+          <main className="container" data-geser={arahGeser ?? undefined}>
             {(currentView === "riwayat" || (currentView === "tambah" && lastActiveTab === "riwayat")) && (
               <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
                 <RiwayatView
@@ -1370,6 +1390,7 @@ export default function App() {
           if (v === "tambah" && editTransaksi) {
             setEditTransaksi(null);
           }
+          setArahGeser(null);
           setCurrentView(v);
           window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
         }}

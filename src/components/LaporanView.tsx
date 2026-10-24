@@ -11,6 +11,7 @@ import {
   LAPORAN_AGENDA_KEY,
 } from "../lib/constants";
 import { bacaJsonStorage, tulisStorage } from "../lib/storage";
+import { Pencil } from "lucide-react";
 import { DokumenSiapCetak } from "./DokumenSiapCetak";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
 import { hitungPenyelesaian, kegiatanBerjalanDalam, susunTransaksiPenyelesaian } from "../lib/penyelesaianDana";
@@ -939,15 +940,22 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                   </form>
                 ) : (
                   <>
-                    <span id="lap-agenda-teks">{agendaTampil}</span>
-                    <button
-                      type="button"
-                      className="laporan-kop__agenda-ubah no-print"
-                      onClick={mulaiUbahAgenda}
-                      aria-label="Ubah Kaitan / Agenda"
-                    >
-                      ✎ Ubah
-                    </button>
+                    <span id="lap-agenda-teks">
+                      {agendaTampil.includes(" ") ? agendaTampil.slice(0, agendaTampil.lastIndexOf(" ") + 1) : ""}
+                      {/* Kata terakhir dan pensil tidak dipisah baris, supaya pensil tidak sendirian di baris baru. */}
+                      <span className="laporan-kop__agenda-akhir">
+                        {agendaTampil.slice(agendaTampil.lastIndexOf(" ") + 1)}
+                        <button
+                          type="button"
+                          className="laporan-kop__agenda-ubah no-print"
+                          onClick={mulaiUbahAgenda}
+                          aria-label="Ubah Kaitan / Agenda"
+                          title="Ubah Kaitan / Agenda"
+                        >
+                          <Pencil size={13} strokeWidth={2.2} aria-hidden="true" />
+                        </button>
+                      </span>
+                    </span>
                   </>
                 )}
               </dd>
