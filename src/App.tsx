@@ -1188,12 +1188,7 @@ export default function App() {
           id="wallpaper-tokoh"
           key={karakter}
           aria-hidden="true"
-          style={
-            {
-              "--wp": `url("${TOKOH_TEMA[karakter].wallpaper}")`,
-              "--wp-pos": TOKOH_TEMA[karakter].posisiWallpaper ?? "50% 50%",
-            } as React.CSSProperties
-          }
+          style={{ "--wp": `url("${TOKOH_TEMA[karakter].wallpaper}")` } as React.CSSProperties}
         >
           <div className="wp-kabur" />
           <div className="wp-gambar" />
