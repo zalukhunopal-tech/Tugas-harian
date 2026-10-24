@@ -3636,6 +3636,61 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* "Kaitan / Agenda" di kop laporan bisa diubah (tombol dan formulir tidak ikut tercetak). */
+.laporan-kop__agenda-ubah {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 9px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  vertical-align: 1px;
+  cursor: pointer;
+}
+
+.laporan-kop__agenda-ubah:hover {
+  border-color: var(--accent);
+}
+
+.laporan-kop__agenda-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
+}
+
+.laporan-kop__agenda-form .btn-small,
+.laporan-kop__agenda-form .laporan-kop__agenda-batal {
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.laporan-kop__agenda-batal {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.laporan-kop__agenda-form input {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 6px 9px;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
 @media print {
   .laporan-kop__jenis,
   .laporan-kop__data dt {
@@ -3692,6 +3747,11 @@ button {
 /* ============================================================
    Perbaikan khusus HP (di bawah 640px). Tablet dan PC tidak berubah.
    ============================================================ */
+/* Label tren di bawah nama kategori (tabel perbandingan) hanya tampil di HP. */
+.tren-di-nama {
+  display: none;
+}
+
 /* Teks yang berbeda per layar: .teks-pc tampil di tablet/PC, .teks-hp di HP. */
 .teks-hp {
   display: none;
@@ -3791,49 +3851,74 @@ button {
     text-align: left !important;
   }
 
-  /* Perbandingan per kategori: tiap kategori menjadi satu baris kartu (nama + tren, lalu tiga angka). */
-  .tabel-perbandingan,
-  .tabel-perbandingan tbody {
-    display: block;
-    width: 100%;
+  /* Perbandingan per kategori: satu tabel rapat dengan judul kolom sekali di atas dan angka rata tengah.
+     Label tren (▲ %, Baru) pindah ke bawah nama kategori; kolom Tren khusus tablet/PC disembunyikan. */
+  .tabel-perbandingan {
+    table-layout: fixed;
+    font-size: 0.74rem !important;
   }
 
-  .tabel-perbandingan thead {
+  .tabel-perbandingan th,
+  .tabel-perbandingan td {
+    padding: 9px 2px !important;
+    text-align: center !important;
+    vertical-align: top;
+  }
+
+  .tabel-perbandingan th {
+    font-size: 0.68rem;
+    line-height: 1.25;
+    vertical-align: bottom;
+  }
+
+  .tabel-perbandingan th:first-child,
+  .tabel-perbandingan td:first-child {
+    width: 30%;
+    padding-right: 6px !important;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+
+  .tabel-perbandingan th:last-child,
+  .tabel-perbandingan td:last-child {
     display: none;
   }
 
-  .tabel-perbandingan tr {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: center;
-    gap: 6px 4px;
-    padding: 10px 0;
+  /* Ukuran angka mengecil mengikuti lebar layar supaya "+1.684.854" selalu muat di kolomnya. */
+  .tabel-perbandingan td:not(:first-child) {
+    font-size: clamp(0.56rem, 2.8vw, 0.74rem);
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  .tabel-perbandingan td {
-    padding: 0 !important;
-    min-width: 0;
-    text-align: center !important;
-  }
-
-  .tabel-perbandingan td:first-child {
-    grid-column: 1 / 3;
-    text-align: left !important;
-  }
-
-  .tabel-perbandingan td:last-child {
-    grid-column: 3;
-    grid-row: 1;
-    text-align: right !important;
-  }
-
-  .tabel-perbandingan td[data-label]::before {
-    content: attr(data-label);
+  .tabel-perbandingan .tren-di-nama {
     display: block;
-    margin-bottom: 2px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  .tabel-perbandingan .tren-di-nama .tren-lencana {
+    display: inline-block;
+    padding: 2px 7px !important;
+    font-size: 0.66rem !important;
+    white-space: nowrap;
+  }
+
+  .tabel-perbandingan .tren-baru {
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.16);
+  }
+
+  .judul-perbandingan {
+    align-items: flex-start !important;
+  }
+
+  /* Anggaran per kategori: nama kategori di baris sendiri, "Rp 0 / Tanpa batas" dan tombol Atur di baris
+     berikutnya. Sama untuk semua kategori, tidak bergantung panjang nama kategori. */
+  .anggaran-kat-kepala {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px !important;
   }
 }
 

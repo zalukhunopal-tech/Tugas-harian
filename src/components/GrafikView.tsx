@@ -435,7 +435,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
                   boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
+                <div className="anggaran-kat-kepala" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", flexWrap: "wrap", gap: "6px" }}>
                   <span style={{ fontWeight: 700, fontSize: "0.9rem", display: "inline-flex", alignItems: "center", gap: "8px" }}>
                     <span
                       style={{
@@ -453,7 +453,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
                     </span>
                     {kat}
                   </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div className="anggaran-kat-nilai" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "0.84rem" }}>
                       <strong>{formatRupiah(terpakai)}</strong>
                       <span style={{ color: "var(--text-muted)" }}>

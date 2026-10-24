@@ -33,12 +33,14 @@ import {
   hariIni,
 } from "./constants";
 import { hitungBatasLaporanFisik, KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
-import { hitungPenyelesaian } from "./penyelesaianDana";
+import { hitungPenyelesaian, transaksiKegiatan } from "./penyelesaianDana";
 import { ambilSemuaBuktiOffline } from "./buktiStorage";
 
 export interface OpsiLaporanDocx {
   transaksi: Transaksi[];
   kegiatan: DataKegiatan;
+  /** Semua kegiatan, untuk memastikan penerimaan dana yang sudah dikaitkan ke kegiatan lain tidak ikut terhitung. */
+  daftarKegiatan?: DataKegiatan[];
   profilPelapor: ProfilPelapor;
   urutanTransaksiIds?: string[];
   sertakanDaftarPeriksa?: boolean;
@@ -406,6 +408,7 @@ export async function buatDokumenLaporanKegiatanDocx(
   const {
     transaksi,
     kegiatan,
+    daftarKegiatan = [kegiatan],
     profilPelapor,
     urutanTransaksiIds = [],
     sertakanDaftarPeriksa = true,
@@ -413,12 +416,8 @@ export async function buatDokumenLaporanKegiatanDocx(
   } = opsi;
 
   // 1. Saring transaksi kegiatan ini
-  const trxKegiatan = transaksi.filter(
-    (t) =>
-      t.dana === "Dana Kegiatan" &&
-      (t.kegiatanId === kegiatan.id ||
-        (t.kaitan && t.kaitan.toLowerCase() === kegiatan.nama.toLowerCase()))
-  );
+  // (termasuk penerimaan dana pada rentang kegiatan yang belum dikaitkan, supaya dana awal terisi otomatis)
+  const trxKegiatan = transaksiKegiatan(transaksi, kegiatan, daftarKegiatan);
 
   const pengeluaranRaw = trxKegiatan.filter((t) => t.jenis === "pengeluaran");
 
