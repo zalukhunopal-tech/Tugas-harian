@@ -450,3 +450,30 @@ export function susunDaftarPerdiem(
     hariBerketerangan: hari.length - tanggalBelumAdaDiTimesheet(hari).length,
   };
 }
+
+/* ---------- pembersihan transaksi nyasar dari file timesheet ---------- */
+
+/**
+ * Versi lama aplikasi membaca file timesheet (namanya memuat "kegiatan" dan tahun) seperti sheet Keuangan Kegiatan:
+ * setiap baris hari dan baris Total menjadi pemasukan Dana Kegiatan yang tidak pernah Anda catat. Fungsi ini
+ * mengenali sisa-sisa itu dengan ketat: pemasukan Dana Kegiatan polos (tanpa kegiatan, kaitan, catatan, rincian,
+ * atau bukti) yang uraiannya persis "Total" atau persis sama dengan Keterangan sebuah hari di timesheet.
+ */
+export function cariTransaksiNyasarTimesheet(
+  transaksi: Transaksi[],
+  daftarKegiatan: Array<Pick<DataKegiatan, "timesheetBaris">>
+): Transaksi[] {
+  const keterangan = new Set<string>();
+  for (const k of daftarKegiatan) {
+    for (const b of k.timesheetBaris ?? []) {
+      const teks = b.keterangan.trim();
+      if (teks) keterangan.add(teks);
+    }
+  }
+  return transaksi.filter((t) => {
+    if (t.dana !== "Dana Kegiatan" || t.jenis !== "pemasukan") return false;
+    if (t.kegiatanId || t.kaitan || t.catatan || t.detailKegiatan || (t.bukti && t.bukti.length > 0)) return false;
+    const uraian = t.deskripsi.trim();
+    return uraian === "Total" || keterangan.has(uraian);
+  });
+}

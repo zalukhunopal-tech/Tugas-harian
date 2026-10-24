@@ -79,7 +79,7 @@ import {
   simpanDocxLaporanKeDrive,
 } from "./lib/gdriveSync";
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
-import { batchKegiatan } from "./lib/timesheet";
+import { batchKegiatan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
 import { siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
 import {
   simpanBuktiOffline,
@@ -536,6 +536,19 @@ export default function App() {
     },
     [jalankanAutoTimesheet]
   );
+
+  // Sisa pembacaan keliru versi lama: baris file timesheet yang masuk sebagai pemasukan Dana Kegiatan yang tidak pernah
+  // dicatat. Dikenali dengan ketat (lihat cariTransaksiNyasarTimesheet), dihapus, dan ID-nya dicatat sebagai terhapus.
+  useEffect(() => {
+    const nyasar = cariTransaksiNyasarTimesheet(transaksi, daftarKegiatan);
+    if (nyasar.length === 0) return;
+    const ids = new Set(nyasar.map((t) => t.id));
+    ids.forEach((id) => tambahIdTerhapus(id));
+    perbaruiTransaksi(transaksi.filter((t) => !ids.has(t.id)));
+    jadwalkanAutoSync();
+    setSyncStatus({ pesan: `${nyasar.length} catatan nyasar dari file timesheet dibersihkan`, status: "sukses" });
+    setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
+  }, [transaksi, daftarKegiatan, perbaruiTransaksi, jadwalkanAutoSync]);
 
   const cariIdKegiatanTerdampak = useCallback(
     (daftarTrx: Transaksi[]): string[] => {

@@ -108,9 +108,9 @@ def tunggu_sinkron(pg, sebelum=0, detik=30):
 
 
 def tunggu_tarik(pg, jumlah_baca=2, detik=30):
-    """Tarik data selesai bila sheet Pribadi dan Kegiatan sudah dibaca (B7:L), lalu beri waktu state diperbarui."""
+    """Tarik data selesai bila sheet Pribadi dan Kegiatan sudah dibaca (B6:L), lalu beri waktu state diperbarui."""
     pg.wait_for_function(
-        """(n) => window.__drive.calls.filter(c => c.tool === 'get_values' && /B7:L$/.test(c.input.range)).length >= n""",
+        """(n) => window.__drive.calls.filter(c => c.tool === 'get_values' && /B6:L$/.test(c.input.range)).length >= n""",
         arg=jumlah_baca,
         timeout=detik * 1000,
     )

@@ -119,7 +119,7 @@ def hubungkan(pg):
     nav(pg, "Saya")
     pg.get_by_role("button", name="Sambungkan konektor Google Drive").click()
     pg.get_by_text("Konektor Google Drive aktif").first.wait_for(timeout=10000)
-    pg.wait_for_function("window.__drive.calls.filter(c => c.tool === 'get_values' && /B7:L$/.test(c.input.range)).length >= 2", timeout=30000)
+    pg.wait_for_function("window.__drive.calls.filter(c => c.tool === 'get_values' && /B6:L$/.test(c.input.range)).length >= 2", timeout=30000)
     pg.wait_for_timeout(1500)
 
 
@@ -156,7 +156,7 @@ with sync_playwright() as p:
     # 35 transaksi awal + 3 baris dari sheet Pribadi/Kegiatan palsu; isi file timesheet tidak boleh ikut jadi transaksi.
     cek(len(trx) == 38 and not any("hari ke-" in (t.get("deskripsi") or "") for t in trx), f"file timesheet tidak dibaca sebagai sheet Keuangan ({len(trx)} transaksi)")
     ts4_dibaca = panggilan(pg, "get_values", "TS4")
-    cek(len(ts4_dibaca) == 1 and "A1:G" in ts4_dibaca[0]["input"]["range"], "file timesheet hanya dibaca sekali (A1:G…), bukan B7:L")
+    cek(len(ts4_dibaca) == 1 and "A1:G" in ts4_dibaca[0]["input"]["range"], "file timesheet hanya dibaca sekali (A1:G…), bukan B6:L")
     cek(not panggilan(pg, "update_values", "TS4") and not panggilan(pg, "batch_clear_values", "TS4"), "tidak ada tulis ke file timesheet pengguna")
     cek(snapshot_ts4(pg) == awal_ts4, "isi file timesheet pengguna tidak berubah")
     cek(not [c for c in panggilan(pg, "copy_file")], "tidak membuat salinan apa pun saat hanya menarik")
@@ -309,6 +309,42 @@ with sync_playwright() as p:
     pg.wait_for_timeout(7000)
     cek(not panggilan(pg, "copy_file"), "tidak ada file timesheet baru untuk kegiatan lama")
     cek(not [k for k in kegiatan_lokal(pg) if k["id"] == "kgLama" and k.get("timesheetId")], "kegiatan lama tetap tanpa file timesheet")
+    b.close()
+
+    print("8. Sisa pembacaan keliru versi lama dibersihkan; file mirip timesheet tanpa kata 'timesheet' tidak dibaca sebagai transaksi")
+    b, pg, galat = buka(p)
+    junk = []
+    for i in range(3):
+        junk.append({"id": f"junkT{i}", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-10-24", "deskripsi": "Total", "kategori": "Lain-lain",
+                     "jumlah": 6800000, "metode": "Tunai", "kaitan": "", "catatan": ""})
+    for i in range(1, 6):
+        junk.append({"id": f"junkH{i}", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-20-09", "deskripsi": f"Kegiatan lapangan hari ke-{i}, bersama warga",
+                     "kategori": f"Desa Contoh {i}", "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""})
+    pg.evaluate("(j) => { const a = JSON.parse(localStorage.getItem('pengeluaran-harian')); localStorage.setItem('pengeluaran-harian', JSON.stringify(a.concat(j))); }", junk)
+    # File mirip timesheet yang namanya tidak memuat "timesheet": harus dilewati karena judul kolomnya bukan sheet keuangan.
+    pg.evaluate(
+        """(rows) => { window.__drive.tambahFile({ id: 'MIRIP', title: 'Perdiem Batch 3 Kegiatan 2026', mimeType: 'application/vnd.google-apps.spreadsheet', parentId: 'F1' });
+                      window.__drive.sheets.set('MIRIP', { tabs: [{ sheetId: 222, title: 'Sheet1', rows }] }); }""",
+        baris_timesheet(),
+    )
+    pg.reload()
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(600)
+    pg.evaluate(
+        """(rows) => { window.__drive.tambahFile({ id: 'MIRIP', title: 'Perdiem Batch 3 Kegiatan 2026', mimeType: 'application/vnd.google-apps.spreadsheet', parentId: 'F1' });
+                      window.__drive.sheets.set('MIRIP', { tabs: [{ sheetId: 222, title: 'Sheet1', rows }] }); }""",
+        baris_timesheet(),
+    )
+    hubungkan(pg)
+    pg.wait_for_timeout(2500)
+    trx = json.loads(pg.evaluate("localStorage.getItem('pengeluaran-harian')"))
+    sisa = [t for t in trx if t["id"].startswith("junk")]
+    cek(not sisa, f"8 catatan nyasar dihapus otomatis ({len(sisa)} tersisa)")
+    cek(any(t["deskripsi"] == "Penerimaan Dana Awal Kegiatan" for t in trx), "dana awal sungguhan tetap ada")
+    cek(len([t for t in trx if t["kategori"] == "Perdiem"]) == 34, "34 perdiem sungguhan tetap ada")
+    cek(not [t for t in trx if "hari ke-" in (t.get("deskripsi") or "") or t.get("deskripsi") == "Total"], "tidak ada baris timesheet yang lolos jadi transaksi (termasuk dari file mirip)")
+    cek(not [c for c in panggilan(pg, "update_values") if c["input"]["spreadsheetId"] in ("TS4", "MIRIP")], "file timesheet dan file mirip tidak pernah ditulis")
+    cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 
 if gagal:

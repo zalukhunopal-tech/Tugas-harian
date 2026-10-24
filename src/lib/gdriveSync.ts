@@ -507,6 +507,11 @@ async function cariJudulTabSheet(
   return sheetTitle;
 }
 
+/** Judul kolom baris 6 sheet keuangan memuat Uraian, Pemasukan, atau Pengeluaran (lihat template dan penulisan di kirimSemuaKeDrive). */
+export function adalahJudulSheetKeuangan(judul: unknown[] | undefined): boolean {
+  return Array.isArray(judul) && judul.some((c) => /uraian|pemasukan|pengeluaran/i.test(String(c ?? "")));
+}
+
 /**
  * Membaca transaksi dari rentang B7:K dari sebuah spreadsheet.
  * Mengabaikan transaksi yang ID-nya ada di daftar terhapus.
@@ -520,8 +525,9 @@ export async function bacaTransaksiDariSpreadsheet(
 ): Promise<Transaksi[]> {
   const sheetTitle = await cariJudulTabSheet(token, spreadsheetId, targetDana);
 
-  // Baca rentang B7:L (B=Tanggal, C=Uraian, D=Kategori, E=Pemasukan, F=Pengeluaran, G=Saldo, H=Kaitan, I=Catatan, J=ID, K=Metode Bayar, L=Bukti)
-  const range = `'${sheetTitle}'!B7:L`;
+  // Baca rentang B6:L: baris 6 adalah judul kolom, data mulai baris 7
+  // (B=Tanggal, C=Uraian, D=Kategori, E=Pemasukan, F=Pengeluaran, G=Saldo, H=Kaitan, I=Catatan, J=ID, K=Metode Bayar, L=Bukti)
+  const range = `'${sheetTitle}'!B6:L`;
   const valRes = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
       range
@@ -535,7 +541,14 @@ export async function bacaTransaksiDariSpreadsheet(
   }
 
   const valData = await valRes.json();
-  const rows: any[][] = valData.values || [];
+  const semuaBaris: any[][] = valData.values || [];
+  // Hanya sheet berjudul kolom keuangan (Uraian / Pemasukan / Pengeluaran) yang dibaca sebagai transaksi. Tanpa
+  // pemeriksaan ini, file lain di folder (mis. timesheet perdiem) terbaca sebagai transaksi nyasar.
+  if (!adalahJudulSheetKeuangan(semuaBaris[0])) {
+    console.warn(`Spreadsheet "${sheetTitle}" bukan sheet keuangan (judul kolom di baris 6 tidak dikenali); dilewati.`);
+    return [];
+  }
+  const rows = semuaBaris.slice(1);
   const hasil: Transaksi[] = [];
 
   for (let idx = 0; idx < rows.length; idx++) {
