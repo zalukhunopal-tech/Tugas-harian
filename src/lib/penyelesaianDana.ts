@@ -61,8 +61,10 @@ function terhubungKe(t: Transaksi, k: RentangKegiatan): boolean {
 
 /**
  * Transaksi Dana Kegiatan milik satu kegiatan: semua yang terhubung ke kegiatan itu (tanpa batas tanggal), ditambah
- * penerimaan dana (dana awal) yang belum dikaitkan ke kegiatan mana pun tetapi tanggalnya dalam rentang kegiatan,
- * supaya dana awal terisi otomatis walau pemasukannya dicatat tanpa memilih kegiatan.
+ * dua jenis yang belum dikaitkan ke kegiatan mana pun tetapi tanggalnya dalam rentang kegiatan, supaya terisi otomatis
+ * walau dicatat tanpa memilih kegiatan (kolom kegiatan tidak ikut tersimpan di Google Sheets):
+ *   - penerimaan dana (dana awal);
+ *   - perdiem, selama tanggalnya hanya jatuh di rentang satu kegiatan (bila dua kegiatan beririsan, tidak ditebak).
  */
 export function transaksiKegiatan(
   transaksi: Transaksi[],
@@ -72,13 +74,13 @@ export function transaksiKegiatan(
   return transaksi.filter((t) => {
     if (t.dana !== "Dana Kegiatan") return false;
     if (terhubungKe(t, kegiatan)) return true;
-    return (
-      t.jenis === "pemasukan" &&
-      t.kategori !== KATEGORI_PINDAH_DANA &&
-      !semuaKegiatan.some((k) => terhubungKe(t, k)) &&
-      t.tanggal >= kegiatan.tanggalMulai &&
-      t.tanggal <= kegiatan.tanggalSelesai
-    );
+    if (semuaKegiatan.some((k) => terhubungKe(t, k))) return false;
+    if (t.tanggal < kegiatan.tanggalMulai || t.tanggal > kegiatan.tanggalSelesai) return false;
+    if (t.jenis === "pemasukan") return t.kategori !== KATEGORI_PINDAH_DANA;
+    if (t.jenis === "pengeluaran" && t.kategori === KATEGORI_PERDIEM && !t.kegiatanId) {
+      return semuaKegiatan.filter((k) => t.tanggal >= k.tanggalMulai && t.tanggal <= k.tanggalSelesai).length <= 1;
+    }
+    return false;
   });
 }
 

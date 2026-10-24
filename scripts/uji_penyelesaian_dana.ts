@@ -49,6 +49,19 @@ cek("tepat di tanggal mulai dan selesai: ikut", transaksiKegiatan([trx({ jenis: 
 cek("terhubung id ke kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kegiatanId: "kB" })], A, semua).length);
 cek("kaitan = nama kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "monev mentarang" })], A, semua).length);
 cek("kaitan teks bebas (bukan nama kegiatan): ikut", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "Lembaga" })], A, semua).length === 1);
+// Perdiem tanpa kaitan (kolom kegiatan tidak tersimpan di Google Sheets) ikut kegiatan yang rentangnya memuat tanggalnya.
+const perdiemBebas = (tanggal: string, o: Partial<Transaksi> = {}) => trx({ kategori: "Perdiem", jumlah: 200000, tanggal, ...o });
+cek("perdiem tanpa kaitan dalam rentang satu kegiatan: ikut", transaksiKegiatan([perdiemBebas("2026-10-01")], A, semua).length === 1);
+cek("perdiem tanpa kaitan terhitung di penyelesaian", hitungPenyelesaian(transaksiKegiatan([perdiemBebas("2026-10-01"), perdiemBebas("2026-10-02")], A, semua)).totalPerdiem === 400000);
+cek("perdiem tanpa kaitan di luar rentang: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-09-10")], A, semua).length);
+cek("perdiem terhubung ke kegiatan lain: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { kegiatanId: "kB" })], A, semua).length);
+cek("perdiem dengan kaitan nama kegiatan lain: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { kaitan: "monev mentarang" })], A, semua).length);
+const C: RentangKegiatan = { id: "kC", nama: "Kegiatan Beririsan", tanggalMulai: "2026-10-10", tanggalSelesai: "2026-10-30" };
+cek("tanggal perdiem di rentang dua kegiatan: tidak ditebak", !transaksiKegiatan([perdiemBebas("2026-10-12")], A, [A, C]).length && !transaksiKegiatan([perdiemBebas("2026-10-12")], C, [A, C]).length);
+cek("tanggal perdiem hanya di rentang satu dari dua kegiatan beririsan: ikut kegiatan itu", transaksiKegiatan([perdiemBebas("2026-10-05")], A, [A, C]).length === 1);
+cek("pengeluaran bukan perdiem tanpa kaitan: tetap tidak ikut", !transaksiKegiatan([trx({ tanggal: "2026-10-01" })], A, semua).length);
+cek("perdiem Dana Pribadi (pemasukan pribadi otomatis): tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { dana: "Dana Pribadi", jenis: "pemasukan" })], A, semua).length);
+
 cek("terhubung ke kegiatan ini: ikut walau di luar rentang", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-08-01", kegiatanId: "kA" })], A, semua).length === 1);
 cek("Pindah Dana tidak dihitung sebagai dana awal", !transaksiKegiatan([trx({ jenis: "pemasukan", kategori: "Pindah Dana", tanggal: "2026-10-01" })], A, semua).length);
 cek("Dana Pribadi tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", dana: "Dana Pribadi", tanggal: "2026-10-01" })], A, semua).length);

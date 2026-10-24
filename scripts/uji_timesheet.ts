@@ -57,6 +57,12 @@ cek("tahun depan -> saran 1", sarankanBatch(2027, [kg(4, "2026-09-20")]) === 1);
 cek("tanpa kegiatan -> 1", sarankanBatch(2026, []) === 1);
 cek("kegiatan lama tanpa batch dibaca dari judul", sarankanBatch(2026, [kg(undefined, "2026-03-01", "Judul (Batch 2)")]) === 3);
 cek("melengkapi dari nama file di Drive", sarankanBatch(2026, [], [{ nama: NAMA_BATCH4 }, { nama: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 3 (JUNI 2026)" }]) === 5);
+const fileBatch4 = [{ nama: NAMA_BATCH4 }];
+const rentang4 = { mulai: "2026-09-20", selesai: "2026-10-23" };
+cek("kegiatan yang periodenya sudah punya file: batch file itu (4), bukan 1 atau 5", sarankanBatch(2026, [], fileBatch4, rentang4) === 4);
+cek("batch file itu sudah dipakai kegiatan lain: batch berikutnya", sarankanBatch(2026, [kg(4, "2026-09-01")], fileBatch4, rentang4) === 5);
+cek("periode lain (November): batch berikutnya", sarankanBatch(2026, [], fileBatch4, { mulai: "2026-11-10", selesai: "2026-11-12" }) === 5);
+cek("tanpa rentang: perilaku lama", sarankanBatch(2026, [], fileBatch4) === 5);
 cek("file tahun lain tidak dihitung", sarankanBatch(2027, [], [{ nama: NAMA_BATCH4 }]) === 1);
 
 console.log("Pencocokan file");
