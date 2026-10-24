@@ -3718,3 +3718,756 @@ button {
     padding-top: 24px;
   }
 }
+
+/* ============================================================
+   Perbaikan khusus HP (di bawah 640px). Tablet dan PC tidak berubah.
+   ============================================================ */
+/* Teks yang berbeda per layar: .teks-pc tampil di tablet/PC, .teks-hp di HP. */
+.teks-hp {
+  display: none;
+}
+
+@media (max-width: 639.98px) {
+  .teks-pc {
+    display: none;
+  }
+
+  .teks-hp {
+    display: inline;
+  }
+
+  /* Rental Kendaraan: tanggal sewa, jumlah hari, dan gross-up dua kolom agar tidak keluar kartu. */
+  .grid-sewa-rental {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .grid-sewa-rental input,
+  .baris-timesheet input {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Baris timesheet: tanggal + hapus, rute selebar penuh, lalu aktivitas + km. */
+  .baris-timesheet {
+    grid-template-columns: minmax(0, 1fr) 70px 30px !important;
+  }
+
+  .baris-timesheet > :nth-child(1) {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .baris-timesheet > :nth-child(5) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .baris-timesheet > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+
+  .baris-timesheet > :nth-child(3) {
+    grid-column: 1 / 2;
+  }
+
+  .baris-timesheet > :nth-child(4) {
+    grid-column: 2 / -1;
+  }
+
+  /* Tabel di Grafik: muat selebar layar tanpa digeser ke samping, angka rata tengah. */
+  .tabel-tren-wrap,
+  .wadah-tabel-hp {
+    overflow-x: visible !important;
+  }
+
+  .tabel-tren {
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 0.76rem;
+  }
+
+  .tabel-tren th,
+  .tabel-tren td {
+    padding: 7px 3px;
+    text-align: center;
+  }
+
+  .tabel-tren th:first-child,
+  .tabel-tren td:first-child {
+    width: 18%;
+    text-align: left;
+  }
+
+  .tabel-rekap-12 {
+    table-layout: fixed;
+    font-size: 0.74rem !important;
+  }
+
+  .tabel-rekap-12 th,
+  .tabel-rekap-12 td {
+    padding: 7px 2px !important;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+
+  .tabel-rekap-12 th {
+    white-space: normal;
+  }
+
+  .tabel-rekap-12 th:first-child,
+  .tabel-rekap-12 td:first-child {
+    width: 16%;
+    text-align: left !important;
+  }
+
+  /* Perbandingan per kategori: tiap kategori menjadi satu baris kartu (nama + tren, lalu tiga angka). */
+  .tabel-perbandingan,
+  .tabel-perbandingan tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .tabel-perbandingan thead {
+    display: none;
+  }
+
+  .tabel-perbandingan tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 6px 4px;
+    padding: 10px 0;
+  }
+
+  .tabel-perbandingan td {
+    padding: 0 !important;
+    min-width: 0;
+    text-align: center !important;
+  }
+
+  .tabel-perbandingan td:first-child {
+    grid-column: 1 / 3;
+    text-align: left !important;
+  }
+
+  .tabel-perbandingan td:last-child {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right !important;
+  }
+
+  .tabel-perbandingan td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+}
+
+/* Dokumen siap cetak: lembar rincian tumbuh mengikuti isinya (minimal setinggi A4), sehingga baris yang
+   banyak (mis. perdiem harian) tidak meluap keluar kertas. Lembar lampiran foto tetap setinggi A4. Hanya di
+   layar; saat dicetak, aturan @media print yang berlaku. */
+@media screen {
+  .dsc-kertas:not(.dsc-lampiran) {
+    aspect-ratio: auto;
+    min-height: calc(min(100cqw, 794px) * 297 / 210);
+  }
+}
+
+/* ============================================================
+   Pengisian bertahap pengeluaran Dana Kegiatan (hanya HP dan tablet; PC memakai form lengkap)
+   ============================================================ */
+.bertahap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-margin-top: 12px;
+}
+
+.bertahap .field {
+  margin-bottom: 0;
+}
+
+.bertahap-kepala {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bertahap-langkah {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.bertahap-langkah li {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+/* garis penghubung antarlangkah */
+.bertahap-langkah li:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 15px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+}
+
+.bertahap-langkah li[data-status="selesai"]::before,
+.bertahap-langkah li[data-status="aktif"]::before {
+  background: var(--accent);
+}
+
+.bertahap-langkah button {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bertahap-langkah button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.bertahap-langkah__nomor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.bertahap-langkah li[data-status="selesai"] .bertahap-langkah__nomor {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bertahap-langkah li[data-status="aktif"] .bertahap-langkah__nomor {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--teks-tombol, #fff);
+}
+
+.bertahap-langkah__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.bertahap-langkah li[data-status="aktif"] .bertahap-langkah__label {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.bertahap-judul {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.bertahap-judul h3 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.bertahap-judul__ke {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bertahap-semua,
+.bertahap-aktifkan,
+.bertahap-ketentuan {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.bertahap-aktifkan {
+  display: block;
+  margin: 0 0 10px;
+}
+
+.bertahap-ketentuan {
+  display: block;
+  margin: 0 0 10px auto;
+}
+
+.bertahap-subjudul {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+/* Langkah 1: kegiatan */
+.bertahap-kegiatan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bertahap-kegiatan__item,
+.bertahap-ubin__item,
+.bertahap-pilihan--bukti button {
+  display: flex;
+  text-align: left;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.bertahap-kegiatan__item {
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bertahap-kegiatan__item strong {
+  font-size: 0.92rem;
+}
+
+.bertahap-kegiatan__item span {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.bertahap-kegiatan__item[aria-pressed="true"],
+.bertahap-pilihan--bukti button[aria-pressed="true"] {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.bertahap-kegiatan__baru {
+  align-self: flex-start;
+}
+
+/* Langkah 2: jenis pengeluaran */
+.bertahap-ubin {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bertahap-ubin__item {
+  align-items: flex-start;
+  padding: 10px;
+}
+
+.bertahap-ubin__item[aria-pressed="true"] {
+  border: 2px solid var(--warna-ubin);
+  background: color-mix(in srgb, var(--warna-ubin) 14%, var(--surface));
+}
+
+.bertahap-ubin__ikon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--warna-ubin);
+  color: #fff;
+}
+
+.bertahap-ubin__teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bertahap-ubin__teks strong {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.bertahap-ubin__teks span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* Pilihan bertingkat (moda transportasi, jenis bukti) */
+.bertahap-pilihan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bertahap-pilihan button {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bertahap-pilihan button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--teks-tombol, #fff);
+}
+
+.bertahap-pilihan--bukti {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bertahap-pilihan--bukti button {
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.bertahap-pilihan--bukti button[aria-pressed="true"] {
+  color: var(--text);
+}
+
+.bertahap-pilihan--bukti strong {
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.bertahap-pilihan--bukti span {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.bertahap-pilihan--bukti em {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--masuk);
+  background: color-mix(in srgb, var(--masuk) 14%, transparent);
+}
+
+.bertahap-transportasi,
+.bertahap-bukti,
+.bertahap-sopir {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bertahap-sopir .help {
+  margin: 0;
+}
+
+.bertahap-dua-kolom {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bertahap-dua-kolom input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bertahap-galat {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--keluar) 45%, transparent);
+  background: color-mix(in srgb, var(--keluar) 10%, var(--surface));
+  color: var(--keluar);
+  font-size: 0.85rem;
+}
+
+.bertahap-info {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid var(--border);
+}
+
+.bertahap-lainnya summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 0 8px;
+}
+
+.bertahap-lainnya[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bertahap-navigasi {
+  margin-top: 4px;
+}
+
+.bertahap-navigasi .btn-secondary,
+.bertahap-navigasi .btn-primary {
+  flex: 1;
+}
+
+/* Langkah 6: periksa */
+.bertahap-periksa {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bertahap-ringkasan {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 12px;
+}
+
+.bertahap-ringkasan > div {
+  display: grid;
+  grid-template-columns: 5.5em minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 0;
+}
+
+.bertahap-ringkasan > div + div {
+  border-top: 1px solid var(--border);
+}
+
+.bertahap-ringkasan dt {
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.bertahap-ringkasan dd {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bertahap-ringkasan button {
+  font-size: 0.76rem;
+}
+
+.bertahap-prasyarat,
+.bertahap-catatan {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.bertahap-prasyarat[data-lengkap="true"] {
+  border-color: var(--masuk);
+}
+
+.bertahap-prasyarat h4,
+.bertahap-catatan h4 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+
+.bertahap-prasyarat h4 span {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.bertahap-prasyarat ul,
+.bertahap-catatan ul,
+.bertahap-dokumen ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bertahap-prasyarat li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.bertahap-prasyarat__ikon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.bertahap-prasyarat li[data-terpenuhi="true"] .bertahap-prasyarat__ikon {
+  border-color: var(--masuk);
+  background: var(--masuk);
+  color: #fff;
+}
+
+.bertahap-prasyarat li[data-terpenuhi="false"][data-tingkat="wajib"] .bertahap-prasyarat__ikon {
+  border-color: var(--keluar);
+  background: var(--keluar);
+  color: #fff;
+}
+
+.bertahap-prasyarat__teks {
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.bertahap-prasyarat__teks small,
+.bertahap-catatan small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.bertahap-prasyarat li[data-terpenuhi="false"][data-tingkat="wajib"] small {
+  color: var(--keluar);
+  font-weight: 600;
+}
+
+.bertahap-catatan {
+  border-color: color-mix(in srgb, #f59e0b 55%, var(--border));
+}
+
+.bertahap-catatan li {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  padding: 5px 0;
+}
+
+.bertahap-catatan li + li {
+  border-top: 1px dashed var(--border);
+}
+
+.bertahap-dokumen summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.bertahap-dokumen li {
+  position: relative;
+  padding: 5px 0 5px 16px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.bertahap-dokumen li::before {
+  content: "•";
+  position: absolute;
+  left: 4px;
+  color: var(--accent);
+}
+
+/* Pengisian bertahap: penyesuaian warna dan tombol teks */
+.bertahap-judul h3 {
+  color: var(--text);
+}
+
+.bertahap-pilihan--bukti button {
+  font-weight: 400;
+}
+
+.bertahap-pilihan--bukti button[aria-pressed="true"] {
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
+}
+
+.bertahap-pilihan--bukti strong {
+  font-weight: 800;
+}
+
+.bertahap-ringkasan button {
+  align-self: center;
+  padding: 4px 2px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 639.98px) {
+  /* Rincian banyaknya × satuan × harga: jumlah dan harga sebaris, satuan selebar penuh di bawahnya. */
+  .grid-rincian {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .grid-rincian > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .grid-rincian input {
+    min-width: 0;
+  }
+}

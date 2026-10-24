@@ -15,11 +15,28 @@ import {
   DataKhususKegiatan,
   Transaksi,
 } from "../types";
-import { DAFTAR_JENIS_BUKTI, formatRupiah, hariIni } from "../lib/constants";
+import { DAFTAR_JENIS_BUKTI, formatRentangTanggal, formatRupiah, hariIni } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import { PerdiemRentang, hitungRentangPerdiem } from "../lib/perdiemOtomatis";
 import { PerdiemSekaligus, kontrolPilihan } from "./PerdiemSekaligus";
+import { PILIHAN_MODA, modaPerluDataSopir, saranJenisBukti } from "../lib/prasyaratDokumen";
+
+/**
+ * Bagian form yang ditampilkan. "semua" = form lengkap (PC dan mode lengkap). Bagian lain dipakai pengisian
+ * bertahap di HP: tiap langkah hanya menampilkan isian yang relevan.
+ */
+export type BagianFormKegiatan = "semua" | "kegiatan" | "rincian" | "keterangan" | "bukti" | "foto";
+
+const KETERANGAN_BUKTI: Record<string, string> = {
+  Kwitansi: "Bertanda tangan, stempel, dan rincian",
+  Nota: "Dari toko/warung, berisi rincian",
+  "Struk thermal (minimarket/SPBU)": "Minimarket/SPBU, segera difotokopi",
+  Tiket: "Kapal, speedboat, bus, travel",
+  "Tiket pesawat/e-ticket": "Lampirkan juga boarding pass",
+  "Invoice + kwitansi": "Tagihan resmi dan tanda terima",
+  "Bukti tidak lengkap": "Wajib surat justifikasi",
+};
 import {
   hitungBatasLaporanFisik,
   cekKetentuanTransaksi,
@@ -88,6 +105,11 @@ interface DanaKegiatanFormFieldsProps {
   daftarTransaksi: Transaksi[];
   /** True bila perdiem yang sedang diubah sudah punya pemasukan pribadi otomatis. */
   sudahTerhubungPribadi: boolean;
+
+  /** Bagian yang ditampilkan; bawaan "semua" (form lengkap). */
+  bagian?: BagianFormKegiatan;
+  /** Pengisian bertahap: dipanggil setelah pilihan yang langsung menuntaskan langkah (mis. memilih kegiatan). */
+  onLanjut?: () => void;
 }
 
 const KUNCI_TARIF_PERDIEM = "keuangan-tarif-perdiem";
@@ -164,7 +186,11 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   tanggalForm,
   daftarTransaksi,
   sudahTerhubungPribadi,
+  bagian = "semua",
+  onLanjut,
 }) => {
+  const semua = bagian === "semua";
+  const tampil = (b: BagianFormKegiatan) => semua || bagian === b;
   // Modal Buat Kegiatan Baru
   const [modalKegiatanBaru, setModalKegiatanBaru] = useState(false);
   const [namaBaru, setNamaBaru] = useState("");
@@ -174,6 +200,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
   // Timesheet Modal / Input
   const [bukaTimesheet, setBukaTimesheet] = useState(false);
+  // Pengisian bertahap Transportasi: "Lainnya" dipilih dan moda diketik sendiri
+  const [modaLainnya, setModaLainnya] = useState(() => Boolean(transportasi.moda) && !PILIHAN_MODA.includes(transportasi.moda || ""));
   const [bukaKetentuanModal, setBukaKetentuanModal] = useState(false);
 
   // Kegiatan Terpilih
@@ -233,10 +261,23 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
     }
   }, [kategori]);
 
-  // Simpan Kegiatan Baru
-  const handleSimpanKegiatanBaru = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!namaBaru.trim()) return;
+  // Simpan Kegiatan Baru. Isian modal ini berada di dalam form transaksi, jadi sengaja bukan <form> sendiri:
+  // form bersarang tidak menjalankan onSubmit React dan malah memuat ulang halaman.
+  const [galatKegiatanBaru, setGalatKegiatanBaru] = useState("");
+  const tutupModalKegiatan = () => {
+    setModalKegiatanBaru(false);
+    setGalatKegiatanBaru("");
+  };
+  const handleSimpanKegiatanBaru = () => {
+    if (!namaBaru.trim() || !lokasiBaru.trim()) {
+      setGalatKegiatanBaru("Isi nama dan lokasi kegiatan.");
+      return;
+    }
+    if (tglSelesaiBaru < tglMulaiBaru) {
+      setGalatKegiatanBaru("Tanggal selesai tidak boleh sebelum tanggal mulai.");
+      return;
+    }
+    setGalatKegiatanBaru("");
 
     const baru: DataKegiatan = {
       id: "kg_" + buatId(),
@@ -253,6 +294,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
     setModalKegiatanBaru(false);
     setNamaBaru("");
     setLokasiBaru("");
+    if (bagian === "kegiatan") onLanjut?.();
   };
 
   // Hitung durasi hari rental otomatis
@@ -369,304 +411,499 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
   const daftarPeringatan = cekKetentuanTransaksi(dataTransaksiDummy, kegiatanTerpilih);
 
-  return (
-    <div
-      style={{
-        marginTop: "16px",
-        marginBottom: "16px",
-        padding: "16px",
-        borderRadius: "14px",
-        background: "color-mix(in srgb, var(--accent) 5%, var(--surface))",
-        border: "1.5px solid var(--accent)",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "1.2rem" }}>📋</span>
-          <strong style={{ fontSize: "0.95rem", color: "var(--accent)" }}>
-            Kelengkapan SPJ Dana Kegiatan &amp; Laporan
-          </strong>
-        </div>
+  // Rincian banyaknya × satuan × harga. Di pengisian bertahap tampil setelah isian khusus kategori, dan tidak
+  // untuk Perdiem dan Honorarium yang punya hitungannya sendiri.
+  const seksiRincian = (
+  <div
+    style={{
+      background: "var(--surface)",
+      padding: "10px 12px",
+      borderRadius: "10px",
+      border: "1px solid var(--border)",
+      marginBottom: "12px",
+    }}
+  >
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
+      <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+        Rincian Pembelian (Banyaknya × Satuan × Harga Satuan):
+      </label>
+      {subtotalRincian > 0 && (
+        <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>
+          = {formatRupiah(subtotalRincian)}
+        </span>
+      )}
+    </div>
+
+    <div className="grid-rincian" style={{ display: "grid", gridTemplateColumns: "100px 1fr 140px", gap: "8px", alignItems: "center" }}>
+      <div>
+        <input
+          type="number"
+          min="0"
+          step="any"
+          placeholder="Jml (111)"
+          value={rincianBanyaknya}
+          onChange={(e) => onUpdateRincianBanyaknya(e.target.value)}
+          style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
+        />
+      </div>
+      <div>
+        <input
+          type="text"
+          placeholder="Satuan (kg, hari, liter, porsi)"
+          value={rincianSatuan}
+          onChange={(e) => onUpdateRincianSatuan(e.target.value)}
+          style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
+        />
+      </div>
+      <div>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Harga (17000)"
+          value={rincianHargaSatuan}
+          onChange={(e) => onUpdateRincianHargaSatuan(e.target.value)}
+          style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
+        />
+      </div>
+    </div>
+
+    {/* Quick Satuan Chips */}
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "6px", alignItems: "center" }}>
+      <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Pilih satuan:</span>
+      {["kg", "hari", "liter", "porsi", "orang", "unit", "lembar", "malam", "paket"].map((sat) => (
+        <button
+          key={sat}
+          type="button"
+          className="btn-small"
+          style={{
+            fontSize: "0.7rem",
+            padding: "2px 7px",
+            borderRadius: "10px",
+            border: "1px solid var(--border)",
+            background: rincianSatuan === sat ? "var(--accent)" : "transparent",
+            color: rincianSatuan === sat ? "#fff" : "var(--text)",
+            cursor: "pointer",
+          }}
+          onClick={() => onUpdateRincianSatuan(sat)}
+        >
+          {sat}
+        </button>
+      ))}
+      {subtotalRincian > 0 && String(subtotalRincian) !== jumlah && (
         <button
           type="button"
-          className="btn-link"
-          style={{ fontSize: "0.78rem", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
-          onClick={() => setBukaKetentuanModal(true)}
+          className="btn-small"
+          style={{
+            fontSize: "0.72rem",
+            padding: "2px 8px",
+            marginLeft: "auto",
+            background: "#10b981",
+            color: "#fff",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+          onClick={handleTerapkanSubtotalRincian}
+          title="Salin hasil perkalian ke kolom Jumlah Utama"
         >
-          📖 Baca Ketentuan SPJ ({kategori || "Umum"})
+          ✓ Pakai Rp{formatRupiah(subtotalRincian).replace("Rp", "")}
         </button>
-      </div>
+      )}
+    </div>
+  </div>
+  );
+  const tampilRincianBertahap = bagian === "rincian" && kategori !== "Perdiem" && kategori !== "Honorarium & Ganti Hari";
 
-      {/* 1. Kaitan Kegiatan (Pilih dari daftar atau buat baru) */}
-      <div className="field wide" style={{ marginBottom: "12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-          <label htmlFor="pilih-kegiatan-id" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
-            Kaitan Kegiatan Lapangan:
-          </label>
+  const infoBatasFisik = kegiatanTerpilih && batasFisik && (
+    <div
+      style={{
+        marginTop: "8px",
+        padding: "8px 12px",
+        borderRadius: "8px",
+        background: batasFisik.hariTersisa < 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
+        border: `1px solid ${batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981"}`,
+        fontSize: "0.8rem",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "6px",
+      }}
+    >
+      <div>
+        <span>📍 {kegiatanTerpilih.lokasi || "Lokasi Lapangan"}</span>
+        <span style={{ margin: "0 6px" }}>•</span>
+        <span>📅 {kegiatanTerpilih.tanggalMulai} s.d {kegiatanTerpilih.tanggalSelesai}</span>
+      </div>
+      <div style={{ fontWeight: 700, color: batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981" }}>
+        ⏳ Batas Penyerahan Laporan Fisik: {batasFisik.formatTeks}{" "}
+        {batasFisik.hariTersisa < 0
+          ? `(Terlewat ${Math.abs(batasFisik.hariTersisa)} hari)`
+          : `(${batasFisik.hariTersisa} hari lagi)`}
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      style={
+        semua
+          ? {
+              marginTop: "16px",
+              marginBottom: "16px",
+              padding: "16px",
+              borderRadius: "14px",
+              background: "color-mix(in srgb, var(--accent) 5%, var(--surface))",
+              border: "1.5px solid var(--accent)",
+            }
+          : { marginBottom: "12px" }
+      }
+    >
+      {semua && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "1.2rem" }}>📋</span>
+            <strong style={{ fontSize: "0.95rem", color: "var(--accent)" }}>
+              Kelengkapan SPJ Dana Kegiatan &amp; Laporan
+            </strong>
+          </div>
           <button
             type="button"
             className="btn-link"
-            style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--accent)" }}
-            onClick={() => setModalKegiatanBaru(true)}
+            style={{ fontSize: "0.78rem", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
+            onClick={() => setBukaKetentuanModal(true)}
           >
-            + Buat Kegiatan Baru
+            📖 Baca Ketentuan SPJ ({kategori || "Umum"})
           </button>
         </div>
+      )}
+      {(bagian === "rincian" || bagian === "bukti") && (
+        <button type="button" className="btn-link bertahap-ketentuan" onClick={() => setBukaKetentuanModal(true)}>
+          📖 Baca ketentuan SPJ {kategori}
+        </button>
+      )}
 
-        <select
-          id="pilih-kegiatan-id"
-          value={kegiatanId}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "__buat_baru__") {
-              setModalKegiatanBaru(true);
-            } else {
-              onUpdateKegiatanId(val);
-              const terpilih = daftarKegiatan.find((k) => k.id === val);
-              if (terpilih) {
-                onUpdateKaitan(terpilih.nama);
-              }
-            }
-          }}
-          style={{ width: "100%", padding: "8px 10px", fontSize: "0.85rem" }}
-        >
-          <option value="">-- Pilih Kegiatan dari Daftar --</option>
+      {/* 1. Kaitan Kegiatan (Pilih dari daftar atau buat baru) */}
+      {bagian === "kegiatan" && (
+        <div className="bertahap-kegiatan">
+          {daftarKegiatan.length === 0 && (
+            <p className="help">Belum ada kegiatan lapangan. Buat dulu kegiatannya, lalu pengeluaran dicatat di bawahnya.</p>
+          )}
           {daftarKegiatan.map((k) => (
-            <option key={k.id} value={k.id}>
-              📌 {k.nama} ({k.lokasi || "Lokasi tidak dicatat"} • {k.tanggalMulai} s.d {k.tanggalSelesai})
-            </option>
+            <button
+              key={k.id}
+              type="button"
+              className="bertahap-kegiatan__item"
+              aria-pressed={k.id === kegiatanId}
+              onClick={() => {
+                onUpdateKegiatanId(k.id);
+                onUpdateKaitan(k.nama);
+                onLanjut?.();
+              }}
+            >
+              <strong>📌 {k.nama}</strong>
+              <span>
+                {k.lokasi || "Lokasi tidak dicatat"} · {formatRentangTanggal(k.tanggalMulai, k.tanggalSelesai)}
+              </span>
+            </button>
           ))}
-          <option value="__buat_baru__">+ Tambah / Buat Kegiatan Baru...</option>
-        </select>
-
-        {kegiatanTerpilih && batasFisik && (
-          <div
-            style={{
-              marginTop: "8px",
-              padding: "8px 12px",
-              borderRadius: "8px",
-              background: batasFisik.hariTersisa < 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
-              border: `1px solid ${batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981"}`,
-              fontSize: "0.8rem",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "6px",
-            }}
-          >
-            <div>
-              <span>📍 {kegiatanTerpilih.lokasi || "Lokasi Lapangan"}</span>
-              <span style={{ margin: "0 6px" }}>•</span>
-              <span>📅 {kegiatanTerpilih.tanggalMulai} s.d {kegiatanTerpilih.tanggalSelesai}</span>
-            </div>
-            <div style={{ fontWeight: 700, color: batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981" }}>
-              ⏳ Batas Penyerahan Laporan Fisik: {batasFisik.formatTeks}{" "}
-              {batasFisik.hariTersisa < 0
-                ? `(Terlewat ${Math.abs(batasFisik.hariTersisa)} hari)`
-                : `(${batasFisik.hariTersisa} hari lagi)`}
-            </div>
+          <button type="button" className="btn-secondary bertahap-kegiatan__baru" onClick={() => setModalKegiatanBaru(true)}>
+            + Buat kegiatan baru
+          </button>
+          {infoBatasFisik}
+        </div>
+      )}
+      {semua && (
+        <div className="field wide" style={{ marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+            <label htmlFor="pilih-kegiatan-id" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
+              Kaitan Kegiatan Lapangan:
+            </label>
+            <button
+              type="button"
+              className="btn-link"
+              style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--accent)" }}
+              onClick={() => setModalKegiatanBaru(true)}
+            >
+              + Buat Kegiatan Baru
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* 2. Jenis Bukti & Nama Toko/Penyedia */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", marginBottom: "12px" }}>
-        <div className="field">
-          <label htmlFor="jenis-bukti-select" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-            Jenis Bukti Transaksi:
-          </label>
           <select
-            id="jenis-bukti-select"
-            value={jenisBukti}
-            onChange={(e) => onUpdateJenisBukti(e.target.value as JenisBukti)}
-            style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
+            id="pilih-kegiatan-id"
+            value={kegiatanId}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "__buat_baru__") {
+                setModalKegiatanBaru(true);
+              } else {
+                onUpdateKegiatanId(val);
+                const terpilih = daftarKegiatan.find((k) => k.id === val);
+                if (terpilih) {
+                  onUpdateKaitan(terpilih.nama);
+                }
+              }
+            }}
+            style={{ width: "100%", padding: "8px 10px", fontSize: "0.85rem" }}
           >
-            {DAFTAR_JENIS_BUKTI.map((jb) => (
-              <option key={jb} value={jb}>
-                {jb}
+            <option value="">-- Pilih Kegiatan dari Daftar --</option>
+            {daftarKegiatan.map((k) => (
+              <option key={k.id} value={k.id}>
+                📌 {k.nama} ({k.lokasi || "Lokasi tidak dicatat"} • {k.tanggalMulai} s.d {k.tanggalSelesai})
               </option>
             ))}
+            <option value="__buat_baru__">+ Tambah / Buat Kegiatan Baru...</option>
           </select>
-        </div>
 
-        <div className="field">
-          <label htmlFor="nama-penjual" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-            Nama Penjual / Penyedia / Rekanan:
-          </label>
-          <input
-            id="nama-penjual"
-            type="text"
-            placeholder="Contoh: Toko Berkah, RM Padang, Pak Joko"
-            value={namaPenjualPenyedia}
-            onChange={(e) => onUpdateNamaPenjualPenyedia(e.target.value)}
-            style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
-          />
+          {infoBatasFisik}
         </div>
-      </div>
+      )}
 
-      {/* 3. Rincian: Banyaknya × Satuan × Harga Satuan */}
-      <div
-        style={{
-          background: "var(--surface)",
-          padding: "10px 12px",
-          borderRadius: "10px",
-          border: "1px solid var(--border)",
-          marginBottom: "12px",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-            Rincian Pembelian (Banyaknya × Satuan × Harga Satuan):
-          </label>
-          {subtotalRincian > 0 && (
-            <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>
-              = {formatRupiah(subtotalRincian)}
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "100px 1fr 140px", gap: "8px", alignItems: "center" }}>
-          <div>
-            <input
-              type="number"
-              min="0"
-              step="any"
-              placeholder="Jml (111)"
-              value={rincianBanyaknya}
-              onChange={(e) => onUpdateRincianBanyaknya(e.target.value)}
-              style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
-            />
+      {/* 2. Jenis Bukti & Nama Toko/Penyedia */}
+      {bagian === "bukti" && (
+        <div className="bertahap-bukti">
+          <span className="bertahap-subjudul">Bukti apa yang Anda pegang?</span>
+          <div className="bertahap-pilihan bertahap-pilihan--bukti">
+            {DAFTAR_JENIS_BUKTI.map((jb) => (
+              <button
+                key={jb}
+                type="button"
+                aria-pressed={jenisBukti === jb}
+                data-bukti={jb}
+                onClick={() => onUpdateJenisBukti(jb as JenisBukti)}
+              >
+                <strong>{jb}</strong>
+                <span>{KETERANGAN_BUKTI[jb]}</span>
+                {saranJenisBukti(kategori, { transportasi }) === jb && <em>Disarankan</em>}
+              </button>
+            ))}
           </div>
-          <div>
-            <input
-              type="text"
-              placeholder="Satuan (kg, hari, liter, porsi)"
-              value={rincianSatuan}
-              onChange={(e) => onUpdateRincianSatuan(e.target.value)}
-              style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
-            />
-          </div>
-          <div>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              placeholder="Harga (17000)"
-              value={rincianHargaSatuan}
-              onChange={(e) => onUpdateRincianHargaSatuan(e.target.value)}
-              style={{ width: "100%", padding: "7px 8px", fontSize: "0.82rem" }}
-            />
-          </div>
-        </div>
-
-        {/* Quick Satuan Chips */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", marginTop: "6px", alignItems: "center" }}>
-          <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Pilih satuan:</span>
-          {["kg", "hari", "liter", "porsi", "orang", "unit", "lembar", "malam", "paket"].map((sat) => (
-            <button
-              key={sat}
-              type="button"
-              className="btn-small"
-              style={{
-                fontSize: "0.7rem",
-                padding: "2px 7px",
-                borderRadius: "10px",
-                border: "1px solid var(--border)",
-                background: rincianSatuan === sat ? "var(--accent)" : "transparent",
-                color: rincianSatuan === sat ? "#fff" : "var(--text)",
-                cursor: "pointer",
-              }}
-              onClick={() => onUpdateRincianSatuan(sat)}
-            >
-              {sat}
-            </button>
-          ))}
-          {subtotalRincian > 0 && String(subtotalRincian) !== jumlah && (
-            <button
-              type="button"
-              className="btn-small"
-              style={{
-                fontSize: "0.72rem",
-                padding: "2px 8px",
-                marginLeft: "auto",
-                background: "#10b981",
-                color: "#fff",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-              onClick={handleTerapkanSubtotalRincian}
-              title="Salin hasil perkalian ke kolom Jumlah Utama"
-            >
-              ✓ Pakai Rp{formatRupiah(subtotalRincian).replace("Rp", "")}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* 4. Keterangan untuk Laporan (1–2 Kalimat Baku) */}
-      <div className="field wide" style={{ marginBottom: "12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-          <label htmlFor="ket-laporan" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-            Keterangan untuk Laporan SPJ (1–2 kalimat baku):
-          </label>
-          <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Bahasa baku formal</span>
-        </div>
-        <textarea
-          id="ket-laporan"
-          rows={2}
-          placeholder="Contoh: Perjalanan dari Tanjung Selor ke Tarakan dengan speedboat reguler SB Sekatak AAA Kaltara."
-          value={keteranganLaporan}
-          onChange={(e) => onUpdateKeteranganLaporan(e.target.value)}
-          style={{ width: "100%", padding: "8px", fontSize: "0.84rem", borderRadius: "8px" }}
-        />
-      </div>
-
-      {/* 5. Surat Justifikasi (Wajib bila jenis bukti = Bukti tidak lengkap) */}
-      <div
-        style={{
-          background: jenisBukti === "Bukti tidak lengkap" ? "rgba(239, 68, 68, 0.08)" : "var(--surface)",
-          padding: "10px 12px",
-          borderRadius: "10px",
-          border: jenisBukti === "Bukti tidak lengkap" ? "1px solid var(--keluar)" : "1px solid var(--border)",
-          marginBottom: "12px",
-        }}
-      >
-        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontWeight: 700, fontSize: "0.84rem" }}>
-          <input
-            type="checkbox"
-            checked={perluSuratJustifikasi}
-            onChange={(e) => onUpdatePerluSuratJustifikasi(e.target.checked)}
-            style={{ width: "18px", height: "18px", accentColor: "var(--accent)" }}
-          />
-          <span>
-            📄 Perlu Surat Justifikasi{" "}
-            {jenisBukti === "Bukti tidak lengkap" && (
-              <span style={{ color: "var(--keluar)", fontSize: "0.76rem" }}>(Wajib untuk bukti tidak lengkap)</span>
-            )}
-          </span>
-        </label>
-
-        {perluSuratJustifikasi && (
-          <div style={{ marginTop: "8px" }}>
-            <label htmlFor="alasan-justifikasi" style={{ fontSize: "0.78rem", fontWeight: 600, display: "block", marginBottom: "3px" }}>
-              Alasan Singkat Justifikasi:
+          <div className="field">
+            <label htmlFor="nama-penjual" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+              Nama penjual / penyedia / rekanan di bukti:
             </label>
             <input
-              id="alasan-justifikasi"
+              id="nama-penjual"
               type="text"
-              placeholder="Contoh: Pembelian di pedalaman tidak ada toko formal/nota resmi, kuitansi ditandatangani kepala desa."
-              value={alasanJustifikasi}
-              onChange={(e) => onUpdateAlasanJustifikasi(e.target.value)}
-              style={{ width: "100%", padding: "7px 10px", fontSize: "0.82rem" }}
-              required={jenisBukti === "Bukti tidak lengkap"}
+              placeholder="Contoh: Toko Berkah, RM Padang, Pak Joko"
+              value={namaPenjualPenyedia}
+              onChange={(e) => onUpdateNamaPenjualPenyedia(e.target.value)}
+              style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      {semua && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", marginBottom: "12px" }}>
+          <div className="field">
+            <label htmlFor="jenis-bukti-select" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+              Jenis Bukti Transaksi:
+            </label>
+            <select
+              id="jenis-bukti-select"
+              value={jenisBukti}
+              onChange={(e) => onUpdateJenisBukti(e.target.value as JenisBukti)}
+              style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
+            >
+              {DAFTAR_JENIS_BUKTI.map((jb) => (
+                <option key={jb} value={jb}>
+                  {jb}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="nama-penjual" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+              Nama Penjual / Penyedia / Rekanan:
+            </label>
+            <input
+              id="nama-penjual"
+              type="text"
+              placeholder="Contoh: Toko Berkah, RM Padang, Pak Joko"
+              value={namaPenjualPenyedia}
+              onChange={(e) => onUpdateNamaPenjualPenyedia(e.target.value)}
+              style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 3. Rincian: Banyaknya × Satuan × Harga Satuan */}
+      {semua && seksiRincian}
+
+      {/* 4. Keterangan untuk Laporan (1–2 Kalimat Baku) */}
+      {tampil("keterangan") && (
+        <div className="field wide" style={{ marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
+            <label htmlFor="ket-laporan" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+              Keterangan untuk Laporan SPJ (1–2 kalimat baku):
+            </label>
+            <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Bahasa baku formal</span>
+          </div>
+          <textarea
+            id="ket-laporan"
+            rows={2}
+            placeholder="Contoh: Perjalanan dari Tanjung Selor ke Tarakan dengan speedboat reguler SB Sekatak AAA Kaltara."
+            value={keteranganLaporan}
+            onChange={(e) => onUpdateKeteranganLaporan(e.target.value)}
+            style={{ width: "100%", padding: "8px", fontSize: "0.84rem", borderRadius: "8px" }}
+          />
+        </div>
+      )}
+
+      {/* 5. Surat Justifikasi (Wajib bila jenis bukti = Bukti tidak lengkap) */}
+      {tampil("bukti") && (
+        <div
+          style={{
+            background: jenisBukti === "Bukti tidak lengkap" ? "rgba(239, 68, 68, 0.08)" : "var(--surface)",
+            padding: "10px 12px",
+            borderRadius: "10px",
+            border: jenisBukti === "Bukti tidak lengkap" ? "1px solid var(--keluar)" : "1px solid var(--border)",
+            marginBottom: "12px",
+          }}
+        >
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontWeight: 700, fontSize: "0.84rem" }}>
+            <input
+              type="checkbox"
+              checked={perluSuratJustifikasi}
+              onChange={(e) => onUpdatePerluSuratJustifikasi(e.target.checked)}
+              style={{ width: "18px", height: "18px", accentColor: "var(--accent)" }}
+            />
+            <span>
+              📄 Perlu Surat Justifikasi{" "}
+              {jenisBukti === "Bukti tidak lengkap" && (
+                <span style={{ color: "var(--keluar)", fontSize: "0.76rem" }}>(Wajib untuk bukti tidak lengkap)</span>
+              )}
+            </span>
+          </label>
+
+          {perluSuratJustifikasi && (
+            <div style={{ marginTop: "8px" }}>
+              <label htmlFor="alasan-justifikasi" style={{ fontSize: "0.78rem", fontWeight: 600, display: "block", marginBottom: "3px" }}>
+                Alasan Singkat Justifikasi:
+              </label>
+              <input
+                id="alasan-justifikasi"
+                type="text"
+                placeholder="Contoh: Pembelian di pedalaman tidak ada toko formal/nota resmi, kuitansi ditandatangani kepala desa."
+                value={alasanJustifikasi}
+                onChange={(e) => onUpdateAlasanJustifikasi(e.target.value)}
+                style={{ width: "100%", padding: "7px 10px", fontSize: "0.82rem" }}
+                required={jenisBukti === "Bukti tidak lengkap"}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 6. Isian Khusus per Kelompok Kategori */}
-      {kategori === "Transportasi" && (
+      {bagian === "rincian" && kategori === "Transportasi" && (
+        <div className="bertahap-transportasi">
+          <span className="bertahap-subjudul">Naik apa?</span>
+          <div className="bertahap-pilihan">
+            {PILIHAN_MODA.map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={!modaLainnya && transportasi.moda === m}
+                onClick={() => {
+                  setModaLainnya(false);
+                  onUpdateTransportasi({ ...transportasi, moda: m });
+                }}
+              >
+                {m}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={modaLainnya}
+              onClick={() => {
+                setModaLainnya(true);
+                if (PILIHAN_MODA.includes(transportasi.moda || "")) onUpdateTransportasi({ ...transportasi, moda: "" });
+              }}
+            >
+              Lainnya
+            </button>
+          </div>
+          {modaLainnya && (
+            <div className="field">
+              <label htmlFor="moda-lain" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+                Moda transportasi
+              </label>
+              <input
+                id="moda-lain"
+                type="text"
+                placeholder="Contoh: Longboat, ketinting"
+                value={transportasi.moda || ""}
+                onChange={(e) => onUpdateTransportasi({ ...transportasi, moda: e.target.value })}
+              />
+            </div>
+          )}
+          {(transportasi.moda || modaLainnya) && (
+            <div className="bertahap-dua-kolom">
+              <div className="field">
+                <label htmlFor="trans-dari">Dari (asal)</label>
+                <input
+                  id="trans-dari"
+                  type="text"
+                  placeholder="Tanjung Selor"
+                  value={transportasi.dari || ""}
+                  onChange={(e) => onUpdateTransportasi({ ...transportasi, dari: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="trans-ke">Ke (tujuan)</label>
+                <input
+                  id="trans-ke"
+                  type="text"
+                  placeholder="Tarakan"
+                  value={transportasi.ke || ""}
+                  onChange={(e) => onUpdateTransportasi({ ...transportasi, ke: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+          {modaPerluDataSopir(transportasi.moda) && (
+            <div className="bertahap-sopir">
+              <p className="help">Kendaraan sewaan: ketentuan SPJ mewajibkan data sopir dan nomor polisi.</p>
+              <div className="field">
+                <label htmlFor="trans-sopir">Nama sopir</label>
+                <input
+                  id="trans-sopir"
+                  type="text"
+                  placeholder="Nama pengemudi"
+                  value={transportasi.namaSopir || ""}
+                  onChange={(e) => onUpdateTransportasi({ ...transportasi, namaSopir: e.target.value })}
+                />
+              </div>
+              <div className="bertahap-dua-kolom">
+                <div className="field">
+                  <label htmlFor="trans-telp">No. telp sopir</label>
+                  <input
+                    id="trans-telp"
+                    type="tel"
+                    placeholder="0812xxxx"
+                    value={transportasi.noTelpSopir || ""}
+                    onChange={(e) => onUpdateTransportasi({ ...transportasi, noTelpSopir: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="trans-nopol">No. polisi</label>
+                  <input
+                    id="trans-nopol"
+                    type="text"
+                    placeholder="KU 1234 XX"
+                    value={transportasi.noPolisi || ""}
+                    onChange={(e) => onUpdateTransportasi({ ...transportasi, noPolisi: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {semua && kategori === "Transportasi" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🚗 Detail Khusus Transportasi
@@ -739,7 +976,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "Rental Kendaraan" && (
+      {tampil("rincian") && kategori === "Rental Kendaraan" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🚙 Detail Khusus Rental Kendaraan
@@ -787,7 +1024,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 100px", gap: "8px", marginBottom: "8px" }}>
+          <div className="grid-sewa-rental" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 100px", gap: "8px", marginBottom: "8px" }}>
             <div>
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tanggal Mulai Sewa</label>
               <input
@@ -849,6 +1086,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 {(rentalKendaraan.timesheet || []).map((item, idx) => (
                   <div
                     key={item.id}
+                    className="baris-timesheet"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "110px 1fr 1fr 70px 30px",
@@ -941,7 +1179,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "BBM" && (
+      {tampil("rincian") && kategori === "BBM" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             ⛽ Detail Khusus Pengisian BBM
@@ -998,7 +1236,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "Akomodasi" && (
+      {tampil("rincian") && kategori === "Akomodasi" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🏨 Detail Khusus Akomodasi &amp; Penginapan
@@ -1068,7 +1306,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "Konsumsi" && (
+      {tampil("rincian") && kategori === "Konsumsi" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🍽️ Detail Khusus Konsumsi Kegiatan
@@ -1119,7 +1357,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "Perdiem" && (
+      {tampil("rincian") && kategori === "Perdiem" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             📅 Perdiem (hak uang harian di lapangan)
@@ -1209,7 +1447,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {kategori === "Honorarium & Ganti Hari" && (
+      {tampil("rincian") && kategori === "Honorarium & Ganti Hari" && (
         <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             💼 Detail Khusus Honorarium &amp; Perhitungan Pajak
@@ -1309,117 +1547,121 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
+      {tampilRincianBertahap && seksiRincian}
+
       {/* 7. Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan) */}
-      <div style={{ background: "var(--surface)", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-            📸 Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan)
-          </label>
-          <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
-            {fotoPendukung.length} foto terlampir
-          </span>
-        </div>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
-          <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <span>📦 + Foto Barang</span>
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={(e) => void handleTambahFotoPendukung(e, "barang")}
-            />
-          </label>
-
-          <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <span>🚗 + Foto Kendaraan</span>
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={(e) => void handleTambahFotoPendukung(e, "kendaraan")}
-            />
-          </label>
-
-          <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <span>👥 + Foto Kegiatan</span>
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={(e) => void handleTambahFotoPendukung(e, "kegiatan")}
-            />
-          </label>
-        </div>
-
-        {fotoPendukung.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {fotoPendukung.map((foto) => (
-              <div
-                key={foto.id}
-                style={{
-                  position: "relative",
-                  width: "80px",
-                  height: "80px",
-                  borderRadius: "8px",
-                  overflow: "hidden",
-                  border: "1px solid var(--border)",
-                  background: "#000",
-                }}
-              >
-                {foto.dataUrl ? (
-                  <img src={foto.dataUrl} alt={foto.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: "0.7rem", color: "#fff" }}>
-                    📷 Foto
-                  </div>
-                )}
-                <span
-                  style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    background: "rgba(0,0,0,0.6)",
-                    color: "#fff",
-                    fontSize: "0.6rem",
-                    padding: "1px 2px",
-                    textAlign: "center",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {foto.kategoriFoto || "foto"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleHapusFotoPendukung(foto.id)}
-                  style={{
-                    position: "absolute",
-                    top: "2px",
-                    right: "2px",
-                    background: "rgba(239,68,68,0.9)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "50%",
-                    width: "18px",
-                    height: "18px",
-                    fontSize: "0.65rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+      {tampil("foto") && (
+        <div style={{ background: "var(--surface)", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+            <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+              📸 Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan)
+            </label>
+            <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
+              {fotoPendukung.length} foto terlampir
+            </span>
           </div>
-        )}
-      </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
+            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <span>📦 + Foto Barang</span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => void handleTambahFotoPendukung(e, "barang")}
+              />
+            </label>
+
+            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <span>🚗 + Foto Kendaraan</span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => void handleTambahFotoPendukung(e, "kendaraan")}
+              />
+            </label>
+
+            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <span>👥 + Foto Kegiatan</span>
+              <input
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => void handleTambahFotoPendukung(e, "kegiatan")}
+              />
+            </label>
+          </div>
+
+          {fotoPendukung.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {fotoPendukung.map((foto) => (
+                <div
+                  key={foto.id}
+                  style={{
+                    position: "relative",
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "8px",
+                    overflow: "hidden",
+                    border: "1px solid var(--border)",
+                    background: "#000",
+                  }}
+                >
+                  {foto.dataUrl ? (
+                    <img src={foto.dataUrl} alt={foto.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: "0.7rem", color: "#fff" }}>
+                      📷 Foto
+                    </div>
+                  )}
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: "rgba(0,0,0,0.6)",
+                      color: "#fff",
+                      fontSize: "0.6rem",
+                      padding: "1px 2px",
+                      textAlign: "center",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {foto.kategoriFoto || "foto"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleHapusFotoPendukung(foto.id)}
+                    style={{
+                      position: "absolute",
+                      top: "2px",
+                      right: "2px",
+                      background: "rgba(239,68,68,0.9)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "18px",
+                      height: "18px",
+                      fontSize: "0.65rem",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 8. Peringatan Ketentuan SPJ (Checklist Ramah & Edukatif) */}
-      {daftarPeringatan.length > 0 && (
+      {semua && daftarPeringatan.length > 0 && (
         <div
           style={{
             marginTop: "12px",
@@ -1463,7 +1705,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             justifyContent: "center",
             padding: "16px",
           }}
-          onClick={() => setModalKegiatanBaru(false)}
+          onClick={tutupModalKegiatan}
         >
           <div
             className="card"
@@ -1483,14 +1725,25 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               </h3>
               <button
                 type="button"
-                onClick={() => setModalKegiatanBaru(false)}
+                onClick={tutupModalKegiatan}
                 style={{ background: "none", border: "none", fontSize: "1.1rem", cursor: "pointer", color: "var(--muted)" }}
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSimpanKegiatanBaru} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div
+              role="group"
+              aria-label="Kegiatan baru"
+              onKeyDown={(e) => {
+                // Enter di isian modal menyimpan kegiatan, bukan mengirim form transaksi di belakangnya.
+                if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+                  e.preventDefault();
+                  handleSimpanKegiatanBaru();
+                }
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+            >
               <div className="input-field">
                 <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>Nama Kegiatan</label>
                 <input
@@ -1498,7 +1751,6 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                   placeholder="Contoh: Survei Batas Hutan Desa Long Belaka"
                   value={namaBaru}
                   onChange={(e) => setNamaBaru(e.target.value)}
-                  required
                 />
               </div>
 
@@ -1509,7 +1761,6 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                   placeholder="Contoh: Desa Long Belaka, Kec. Kayan Hilir"
                   value={lokasiBaru}
                   onChange={(e) => setLokasiBaru(e.target.value)}
-                  required
                 />
               </div>
 
@@ -1520,7 +1771,6 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                     type="date"
                     value={tglMulaiBaru}
                     onChange={(e) => setTglMulaiBaru(e.target.value)}
-                    required
                   />
                 </div>
                 <div className="input-field">
@@ -1529,7 +1779,6 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                     type="date"
                     value={tglSelesaiBaru}
                     onChange={(e) => setTglSelesaiBaru(e.target.value)}
-                    required
                   />
                 </div>
               </div>
@@ -1538,19 +1787,25 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 ⏳ <strong>Batas penyerahan laporan fisik SPJ:</strong> {hitungBatasLaporanFisik(tglSelesaiBaru).formatTeks} (14 hari setelah tanggal selesai).
               </div>
 
+              {galatKegiatanBaru && (
+                <p role="alert" style={{ margin: 0, fontSize: "0.82rem", color: "var(--keluar)" }}>
+                  {galatKegiatanBaru}
+                </p>
+              )}
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setModalKegiatanBaru(false)}
+                  onClick={tutupModalKegiatan}
                 >
                   Batal
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="button" className="btn-primary" onClick={handleSimpanKegiatanBaru}>
                   Simpan &amp; Pilih Kegiatan
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
