@@ -1,0 +1,195 @@
+/**
+ * Uji pustaka timesheet (src/lib/timesheet.ts). Jalankan: npx tsx scripts/uji_timesheet.ts
+ * Data uji meniru file nyata "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)", termasuk
+ * tanggal 1-12 Oktober yang di Google Sheets berupa tanggal sungguhan berformat hari/bulan (tampil "10/1/2026").
+ */
+import { Transaksi } from "../src/types";
+import {
+  adalahFileTimesheet,
+  barisPerdiemKegiatan,
+  barisUntukSimpan,
+  batchDariJudul,
+  batchDariNama,
+  cocokkanFileTimesheet,
+  formatTanggalTimesheet,
+  judulUntukTimesheet,
+  labelBulan,
+  namaFileTimesheet,
+  sarankanBatch,
+  susunDaftarPerdiem,
+  susunIsiTimesheet,
+  tahunDariNama,
+  uraikanIsiTimesheet,
+  uraikanJumlahTimesheet,
+  uraikanTanggalTimesheet,
+} from "../src/lib/timesheet";
+
+let gagal = 0;
+function cek(nama: string, kondisi: boolean, rincian?: unknown) {
+  if (kondisi) console.log(`  ok   ${nama}`);
+  else {
+    gagal++;
+    console.log(`  GAGAL ${nama}`, rincian !== undefined ? JSON.stringify(rincian) : "");
+  }
+}
+
+const NAMA_BATCH4 = "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)";
+const JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Adat, Asesmen Kader Lokal, Penggalian Keruangan, dan Koordinasi Multipihak Tata Kelola Hutan di Kalimantan Utara (Batch 4)";
+
+console.log("Nama file dan batch");
+cek("file timesheet dikenali", adalahFileTimesheet(NAMA_BATCH4) && !adalahFileTimesheet("Keuangan Kegiatan 2026"));
+cek("batch dari nama", batchDariNama(NAMA_BATCH4) === 4 && batchDariNama("Keuangan Kegiatan 2026") === undefined);
+cek("tahun dari nama (tahun pertama = tahun mulai)", tahunDariNama(NAMA_BATCH4) === 2026 && tahunDariNama("TIMESHEET BATCH 2 (DESEMBER 2026 - JANUARI 2027)") === 2026);
+cek("batch dari judul kegiatan", batchDariJudul(JUDUL) === 4 && batchDariJudul("Kegiatan tanpa batch") === undefined);
+cek("label bulan lintas bulan", labelBulan("2026-09-20", "2026-10-23") === "September - Oktober 2026");
+cek("label bulan satu bulan", labelBulan("2026-10-05", "2026-10-23") === "Oktober 2026");
+cek("label bulan lintas tahun", labelBulan("2026-12-20", "2027-01-10") === "Desember 2026 - Januari 2027");
+cek("nama file baru meniru file pengguna", namaFileTimesheet(4, "2026-09-20", "2026-10-23") === NAMA_BATCH4);
+cek("nama file batch 1 tahun depan", namaFileTimesheet(1, "2027-02-02", "2027-02-20") === "FORM LAPORAN TIMESHEET KEGIATAN BATCH 1 (FEBRUARI 2027)");
+cek("judul diberi (Batch N) bila belum ada", judulUntukTimesheet("Kegiatan A", 5) === "Kegiatan A (Batch 5)" && judulUntukTimesheet(JUDUL, 4) === JUDUL);
+
+console.log("Saran batch");
+const kg = (batch: number | undefined, mulai: string, nama = "K") => ({ batch, nama, timesheetNama: undefined, tanggalMulai: mulai });
+cek("batch 4 ada tahun ini -> saran 5", sarankanBatch(2026, [kg(4, "2026-09-20")]) === 5);
+cek("tahun depan -> saran 1", sarankanBatch(2027, [kg(4, "2026-09-20")]) === 1);
+cek("tanpa kegiatan -> 1", sarankanBatch(2026, []) === 1);
+cek("kegiatan lama tanpa batch dibaca dari judul", sarankanBatch(2026, [kg(undefined, "2026-03-01", "Judul (Batch 2)")]) === 3);
+cek("melengkapi dari nama file di Drive", sarankanBatch(2026, [], [{ nama: NAMA_BATCH4 }, { nama: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 3 (JUNI 2026)" }]) === 5);
+cek("file tahun lain tidak dihitung", sarankanBatch(2027, [], [{ nama: NAMA_BATCH4 }]) === 1);
+
+console.log("Pencocokan file");
+const berkas = [
+  { id: "a", nama: NAMA_BATCH4, modifiedTime: "2026-10-24T11:00:00Z" },
+  { id: "b", nama: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 3 (JUNI - JULI 2026)" },
+  { id: "c", nama: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 1 (FEBRUARI 2027)" },
+  { id: "d", nama: "Keuangan Kegiatan 2026" },
+];
+const k4 = { batch: 4, nama: JUDUL, timesheetId: undefined, timesheetNama: undefined, tanggalMulai: "2026-09-20", tanggalSelesai: "2026-10-23" };
+cek("cocok lewat batch dan tahun", cocokkanFileTimesheet(k4, berkas)?.id === "a");
+cek("ID yang sudah dihubungkan diutamakan", cocokkanFileTimesheet({ ...k4, batch: 3, timesheetId: "a" }, berkas)?.id === "a");
+cek("batch 1 tahun depan tidak tertukar dengan batch 1 tahun ini", cocokkanFileTimesheet({ ...k4, batch: 1, tanggalMulai: "2027-02-02", tanggalSelesai: "2027-02-20" }, berkas)?.id === "c");
+cek("batch 5 belum punya file -> kosong", cocokkanFileTimesheet({ ...k4, batch: 5, tanggalMulai: "2026-11-10", tanggalSelesai: "2026-11-20" }, berkas) === undefined);
+cek("tanpa batch: dari irisan periode bila unik", cocokkanFileTimesheet({ ...k4, batch: undefined, nama: "Kegiatan tanpa batch" }, berkas)?.id === "a");
+cek("batch dibaca dari judul kegiatan", cocokkanFileTimesheet({ ...k4, batch: undefined }, berkas)?.id === "a");
+const lintasTahun = [{ id: "z", nama: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 6 (DESEMBER 2026 - JANUARI 2027)" }];
+const kLintas = { ...k4, batch: 6, tanggalMulai: "2026-12-20", tanggalSelesai: "2027-01-10" };
+cek("kegiatan lintas tahun cocok lewat batch dan tahun mulai", cocokkanFileTimesheet(kLintas, lintasTahun)?.id === "z");
+cek("lintas tahun tanpa batch: cocok lewat irisan periode", cocokkanFileTimesheet({ ...kLintas, batch: undefined, nama: "Tanpa batch" }, lintasTahun)?.id === "z");
+cek("periode lain tidak beririsan", cocokkanFileTimesheet({ ...kLintas, batch: undefined, nama: "Tanpa batch", tanggalMulai: "2027-03-01", tanggalSelesai: "2027-03-10" }, lintasTahun) === undefined);
+cek("sheet keuangan tidak pernah dipilih", cocokkanFileTimesheet({ ...k4, batch: undefined, nama: "x", tanggalMulai: "2026-01-01", tanggalSelesai: "2026-01-05" }, [berkas[3]]) === undefined);
+
+console.log("Tanggal dan jumlah");
+cek("M/D/YYYY", uraikanTanggalTimesheet("9/20/2026") === "2026-09-20");
+cek("tanggal oktober yang tampil 10/1/2026 dibaca 1 Oktober", uraikanTanggalTimesheet("10/1/2026") === "2026-10-01");
+cek("angka pertama >12 berarti hari", uraikanTanggalTimesheet("20/9/2026") === "2026-09-20");
+cek("rentang kegiatan memilih tafsiran yang masuk akal", uraikanTanggalTimesheet("10/5/2026", { mulai: "2026-05-01", selesai: "2026-05-30" }) === "2026-05-10" && uraikanTanggalTimesheet("10/5/2026") === "2026-10-05");
+cek("tanggal tak sah -> null", uraikanTanggalTimesheet("13/13/2026") === null && uraikanTanggalTimesheet("") === null && uraikanTanggalTimesheet("Total") === null);
+cek("format tampil", formatTanggalTimesheet("2026-10-01") === "10/1/2026" && formatTanggalTimesheet("2026-09-20") === "9/20/2026");
+cek("jumlah titik ribuan", uraikanJumlahTimesheet("200.000") === 200000 && uraikanJumlahTimesheet("6.800.000") === 6800000);
+cek("jumlah dengan Rp dan angka murni", uraikanJumlahTimesheet("Rp 200.000") === 200000 && uraikanJumlahTimesheet(200000) === 200000 && uraikanJumlahTimesheet("") === undefined);
+
+console.log("Baca isi file pengguna");
+const hari = (i: number) => {
+  const d = new Date(Date.UTC(2026, 8, 20 + i));
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+};
+const baris34: string[][] = Array.from({ length: 34 }, (_, i) => [String(i + 1), hari(i), `Kegiatan hari ke-${i + 1}, bersama warga`, i === 0 ? "Kabupaten Malinau" : "Desa Long Bawan", "200.000"]);
+const nilaiNyata: string[][] = [
+  [],
+  ["", "", "Detail Keuangan"],
+  ["", "", "Perdiem Kegiatan Lapangan"],
+  [],
+  ["Proyek", ": Kayan-Mentarang"],
+  ["Judul Kegiatan", ": " + JUDUL],
+  ["Nama", ": Adrila Nopal Prastian Zalukhu"],
+  ["Bulan", ": September - Oktober 2026"],
+  [],
+  ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"],
+  ...baris34,
+  ["", "", "Total", "", "6.800.000"],
+  [],
+  ["", "Dilaporkan Oleh :", "", "Disetujui Oleh :"],
+  [],
+  [],
+  [],
+  ["", "Adrila Nopal Prastian Zalukhu", "", "Alvina Nur Lailia"],
+];
+// Baris nyata dari file pengguna (tanda baca, apostrof lengkung, dan tanggal 1 Oktober yang tampil "10/1/2026").
+nilaiNyata[10 + 2] = ["3", "9/22/2026", "Analisis dokumen sejarah lokasi Terang Baru di Desa Long Bawan dilanjutkan dengan diskusi batas desa Long Api, Buduk Tumu, dan Pa’ Nado di Desa Long Berayang dan Desa Buduk Tumu", "Desa Buduk Tumu", "200.000"];
+nilaiNyata[10 + 11] = ["12", "10/1/2026", "Pengambilan titik koordinat referensi bentang alam, persawahan, batas wilayah, dan situs budaya di Desa Long Rungan dan Desa Long Kelupan bersama aparat desa dan tetua adat", "Desa Long Rungan", "200.000"];
+const isi = uraikanIsiTimesheet(nilaiNyata, { mulai: "2026-09-20", selesai: "2026-10-23" });
+cek("proyek, judul, nama, bulan", isi.proyek === "Kayan-Mentarang" && isi.judulKegiatan === JUDUL && isi.nama === "Adrila Nopal Prastian Zalukhu" && isi.bulan === "September - Oktober 2026", isi);
+cek("34 baris", isi.baris.length === 34, isi.baris.length);
+cek("tanggal berurutan 20 Sep - 23 Okt 2026", isi.baris[0].tanggal === "2026-09-20" && isi.baris[11].tanggal === "2026-10-01" && isi.baris[33].tanggal === "2026-10-23", [isi.baris[0], isi.baris[11], isi.baris[33]]);
+cek("keterangan dan lokasi terbaca", isi.baris[0].lokasi === "Kabupaten Malinau" && isi.baris[1].keterangan.startsWith("Kegiatan hari ke-2"));
+cek("baris nyata: koma dan apostrof lengkung utuh, 10/1/2026 = 1 Oktober", isi.baris[2].keterangan.includes("Long Api, Buduk Tumu, dan Pa’ Nado") && isi.baris[2].lokasi === "Desa Buduk Tumu" && isi.baris[11].tanggal === "2026-10-01" && isi.baris[11].lokasi === "Desa Long Rungan");
+cek("jumlah dan total", isi.baris.every((b) => b.jumlah === 200000) && isi.total === 6800000);
+cek("tanda tangan", isi.dilaporkanOleh === "Adrila Nopal Prastian Zalukhu" && isi.disetujuiOleh === "Alvina Nur Lailia", isi);
+cek("salinan simpan tanpa jumlah", barisUntukSimpan(isi.baris).every((b) => b.jumlah === undefined && b.keterangan !== ""));
+cek("sheet kosong tidak membuat galat", uraikanIsiTimesheet([]).baris.length === 0 && uraikanIsiTimesheet([["acak"]]).baris.length === 0);
+
+console.log("Bangun isi file baru");
+const baru = susunIsiTimesheet({
+  proyek: "Kayan-Mentarang",
+  judulKegiatan: "Kegiatan Baru (Batch 5)",
+  nama: "Adrila Nopal Prastian Zalukhu",
+  mulai: "2026-11-10",
+  selesai: "2026-11-12",
+  baris: [
+    { tanggal: "2026-11-11", keterangan: "Hari kedua", lokasi: "Desa B", jumlah: 200000 },
+    { tanggal: "2026-11-10", keterangan: "Hari pertama", lokasi: "Desa A", jumlah: 200000 },
+    { tanggal: "2026-11-12", keterangan: "", lokasi: "", jumlah: 200000 },
+  ],
+  disetujuiOleh: "Alvina Nur Lailia",
+});
+cek("data mulai baris 11, urut tanggal", baru.nilai[10][0] === 1 && baru.nilai[10][2] === "Hari pertama" && baru.nilai[11][2] === "Hari kedua");
+cek("tanggal ditulis sebagai teks dengan apostrof", baru.nilai[10][1] === "'11/10/2026", baru.nilai[10]);
+cek("total di baris 45 dengan rumus", baru.barisTotal === 45 && baru.nilai[44][4] === "=SUM(E11:E44)" && baru.nilai[44][2] === "Total", baru.nilai[44]);
+cek("tanda tangan di bawah total", baru.nilai[46][1] === "Dilaporkan Oleh :" && baru.nilai[46][3] === "Disetujui Oleh :" && baru.nilai[50][1] === "Adrila Nopal Prastian Zalukhu" && baru.nilai[50][3] === "Alvina Nur Lailia", baru.nilai[50]);
+cek("bulan pada kop", baru.nilai[7][1] === ": November 2026");
+cek("dibaca balik sama", (() => {
+  const balik = uraikanIsiTimesheet(baru.nilai.map((b) => b.map((v) => String(v).replace(/^'/, "").replace(/^=.*/, ""))), { mulai: "2026-11-10", selesai: "2026-11-12" });
+  return balik.baris.length === 3 && balik.baris[0].tanggal === "2026-11-10" && balik.baris[0].keterangan === "Hari pertama" && balik.disetujuiOleh === "Alvina Nur Lailia";
+})());
+const banyak = susunIsiTimesheet({
+  proyek: "P", judulKegiatan: "J", nama: "N", mulai: "2026-01-01", selesai: "2026-02-15",
+  baris: Array.from({ length: 40 }, (_, i) => ({ tanggal: new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10), keterangan: "x", lokasi: "y", jumlah: 1 })),
+  disetujuiOleh: "",
+});
+cek("lebih dari 34 hari: total turun, rumus mencakup semua baris", banyak.barisTotal === 51 && banyak.nilai[50][4] === "=SUM(E11:E50)", banyak.nilai[50]);
+
+console.log("Baris perdiem dengan keterangan");
+let n = 0;
+const trx = (o: Partial<Transaksi>): Transaksi => ({
+  id: `t${++n}`, jenis: "pengeluaran", dana: "Dana Kegiatan", tanggal: "2026-09-20", deskripsi: "Perdiem", kategori: "Perdiem",
+  jumlah: 200000, metode: "Tunai", kaitan: "", catatan: "", ...o,
+});
+const tsBaris = [
+  { tanggal: "2026-09-20", keterangan: "Perjalanan ke Malinau", lokasi: "Kabupaten Malinau" },
+  { tanggal: "2026-09-22", keterangan: "Analisis dokumen", lokasi: "Desa Buduk Tumu" },
+];
+const perdiem = barisPerdiemKegiatan(
+  [trx({}), trx({ tanggal: "2026-09-21" }), trx({ tanggal: "2026-09-22" }), trx({ kategori: "Konsumsi", tanggal: "2026-09-23" }), trx({ jenis: "pemasukan", tanggal: "2026-09-24" })],
+  tsBaris
+);
+cek("hanya perdiem Dana Kegiatan", perdiem.length === 3 && perdiem.map((b) => b.tanggal).join() === "2026-09-20,2026-09-21,2026-09-22", perdiem);
+cek("keterangan dan lokasi dari timesheet, jumlah dari transaksi", perdiem[0].keterangan === "Perjalanan ke Malinau" && perdiem[0].jumlah === 200000 && perdiem[2].lokasi === "Desa Buduk Tumu");
+cek("hari tanpa baris di timesheet tetap muncul dengan keterangan kosong", perdiem[1].keterangan === "" && perdiem[1].jumlah === 200000);
+
+console.log("Daftar perdiem untuk dokumen");
+const daftar = susunDaftarPerdiem(
+  [trx({}), trx({ tanggal: "2026-09-21" }), trx({ tanggal: "2026-10-01" })],
+  { nama: JUDUL, batch: undefined, timesheetNama: NAMA_BATCH4, timesheetBaris: [{ tanggal: "2026-10-01", keterangan: "Pengambilan titik koordinat", lokasi: "Desa Long Rungan" }] },
+  { nama: "Adrila Nopal Prastian Zalukhu", proyek: "Kayan-Mentarang", penyetuju: "Alvina Nur Lailia" }
+);
+cek("kop sama dengan file timesheet", daftar?.proyek === "Kayan-Mentarang" && daftar.judulKegiatan === JUDUL && daftar.bulan === "September - Oktober 2026" && daftar.nama === "Adrila Nopal Prastian Zalukhu", daftar);
+cek("tanggal gaya timesheet, nomor urut, total", daftar?.baris.map((b) => b.tanggal).join() === "9/20/2026,9/21/2026,10/1/2026" && daftar.baris[2].no === 3 && daftar.total === 600000, daftar?.baris);
+cek("keterangan dan lokasi dari timesheet", daftar?.baris[2].keterangan === "Pengambilan titik koordinat" && daftar.baris[2].lokasi === "Desa Long Rungan" && daftar.baris[0].keterangan === "");
+cek("hari berketerangan dan penyetuju", daftar?.hariBerketerangan === 1 && daftar.disetujuiOleh === "Alvina Nur Lailia" && daftar.dilaporkanOleh === "Adrila Nopal Prastian Zalukhu");
+cek("tanpa perdiem -> null", susunDaftarPerdiem([trx({ kategori: "Konsumsi" })], { nama: "K", batch: 1, timesheetNama: undefined, timesheetBaris: [] }, { nama: "N", proyek: "P" }) === null);
+
+if (gagal) {
+  console.log(`\n${gagal} uji gagal`);
+  process.exit(1);
+}
+console.log("\nSemua uji lolos");

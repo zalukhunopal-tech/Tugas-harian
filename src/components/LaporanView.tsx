@@ -14,6 +14,7 @@ import { bacaJsonStorage, tulisStorage } from "../lib/storage";
 import { Pencil } from "lucide-react";
 import { DokumenSiapCetak } from "./DokumenSiapCetak";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
+import { KartuTimesheet } from "./KartuTimesheet";
 import { hitungPenyelesaian, kegiatanBerjalanDalam, susunTransaksiPenyelesaian } from "../lib/penyelesaianDana";
 import { hitungBatasLaporanFisik } from "../lib/ketentuanKegiatan";
 import { buatDokumenLaporanKegiatanDocx, unduhFileBlob } from "../lib/docxGenerator";
@@ -28,6 +29,7 @@ interface LaporanViewProps {
   profilPelapor?: ProfilPelapor;
   daftarKegiatan?: DataKegiatan[];
   onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
+  onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
   googleToken?: string;
   isLoggedInGoogle?: boolean;
 }
@@ -37,6 +39,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   profilPelapor = PROFIL_PELAPOR_DEFAULT,
   daftarKegiatan = [],
   onUpdateKegiatan,
+  onSimpanProfilPelapor,
   googleToken,
   isLoggedInGoogle,
 }) => {
@@ -703,6 +706,20 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ===== KARTU TIMESHEET PERDIEM (keterangan kegiatan lapangan per hari) ===== */}
+      {dana === "Dana Kegiatan" && kegiatanTerpilih && (
+        <KartuTimesheet
+          kegiatan={kegiatanTerpilih}
+          daftarKegiatan={daftarKegiatan}
+          transaksi={transaksi}
+          profilPelapor={profilPelapor}
+          googleToken={googleToken}
+          isLoggedInGoogle={isLoggedInGoogle}
+          onUpdateKegiatan={onUpdateKegiatan}
+          onSimpanProfilPelapor={onSimpanProfilPelapor}
+        />
+      )}
 
       {/* ===== KARTU KELENGKAPAN SPJ & PENGURUTAN MANUAL WiMIS (DOKUMEN WORD) ===== */}
       {dana === "Dana Kegiatan" && kegiatanTerpilih && (
