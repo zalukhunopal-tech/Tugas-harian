@@ -15,7 +15,8 @@ import { Pencil } from "lucide-react";
 import { DokumenSiapCetak } from "./DokumenSiapCetak";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
 import { KartuTimesheet } from "./KartuTimesheet";
-import { hitungPenyelesaian, kegiatanBerjalanDalam, susunTransaksiPenyelesaian } from "../lib/penyelesaianDana";
+import { KartuTimesheetDrive } from "./KartuTimesheetDrive";
+import { hitungPenyelesaian, kegiatanBerjalanDalam, susunTransaksiPenyelesaian, transaksiKegiatan } from "../lib/penyelesaianDana";
 import { hitungBatasLaporanFisik } from "../lib/ketentuanKegiatan";
 import { buatDokumenLaporanKegiatanDocx, unduhFileBlob } from "../lib/docxGenerator";
 import {
@@ -30,6 +31,7 @@ interface LaporanViewProps {
   daftarKegiatan?: DataKegiatan[];
   onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
   onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
+  onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
   googleToken?: string;
   isLoggedInGoogle?: boolean;
 }
@@ -40,6 +42,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   daftarKegiatan = [],
   onUpdateKegiatan,
   onSimpanProfilPelapor,
+  onTambahKegiatan,
   googleToken,
   isLoggedInGoogle,
 }) => {
@@ -105,6 +108,12 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     return daftarKegiatan.find((k) => k.id === pilihKegiatanId);
   }, [daftarKegiatan, pilihKegiatanId]);
 
+  // Transaksi milik kegiatan terpilih: yang dikaitkan, ditambah dana awal dan perdiem dalam rentang kegiatan yang belum dikaitkan.
+  const idTransaksiKegiatanTerpilih = useMemo(
+    () => (kegiatanTerpilih ? new Set(transaksiKegiatan(transaksi, kegiatanTerpilih, daftarKegiatan).map((t) => t.id)) : new Set<string>()),
+    [transaksi, kegiatanTerpilih, daftarKegiatan]
+  );
+
   const kunciAgenda = `${pilihKegiatanId}|${filterKaitan}`;
   const agendaOtomatis = kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan;
   const agendaTersimpan = agendaKustom[kunciAgenda];
@@ -155,14 +164,14 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         if (pilihKegiatanId) {
           const cocokId = t.kegiatanId === pilihKegiatanId;
           const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
-          if (!cocokId && !cocokNama) return false;
+          if (!cocokId && !cocokNama && !idTransaksiKegiatanTerpilih.has(t.id)) return false;
         }
         return t.tanggal < tglMulai;
       })
       .reduce((acc, t) => {
         return acc + (t.jenis === "pemasukan" ? t.jumlah : -t.jumlah);
       }, 0);
-  }, [transaksi, dana, filterKaitan, tglMulai, pilihKegiatanId, kegiatanTerpilih]);
+  }, [transaksi, dana, filterKaitan, tglMulai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
 
   // Transaksi dalam rentang tanggal dan kaitan
   const transaksiLaporan = useMemo(() => {
@@ -173,12 +182,12 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         if (pilihKegiatanId) {
           const cocokId = t.kegiatanId === pilihKegiatanId;
           const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
-          if (!cocokId && !cocokNama) return false;
+          if (!cocokId && !cocokNama && !idTransaksiKegiatanTerpilih.has(t.id)) return false;
         }
         return t.tanggal >= tglMulai && t.tanggal <= tglSelesai;
       })
       .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-  }, [transaksi, dana, filterKaitan, tglMulai, tglSelesai, pilihKegiatanId, kegiatanTerpilih]);
+  }, [transaksi, dana, filterKaitan, tglMulai, tglSelesai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
 
   // Total Penerimaan & Pengeluaran dalam periode (Kategori Pindah Dana tidak dihitung)
   const totalPenerimaan = useMemo(() => {
@@ -298,9 +307,9 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       if (t.jenis !== "pengeluaran") return false;
       const cocokId = t.kegiatanId === kegiatanTerpilih.id;
       const cocokNama = t.kaitan === kegiatanTerpilih.nama && t.dana === "Dana Kegiatan";
-      return cocokId || cocokNama;
+      return cocokId || cocokNama || idTransaksiKegiatanTerpilih.has(t.id);
     });
-  }, [transaksi, kegiatanTerpilih]);
+  }, [transaksi, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
 
   // Transaksi pengeluaran terurut menurut urutan WiMIS (atau default kelompok lalu tanggal)
   const transaksiPengeluaranTerurut = useMemo(() => {
@@ -706,6 +715,16 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ===== TIMESHEET DI DRIVE: hanya bila belum ada data kegiatan sama sekali; buat kegiatan dari file timesheet ===== */}
+      {dana === "Dana Kegiatan" && daftarKegiatan.length === 0 && (
+        <KartuTimesheetDrive
+          daftarKegiatan={daftarKegiatan}
+          googleToken={googleToken}
+          isLoggedInGoogle={isLoggedInGoogle}
+          onTambahKegiatan={onTambahKegiatan}
+        />
+      )}
 
       {/* ===== KARTU TIMESHEET PERDIEM (keterangan kegiatan lapangan per hari) ===== */}
       {dana === "Dana Kegiatan" && kegiatanTerpilih && (

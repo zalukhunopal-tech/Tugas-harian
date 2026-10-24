@@ -17,6 +17,7 @@ interface GrafikViewProps {
   daftarKegiatan?: DataKegiatan[];
   onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
   onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
+  onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
   googleToken?: string;
   isLoggedInGoogle?: boolean;
 }
@@ -32,6 +33,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   daftarKegiatan,
   onUpdateKegiatan,
   onSimpanProfilPelapor,
+  onTambahKegiatan,
   googleToken,
   isLoggedInGoogle,
 }) => {
@@ -150,6 +152,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
           daftarKegiatan={daftarKegiatan}
           onUpdateKegiatan={onUpdateKegiatan}
           onSimpanProfilPelapor={onSimpanProfilPelapor}
+          onTambahKegiatan={onTambahKegiatan}
           googleToken={googleToken}
           isLoggedInGoogle={isLoggedInGoogle}
         />

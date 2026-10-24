@@ -3303,6 +3303,39 @@ button {
   padding: 8px 14px;
 }
 
+.kartu-timesheet__daftar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kartu-timesheet__daftar li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.kartu-timesheet__daftar a {
+  color: var(--accent);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kartu-timesheet__daftar span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .kartu-timesheet__pilih {
   max-width: 30rem;
 }
