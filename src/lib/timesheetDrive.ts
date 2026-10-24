@@ -1,0 +1,320 @@
+import { BarisTimesheet, DataKegiatan, ProfilPelapor, Transaksi } from "../types";
+import type { GDriveFileInfo, KeuanganDriveContents } from "./gdriveSync";
+import { adalahPerdiemKegiatan, daftarTanggalRentang } from "./perdiemOtomatis";
+import { transaksiKegiatan } from "./penyelesaianDana";
+import {
+  barisUntukSimpan,
+  batchDariNama,
+  batchKegiatan,
+  BerkasTimesheet,
+  cocokkanFileTimesheet,
+  IsiTimesheet,
+  judulTabTimesheet,
+  judulUntukTimesheet,
+  namaFileTimesheet,
+  rentangBersih,
+  susunIsiTimesheet,
+  uraikanIsiTimesheet,
+} from "./timesheet";
+
+/**
+ * Membaca, menarik, dan membuat file timesheet perdiem di folder Keuangan Google Drive.
+ * Aturan keselamatan: file timesheet yang sudah ada milik pengguna hanya DIBACA. Aplikasi menulis hanya ke file
+ * yang ia buat sendiri (salinan file timesheet terbaru, ditandai `timesheetDibuatApp`).
+ */
+
+const SHEETS = "https://sheets.googleapis.com/v4/spreadsheets";
+const DRIVE = "https://www.googleapis.com/drive/v3/files";
+const BARIS_BACA = 200;
+
+export type StatusTimesheet = "diperbarui" | "tetap" | "belum-ada-file" | "dibuat";
+
+export interface HasilTimesheet {
+  kegiatan: DataKegiatan;
+  status: StatusTimesheet;
+  /** Isi tarikan atau isi yang ditulis ke file; ada bila status "diperbarui" atau "dibuat". */
+  isi?: IsiTimesheet;
+  /** Apakah data kegiatan berubah dibanding sebelumnya (selain cap waktu tarik), perlu disinkron ke Drive. */
+  berubah: boolean;
+}
+
+export function tautanTimesheet(id: string): string {
+  return `https://docs.google.com/spreadsheets/d/${id}/edit`;
+}
+
+function berkasDariDrive(f: GDriveFileInfo): BerkasTimesheet {
+  return { id: f.id, nama: f.name, modifiedTime: f.modifiedTime };
+}
+
+async function pastikanOk(res: Response, aksi: string): Promise<void> {
+  if (res.ok) return;
+  let isi = "";
+  try {
+    isi = await res.text();
+  } catch {
+    // abaikan
+  }
+  throw new Error(`${aksi} gagal (${res.status}). ${isi}`.trim());
+}
+
+const header = (token: string, json = false): Record<string, string> => ({
+  Authorization: `Bearer ${token}`,
+  ...(json ? { "Content-Type": "application/json" } : {}),
+});
+
+/** Tab yang dipakai: yang namanya memuat "timesheet", bila tidak ada tab pertama. */
+async function infoTab(token: string, fileId: string): Promise<{ judul: string; sheetId?: number }> {
+  const res = await fetch(`${SHEETS}/${fileId}?fields=sheets(properties(title,sheetId))`, { headers: header(token) });
+  await pastikanOk(res, "Membaca daftar tab timesheet");
+  const data = await res.json();
+  const tab: Array<{ properties?: { title?: string; sheetId?: number } }> = data.sheets || [];
+  const pilih = tab.find((t) => /timesheet/i.test(t.properties?.title || "")) ?? tab[0];
+  return { judul: pilih?.properties?.title || "Sheet1", sheetId: pilih?.properties?.sheetId };
+}
+
+/** Baca isi file timesheet (hanya baca). */
+export async function bacaIsiFileTimesheet(
+  token: string,
+  fileId: string,
+  rentang?: { mulai: string; selesai: string }
+): Promise<IsiTimesheet> {
+  const { judul } = await infoTab(token, fileId);
+  const range = `'${judul}'!A1:G${BARIS_BACA}`;
+  const res = await fetch(`${SHEETS}/${fileId}/values/${encodeURIComponent(range)}?valueRenderOption=FORMATTED_VALUE`, {
+    headers: header(token),
+  });
+  await pastikanOk(res, "Membaca isi timesheet");
+  const data = await res.json();
+  const nilai: string[][] = Array.isArray(data.values) ? data.values.map((b: unknown[]) => b.map((v) => String(v ?? ""))) : [];
+  return uraikanIsiTimesheet(nilai, rentang);
+}
+
+function samaBaris(a: BarisTimesheet[] | undefined, b: BarisTimesheet[]): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b);
+}
+
+/**
+ * Cocokkan kegiatan dengan file timesheet-nya di Drive dan tarik isinya (Keterangan dan Lokasi per tanggal).
+ * `berkasId` memaksa memakai file tertentu (hubungkan manual); `paksa` membaca ulang walau file tidak berubah.
+ */
+export async function tarikTimesheetKegiatan(
+  token: string,
+  contents: KeuanganDriveContents,
+  k: DataKegiatan,
+  opsi: { paksa?: boolean; berkasId?: string } = {}
+): Promise<HasilTimesheet> {
+  const daftar = (contents.timesheets ?? []).map(berkasDariDrive);
+  const berkas = opsi.berkasId ? daftar.find((f) => f.id === opsi.berkasId) : cocokkanFileTimesheet(k, daftar);
+  if (!berkas) return { kegiatan: k, status: "belum-ada-file", berubah: false };
+
+  const terbaru =
+    !opsi.paksa &&
+    !opsi.berkasId &&
+    k.timesheetId === berkas.id &&
+    k.timesheetBaris &&
+    k.timesheetSinkron &&
+    berkas.modifiedTime &&
+    berkas.modifiedTime <= k.timesheetSinkron;
+  if (terbaru) return { kegiatan: k, status: "tetap", berubah: false };
+
+  const isi = await bacaIsiFileTimesheet(token, berkas.id, { mulai: k.tanggalMulai, selesai: k.tanggalSelesai });
+  const baris = barisUntukSimpan(isi.baris);
+  const berubah =
+    k.timesheetId !== berkas.id || k.timesheetNama !== berkas.nama || !samaBaris(k.timesheetBaris, baris);
+  const kegiatan: DataKegiatan = {
+    ...k,
+    batch: k.batch ?? batchDariNama(berkas.nama),
+    timesheetId: berkas.id,
+    timesheetNama: berkas.nama,
+    timesheetBaris: baris,
+    timesheetSinkron: new Date().toISOString(),
+    timesheetDibuatApp: k.timesheetId === berkas.id ? k.timesheetDibuatApp : undefined,
+  };
+  return { kegiatan, status: berubah ? "diperbarui" : "tetap", isi, berubah };
+}
+
+/** Tarik timesheet untuk banyak kegiatan; satu kegiatan yang gagal tidak menggagalkan yang lain. */
+export async function tarikTimesheetSemuaKegiatan(
+  token: string,
+  contents: KeuanganDriveContents,
+  daftar: DataKegiatan[]
+): Promise<{ daftar: DataKegiatan[]; berubah: boolean; galat: string[] }> {
+  const galat: string[] = [];
+  let berubah = false;
+  const hasil: DataKegiatan[] = [];
+  for (const k of daftar) {
+    try {
+      const h = await tarikTimesheetKegiatan(token, contents, k);
+      hasil.push(h.kegiatan);
+      if (h.berubah) berubah = true;
+    } catch (err: any) {
+      galat.push(`${k.nama}: ${err?.message ?? err}`);
+      hasil.push(k);
+    }
+  }
+  return { daftar: hasil, berubah, galat };
+}
+
+/* ---------- membuat dan memperbarui file milik aplikasi ---------- */
+
+/** Hari yang ditulis ke file: hari perdiem yang sudah dicatat; bila belum ada, seluruh hari dalam rentang kegiatan. */
+function barisUntukFile(
+  k: DataKegiatan,
+  transaksi: Transaksi[],
+  semuaKegiatan: DataKegiatan[],
+  keteranganLama: Map<string, BarisTimesheet>
+): BarisTimesheet[] {
+  const perTanggal = new Map<string, number>();
+  for (const t of transaksiKegiatan(transaksi, k, semuaKegiatan)) {
+    if (adalahPerdiemKegiatan(t)) perTanggal.set(t.tanggal, (perTanggal.get(t.tanggal) ?? 0) + t.jumlah);
+  }
+  const tanggal = perTanggal.size ? [...perTanggal.keys()] : daftarTanggalRentang(k.tanggalMulai, k.tanggalSelesai).tanggal;
+  return tanggal
+    .sort((a, b) => a.localeCompare(b))
+    .map((t) => ({
+      tanggal: t,
+      keterangan: keteranganLama.get(t)?.keterangan ?? "",
+      lokasi: keteranganLama.get(t)?.lokasi ?? "",
+      jumlah: perTanggal.get(t),
+    }));
+}
+
+async function tulisIsiKeFile(
+  token: string,
+  fileId: string,
+  nilai: Array<Array<string | number>>,
+  judulTab: string,
+  sheetId: number | undefined,
+  judulBaru?: string
+): Promise<void> {
+  const bersih = await fetch(`${SHEETS}/${fileId}/values/${encodeURIComponent(rentangBersih(judulTab, nilai.length))}:clear`, {
+    method: "POST",
+    headers: header(token, true),
+    body: "{}",
+  });
+  await pastikanOk(bersih, "Mengosongkan salinan timesheet");
+
+  const range = `'${judulTab}'!A1:E${nilai.length}`;
+  const tulis = await fetch(`${SHEETS}/${fileId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
+    method: "PUT",
+    headers: header(token, true),
+    body: JSON.stringify({ range, majorDimension: "ROWS", values: nilai }),
+  });
+  await pastikanOk(tulis, "Menulis isi timesheet");
+
+  // Nama tab ikut batch baru. Hanya jalur Google langsung yang bisa; di mode konektor ditolak dan itu tidak apa-apa.
+  if (judulBaru && sheetId !== undefined && judulBaru !== judulTab) {
+    try {
+      await fetch(`${SHEETS}/${fileId}:batchUpdate`, {
+        method: "POST",
+        headers: header(token, true),
+        body: JSON.stringify({
+          requests: [{ updateSheetProperties: { properties: { sheetId, title: judulBaru }, fields: "title" } }],
+        }),
+      });
+    } catch {
+      // abaikan
+    }
+  }
+}
+
+function dataIsi(k: DataKegiatan, profil: ProfilPelapor, baris: BarisTimesheet[]) {
+  const batch = batchKegiatan(k);
+  return {
+    proyek: profil.proyek,
+    judulKegiatan: judulUntukTimesheet(k.nama, batch),
+    nama: profil.nama,
+    mulai: k.tanggalMulai,
+    selesai: k.tanggalSelesai,
+    baris,
+    disetujuiOleh: profil.penyetuju ?? "",
+  };
+}
+
+/**
+ * Siapkan file timesheet untuk kegiatan: pakai file yang cocok (batch dan tahun), dan bila belum ada buat file baru
+ * dengan menyalin file timesheet terbaru di folder (format sama persis) lalu mengisinya. Nama file mengikuti batch dan
+ * periode kegiatan, mis. "FORM LAPORAN TIMESHEET KEGIATAN BATCH 5 (NOVEMBER 2026)".
+ */
+export async function siapkanTimesheetKegiatan(
+  token: string,
+  contents: KeuanganDriveContents,
+  k: DataKegiatan,
+  profil: ProfilPelapor,
+  transaksi: Transaksi[],
+  semuaKegiatan: DataKegiatan[],
+  opsi: { bolehBuat?: boolean } = {}
+): Promise<HasilTimesheet> {
+  const ada = await tarikTimesheetKegiatan(token, contents, k);
+  if (ada.status !== "belum-ada-file" || opsi.bolehBuat === false) return ada;
+
+  const batch = batchKegiatan(k);
+  if (!batch) {
+    throw new Error("Isi batch kegiatan dulu supaya aplikasi tahu file timesheet yang dipakai.");
+  }
+  const contoh = [...(contents.timesheets ?? [])].sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""))[0];
+  if (!contoh) {
+    throw new Error(
+      "Belum ada file timesheet di folder Keuangan untuk dijadikan contoh format. Salin satu file timesheet dulu, lalu coba lagi."
+    );
+  }
+
+  const nama = namaFileTimesheet(batch, k.tanggalMulai, k.tanggalSelesai);
+  const salin = await fetch(`${DRIVE}/${contoh.id}/copy?fields=id,name,mimeType,webViewLink,modifiedTime`, {
+    method: "POST",
+    headers: header(token, true),
+    body: JSON.stringify({ name: nama, parents: [contents.folder.id] }),
+  });
+  await pastikanOk(salin, "Menyalin file timesheet");
+  const fileBaru = (await salin.json()) as GDriveFileInfo;
+  if (!fileBaru.name) fileBaru.name = nama;
+  contents.timesheets.push(fileBaru);
+  contents.allFiles.push(fileBaru);
+
+  const { judul, sheetId } = await infoTab(token, fileBaru.id);
+  const baris = barisUntukFile(k, transaksi, semuaKegiatan, new Map());
+  const { nilai } = susunIsiTimesheet(dataIsi(k, profil, baris));
+  await tulisIsiKeFile(token, fileBaru.id, nilai, judul, sheetId, judulTabTimesheet(batch));
+
+  const kegiatan: DataKegiatan = {
+    ...k,
+    batch,
+    timesheetId: fileBaru.id,
+    timesheetNama: fileBaru.name,
+    timesheetBaris: barisUntukSimpan(baris),
+    timesheetSinkron: new Date().toISOString(),
+    timesheetDibuatApp: true,
+  };
+  return { kegiatan, status: "dibuat", berubah: true };
+}
+
+/**
+ * Perbarui tanggal dan jumlah di file buatan aplikasi mengikuti perdiem yang tercatat; Keterangan dan Lokasi yang
+ * sudah diisi pengguna di file tetap dipertahankan. File yang bukan buatan aplikasi tidak pernah ditulis.
+ */
+export async function perbaruiFileTimesheetKegiatan(
+  token: string,
+  k: DataKegiatan,
+  profil: ProfilPelapor,
+  transaksi: Transaksi[],
+  semuaKegiatan: DataKegiatan[]
+): Promise<HasilTimesheet> {
+  if (!k.timesheetId || !k.timesheetDibuatApp) {
+    throw new Error("File timesheet ini bukan buatan aplikasi, jadi hanya dibaca. Ubah isinya langsung di Google Sheets.");
+  }
+  const lama = await bacaIsiFileTimesheet(token, k.timesheetId, { mulai: k.tanggalMulai, selesai: k.tanggalSelesai });
+  const keteranganLama = new Map(lama.baris.map((b) => [b.tanggal, b]));
+  const baris = barisUntukFile(k, transaksi, semuaKegiatan, keteranganLama);
+  const { judul, sheetId } = await infoTab(token, k.timesheetId);
+  const { nilai } = susunIsiTimesheet({
+    ...dataIsi(k, profil, baris),
+    disetujuiOleh: lama.disetujuiOleh || profil.penyetuju || "",
+  });
+  await tulisIsiKeFile(token, k.timesheetId, nilai, judul, sheetId);
+  const kegiatan: DataKegiatan = {
+    ...k,
+    timesheetBaris: barisUntukSimpan(baris),
+    timesheetSinkron: new Date().toISOString(),
+  };
+  return { kegiatan, status: "diperbarui", berubah: true };
+}

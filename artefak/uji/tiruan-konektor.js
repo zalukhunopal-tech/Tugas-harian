@@ -55,6 +55,8 @@
     D.sheets.set(id, { tabs: [{ sheetId: 355706310, title: "Untitled", rows }] });
   }
 
+  D.tambahFile = tambahFile;
+
   D.mulai = (opsi = {}) => {
     D.files.clear();
     D.sheets.clear();
@@ -185,7 +187,8 @@
           const y = r.b1 - 1 + dy;
           tab.rows[y] = tab.rows[y] || [];
           baris.forEach((v, dx) => {
-            if (v !== null) tab.rows[y][r.k1 - 1 + dx] = v;
+            // USER_ENTERED: awalan apostrof menandai teks dan tidak ikut tersimpan (perilaku Google Sheets).
+            if (v !== null) tab.rows[y][r.k1 - 1 + dx] = typeof v === "string" ? v.replace(/^'/, "") : v;
           });
         });
         return { updatedRange: i.range, updatedRows: i.values.length };

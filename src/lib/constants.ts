@@ -72,6 +72,7 @@ export const PROFIL_PELAPOR_DEFAULT = {
   jabatan: "Surveyor",
   lembaga: "Nama Lembaga",
   proyek: "Nama Proyek",
+  penyetuju: "Nama Penyetuju",
 };
 
 export const DAFTAR_JENIS_BUKTI = [
