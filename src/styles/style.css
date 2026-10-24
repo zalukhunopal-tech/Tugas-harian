@@ -4784,3 +4784,35 @@ button {
     min-width: 0;
   }
 }
+
+/* Peringatan catatan mencurigakan di Riwayat: hanya muncul bila ada, tidak mengubah tata letak yang biasa. */
+.kartu-mencurigakan {
+  margin-bottom: 16px;
+  border: 1.5px solid var(--keluar);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kartu-mencurigakan p,
+.kartu-mencurigakan ul {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.kartu-mencurigakan ul {
+  padding-left: 1.2em;
+}
+
+.kartu-mencurigakan__aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kartu-mencurigakan__aksi button {
+  font-size: 0.85rem;
+  padding: 8px 14px;
+}

@@ -33,6 +33,7 @@ import {
   simpanTransaksiBerulang,
   bacaStorage,
   tulisStorage,
+  bacaJsonStorage,
   tambahIdTerhapus,
   muatPengaturan,
   simpanPengaturan,
@@ -79,8 +80,9 @@ import {
   simpanDocxLaporanKeDrive,
 } from "./lib/gdriveSync";
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
-import { batchKegiatan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
-import { siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
+import { batchKegiatan, cariCatatanMencurigakan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
+import { KartuCatatanMencurigakan } from "./components/KartuCatatanMencurigakan";
+import { kumpulkanKeteranganTimesheet, siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
 import {
   simpanBuktiOffline,
   ambilSemuaBuktiOffline,
@@ -100,6 +102,9 @@ import { TransaksiBerulangModal } from "./components/TransaksiBerulangModal";
 import { AppLockModal } from "./components/AppLockModal";
 
 /** Kegiatan yang selesai sebelum tanggal ini dianggap lama: file timesheet-nya tidak dibuat otomatis. */
+const KUNCI_JEJAK_TIMESHEET = "keuangan-jejak-timesheet";
+const KUNCI_MENCURIGAKAN_DIABAIKAN = "keuangan-mencurigakan-diabaikan";
+
 const tanggalBatasKegiatanLama = () => new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
 
 export default function App() {
@@ -318,6 +323,16 @@ export default function App() {
   const autoSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSyncDocxTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDocxKegiatanIdsRef = React.useRef<Set<string>>(new Set());
+  // Keterangan hari di semua file timesheet (diambil saat tarik dari Drive), untuk mengenali transaksi nyasar dari file itu.
+  const [jejakTimesheet, setJejakTimesheet] = useState<string[]>(() => {
+    const data = bacaJsonStorage<string[]>(KUNCI_JEJAK_TIMESHEET, []);
+    return Array.isArray(data) ? data.filter((x) => typeof x === "string") : [];
+  });
+  // Catatan mencurigakan yang sudah dipilih "Biarkan" oleh pengguna tidak ditanyakan lagi.
+  const [mencurigakanDiabaikan, setMencurigakanDiabaikan] = useState<string[]>(() => {
+    const data = bacaJsonStorage<string[]>(KUNCI_MENCURIGAKAN_DIABAIKAN, []);
+    return Array.isArray(data) ? data : [];
+  });
   const autoTimesheetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTimesheetIdsRef = React.useRef<Set<string>>(new Set());
   // Kegiatan yang sudah dicoba disiapkan file timesheet-nya pada sesi ini, supaya perubahan kecil tidak mengulang.
@@ -540,7 +555,7 @@ export default function App() {
   // Sisa pembacaan keliru versi lama: baris file timesheet yang masuk sebagai pemasukan Dana Kegiatan yang tidak pernah
   // dicatat. Dikenali dengan ketat (lihat cariTransaksiNyasarTimesheet), dihapus, dan ID-nya dicatat sebagai terhapus.
   useEffect(() => {
-    const nyasar = cariTransaksiNyasarTimesheet(transaksi, daftarKegiatan);
+    const nyasar = cariTransaksiNyasarTimesheet(transaksi, daftarKegiatan, jejakTimesheet);
     if (nyasar.length === 0) return;
     const ids = new Set(nyasar.map((t) => t.id));
     ids.forEach((id) => tambahIdTerhapus(id));
@@ -548,7 +563,25 @@ export default function App() {
     jadwalkanAutoSync();
     setSyncStatus({ pesan: `${nyasar.length} catatan nyasar dari file timesheet dibersihkan`, status: "sukses" });
     setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
-  }, [transaksi, daftarKegiatan, perbaruiTransaksi, jadwalkanAutoSync]);
+  }, [transaksi, daftarKegiatan, jejakTimesheet, perbaruiTransaksi, jadwalkanAutoSync]);
+
+  const catatanMencurigakan = React.useMemo(
+    () => cariCatatanMencurigakan(transaksi).filter((t) => !mencurigakanDiabaikan.includes(t.id)),
+    [transaksi, mencurigakanDiabaikan]
+  );
+
+  const hapusCatatanMencurigakan = useCallback(() => {
+    const ids = new Set(catatanMencurigakan.map((t) => t.id));
+    ids.forEach((id) => tambahIdTerhapus(id));
+    perbaruiTransaksi(transaksi.filter((t) => !ids.has(t.id)));
+    jadwalkanAutoSync();
+  }, [catatanMencurigakan, transaksi, perbaruiTransaksi, jadwalkanAutoSync]);
+
+  const abaikanCatatanMencurigakan = useCallback(() => {
+    const baru = [...new Set([...mencurigakanDiabaikan, ...catatanMencurigakan.map((t) => t.id)])];
+    setMencurigakanDiabaikan(baru);
+    tulisStorage(KUNCI_MENCURIGAKAN_DIABAIKAN, JSON.stringify(baru));
+  }, [catatanMencurigakan, mencurigakanDiabaikan]);
 
   const cariIdKegiatanTerdampak = useCallback(
     (daftarTrx: Transaksi[]): string[] => {
@@ -824,6 +857,12 @@ export default function App() {
           jadwalkanAutoSyncDocx(ts.daftar.map((k) => k.id));
         }
         if (ts.galat.length) console.warn("Sebagian timesheet gagal ditarik:", ts.galat);
+        const jejak = await kumpulkanKeteranganTimesheet(token, res.contents);
+        if (jejak.length > 0) {
+          const dibatasi = jejak.slice(0, 3000);
+          tulisStorage(KUNCI_JEJAK_TIMESHEET, JSON.stringify(dibatasi));
+          setJejakTimesheet(dibatasi);
+        }
       } catch (errTs) {
         console.warn("Gagal menarik timesheet:", errTs);
       }
@@ -1344,6 +1383,13 @@ export default function App() {
           <main className="container" data-geser={arahGeser ?? undefined}>
             {(currentView === "riwayat" || (currentView === "tambah" && lastActiveTab === "riwayat")) && (
               <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                {currentView === "riwayat" && catatanMencurigakan.length > 0 && (
+                  <KartuCatatanMencurigakan
+                    daftar={catatanMencurigakan}
+                    onHapus={hapusCatatanMencurigakan}
+                    onAbaikan={abaikanCatatanMencurigakan}
+                  />
+                )}
                 <RiwayatView
                   transaksi={transaksi}
                   bulanTerpilih={bulanTerpilih}
