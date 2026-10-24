@@ -17,6 +17,7 @@ import { UbinKategori, ChipKategori } from "../lib/kategoriIcon";
 import { LembarDetailTransaksi } from "./LembarDetailTransaksi";
 import { Edit2, Trash2 } from "lucide-react";
 import { pesanHapusPerdiem } from "../lib/perdiemOtomatis";
+import { hitungTotalHarian } from "../lib/totalHarian";
 
 interface RiwayatViewProps {
   transaksi: Transaksi[];
@@ -804,12 +805,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
       <div id="daftar-hari" className="daftar-hari">
         {daftarTanggal.map((tgl) => {
           const itemHari = perHariMap.get(tgl) || [];
-          const keluarHari = itemHari
-            .filter((x) => x.jenis === "pengeluaran" && x.kategori !== "Pindah Dana")
-            .reduce((s, x) => s + x.jumlah, 0);
-          const masukHari = itemHari
-            .filter((x) => x.jenis === "pemasukan" && x.kategori !== "Pindah Dana")
-            .reduce((s, x) => s + x.jumlah, 0);
+          // Total bersih hari itu (perdiem tidak dihitung sebagai pengeluaran; lihat lib/totalHarian.ts).
+          const { masuk: masukHari, keluar: keluarHari, bersih: bersihHari } = hitungTotalHarian(itemHari);
 
           const [y, m, d] = tgl.split("-").map(Number);
           const dObj = new Date(y, m - 1, d);
@@ -832,28 +829,18 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {keluarHari > 0 && (
+                  {(masukHari > 0 || keluarHari > 0) && (
                     <span
+                      className="hari-total-bersih"
+                      title={`Pemasukan ${formatRupiah(masukHari)} − pengeluaran ${formatRupiah(keluarHari)} (perdiem tidak dihitung sebagai pengeluaran)`}
                       style={{
-                        color: "var(--keluar)",
+                        color: bersihHari > 0 ? "var(--masuk)" : bersihHari < 0 ? "var(--keluar)" : "var(--muted)",
                         fontWeight: 700,
                         fontSize: "0.82rem",
                         whiteSpace: "nowrap",
                       }}
                     >
-                      −Rp{formatAngka(keluarHari)}
-                    </span>
-                  )}
-                  {masukHari > 0 && (
-                    <span
-                      style={{
-                        color: "var(--masuk)",
-                        fontWeight: 700,
-                        fontSize: "0.82rem",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      +Rp{formatAngka(masukHari)}
+                      {bersihHari > 0 ? "+" : bersihHari < 0 ? "−" : ""}Rp{formatAngka(Math.abs(bersihHari))}
                     </span>
                   )}
                 </div>
