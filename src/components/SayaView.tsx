@@ -521,22 +521,14 @@ export const SayaView: React.FC<SayaViewProps> = ({
                       }
                     >
                       <span className="tokoh-avatar" aria-hidden="true">
-                        {t.avatar ? (
-                          <img src={t.avatar} alt="" width={156} height={156} decoding="async" />
-                        ) : (
-                          <KarakterAnimasi karakter={kId} ukuran={48} showAura={aktif} />
-                        )}
+                        <img src={t.avatar} alt="" width={156} height={156} decoding="async" />
                       </span>
                       <span className="tokoh-info">
                         <span className="tokoh-nama">{k.nama}</span>
                         <span className="tokoh-teknik">{k.teknik}</span>
                       </span>
                       <span className="tokoh-ilustrasi" aria-hidden="true">
-                        {t.banner ? (
-                          <img src={t.banner} alt="" loading="lazy" decoding="async" />
-                        ) : (
-                          <span className="tokoh-lambang">{k.lambang}</span>
-                        )}
+                        <img src={t.banner} alt="" loading="lazy" decoding="async" />
                       </span>
                     </button>
                   );

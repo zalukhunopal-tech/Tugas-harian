@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
+  <style>
+    .putar { animation: putar 28s linear infinite; transform-origin: 200px 280px; }
+    .denyut { animation: denyut 4s ease-in-out infinite; transform-origin: 200px 280px; }
+    @keyframes putar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes denyut { 0%, 100% { opacity: 0.12; transform: scale(1); } 50% { opacity: 0.24; transform: scale(1.06); } }
+    @media (prefers-reduced-motion: reduce) { .putar, .denyut { animation: none; } }
+  </style>
+  <defs>
+    <radialGradient id="latar" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.28"/>
+      <stop offset="45%" stop-color="#eab308" stop-opacity="0.12"/>
+      <stop offset="85%" stop-color="#050811" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="emas" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="800" fill="#050811"/>
+  <rect width="400" height="800" fill="url(#latar)"/>
+
+  <!-- Aura hijau bayangan -->
+  <circle class="denyut" cx="200" cy="280" r="180" fill="#10b981" opacity="0.12"/>
+
+  <!-- Roda Dharma Mahoraga (delapan gagang) -->
+  <g class="putar" opacity="0.85">
+    <circle cx="200" cy="280" r="115" stroke="url(#emas)" stroke-width="10" fill="none"/>
+    <circle cx="200" cy="280" r="88" stroke="url(#emas)" stroke-width="3" fill="none"/>
+    <circle cx="200" cy="280" r="32" stroke="url(#emas)" stroke-width="8" fill="#050811"/>
+    <g stroke="url(#emas)" stroke-width="8" stroke-linecap="round">
+      <line x1="200" y1="120" x2="200" y2="440"/>
+      <line x1="40" y1="280" x2="360" y2="280"/>
+      <line x1="87" y1="167" x2="313" y2="393"/>
+      <line x1="313" y1="167" x2="87" y2="393"/>
+    </g>
+    <g fill="url(#emas)">
+      <circle cx="200" cy="115" r="10"/><circle cx="200" cy="445" r="10"/>
+      <circle cx="35" cy="280" r="10"/><circle cx="365" cy="280" r="10"/>
+      <circle cx="83" cy="163" r="10"/><circle cx="317" cy="397" r="10"/>
+      <circle cx="317" cy="163" r="10"/><circle cx="83" cy="397" r="10"/>
+    </g>
+  </g>
+
+  <!-- Sulur bayangan hitam (Chimera Shadow Garden) dari bawah -->
+  <path d="M0 800 L0 540 Q60 450 90 560 Q140 390 200 520 Q260 380 310 550 Q360 440 400 530 L400 800 Z" fill="#030712" opacity="0.9"/>
+  <path d="M30 800 Q100 560 150 640 Q200 470 250 640 Q310 560 370 800 Z" fill="#10b981" opacity="0.18"/>
+  <!-- Mata serigala Divine Dog di dalam bayangan -->
+  <path d="M155 590 L185 602 L162 608 Z" fill="#10b981"/>
+  <path d="M245 590 L215 602 L238 608 Z" fill="#10b981"/>
+</svg>

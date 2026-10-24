@@ -50,6 +50,7 @@ import {
 } from "./lib/storage";
 import { adalahPemasukanPerdiemOtomatis, cariPasanganPerdiem } from "./lib/perdiemOtomatis";
 import { apakahJatuhTempo } from "./lib/transaksiBerulang";
+import { TOKOH_TEMA } from "./lib/tokohTema";
 import {
   koinDipakai,
   ambilHargaCoinGecko,
@@ -1181,6 +1182,23 @@ export default function App() {
 
   return (
     <>
+      {tema === "jujutsu" && (
+        <div
+          className="wallpaper-tokoh"
+          id="wallpaper-tokoh"
+          key={karakter}
+          aria-hidden="true"
+          style={
+            {
+              "--wp": `url("${TOKOH_TEMA[karakter].wallpaper}")`,
+              "--wp-pos": TOKOH_TEMA[karakter].posisiWallpaper ?? "50% 50%",
+            } as React.CSSProperties
+          }
+        >
+          <div className="wp-kabur" />
+          <div className="wp-gambar" />
+        </div>
+      )}
       <div className="energi" id="energi" aria-hidden="true" />
       <div className="pulsa" id="pulsa" aria-hidden="true" />
 
