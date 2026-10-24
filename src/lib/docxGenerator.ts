@@ -33,7 +33,8 @@ import {
   hariIni,
 } from "./constants";
 import { hitungBatasLaporanFisik, KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
-import { hitungPenyelesaian, transaksiKegiatan } from "./penyelesaianDana";
+import { hitungPenyelesaian, KATEGORI_PERDIEM, transaksiKegiatan } from "./penyelesaianDana";
+import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { ambilSemuaBuktiOffline } from "./buktiStorage";
 
 export interface OpsiLaporanDocx {
@@ -397,6 +398,138 @@ function buatKotakStrukThermal(
       }),
     ],
   });
+}
+
+/**
+ * Daftar perdiem berformat file timesheet: "Detail Keuangan / Perdiem Kegiatan Lapangan", data Proyek, Judul Kegiatan,
+ * Nama, Bulan, tabel No | Tanggal | Keterangan | Lokasi | Jumlah (Rp.), baris Total, lalu Dilaporkan Oleh / Disetujui Oleh.
+ * Menggantikan kotak tempel per hari untuk kelompok Perdiem (perdiem tidak punya bukti fisik per hari).
+ */
+function buatBagianPerdiemTimesheet(daftar: DaftarPerdiemDokumen): (Paragraph | Table)[] {
+  const garis = { style: BorderStyle.SINGLE, size: 4, color: "808080" };
+  const garisTebal = { style: BorderStyle.SINGLE, size: 8, color: "111111" };
+  const tanpaGaris = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const bordersTabel = { top: garis, bottom: garis, left: garis, right: garis, insideHorizontal: garis, insideVertical: garis };
+  const bordersKosong = { top: tanpaGaris, bottom: tanpaGaris, left: tanpaGaris, right: tanpaGaris, insideHorizontal: tanpaGaris, insideVertical: tanpaGaris };
+
+  const teks = (isi: string, opsi: { tebal?: boolean; ukuran?: number } = {}) =>
+    new TextRun({ text: isi, bold: opsi.tebal, font: "Arial", size: opsi.ukuran ?? 20, color: "111111" });
+
+  const sel = (isi: string, lebar: number, opsi: { tebal?: boolean; rata?: (typeof AlignmentType)[keyof typeof AlignmentType]; isi?: string } = {}) =>
+    new TableCell({
+      width: { size: lebar, type: WidthType.PERCENTAGE },
+      borders: bordersTabel,
+      shading: opsi.isi ? { type: ShadingType.CLEAR, fill: opsi.isi } : undefined,
+      margins: { top: 40, bottom: 40, left: 80, right: 80 },
+      children: [new Paragraph({ alignment: opsi.rata, children: [teks(isi, { tebal: opsi.tebal, ukuran: 19 })] })],
+    });
+
+  const LEBAR = [6, 14, 42, 22, 16];
+  const kepala = new TableRow({
+    tableHeader: true,
+    cantSplit: true,
+    children: ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"].map((h, i) =>
+      sel(h, LEBAR[i], { tebal: true, isi: "EFEFEF", rata: i === 4 ? AlignmentType.RIGHT : i < 2 ? AlignmentType.CENTER : undefined })
+    ),
+  });
+  const barisData = daftar.baris.map(
+    (b) =>
+      new TableRow({
+        cantSplit: true,
+        children: [
+          sel(String(b.no), LEBAR[0], { rata: AlignmentType.CENTER }),
+          sel(b.tanggal, LEBAR[1], { rata: AlignmentType.CENTER }),
+          sel(b.keterangan, LEBAR[2]),
+          sel(b.lokasi, LEBAR[3]),
+          sel(formatAngka(b.jumlah), LEBAR[4], { rata: AlignmentType.RIGHT }),
+        ],
+      })
+  );
+  const barisTotal = new TableRow({
+    cantSplit: true,
+    children: [
+      sel("", LEBAR[0]),
+      sel("", LEBAR[1]),
+      sel("Total", LEBAR[2], { tebal: true }),
+      sel("", LEBAR[3]),
+      sel(formatAngka(daftar.total), LEBAR[4], { tebal: true, rata: AlignmentType.RIGHT }),
+    ],
+  });
+
+  const barisInfo = [
+    ["Proyek", daftar.proyek],
+    ["Judul Kegiatan", daftar.judulKegiatan],
+    ["Nama", daftar.nama],
+    ["Bulan", daftar.bulan],
+  ];
+  const tabelInfo = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: bordersKosong,
+    rows: barisInfo.map(
+      ([label, nilai]) =>
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              width: { size: 22, type: WidthType.PERCENTAGE },
+              borders: bordersKosong,
+              children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teks(label, { tebal: true })] })],
+            }),
+            new TableCell({
+              width: { size: 78, type: WidthType.PERCENTAGE },
+              borders: bordersKosong,
+              children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teks(`: ${nilai}`)] })],
+            }),
+          ],
+        })
+    ),
+  });
+
+  const selTtd = (judul: string, nama: string) =>
+    new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      borders: bordersKosong,
+      children: [
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [teks(judul, { tebal: true })] }),
+        new Paragraph({ spacing: { before: 900 }, alignment: AlignmentType.CENTER, children: [] }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: nama, bold: true, underline: nama ? {} : undefined, font: "Arial", size: 20, color: "111111" })],
+        }),
+      ],
+    });
+  const tabelTtd = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: bordersKosong,
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [selTtd("Dilaporkan Oleh :", daftar.dilaporkanOleh), selTtd("Disetujui Oleh :", daftar.disetujuiOleh)],
+      }),
+    ],
+  });
+
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 60, after: 0 },
+      children: [new TextRun({ text: "Detail Keuangan", bold: true, font: "Arial", size: 28, color: "111111" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 160 },
+      children: [new TextRun({ text: "Perdiem Kegiatan Lapangan", bold: true, font: "Arial", size: 24, color: "111111" })],
+    }),
+    tabelInfo,
+    new Paragraph({ spacing: { before: 120, after: 60 }, border: { bottom: garisTebal }, children: [] }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: bordersTabel,
+      rows: [kepala, ...barisData, barisTotal],
+    }),
+    new Paragraph({ spacing: { before: 280 }, children: [] }),
+    tabelTtd,
+  ];
 }
 
 /**
@@ -1132,10 +1265,24 @@ export async function buatDokumenLaporanKegiatanDocx(
 
     kelompokAktifIndex++;
 
+    // Perdiem: daftar harian berformat timesheet (Keterangan dan Lokasi dari file timesheet) menggantikan kotak tempel.
+    // Perdiem yang punya foto atau bukti tetap mendapat halaman buktinya di bawah daftar.
+    let trxUntukKotak = trxDalamKelompok;
+    if (namaKelompok === KATEGORI_PERDIEM) {
+      const daftarPerdiem = susunDaftarPerdiem(trxDalamKelompok, kegiatan, profilPelapor);
+      if (daftarPerdiem) {
+        childrenSections.push(...buatBagianPerdiemTimesheet(daftarPerdiem));
+        trxUntukKotak = trxDalamKelompok.filter(
+          (t) => (t.bukti && t.bukti.length > 0) || (t.detailKegiatan?.fotoPendukung && t.detailKegiatan.fotoPendukung.length > 0)
+        );
+        if (trxUntukKotak.length === 0) continue;
+      }
+    }
+
     // Hitung posisi transaksi dalam halaman (maksimal 2 transaksi sederhana per halaman)
     let transaksiDiHalamanIni = 0;
 
-    for (const trx of trxDalamKelompok) {
+    for (const trx of trxUntukKotak) {
       const noGlobal = mapNomorUrut.get(trx.id) || 1;
       const detail = trx.detailKegiatan || {};
       const jenisBukti = detail.jenisBukti || "Kwitansi";

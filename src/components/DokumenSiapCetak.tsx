@@ -4,6 +4,8 @@ import { formatAngka, formatRupiah, KELOMPOK_DANA_KEGIATAN } from "../lib/consta
 import { KotakPratinjauBelumTersedia, muatPratinjauBukti } from "../lib/driveBuktiLoader";
 import { RingkasanPenyelesaian } from "../lib/penyelesaianDana";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
+import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "../lib/timesheet";
+import { KATEGORI_PERDIEM } from "../lib/penyelesaianDana";
 
 interface DokumenSiapCetakProps {
   /** Transaksi yang sudah disaring dan diurutkan menurut tanggal oleh LaporanView. */
@@ -212,6 +214,80 @@ const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleToken, onS
   return <KotakPratinjauBelumTersedia linkDrive={bukti.driveLink} />;
 };
 
+/* ---------- lembar daftar perdiem berformat timesheet ---------- */
+
+/**
+ * Daftar perdiem dengan format yang sama dengan file timesheet: Detail Keuangan / Perdiem Kegiatan Lapangan,
+ * Proyek, Judul Kegiatan, Nama, Bulan, tabel No | Tanggal | Keterangan | Lokasi | Jumlah (Rp.), Total, dan kolom tanda tangan.
+ */
+const LembarPerdiemTimesheet: React.FC<{ daftar: DaftarPerdiemDokumen; kunci: string }> = ({ daftar, kunci }) => (
+  <article className="dsc-kertas dsc-timesheet" data-kelompok={kunci} data-testid="lembar-timesheet">
+    <header className="dsc-ts__kop">
+      <div className="dsc-ts__kop-judul">Detail Keuangan</div>
+      <div className="dsc-ts__kop-sub">Perdiem Kegiatan Lapangan</div>
+    </header>
+    <dl className="dsc-ts__info">
+      <dt>Proyek</dt>
+      <dd>: {daftar.proyek}</dd>
+      <dt>Judul Kegiatan</dt>
+      <dd>: {daftar.judulKegiatan}</dd>
+      <dt>Nama</dt>
+      <dd>: {daftar.nama}</dd>
+      <dt>Bulan</dt>
+      <dd>: {daftar.bulan}</dd>
+    </dl>
+    <div className="dsc-ts__tabel" role="table" aria-label="Daftar perdiem kegiatan lapangan">
+      <div className="dsc-ts__baris dsc-ts__baris--kepala" role="row">
+        <span role="columnheader">No</span>
+        <span role="columnheader">Tanggal</span>
+        <span role="columnheader">Keterangan</span>
+        <span role="columnheader">Lokasi</span>
+        <span role="columnheader" className="dsc-jumlah">
+          Jumlah (Rp.)
+        </span>
+      </div>
+      {daftar.baris.map((b) => (
+        <div className="dsc-ts__baris" role="row" key={b.no}>
+          <span role="cell">{b.no}</span>
+          <span role="cell" className="dsc-tgl">
+            {b.tanggal}
+          </span>
+          <span role="cell" className="dsc-ts__teks">
+            {b.keterangan}
+          </span>
+          <span role="cell" className="dsc-ts__teks">
+            {b.lokasi}
+          </span>
+          <span role="cell" className="dsc-jumlah">
+            {formatAngka(b.jumlah)}
+          </span>
+        </div>
+      ))}
+      <div className="dsc-ts__baris dsc-ts__baris--total" role="row">
+        <span />
+        <span />
+        <span role="cell">Total</span>
+        <span />
+        <span role="cell" className="dsc-jumlah">
+          {formatAngka(daftar.total)}
+        </span>
+      </div>
+    </div>
+    <div className="dsc-ts__ttd">
+      <div>
+        <p>Dilaporkan Oleh :</p>
+        <div className="dsc-ts__ttd-ruang" />
+        <p className="dsc-ts__ttd-nama">{daftar.dilaporkanOleh}</p>
+      </div>
+      <div>
+        <p>Disetujui Oleh :</p>
+        <div className="dsc-ts__ttd-ruang" />
+        <p className="dsc-ts__ttd-nama">{daftar.disetujuiOleh}</p>
+      </div>
+    </div>
+  </article>
+);
+
 /* ---------- komponen utama ---------- */
 
 export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
@@ -242,6 +318,16 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
     }
     return m;
   }, [kelompok]);
+
+  // Daftar perdiem memakai format file timesheet (lihat LembarPerdiemTimesheet), bukan tabel uraian biasa.
+  const kunciPerdiem = `kategori:${KATEGORI_PERDIEM}`;
+  const daftarPerdiem = useMemo(
+    () =>
+      adalahKegiatan && kegiatan
+        ? susunDaftarPerdiem(kelompok.find((k) => k.kunci === kunciPerdiem)?.item ?? [], kegiatan, profilPelapor)
+        : null,
+    [adalahKegiatan, kegiatan, kelompok, kunciPerdiem, profilPelapor]
+  );
 
   const [sedangMemuat, setSedangMemuat] = useState<Set<string>>(new Set());
   const ubahStatusMuat = React.useCallback((id: string, memuat: boolean) => {
@@ -290,6 +376,9 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
           {kelompok.map((k) => (
             <React.Fragment key={k.kunci}>
               {/* Lembar rincian kategori */}
+              {k.kunci === kunciPerdiem && daftarPerdiem ? (
+                <LembarPerdiemTimesheet daftar={daftarPerdiem} kunci={k.kunci} />
+              ) : (
               <article className="dsc-kertas" data-kelompok={k.kunci}>
                 <header className="dsc-kop">
                   <div className="dsc-kop__judul">{judulLaporan}</div>
@@ -344,6 +433,7 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
                   </div>
                 </div>
               </article>
+              )}
 
               {/* Lembar lampiran: satu kertas kosong per foto bukti, seperti struk yang ditempel di kertas HVS */}
               {k.item.flatMap((t) =>

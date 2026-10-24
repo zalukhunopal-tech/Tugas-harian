@@ -21,6 +21,7 @@ import { kompresBukti } from "../lib/buktiStorage";
 import { PerdiemRentang, hitungRentangPerdiem } from "../lib/perdiemOtomatis";
 import { PerdiemSekaligus, kontrolPilihan } from "./PerdiemSekaligus";
 import { PILIHAN_MODA, modaPerluDataSopir, saranJenisBukti } from "../lib/prasyaratDokumen";
+import { namaFileTimesheet, sarankanBatch } from "../lib/timesheet";
 
 /**
  * Bagian form yang ditampilkan. "semua" = form lengkap (PC dan mode lengkap). Bagian lain dipakai pengisian
@@ -197,6 +198,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   const [lokasiBaru, setLokasiBaru] = useState("");
   const [tglMulaiBaru, setTglMulaiBaru] = useState(hariIni());
   const [tglSelesaiBaru, setTglSelesaiBaru] = useState(hariIni());
+  // Batch kegiatan: terisi otomatis dengan batch berikutnya pada tahun mulai kegiatan (batch 5 tahun ini, batch 1 untuk
+  // tahun depan) sampai pengguna mengetiknya sendiri. Menentukan file timesheet perdiem yang dipakai.
+  const [batchManual, setBatchManual] = useState<string | null>(null);
+  const tahunMulaiBaru = Number(tglMulaiBaru.slice(0, 4));
+  const batchSaran = tahunMulaiBaru > 0 ? sarankanBatch(tahunMulaiBaru, daftarKegiatan) : 1;
+  const batchBaru = Math.floor(Number(batchManual ?? batchSaran));
 
   // Timesheet Modal / Input
   const [bukaTimesheet, setBukaTimesheet] = useState(false);
@@ -285,6 +292,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       lokasi: lokasiBaru.trim(),
       tanggalMulai: tglMulaiBaru,
       tanggalSelesai: tglSelesaiBaru,
+      ...(batchBaru > 0 ? { batch: batchBaru } : {}),
       dibuat: new Date().toISOString(),
     };
 
@@ -294,6 +302,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
     setModalKegiatanBaru(false);
     setNamaBaru("");
     setLokasiBaru("");
+    setBatchManual(null);
     if (bagian === "kegiatan") onLanjut?.();
   };
 
@@ -1781,6 +1790,25 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                     onChange={(e) => setTglSelesaiBaru(e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div className="input-field">
+                <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>Batch Kegiatan ({tahunMulaiBaru || "tahun"})</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  placeholder={`Saran: ${batchSaran}`}
+                  value={batchManual ?? String(batchSaran)}
+                  onChange={(e) => setBatchManual(e.target.value)}
+                />
+                {batchBaru > 0 && tglSelesaiBaru >= tglMulaiBaru && (
+                  <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
+                    File timesheet perdiem: {namaFileTimesheet(batchBaru, tglMulaiBaru, tglSelesaiBaru)}. Bila belum ada di folder
+                    Keuangan, dibuat otomatis.
+                  </span>
+                )}
               </div>
 
               <div style={{ fontSize: "0.78rem", color: "var(--muted)", background: "rgba(0,0,0,0.05)", padding: "8px 10px", borderRadius: "8px" }}>

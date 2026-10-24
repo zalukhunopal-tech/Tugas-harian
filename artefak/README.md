@@ -70,6 +70,11 @@ dengan pesan yang jelas. Bila `gdriveSync.ts` memakai endpoint baru, tambahkan t
   ditolak (`403`).
 - **Membuat spreadsheet baru** tidak ada di konektor Sheets. Tahun baru dibuat lewat salinan file tahun lalu
   (jalur utama di aplikasi); folder tanpa spreadsheet sama sekali dijawab `501`.
+- **Timesheet perdiem** (`src/lib/timesheetDrive.ts`): file di folder Keuangan yang namanya memuat "timesheet" hanya
+  dibaca (Keterangan dan Lokasi per tanggal) dan dikeluarkan dari daftar sheet keuangan. File baru untuk batch baru
+  dibuat lewat `copy_file` dari file timesheet terbaru, dikosongkan (`batch_clear_values`) lalu diisi
+  (`update_values`, tanggal berawalan apostrof agar tetap teks). Nama tab tidak bisa diganti (tidak ada `batchUpdate`)
+  dan baris di atas kapasitas 34 hari tidak berformat. File timesheet yang sudah ada tidak pernah ditulis.
 - Nilai sel datang sebagai teks terformat (`valueRenderOption` diabaikan); pembaca di aplikasi sudah menanganinya.
 - Satu sinkron = puluhan panggilan berurutan, jadi lebih lambat daripada lewat REST. Sinkron otomatis 5 detik
   setelah perubahan tetap berjalan, tetapi tidak pernah dua sekaligus.
@@ -88,6 +93,7 @@ npx tsx artefak/uji/uji_ubah_konfirmasi.ts                # pengubah confirm -> 
 npx vite build --config artefak/vite.config.ts
 python3 -m http.server 8766 --bind 127.0.0.1 --directory dist-artefak &
 python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
+python3 artefak/uji/uji_timesheet.py http://127.0.0.1:8766/ [/path/ke/chromium]   # timesheet perdiem
 ```
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,

@@ -236,6 +236,7 @@ export function muatProfilPelapor(): ProfilPelapor {
     jabatan: data?.jabatan || PROFIL_PELAPOR_DEFAULT.jabatan,
     lembaga: data?.lembaga || PROFIL_PELAPOR_DEFAULT.lembaga,
     proyek: data?.proyek || PROFIL_PELAPOR_DEFAULT.proyek,
+    penyetuju: data?.penyetuju || PROFIL_PELAPOR_DEFAULT.penyetuju,
     diubah: data?.diubah,
   };
 }
