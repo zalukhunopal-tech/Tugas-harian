@@ -10,6 +10,7 @@ import {
   barisUntukSimpan,
   batchDariJudul,
   batchDariNama,
+  cariTransaksiNyasarTimesheet,
   cocokkanFileTimesheet,
   formatTanggalTimesheet,
   judulUntukTimesheet,
@@ -187,6 +188,25 @@ cek("tanggal gaya timesheet, nomor urut, total", daftar?.baris.map((b) => b.tang
 cek("keterangan dan lokasi dari timesheet", daftar?.baris[2].keterangan === "Pengambilan titik koordinat" && daftar.baris[2].lokasi === "Desa Long Rungan" && daftar.baris[0].keterangan === "");
 cek("hari berketerangan dan penyetuju", daftar?.hariBerketerangan === 1 && daftar.disetujuiOleh === "Alvina Nur Lailia" && daftar.dilaporkanOleh === "Adrila Nopal Prastian Zalukhu");
 cek("tanpa perdiem -> null", susunDaftarPerdiem([trx({ kategori: "Konsumsi" })], { nama: "K", batch: 1, timesheetNama: undefined, timesheetBaris: [] }, { nama: "N", proyek: "P" }) === null);
+
+console.log("Pembersihan transaksi nyasar dari file timesheet");
+const nyasar = (o: Partial<Transaksi>) => trx({ jenis: "pemasukan", kategori: "Lain-lain", ...o });
+const daftarTs = [{ timesheetBaris: [{ tanggal: "2026-09-20", keterangan: "Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat", lokasi: "Kabupaten Malinau" }] }];
+const semuaTrx = [
+  nyasar({ id: "j1", deskripsi: "Total", jumlah: 6800000 }),
+  nyasar({ id: "j2", deskripsi: "Total", jumlah: 6800000 }),
+  nyasar({ id: "j3", deskripsi: "Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat", jumlah: 200000, kategori: "Kabupaten Malinau" }),
+  nyasar({ id: "s1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 26370000 }),
+  nyasar({ id: "s2", deskripsi: "Total", kegiatanId: "kg4" }),
+  nyasar({ id: "s3", deskripsi: "Total", catatan: "dicatat sendiri" }),
+  trx({ id: "s4", deskripsi: "Total", dana: "Dana Pribadi", jenis: "pemasukan" }),
+  trx({ id: "s5", deskripsi: "Total", jenis: "pengeluaran" }),
+  trx({ id: "s6", deskripsi: "Perdiem Kalimantan · 20 Sep 2026" }),
+];
+const dibuang = cariTransaksiNyasarTimesheet(semuaTrx, daftarTs).map((t) => t.id).join();
+cek("baris Total dan baris hari dari timesheet dikenali", dibuang === "j1,j2,j3", dibuang);
+cek("transaksi sungguhan tidak tersentuh (dana awal, ada kegiatan/catatan, pribadi, pengeluaran, perdiem)", !/s\d/.test(dibuang));
+cek("tanpa timesheet tersalin, hanya baris Total yang dikenali", cariTransaksiNyasarTimesheet(semuaTrx, []).map((t) => t.id).join() === "j1,j2");
 
 if (gagal) {
   console.log(`\n${gagal} uji gagal`);
