@@ -11,6 +11,7 @@ export const SYNC_TIME_KEY = "keuangan-sync-terakhir";
 export const ASET_KEY = "keuangan-aset";
 export const HARGA_KEY = "keuangan-harga";
 export const RECURRING_KEY = "keuangan-transaksi-berulang";
+export const LAPORAN_AGENDA_KEY = "keuangan-laporan-agenda";
 
 export const KATEGORI: Record<NamaDana, { pemasukan: string[]; pengeluaran: string[] }> = {
   "Dana Pribadi": {
