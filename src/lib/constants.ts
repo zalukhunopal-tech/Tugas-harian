@@ -72,6 +72,7 @@ export const PROFIL_PELAPOR_DEFAULT = {
   jabatan: "Surveyor",
   lembaga: "KKI Warsi",
   proyek: "Kayan-Mentarang",
+  penyetuju: "Alvina Nur Lailia",
 };
 
 export const DAFTAR_JENIS_BUKTI = [

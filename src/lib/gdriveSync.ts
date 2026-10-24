@@ -1,4 +1,5 @@
 import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan, LaporanKegiatanFileContent } from "../types";
+import { adalahFileTimesheet } from "./timesheet";
 import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile } from "./storage";
 
 export interface GDriveFolder {
@@ -12,6 +13,7 @@ export interface GDriveFileInfo {
   name: string;
   mimeType: string;
   webViewLink?: string;
+  modifiedTime?: string;
 }
 
 export interface SinkronMeta {
@@ -22,7 +24,10 @@ export interface SinkronMeta {
 
 export interface KeuanganDriveContents {
   folder: GDriveFolder;
+  /** Spreadsheet keuangan (Pribadi/Kegiatan per tahun). File timesheet perdiem tidak termasuk, lihat `timesheets`. */
   spreadsheets: GDriveFileInfo[];
+  /** File timesheet perdiem per batch kegiatan; namanya memuat "kegiatan" dan tahun, jadi harus dipisah dari sheet keuangan. */
+  timesheets: GDriveFileInfo[];
   sheetPribadi?: GDriveFileInfo;
   sheetKegiatan?: GDriveFileInfo;
   fileAset?: GDriveFileInfo;
@@ -112,7 +117,7 @@ export async function ambilIsiFolderKeuangan(
   folderId: string
 ): Promise<KeuanganDriveContents> {
   const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType,webViewLink)&pageSize=100`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType,webViewLink,modifiedTime)&pageSize=100`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -126,10 +131,12 @@ export async function ambilIsiFolderKeuangan(
   const data = await res.json();
   const files: GDriveFileInfo[] = data.files || [];
   const spreadsheets: GDriveFileInfo[] = [];
+  const timesheets: GDriveFileInfo[] = [];
 
   const contents: KeuanganDriveContents = {
     folder: { id: folderId, name: "Keuangan" },
     spreadsheets,
+    timesheets,
     allFiles: files,
   };
 
@@ -140,7 +147,9 @@ export async function ambilIsiFolderKeuangan(
       f.mimeType.includes("spreadsheet") ||
       namaLower.endsWith(".xlsx");
 
-    if (isSpreadsheet) {
+    if (isSpreadsheet && adalahFileTimesheet(f.name)) {
+      timesheets.push(f);
+    } else if (isSpreadsheet) {
       spreadsheets.push(f);
       if (namaLower.includes("pribadi") && !contents.sheetPribadi) {
         contents.sheetPribadi = f;

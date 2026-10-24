@@ -218,7 +218,16 @@ export interface ProfilPelapor {
   jabatan: string;
   lembaga: string;
   proyek: string;
+  penyetuju?: string; // nama pada "Disetujui Oleh" di timesheet perdiem
   diubah?: string;
+}
+
+/** Satu hari pada file timesheet perdiem. */
+export interface BarisTimesheet {
+  tanggal: string; // YYYY-MM-DD
+  keterangan: string; // kegiatan di lapangan
+  lokasi: string;
+  jumlah?: number;
 }
 
 export interface DataKegiatan {
@@ -231,6 +240,12 @@ export interface DataKegiatan {
   urutanTransaksi?: string[]; // Urutan manual ID transaksi untuk WiMIS
   sertakanDaftarPeriksa?: boolean; // Opsi sertakan halaman daftar periksa SPJ
   docxDriveId?: string; // ID file docx di folder Keuangan/Laporan Kegiatan
+  batch?: number; // batch kegiatan pada tahun mulainya; menentukan file timesheet yang dipakai
+  timesheetId?: string; // ID file timesheet (Google Sheets) di folder Keuangan
+  timesheetNama?: string;
+  timesheetBaris?: BarisTimesheet[]; // salinan Tanggal/Keterangan/Lokasi dari file timesheet, dipakai dokumen perdiem
+  timesheetSinkron?: string; // waktu ISO terakhir isi timesheet ditarik
+  timesheetDibuatApp?: boolean; // file dibuat aplikasi (salinan), jadi tanggal dan jumlahnya boleh diperbarui aplikasi
   dibuat?: string;
   diubah?: string;
 }

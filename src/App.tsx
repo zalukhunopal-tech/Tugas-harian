@@ -79,6 +79,8 @@ import {
   simpanDocxLaporanKeDrive,
 } from "./lib/gdriveSync";
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
+import { batchKegiatan } from "./lib/timesheet";
+import { siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
 import {
   simpanBuktiOffline,
   ambilSemuaBuktiOffline,
@@ -96,6 +98,9 @@ import { GrafikView } from "./components/GrafikView";
 import { SayaView } from "./components/SayaView";
 import { TransaksiBerulangModal } from "./components/TransaksiBerulangModal";
 import { AppLockModal } from "./components/AppLockModal";
+
+/** Kegiatan yang selesai sebelum tanggal ini dianggap lama: file timesheet-nya tidak dibuat otomatis. */
+const tanggalBatasKegiatanLama = () => new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
 
 export default function App() {
   const [transaksi, setTransaksi] = useState<Transaksi[]>(() => muatTransaksi());
@@ -313,6 +318,10 @@ export default function App() {
   const autoSyncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSyncDocxTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDocxKegiatanIdsRef = React.useRef<Set<string>>(new Set());
+  const autoTimesheetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTimesheetIdsRef = React.useRef<Set<string>>(new Set());
+  // Kegiatan yang sudah dicoba disiapkan file timesheet-nya pada sesi ini, supaya perubahan kecil tidak mengulang.
+  const percobaanTimesheetRef = React.useRef<Set<string>>(new Set());
   const syncPendingRef = React.useRef<boolean>(false);
   const initialPullDoneRef = React.useRef<boolean>(false);
 
@@ -421,6 +430,7 @@ export default function App() {
           const blob = await buatDokumenLaporanKegiatanDocx({
             transaksi: transaksiRef.current,
             kegiatan: kg,
+            daftarKegiatan: daftarKegiatanRef.current,
             profilPelapor: profilPelaporRef.current,
             urutanTransaksiIds: kg.urutanTransaksi,
             sertakanDaftarPeriksa: kg.sertakanDaftarPeriksa !== false,
@@ -468,6 +478,63 @@ export default function App() {
       }, 10000);
     },
     [jalankanAutoSyncDocxKegiatan]
+  );
+
+  // Tiap kegiatan baru (atau kegiatan yang baru diberi batch): pakai file timesheet batch dan tahunnya di folder Keuangan,
+  // dan bila belum ada buat salinan dari file timesheet terbaru. Isi Keterangan/Lokasi ditarik dari file itu.
+  const jalankanAutoTimesheet = useCallback(async () => {
+    const ids = Array.from(pendingTimesheetIdsRef.current);
+    pendingTimesheetIdsRef.current.clear();
+    if (ids.length === 0) return;
+    const token = await getAccessToken();
+    if (!token || !cekStatusSesiGoogle().aktif || !navigator.onLine) return;
+
+    try {
+      const folder = await cariFolderKeuangan(token);
+      if (!folder) return;
+      const contents = await ambilIsiFolderKeuangan(token, folder.id);
+      let daftar = daftarKegiatanRef.current;
+      let berubah = false;
+      for (const id of ids) {
+        const k = daftar.find((x) => x.id === id);
+        if (!k || !batchKegiatan(k)) continue;
+        try {
+          // File baru hanya dibuat otomatis untuk kegiatan yang batch-nya diisi dan belum lama selesai; kegiatan lama cukup ditarik.
+          const bolehBuat = Boolean(k.batch) && k.tanggalSelesai >= tanggalBatasKegiatanLama();
+          const h = await siapkanTimesheetKegiatan(token, contents, k, profilPelaporRef.current, transaksiRef.current, daftar, { bolehBuat });
+          if (h.kegiatan !== k) {
+            daftar = daftar.map((x) => (x.id === k.id ? h.kegiatan : x));
+            if (h.berubah) berubah = true;
+          }
+        } catch (errKg: any) {
+          console.warn(`Timesheet kegiatan ${k.nama} belum bisa disiapkan:`, errKg);
+        }
+      }
+      if (daftar !== daftarKegiatanRef.current) {
+        setDaftarKegiatan(daftar);
+        simpanDaftarKegiatan(daftar);
+        if (berubah) {
+          jadwalkanAutoSync();
+          jadwalkanAutoSyncDocx(ids);
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal menyiapkan file timesheet:", err);
+    }
+  }, [jadwalkanAutoSync, jadwalkanAutoSyncDocx]);
+
+  const jadwalkanAutoTimesheet = useCallback(
+    (kegiatan: DataKegiatan) => {
+      if (!batchKegiatan(kegiatan) || percobaanTimesheetRef.current.has(kegiatan.id)) return;
+      percobaanTimesheetRef.current.add(kegiatan.id);
+      pendingTimesheetIdsRef.current.add(kegiatan.id);
+      if (autoTimesheetTimerRef.current) clearTimeout(autoTimesheetTimerRef.current);
+      if (!navigator.onLine) return;
+      autoTimesheetTimerRef.current = setTimeout(() => {
+        void jalankanAutoTimesheet();
+      }, 4000);
+    },
+    [jalankanAutoTimesheet]
   );
 
   const cariIdKegiatanTerdampak = useCallback(
@@ -733,6 +800,21 @@ export default function App() {
         perbaruiTransaksi(muatTransaksi());
       }
 
+      // Tarik Keterangan/Lokasi dari file timesheet tiap kegiatan (hanya baca; kegagalan tidak membatalkan sinkron lain).
+      try {
+        const daftarSekarang = res.laporanKegiatan?.daftarKegiatan ?? daftarKegiatanRef.current;
+        const ts = await tarikTimesheetSemuaKegiatan(token, res.contents, daftarSekarang);
+        if (ts.berubah) {
+          setDaftarKegiatan(ts.daftar);
+          simpanDaftarKegiatan(ts.daftar);
+          jadwalkanAutoSync();
+          jadwalkanAutoSyncDocx(ts.daftar.map((k) => k.id));
+        }
+        if (ts.galat.length) console.warn("Sebagian timesheet gagal ditarik:", ts.galat);
+      } catch (errTs) {
+        console.warn("Gagal menarik timesheet:", errTs);
+      }
+
       if (res.transaksi.length > 0) {
         const blnTerbaru = res.transaksi[0].tanggal.slice(0, 7);
         const adaDiBulanIni = res.transaksi.some((t) => t.tanggal.startsWith(bulanTerpilih));
@@ -888,8 +970,9 @@ export default function App() {
       });
       jadwalkanAutoSync();
       jadwalkanAutoSyncDocx([kegiatan.id]);
+      jadwalkanAutoTimesheet(kegiatan);
     },
-    [jadwalkanAutoSync, jadwalkanAutoSyncDocx]
+    [jadwalkanAutoSync, jadwalkanAutoSyncDocx, jadwalkanAutoTimesheet]
   );
 
   const handleUpdateKegiatan = useCallback(
@@ -901,8 +984,9 @@ export default function App() {
       });
       jadwalkanAutoSync();
       jadwalkanAutoSyncDocx([kegiatan.id]);
+      if (!kegiatan.timesheetId) jadwalkanAutoTimesheet(kegiatan);
     },
-    [jadwalkanAutoSync, jadwalkanAutoSyncDocx]
+    [jadwalkanAutoSync, jadwalkanAutoSyncDocx, jadwalkanAutoTimesheet]
   );
 
   // Transaction CRUD handlers dengan field diubah dan auto-sync
@@ -1312,6 +1396,7 @@ export default function App() {
                   profilPelapor={profilPelapor}
                   daftarKegiatan={daftarKegiatan}
                   onUpdateKegiatan={handleUpdateKegiatan}
+                  onSimpanProfilPelapor={handleSimpanProfilPelapor}
                   googleToken={googleAccessToken || undefined}
                   isLoggedInGoogle={Boolean(googleUser)}
                 />
