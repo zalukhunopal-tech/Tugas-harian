@@ -43,7 +43,21 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
+        // Wallpaper tokoh besar (sekitar 80 KB per gambar), jadi tidak ikut dipasang sekaligus: hanya yang pernah dipilih
+        // disimpan untuk mode offline.
+        globIgnores: ["**/wallpaper-*.webp"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/wallpaper-[^/]+\.webp$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "wallpaper-tokoh",
+              expiration: { maxEntries: 14 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: true,

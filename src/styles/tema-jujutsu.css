@@ -295,6 +295,69 @@ html[data-tema="jujutsu"] body {
   background: var(--bg);
 }
 
+/* Wallpaper tokoh: satu gambar latar per tokoh, diganti saat tokoh dipilih (App.tsx memasang --wp dan --wp-pos).
+   Hanya gambar tokoh terpilih yang diunduh. Peredam gelap di ::after menjaga teks dan kartu tetap terbaca. */
+.wallpaper-tokoh {
+  display: none;
+}
+
+html[data-tema="jujutsu"] .wallpaper-tokoh {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  animation: wallpaper-masuk 0.7s ease-out;
+}
+
+html[data-tema="jujutsu"] .wallpaper-tokoh::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5, 7, 14, 0.36), rgba(5, 7, 14, 0.56) 38%, rgba(5, 7, 14, 0.84));
+}
+
+.wp-gambar {
+  position: absolute;
+  inset: 0;
+  background: var(--wp) var(--wp-pos, 50% 50%) / cover no-repeat;
+}
+
+.wp-kabur {
+  display: none;
+}
+
+/* Layar lebar (PC): gambar menjadi kolom tegak (rasio 9:16) di tengah dengan tepi memudar,
+   dan sisinya diisi salinan buram supaya tidak ada tepi kosong. */
+@media (min-aspect-ratio: 1/1) {
+  .wp-kabur {
+    display: block;
+    position: absolute;
+    inset: -60px;
+    background: var(--wp) center / cover no-repeat;
+    filter: blur(40px) saturate(1.2);
+    opacity: 0.55;
+  }
+
+  .wp-gambar {
+    inset: 0 auto 0 50%;
+    width: min(100vw, calc(100vh * 0.56));
+    transform: translateX(-50%);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  }
+}
+
+@keyframes wallpaper-masuk {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Aura energi kutukan yang bergeser pelan, di dalam .energi supaya tidak melebarkan halaman. */
 html[data-tema="jujutsu"] .energi {
   display: block;
@@ -459,32 +522,55 @@ html[data-tema="jujutsu"] .bulan-label {
   }
 }
 
-/* Kartu dan folder dengan bingkai energi yang mengalir. */
+/* Kartu dan folder agak tembus pandang supaya wallpaper tokoh terlihat, dengan bingkai energi yang mengalir.
+   Bingkai berupa cincin 1 px di ::after (mask), jadi isi kartu tidak ikut diwarnai gradasinya. */
 html[data-tema="jujutsu"] .card,
 html[data-tema="jujutsu"] .balance,
 html[data-tema="jujutsu"] .folder {
+  position: relative;
   border: 1px solid transparent;
-  background:
-    linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(
-        120deg,
-        rgba(var(--k1), 0.7),
-        rgba(var(--k2), 0.35),
-        rgba(var(--k3), 0.5),
-        rgba(var(--k1), 0.7)
-      )
-      border-box;
-  background-size: 100% 100%, 300% 100%;
-  animation: alir-energi 14s linear infinite;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), inset 0 0 24px rgba(var(--k1), 0.06);
+}
+
+html[data-tema="jujutsu"] .card:not([style*="border"]):not([style*="background"])::after,
+html[data-tema="jujutsu"] .balance::after,
+html[data-tema="jujutsu"] .folder::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+      120deg,
+      rgba(var(--k1), 0.7),
+      rgba(var(--k2), 0.35),
+      rgba(var(--k3), 0.5),
+      rgba(var(--k1), 0.7)
+    )
+    0 0 / 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: alir-energi 14s linear infinite;
 }
 
 @keyframes alir-energi {
   from {
-    background-position: 0 0, 0% 0;
+    background-position: 0 0;
   }
   to {
-    background-position: 0 0, 300% 0;
+    background-position: 300% 0;
+  }
+}
+
+/* Kartu yang bingkai atau latarnya diatur sendiri (gaya sebaris) tidak diberi cincin. Kartu isi form di dalam
+   dialog PC memang tanpa bingkai. */
+@media (min-width: 1024px) {
+  html[data-tema="jujutsu"] .tambah-dialog-box #kartu-form::after {
+    display: none;
   }
 }
 
@@ -627,22 +713,6 @@ html[data-tema="jujutsu"] .budget-status.over .meter-fill {
   50% {
     box-shadow: 0 0 16px rgba(240, 82, 82, 0.95);
   }
-}
-
-/* Kartu pemilihan karakter. */
-html[data-tema="jujutsu"] .karakter-lambang {
-  background: transparent !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-html[data-tema="jujutsu"] .karakter[data-karakter] .karakter-lambang {
-  background: transparent !important;
-}
-
-html[data-tema="jujutsu"] .karakter[aria-checked="true"] {
-  box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px rgba(var(--k1), 0.45);
 }
 
 /* Denyut singkat dari tengah layar saat transaksi tersimpan. */

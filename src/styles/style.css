@@ -1442,71 +1442,132 @@ button {
   margin: 0;
 }
 
+/* Satu kolom di semua lebar layar: kartu tokoh butuh ruang untuk nama dan ilustrasi. */
 .karakter-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   width: 100%;
 }
 
-.karakter {
+/* Kartu pemilihan tokoh: avatar bercincin di kiri, ilustrasi setengah badan di kanan yang memudar ke kiri.
+   --tokoh dan --tokoh-2 (triplet RGB) diisi per kartu dari src/lib/tokohTema.ts, jadi setiap kartu
+   memakai warna tokohnya sendiri, bukan warna tokoh yang sedang aktif. */
+.tokoh-kartu {
+  --tokoh: 148, 163, 184;
+  --tokoh-2: 100, 116, 139;
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
-  gap: 12px;
-  text-align: left;
-  padding: 12px 14px;
-  min-height: 52px;
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  cursor: pointer;
+  gap: 14px;
   min-width: 0;
+  min-height: 92px;
+  padding: 14px min(34%, 130px) 14px 16px;
   box-sizing: border-box;
+  overflow: hidden;
+  text-align: left;
+  color: var(--text);
+  background:
+    linear-gradient(90deg, transparent 40%, rgba(var(--tokoh), 0.16) 78%, rgba(var(--tokoh-2), 0.2)),
+    var(--surface);
+  border: 1px solid rgba(var(--tokoh), 0.32);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
-.karakter:hover {
-  border-color: var(--accent);
+.tokoh-kartu:hover {
+  border-color: rgba(var(--tokoh), 0.7);
 }
 
-.karakter[aria-checked="true"] {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+.tokoh-kartu:active {
+  transform: scale(0.99);
 }
 
-.karakter-lambang {
+.tokoh-kartu:focus-visible {
+  outline: 2px solid rgb(var(--tokoh));
+  outline-offset: 2px;
+}
+
+.tokoh-kartu[aria-checked="true"] {
+  border-color: rgb(var(--tokoh));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--tokoh)),
+    0 0 18px rgba(var(--tokoh), 0.45);
+}
+
+.tokoh-avatar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
-  background: transparent;
-  line-height: 1;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, rgba(var(--tokoh), 0.35), #0b1020 70%);
+  border: 2px solid rgb(var(--tokoh));
+  box-shadow:
+    0 0 10px rgba(var(--tokoh), 0.55),
+    inset 0 0 6px rgba(var(--tokoh), 0.4);
+  box-sizing: border-box;
 }
 
-.karakter-info {
+.tokoh-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tokoh-info {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
   flex: 1 1 auto;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
-.karakter-nama {
-  font-weight: 700;
-  font-size: 14px;
+.tokoh-nama {
+  font-weight: 800;
+  font-size: 15px;
   line-height: 1.25;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
-.karakter-teknik {
-  font-size: 12px;
+.tokoh-teknik {
+  font-size: 12.5px;
   color: var(--muted);
   line-height: 1.35;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tokoh-ilustrasi {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(44%, 170px);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 42%);
+  mask-image: linear-gradient(90deg, transparent, #000 42%);
+}
+
+.tokoh-ilustrasi img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
 }
 
 /* ---------- Layar sempit (Mode Seluler: di bawah 640 px) ---------- */
@@ -2047,100 +2108,21 @@ button {
   }
 }
 
-/* 13: Tab Saya pilihan karakter:
-   1 kolom di bawah 480 px (avatar kiri, nama & keterangan kanan),
-   2 kolom mulai 480 px */
-@media (max-width: 479.98px) {
+/* 13: Tab Saya pilihan tokoh: satu kolom di HP (di bawah 640 px). */
+@media (max-width: 639.98px) {
   .karakter-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    width: 100%;
+    gap: 10px;
   }
 
-  .karakter {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+  .tokoh-kartu {
+    min-height: 80px;
+    padding: 12px 34% 12px 12px;
     gap: 12px;
-    padding: 12px 14px;
-    min-height: 52px;
-    box-sizing: border-box;
-    text-align: left;
-    min-width: 0;
   }
 
-  .karakter-lambang {
-    flex-shrink: 0;
-    width: 44px;
-    height: 44px;
-  }
-
-  .karakter-info {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .karakter-nama {
-    font-size: 14px;
-    font-weight: 700;
-    word-break: break-word;
-  }
-
-  .karakter-teknik {
-    font-size: 12px;
-    line-height: 1.35;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-}
-
-@media (min-width: 480px) and (max-width: 639.98px) {
-  .karakter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    width: 100%;
-  }
-
-  .karakter {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    min-height: 52px;
-    box-sizing: border-box;
-    text-align: left;
-    min-width: 0;
-  }
-
-  .karakter-lambang {
-    flex-shrink: 0;
-    width: 44px;
-    height: 44px;
-  }
-
-  .karakter-info {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .karakter-nama {
-    font-size: 14px;
-    font-weight: 700;
-    word-break: break-word;
-  }
-
-  .karakter-teknik {
-    font-size: 12px;
-    line-height: 1.35;
-    word-break: break-word;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .tokoh-avatar {
+    width: 50px;
+    height: 50px;
   }
 }
 
@@ -2517,18 +2499,12 @@ button {
     box-sizing: border-box;
   }
 
-  /* 2. Kartu yang sejajar (Saldo Dana Pribadi & Kegiatan, pilihan karakter) memakai 2 kolom dengan jarak 16 px. Navigasi bawah tetap. */
+  /* 2. Kartu yang sejajar (Saldo Dana Pribadi & Kegiatan) memakai 2 kolom dengan jarak 16 px. Navigasi bawah tetap. */
   .balances {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 16px;
-  }
-
-  .karakter-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
   }
 
   /* Navigasi bawah di tablet dan PC diatur oleh blok "Navigasi bawah di layar lebar" di akhir berkas ini. */
@@ -2904,7 +2880,7 @@ button {
     margin-bottom: 0;
   }
 
-  /* - Saya: semua kartu satu kolom, selebar kolom isi; pilihan karakter di "Tema & Karakter" 3 kolom. */
+  /* - Saya: semua kartu satu kolom, selebar kolom isi; pilihan tokoh di "Tema & Karakter" juga satu kolom. */
   #view-saya {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2928,12 +2904,6 @@ button {
     grid-column: 1 / -1;
     order: 3;
     margin-bottom: 0;
-  }
-
-  #view-saya .karakter-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
   }
 
   /* 8. Form tambah transaksi dan tambah aset di PC tampil sebagai dialog di tengah layar dengan lebar maksimal 560 px */
