@@ -531,7 +531,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                 <div className="kategori-header" style={{ marginBottom: "6px" }}>
                   <span className="kategori-nama" style={{ fontWeight: 600 }}>
                     {k.kategori}
-                  </span>
+                  </span>{" "}
                   <span className="kategori-jumlah" style={{ fontWeight: 700 }}>
                     {formatRupiah(k.jumlah)}
                     <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginLeft: "6px" }}>
@@ -558,7 +558,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
 
       {/* Bagian 3: Perbandingan Belanja per Kategori dengan Tahun Sebelumnya */}
       <div className="card">
-        <h3 style={{ margin: "0 0 8px", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
+        <h3 className="judul-perbandingan" style={{ margin: "0 0 8px", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
           <span>⚖️</span> Perbandingan Pengeluaran vs Tahun {tahunSebelumnya}
         </h3>
         <p className="help" style={{ margin: "0 0 14px", fontSize: "0.85rem" }}>
@@ -575,9 +575,15 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)" }}>
                   <th style={{ padding: "8px 6px" }}>Kategori</th>
-                  <th style={{ padding: "8px 6px", textAlign: "right" }}>Tahun {tahunSebelumnya}</th>
-                  <th style={{ padding: "8px 6px", textAlign: "right" }}>Tahun {tahunPilihan}</th>
-                  <th style={{ padding: "8px 6px", textAlign: "right" }}>Selisih</th>
+                  <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                    <TeksLayar pc={`Tahun ${tahunSebelumnya}`} hp={`${tahunSebelumnya} (Rp)`} />
+                  </th>
+                  <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                    <TeksLayar pc={`Tahun ${tahunPilihan}`} hp={`${tahunPilihan} (Rp)`} />
+                  </th>
+                  <th style={{ padding: "8px 6px", textAlign: "right" }}>
+                    <TeksLayar pc="Selisih" hp="Selisih (Rp)" />
+                  </th>
                   <th style={{ padding: "8px 6px", textAlign: "right" }}>Tren</th>
                 </tr>
               </thead>
@@ -585,10 +591,42 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                 {perbandinganKategori.map((row) => {
                   const hemat = row.selisih < 0;
                   const sama = row.selisih === 0;
+                  // Label tren: di kolom Tren (tablet/PC) dan, di HP, di bawah nama kategori (kolom Tren disembunyikan).
+                  const lencanaTren =
+                    row.persen !== null && Number(row.persen) === 0 ? (
+                      <span className="tren-lencana tren-baru" style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                        Tetap
+                      </span>
+                    ) : row.persen !== null ? (
+                      <span
+                        className="tren-lencana"
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "12px",
+                          fontSize: "0.78rem",
+                          fontWeight: 700,
+                          background: hemat ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                          color: hemat ? "#10b981" : "#ef4444",
+                        }}
+                      >
+                        {Number(row.persen) > 0 ? `▲ +${row.persen}%` : `▼ ${row.persen}%`}
+                      </span>
+                    ) : row.jmlIni > 0 && row.jmlLalu === 0 ? (
+                      <span className="tren-lencana tren-baru" style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                        Baru
+                      </span>
+                    ) : (
+                      <span className="tren-lencana tren-baru" style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                        —
+                      </span>
+                    );
 
                   return (
                     <tr key={row.kategori} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                      <td style={{ padding: "9px 6px", fontWeight: 600 }}>{row.kategori}</td>
+                      <td style={{ padding: "9px 6px", fontWeight: 600 }}>
+                        {row.kategori}
+                        <span className="tren-di-nama">{lencanaTren}</span>
+                      </td>
                       <td data-label={`${tahunSebelumnya} (Rp)`} style={{ padding: "9px 6px", textAlign: "right", color: "var(--text-muted)" }}>
                         {row.jmlLalu > 0 ? <Nominal n={row.jmlLalu} /> : "—"}
                       </td>
@@ -612,26 +650,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                           "0"
                         )}
                       </td>
-                      <td style={{ padding: "9px 6px", textAlign: "right" }}>
-                        {row.persen !== null ? (
-                          <span
-                            style={{
-                              padding: "3px 8px",
-                              borderRadius: "12px",
-                              fontSize: "0.78rem",
-                              fontWeight: 700,
-                              background: hemat ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                              color: hemat ? "#10b981" : "#ef4444",
-                            }}
-                          >
-                            {Number(row.persen) > 0 ? `▲ +${row.persen}%` : `▼ ${row.persen}%`}
-                          </span>
-                        ) : row.jmlIni > 0 && row.jmlLalu === 0 ? (
-                          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Baru</span>
-                        ) : (
-                          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>—</span>
-                        )}
-                      </td>
+                      <td style={{ padding: "9px 6px", textAlign: "right" }}>{lencanaTren}</td>
                     </tr>
                   );
                 })}
