@@ -295,7 +295,7 @@ html[data-tema="jujutsu"] body {
   background: var(--bg);
 }
 
-/* Wallpaper tokoh: satu gambar latar per tokoh, diganti saat tokoh dipilih (App.tsx memasang --wp dan --wp-pos).
+/* Wallpaper tokoh: satu gambar latar per tokoh, diganti saat tokoh dipilih (App.tsx memasang --wp).
    Hanya gambar tokoh terpilih yang diunduh. Peredam gelap di ::after menjaga teks dan kartu tetap terbaca. */
 .wallpaper-tokoh {
   display: none;
@@ -321,7 +321,7 @@ html[data-tema="jujutsu"] .wallpaper-tokoh::after {
 .wp-gambar {
   position: absolute;
   inset: 0;
-  background: var(--wp) var(--wp-pos, 50% 50%) / cover no-repeat;
+  background: var(--wp) center / cover no-repeat;
 }
 
 .wp-kabur {
