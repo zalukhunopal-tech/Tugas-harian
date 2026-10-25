@@ -143,20 +143,34 @@ export function batchKegiatan(k: Pick<DataKegiatan, "batch" | "nama" | "timeshee
 }
 
 /**
- * Batch berikutnya untuk kegiatan baru yang dimulai pada tahun tertentu: terbesar pada tahun itu ditambah 1, dan 1
- * untuk tahun yang belum punya kegiatan (batch 5 tahun ini, batch 1 tahun depan). `indeksFile` melengkapi
- * kegiatan lama yang tidak mencatat batch dengan batch pada nama file timesheet di Drive.
+ * Batch untuk kegiatan baru yang dimulai pada tahun tertentu. Bila rentang kegiatan diberikan dan sebuah file timesheet di
+ * Drive sudah meliputi periode itu (dan batch-nya belum dipakai kegiatan lain), batch file itu yang disarankan: kegiatan
+ * ini memang kegiatan di file tersebut. Selain itu batch berikutnya: terbesar pada tahun itu ditambah 1, dan 1 untuk tahun
+ * yang belum punya kegiatan (batch 5 tahun ini, batch 1 tahun depan). `indeksFile` melengkapi kegiatan lama yang tidak
+ * mencatat batch dengan batch pada nama file timesheet di Drive.
  */
 export function sarankanBatch(
   tahun: number,
   daftar: Array<Pick<DataKegiatan, "batch" | "nama" | "timesheetNama" | "tanggalMulai">>,
-  indeksFile: Array<{ nama: string }> = []
+  indeksFile: Array<{ nama: string }> = [],
+  rentang?: { mulai: string; selesai: string }
 ): number {
+  const dipakai = new Set<number>();
   let terbesar = 0;
   for (const k of daftar) {
     if (tahunKegiatan(k) !== tahun) continue;
     const b = batchKegiatan(k);
-    if (b && b > terbesar) terbesar = b;
+    if (b) {
+      dipakai.add(b);
+      if (b > terbesar) terbesar = b;
+    }
+  }
+  if (rentang) {
+    const cocok = indeksFile
+      .filter((f) => tahunDariNama(f.nama) === tahun && namaFileBeririsan(f.nama, rentang.mulai, rentang.selesai))
+      .map((f) => batchDariNama(f.nama))
+      .filter((b): b is number => Boolean(b) && !dipakai.has(b as number));
+    if (cocok.length === 1) return cocok[0];
   }
   for (const f of indeksFile) {
     if (tahunDariNama(f.nama) !== tahun) continue;
@@ -193,7 +207,7 @@ export function cocokkanFileTimesheet(
     if (cocok.length >= 1) return urutkanTerbaru(cocok)[0];
     return undefined;
   }
-  const beririsan = files.filter((f) => periodeNamaBeririsan(f.nama, k.tanggalMulai, k.tanggalSelesai));
+  const beririsan = files.filter((f) => namaFileBeririsan(f.nama, k.tanggalMulai, k.tanggalSelesai));
   return beririsan.length === 1 ? beririsan[0] : undefined;
 }
 
@@ -221,7 +235,7 @@ function periodeDariNama(nama: string): { dari: string; sampai: string } | null 
 }
 
 /** Periode pada nama file beririsan dengan rentang kegiatan? */
-function periodeNamaBeririsan(nama: string, mulai: string, selesai: string): boolean {
+export function namaFileBeririsan(nama: string, mulai: string, selesai: string): boolean {
   const periode = periodeDariNama(nama);
   return periode !== null && mulai <= periode.sampai && selesai >= periode.dari;
 }

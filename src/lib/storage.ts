@@ -308,3 +308,15 @@ export function simpanLaporanKegiatanFile(fileContent: LaporanKegiatanFileConten
   }
 }
 
+
+const INDEKS_TIMESHEET_KEY = "keuangan-timesheet-indeks";
+
+/** Nama file timesheet di folder Keuangan pada tarikan terakhir; dipakai menyarankan batch tanpa harus menarik lagi. */
+export function muatIndeksTimesheet(): Array<{ nama: string }> {
+  const data = bacaJsonStorage<Array<{ nama: string }>>(INDEKS_TIMESHEET_KEY, []);
+  return Array.isArray(data) ? data.filter((x) => x && typeof x.nama === "string") : [];
+}
+
+export function simpanIndeksTimesheet(nama: string[]): void {
+  tulisStorage(INDEKS_TIMESHEET_KEY, JSON.stringify(nama.map((n) => ({ nama: n }))));
+}

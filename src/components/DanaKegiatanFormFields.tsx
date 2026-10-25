@@ -16,12 +16,12 @@ import {
   Transaksi,
 } from "../types";
 import { DAFTAR_JENIS_BUKTI, formatRentangTanggal, formatRupiah, hariIni } from "../lib/constants";
-import { buatId } from "../lib/storage";
+import { buatId, muatIndeksTimesheet } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import { PerdiemRentang, hitungRentangPerdiem } from "../lib/perdiemOtomatis";
 import { PerdiemSekaligus, kontrolPilihan } from "./PerdiemSekaligus";
 import { PILIHAN_MODA, modaPerluDataSopir, saranJenisBukti } from "../lib/prasyaratDokumen";
-import { namaFileTimesheet, sarankanBatch } from "../lib/timesheet";
+import { batchDariNama, namaFileTimesheet, sarankanBatch, tahunDariNama } from "../lib/timesheet";
 
 /**
  * Bagian form yang ditampilkan. "semua" = form lengkap (PC dan mode lengkap). Bagian lain dipakai pengisian
@@ -202,8 +202,13 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   // tahun depan) sampai pengguna mengetiknya sendiri. Menentukan file timesheet perdiem yang dipakai.
   const [batchManual, setBatchManual] = useState<string | null>(null);
   const tahunMulaiBaru = Number(tglMulaiBaru.slice(0, 4));
-  const batchSaran = tahunMulaiBaru > 0 ? sarankanBatch(tahunMulaiBaru, daftarKegiatan) : 1;
+  const indeksTimesheet = modalKegiatanBaru ? muatIndeksTimesheet() : [];
+  const batchSaran =
+    tahunMulaiBaru > 0
+      ? sarankanBatch(tahunMulaiBaru, daftarKegiatan, indeksTimesheet, tglSelesaiBaru >= tglMulaiBaru ? { mulai: tglMulaiBaru, selesai: tglSelesaiBaru } : undefined)
+      : 1;
   const batchBaru = Math.floor(Number(batchManual ?? batchSaran));
+  const fileBatchAda = indeksTimesheet.find((f) => batchDariNama(f.nama) === batchBaru && tahunDariNama(f.nama) === tahunMulaiBaru);
 
   // Timesheet Modal / Input
   const [bukaTimesheet, setBukaTimesheet] = useState(false);
@@ -1805,8 +1810,9 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 />
                 {batchBaru > 0 && tglSelesaiBaru >= tglMulaiBaru && (
                   <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
-                    File timesheet perdiem: {namaFileTimesheet(batchBaru, tglMulaiBaru, tglSelesaiBaru)}. Bila belum ada di folder
-                    Keuangan, dibuat otomatis.
+                    {fileBatchAda
+                      ? `File timesheet perdiem sudah ada dan akan dipakai: ${fileBatchAda.nama}.`
+                      : `File timesheet perdiem: ${namaFileTimesheet(batchBaru, tglMulaiBaru, tglSelesaiBaru)}. Bila belum ada di folder Keuangan, dibuat otomatis.`}
                   </span>
                 )}
               </div>
