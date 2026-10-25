@@ -5003,16 +5003,24 @@ button {
 .saya-kembali {
   appearance: none;
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
+  padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--border);
+  /* Opak dan bercincin jelas, seperti ikon aplikasi di sebelahnya: di atas wallpaper terang atau gelap tombol tetap terbaca. */
+  border: 2px solid var(--accent);
   background: var(--surface);
   color: var(--text);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   display: grid;
   place-items: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+.saya-kembali:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .saya-kembali:active {
@@ -5591,4 +5599,107 @@ button {
   resize: vertical;
   width: 100%;
   box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Formulir transaksi di tablet dan PC (>= 640 px). HP (< 640 px) tidak memakai aturan di sini.
+   Dua kolom dengan baris yang berpasangan: Dana | Tanggal, Jumlah | Metode bayar; sisanya selebar baris. Saat Pindah Dana,
+   Tanggal | Uraian. Kolom kanan tidak lagi kosong di samping daftar kategori.
+   ========================================================================== */
+@media (min-width: 640px) {
+  #form-transaksi {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+    align-items: start;
+  }
+
+  #form-transaksi > .f-jenis,
+  #form-transaksi > .f-uraian,
+  #form-transaksi > .f-kategori,
+  #form-transaksi > .f-target,
+  #form-transaksi > .f-kaitan,
+  #form-transaksi > #galat-form {
+    grid-column: 1 / -1;
+  }
+
+  /* Isi bertahap Dana Kegiatan (tablet < 1024 px) dan tombol untuk membukanya selebar baris, tidak terjepit di satu kolom. */
+  #form-transaksi > .bertahap,
+  #form-transaksi > .bertahap-aktifkan {
+    grid-column: 1 / -1;
+  }
+
+  #form-transaksi > .bertahap-aktifkan {
+    justify-self: start;
+  }
+
+  #form-transaksi:has(> .bertahap) > .f-dana {
+    grid-column: 1 / -1;
+  }
+
+  #form-transaksi:has(> .bertahap) > .f-dana > select {
+    max-width: 360px;
+  }
+
+  /* Pindah Dana: panel dari-ke selebar baris, lalu Tanggal | Uraian berpasangan. */
+  #form-transaksi[data-mode="pindah_dana"] > .f-uraian {
+    grid-column: auto;
+  }
+
+  /* Tiga pilihan jenis transaksi dalam satu baris, tidak terlipat. */
+  #form-transaksi .f-jenis .segmented-options {
+    flex-wrap: nowrap !important;
+  }
+
+  #form-transaksi .f-jenis .segmented-options label {
+    min-width: 0 !important;
+    white-space: nowrap;
+  }
+
+  /* Pilihan kategori (ikon) mengalir selebar baris; daftar pilih di bawahnya tidak perlu selebar baris. */
+  #form-transaksi .f-kategori > select {
+    max-width: 360px;
+  }
+
+  #form-transaksi .f-uraian input,
+  #form-transaksi .f-kaitan input {
+    width: 100%;
+  }
+
+  /* Tombol bergaya tautan di dalam formulir ("Baca Ketentuan SPJ", "Buat Kegiatan Baru") tampil abu-abu bawaan browser karena
+     .btn-link tidak punya latar; di sini dibuat transparan seperti tautan. */
+  #form-transaksi button.btn-link {
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+  }
+
+  /* Kolom yang berpasangan sama tinggi (input tanggal sebelumnya lebih tinggi daripada pilihan Dana di sebelahnya). */
+  #form-transaksi .f-dana > select,
+  #form-transaksi .f-tanggal > input,
+  #form-transaksi .f-jumlah > input,
+  #form-transaksi .f-metode > select,
+  #form-transaksi .f-uraian > input,
+  #form-transaksi .f-kaitan > input,
+  #form-transaksi .f-kategori > select {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+}
+
+/* Dialog formulir di PC: lebih lebar supaya dua kolom lega, dan isinya tidak menyusut. */
+@media (min-width: 1024px) {
+  .tambah-dialog-box {
+    max-width: 760px;
+  }
+
+  /* Anak dialog tidak boleh menyusut: kartu Scan Struk sebelumnya terjepit menjadi garis tipis. */
+  .tambah-dialog-box > * {
+    flex-shrink: 0;
+  }
+
+  /* Dialog berada di dalam kontainer utama (lapisan z=1) sehingga bilah navigasi (z=50) menimpa dasar dialog.
+     Selama formulir terbuka di PC, bilah itu diturunkan di bawah dialog. */
+  body:has(#view-tambah) .navbar {
+    z-index: 0;
+  }
 }
