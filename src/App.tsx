@@ -85,6 +85,9 @@ import {
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
 import { batchKegiatan, cariCatatanMencurigakan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
 import { KartuCatatanMencurigakan } from "./components/KartuCatatanMencurigakan";
+import { DataGandaModal, KartuDataGanda } from "./components/DataGandaModal";
+import { cariDataGanda } from "./lib/dataGanda";
+import { bersihkanDataPerangkat } from "./lib/bersihkanPerangkat";
 import { periksaKeberadaanFolder, ringkasSetup, siapkanFolderKeuangan } from "./lib/setupDrive";
 import { kumpulkanKeteranganTimesheet, siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
 import {
@@ -109,6 +112,7 @@ import { hapusTotp } from "./lib/totp";
 /** Kegiatan yang selesai sebelum tanggal ini dianggap lama: file timesheet-nya tidak dibuat otomatis. */
 const KUNCI_JEJAK_TIMESHEET = "keuangan-jejak-timesheet";
 const KUNCI_MENCURIGAKAN_DIABAIKAN = "keuangan-mencurigakan-diabaikan";
+const KUNCI_GANDA_DIABAIKAN = "keuangan-ganda-diabaikan";
 
 const tanggalBatasKegiatanLama = () => new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
 
@@ -338,6 +342,12 @@ export default function App() {
     const data = bacaJsonStorage<string[]>(KUNCI_MENCURIGAKAN_DIABAIKAN, []);
     return Array.isArray(data) ? data : [];
   });
+  // Kelompok catatan kembar yang dipilih "Biarkan": dikenali dari ID anggotanya, jadi kembaran baru tetap ditanyakan.
+  const [gandaDiabaikan, setGandaDiabaikan] = useState<string[]>(() => {
+    const data = bacaJsonStorage<string[]>(KUNCI_GANDA_DIABAIKAN, []);
+    return Array.isArray(data) ? data : [];
+  });
+  const [modalGandaBuka, setModalGandaBuka] = useState(false);
   const autoTimesheetTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTimesheetIdsRef = React.useRef<Set<string>>(new Set());
   // Kegiatan yang sudah dicoba disiapkan file timesheet-nya pada sesi ini, supaya perubahan kecil tidak mengulang.
@@ -634,6 +644,32 @@ export default function App() {
       return Array.from(ids);
     },
     []
+  );
+
+  // Catatan kembar: hanya saran. Dihapus lewat jendela periksa, yang menjaga satu catatan tiap kelompok.
+  const tandaKelompokGanda = (ids: string[]) => [...ids].sort().join("+");
+  const kelompokGanda = React.useMemo(
+    () => cariDataGanda(transaksi).filter((k) => !gandaDiabaikan.includes(tandaKelompokGanda(k.anggota.map((t) => t.id)))),
+    [transaksi, gandaDiabaikan]
+  );
+  const abaikanDataGanda = useCallback(() => {
+    const baru = [...new Set([...gandaDiabaikan, ...kelompokGanda.map((k) => tandaKelompokGanda(k.anggota.map((t) => t.id)))])];
+    setGandaDiabaikan(baru);
+    tulisStorage(KUNCI_GANDA_DIABAIKAN, JSON.stringify(baru));
+  }, [kelompokGanda, gandaDiabaikan]);
+  const hapusDataGanda = useCallback(
+    (ids: string[]) => {
+      const set = new Set(ids);
+      const terdampak = cariIdKegiatanTerdampak(transaksi.filter((t) => set.has(t.id)));
+      set.forEach((id) => tambahIdTerhapus(id));
+      perbaruiTransaksi(transaksi.filter((t) => !set.has(t.id)));
+      jadwalkanAutoSync();
+      if (terdampak.length > 0) jadwalkanAutoSyncDocx(terdampak);
+      setModalGandaBuka(false);
+      setSyncStatus({ pesan: `${set.size} catatan ganda dihapus`, status: "sukses" });
+      setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
+    },
+    [transaksi, cariIdKegiatanTerdampak, perbaruiTransaksi, jadwalkanAutoSync, jadwalkanAutoSyncDocx]
   );
 
   // Unggah bukti transaksi ke Google Drive atau simpan ke antrean offline jika jaringan belum siap
@@ -1005,6 +1041,34 @@ export default function App() {
     setDriveContents(null);
     setSyncPesan("Koneksi akun Google diputuskan.");
     setSyncStatus({ pesan: "", status: "idle" });
+  };
+
+  // Sebelum data dihapus dari perangkat: kirim ke Drive. Hanya bila sesi ini sudah menarik isi Drive dengan lengkap; kalau tidak,
+  // data lokal bisa belum lengkap dan mengirimnya akan menimpa isi Drive.
+  const handleKirimSebelumKeluar = async (): Promise<{ ok: boolean; pesan?: string }> => {
+    try {
+      const token = await getAccessToken();
+      if (!token) return { ok: false, pesan: "Sambungan ke Google Drive tidak aktif." };
+      if (!navigator.onLine) return { ok: false, pesan: "Perangkat sedang tidak terhubung ke internet." };
+      if (!sudahTarikLengkap()) {
+        return { ok: false, pesan: "Isi Drive belum ditarik lengkap di sesi ini, jadi data tidak dikirim supaya isi Drive tidak tertimpa. Tekan Tarik Data dulu." };
+      }
+      await kirimSemuaKeDrive(token, transaksiRef.current, asetRef.current, pengaturanRef.current, muatLaporanKegiatanFile());
+      syncPendingRef.current = false;
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, pesan: `Kirim ke Drive gagal: ${err?.message ?? err}.` };
+    }
+  };
+
+  // Keluar sekaligus membersihkan perangkat: tanpa ini salinan data tertinggal di browser dan ikut tertulis balik ke Drive
+  // (atau terlihat orang lain) pada sambungan berikutnya. Halaman dimuat ulang supaya semua keadaan di memori ikut bersih.
+  const handleKeluarDanHapus = async () => {
+    if (autoSyncTimerRef.current) clearTimeout(autoSyncTimerRef.current);
+    await logoutGoogle();
+    resetStatusTarik();
+    await bersihkanDataPerangkat();
+    window.location.reload();
   };
 
   const handleKirimKeDrive = async () => {
@@ -1450,6 +1514,14 @@ export default function App() {
           <main className="container" data-geser={arahGeser ?? undefined}>
             {(currentView === "riwayat" || (currentView === "tambah" && lastActiveTab === "riwayat")) && (
               <div className={currentView === "tambah" ? "view-bg-pc-only" : undefined}>
+                {currentView === "riwayat" && kelompokGanda.length > 0 && catatanMencurigakan.length === 0 && (
+                  <KartuDataGanda
+                    jumlahKelompok={kelompokGanda.length}
+                    jumlahLebih={kelompokGanda.reduce((n, k) => n + k.anggota.length - 1, 0)}
+                    onPeriksa={() => setModalGandaBuka(true)}
+                    onAbaikan={abaikanDataGanda}
+                  />
+                )}
                 {currentView === "riwayat" && catatanMencurigakan.length > 0 && (
                   <KartuCatatanMencurigakan
                     daftar={catatanMencurigakan}
@@ -1536,6 +1608,8 @@ export default function App() {
                     await handleGoogleLogin();
                   }}
                   onGoogleLogout={handleGoogleLogout}
+                  onKirimSebelumKeluar={handleKirimSebelumKeluar}
+                  onKeluarDanHapus={handleKeluarDanHapus}
                   driveContents={driveContents}
                   memuatDrive={memuatDrive}
                   onPeriksaDrive={async () => {
@@ -1714,6 +1788,9 @@ export default function App() {
         </div>
       )}
 
+      {modalGandaBuka && (
+        <DataGandaModal kelompok={kelompokGanda} onHapus={hapusDataGanda} onTutup={() => setModalGandaBuka(false)} />
+      )}
       <TransaksiBerulangModal
         isOpen={modalBerulangBuka}
         onClose={() => setModalBerulangBuka(false)}

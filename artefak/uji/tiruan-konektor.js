@@ -25,6 +25,7 @@
     tanpaMcp: false, // use("mcp") -> null
     tanpaSheets: false, // konektor Sheets tidak tersambung
     indeksLambat: false, // file yang dibuat sesudah flag ini menyala belum muncul di search_files
+    sampahTerlihat: false, // search_files ikut memuat file di Sampah, seperti konektor asli (tidak ada klausa trashed)
     createTanpaId: false, // create_file/copy_file menjawab tanpa id
     gagal: {}, // tool -> objek galat yang dilempar
     hariIni: new Date().toISOString().slice(0, 10),
@@ -80,7 +81,7 @@
       ["2", D.hariIni, "Uji gaji", "Gaji", "5000000", "", "4955000", "", "", "idp2", "Transfer", ""],
     ]);
     tambahSheet("SK", [
-      ["1", D.hariIni, "Uji dana awal", "Penerimaan Dana", "26370000", "", "26370000", "", "", "idk1", "Transfer", ""],
+      ["1", D.hariIni, "Uji dana awal", "Penerimaan Dana", "25000000", "", "25000000", "", "", "idk1", "Transfer", ""],
     ]);
     if (opsi.denganAset) {
       tambahFile({ id: "AS", title: "Aset.json", mimeType: "application/json", parentId: "F1", bytes: enc.encode("[]") });
@@ -170,7 +171,7 @@
           return { files: bagi.map((f) => ({ ...bentuk(f), owner: f.owner, sharedWithMeTime: f.modifiedTime })), nextPageToken: "~!!~token" };
         }
         const hasil = [...D.files.values()].filter(
-          (f) => f.id !== "root1" && !D.trashed.has(f.id) && !f.belumTerindeks && klausa.every((k) => cocok(f, k))
+          (f) => f.id !== "root1" && (D.sampahTerlihat || !D.trashed.has(f.id)) && !f.belumTerindeks && klausa.every((k) => cocok(f, k))
         );
         return { files: hasil.map(bentuk), nextPageToken: "~!!~token" };
       },

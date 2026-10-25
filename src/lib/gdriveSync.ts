@@ -33,6 +33,8 @@ export interface KeuanganDriveContents {
   fileAset?: GDriveFileInfo;
   fileHarga?: GDriveFileInfo;
   fileSinkron?: GDriveFileInfo;
+  /** Semua salinan Sinkron.json di folder, yang terbaru dulu. Salinan lama (mis. yang sudah di Sampah) menyimpan catatan penghapusan yang tak boleh hilang. */
+  semuaSinkron?: GDriveFileInfo[];
   filePengaturan?: GDriveFileInfo;
   fileLaporanKegiatan?: GDriveFileInfo;
   allFiles: GDriveFileInfo[];
@@ -198,6 +200,11 @@ export async function ambilIsiFolderKeuangan(
     allFiles: files,
   };
 
+  // Beberapa salinan berkas keadaan (Aset/Sinkron/Pengaturan/Laporan) bisa ada bersamaan: pasang ulang, dua perangkat, atau
+  // salinan lama di Sampah yang tak bisa disaring konektor. Urutan daftar tidak bisa dipercaya; pakai yang terbaru.
+  const lebihBaru = (a: GDriveFileInfo, b?: GDriveFileInfo): boolean => !b || (a.modifiedTime ?? "") > (b.modifiedTime ?? "");
+  const salinanSinkron: GDriveFileInfo[] = [];
+
   for (const f of files) {
     const namaLower = f.name.toLowerCase();
     const isSpreadsheet =
@@ -216,17 +223,19 @@ export async function ambilIsiFolderKeuangan(
         contents.sheetKegiatan = f;
       }
     } else if (f.name === "Aset.json" || namaLower.includes("aset.json")) {
-      contents.fileAset = f;
+      if (lebihBaru(f, contents.fileAset)) contents.fileAset = f;
     } else if (f.name === "Harga Pasar.json" || namaLower.includes("harga pasar.json")) {
-      contents.fileHarga = f;
+      if (lebihBaru(f, contents.fileHarga)) contents.fileHarga = f;
     } else if (f.name === "Sinkron.json" || namaLower.includes("sinkron.json")) {
-      contents.fileSinkron = f;
+      salinanSinkron.push(f);
+      if (lebihBaru(f, contents.fileSinkron)) contents.fileSinkron = f;
     } else if (f.name === "Pengaturan.json" || namaLower.includes("pengaturan.json")) {
-      contents.filePengaturan = f;
+      if (lebihBaru(f, contents.filePengaturan)) contents.filePengaturan = f;
     } else if (f.name === "Laporan Kegiatan.json" || namaLower.includes("laporan kegiatan.json")) {
-      contents.fileLaporanKegiatan = f;
+      if (lebihBaru(f, contents.fileLaporanKegiatan)) contents.fileLaporanKegiatan = f;
     }
   }
+  contents.semuaSinkron = salinanSinkron.sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""));
 
   return contents;
 }
@@ -245,6 +254,54 @@ export async function bacaSinkronMeta(
     console.warn("Gagal membaca Sinkron.json:", e);
     return null;
   }
+}
+
+/**
+ * Menyatukan beberapa salinan Sinkron.json. Catatan penghapusan hanya bertambah: ID yang pernah dihapus tetap terhapus
+ * di mana pun salinannya tercatat, sebab satu salinan yang kehilangan daftar itu membuat baris yang sudah dibuang
+ * muncul kembali dan ikut ditulis ulang ke spreadsheet. Untuk waktu ubah dipakai yang paling baru per ID.
+ */
+export function gabungSinkronMeta(daftar: SinkronMeta[]): SinkronMeta {
+  const terhapus = new Set<string>();
+  const diubah: Record<string, string> = {};
+  let terakhirSinkron: string | undefined;
+  for (const m of daftar) {
+    for (const id of Array.isArray(m?.terhapus) ? m.terhapus : []) if (typeof id === "string" && id) terhapus.add(id);
+    for (const [id, waktu] of Object.entries(m?.diubah ?? {})) {
+      if (!diubah[id] || String(waktu) > diubah[id]) diubah[id] = String(waktu);
+    }
+    if (m?.terakhirSinkron && (!terakhirSinkron || m.terakhirSinkron > terakhirSinkron)) terakhirSinkron = m.terakhirSinkron;
+  }
+  return { terhapus: Array.from(terhapus), diubah, terakhirSinkron };
+}
+
+/** Banyak salinan Sinkron.json yang dibaca sekaligus; salinan yang lebih lama dari ini hanya menambah beban baca. */
+const BATAS_SALINAN_SINKRON = 6;
+
+/**
+ * Membaca Sinkron.json terbaru dan salinan-salinan sebelumnya, lalu menyatukannya. `terbacaTerbaru` false bila salinan
+ * terbaru ada tetapi gagal dibaca: pemanggil tidak boleh menulis Sinkron.json baru dari data lokal saja (menghapus catatan
+ * penghapusan yang hanya ada di Drive). Salinan lama yang gagal dibaca tidak menghalangi.
+ */
+export async function bacaSinkronGabungan(
+  token: string,
+  contents: KeuanganDriveContents
+): Promise<{ meta: SinkronMeta | null; terbacaTerbaru: boolean }> {
+  const salinan = (contents.semuaSinkron?.length ? contents.semuaSinkron : contents.fileSinkron ? [contents.fileSinkron] : []).slice(
+    0,
+    BATAS_SALINAN_SINKRON
+  );
+  if (salinan.length === 0) return { meta: null, terbacaTerbaru: true };
+  const terbaca: SinkronMeta[] = [];
+  let terbacaTerbaru = false;
+  for (let i = 0; i < salinan.length; i++) {
+    const m = await bacaSinkronMeta(token, salinan[i].id);
+    if (m) {
+      terbaca.push(m);
+      if (i === 0) terbacaTerbaru = true;
+    }
+  }
+  return { meta: terbaca.length ? gabungSinkronMeta(terbaca) : null, terbacaTerbaru };
 }
 
 export async function simpanSinkronMeta(
@@ -1305,8 +1362,13 @@ export async function kirimSemuaKeDrive(
   // 2. Sinkronkan daftar ID terhapus dengan Sinkron.json
   const idTerhapusLokal = muatIdTerhapus();
   if (contents.fileSinkron) {
-    const metaDrive = await bacaSinkronMeta(token, contents.fileSinkron.id);
-    if (metaDrive && Array.isArray(metaDrive.terhapus)) {
+    const { meta: metaDrive, terbacaTerbaru } = await bacaSinkronGabungan(token, contents);
+    // Sinkron.json ada tetapi tak terbaca: menulisnya ulang dari data lokal saja membuang catatan penghapusan yang hanya ada
+    // di Drive, dan baris yang sudah dibuang pun hidup lagi. Hentikan; coba lagi nanti.
+    if (!terbacaTerbaru) {
+      throw new Error("Catatan penghapusan di Drive (Sinkron.json) belum bisa dibaca, jadi kirim ditahan supaya data yang sudah Anda hapus tidak muncul lagi. Coba lagi sebentar lagi.");
+    }
+    if (metaDrive) {
       for (const id of metaDrive.terhapus) {
         idTerhapusLokal.add(id);
       }
@@ -1539,15 +1601,13 @@ export async function tarikSemuaDariDrive(
   let mapDiubahDrive: Record<string, string> | undefined;
 
   if (contents.fileSinkron) {
-    const metaDrive = await bacaSinkronMeta(token, contents.fileSinkron.id);
-    if (!metaDrive) galatBaca++;
+    const { meta: metaDrive, terbacaTerbaru } = await bacaSinkronGabungan(token, contents);
+    if (!terbacaTerbaru) galatBaca++;
     if (metaDrive) {
-      if (Array.isArray(metaDrive.terhapus)) {
-        for (const id of metaDrive.terhapus) {
-          idTerhapusLokal.add(id);
-        }
-        simpanIdTerhapus(idTerhapusLokal);
+      for (const id of metaDrive.terhapus) {
+        idTerhapusLokal.add(id);
       }
+      simpanIdTerhapus(idTerhapusLokal);
       mapDiubahDrive = metaDrive.diubah;
     }
   }

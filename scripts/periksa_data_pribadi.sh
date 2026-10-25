@@ -36,5 +36,24 @@ if git ls-files | grep -E "^public/.*\.zip$"; then
   gagal=1
 fi
 
+# 5. Kata-kata milik Anda sendiri (nama, lembaga, toko langganan, lokasi kegiatan). Kata itu tidak ditulis di repo; berikan lewat
+#    variabel lingkungan, dipisah "|":  PERIKSA_KATA_PRIBADI="kata satu|kata dua" bash scripts/periksa_data_pribadi.sh
+#    Tambahkan PERIKSA_RIWAYAT=1 untuk ikut memeriksa riwayat Git (semua cabang): isi lama yang sudah dihapus dari berkas
+#    masih bisa dibaca siapa pun selama commit-nya ada di repo publik.
+if [ -n "${PERIKSA_KATA_PRIBADI:-}" ]; then
+  if git grep -nIiE "$PERIKSA_KATA_PRIBADI" -- "${lingkup[@]}" README.md SECURITY.md ':!*.zip' ':!*.svg'; then
+    echo "::error::Ada kata pribadi Anda (PERIKSA_KATA_PRIBADI) di berkas yang dilacak."
+    gagal=1
+  fi
+  if [ "${PERIKSA_RIWAYAT:-0}" = "1" ]; then
+    riwayat=$(git log --all --oneline -i -G"$PERIKSA_KATA_PRIBADI" 2>/dev/null || true)
+    if [ -n "$riwayat" ]; then
+      echo "$riwayat"
+      echo "::error::Riwayat Git masih memuat kata pribadi Anda pada commit di atas (lihat SECURITY.md: Membersihkan riwayat Git)."
+      gagal=1
+    fi
+  fi
+fi
+
 [ "$gagal" -eq 0 ] && echo "Tidak ada data pribadi yang terdeteksi."
 exit "$gagal"
