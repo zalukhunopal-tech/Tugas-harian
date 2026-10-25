@@ -30,7 +30,7 @@ TRANSAKSI = [
     {"id": "p1", "jenis": "pengeluaran", "dana": "Dana Kegiatan", "tanggal": "2026-09-21", "deskripsi": "Perdiem Kalimantan · 21 Sep 2026", "kategori": "Perdiem",
      "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""},
 ]
-APLIKASI = ["drive", "laporan", "profil", "tema", "rutin", "kunci"]
+APLIKASI = ["drive", "laporan", "keluarga", "profil", "tema", "rutin", "kunci"]
 
 
 def buka(p, lebar):
@@ -62,12 +62,12 @@ with sync_playwright() as p:
         print(f"== {nama} ({lebar}px)")
         b, pg, galat = buka(p, lebar)
         nav(pg, "Saya")
-        cek(pg.locator(".saya-peluncur .saya-app").count() == 6, "enam aplikasi tampil sebagai ikon")
+        cek(pg.locator(".saya-peluncur .saya-app").count() == 7, "tujuh aplikasi tampil sebagai ikon")
         cek(pg.locator("details.folder").count() == 0, "tidak ada lagi baris berbentuk folder")
-        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Profil Pelapor", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
+        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Keluarga", "Profil Pelapor", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
             "nama aplikasi sesuai konteks kerja")
         kolom = pg.evaluate("new Set([...document.querySelectorAll('.saya-app')].map(e => Math.round(e.getBoundingClientRect().x))).size")
-        cek(kolom == 3, f"tiga kolom ({kolom})")
+        cek(kolom == 4, f"empat kolom ({kolom})")
         cek(not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), "tanpa luapan horizontal")
         for app in APLIKASI:
             pg.locator(f"[data-app={app}]").click()

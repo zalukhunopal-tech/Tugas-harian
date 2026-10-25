@@ -48,7 +48,7 @@ def buka(p, **opsi):
 
 
 def buka_app_saya(pg, app):
-    """Tab Saya berupa layar aplikasi: buka satu aplikasi (drive, laporan, profil, tema, rutin, kunci) dari daftar ikon."""
+    """Tab Saya berupa layar aplikasi: buka satu aplikasi (drive, laporan, keluarga, profil, tema, rutin, kunci) dari daftar ikon."""
     pg.locator(".navbar button", has_text="Saya").first.click()
     pg.wait_for_timeout(300)
     if pg.locator(".saya-peluncur").count() == 0:
