@@ -47,6 +47,7 @@ interface Berkas {
   mimeType: string;
   parents: string[];
   isi?: string; // berkas JSON
+  diubah?: string; // modifiedTime yang dilaporkan Drive
   tab?: string; // spreadsheet
   baris?: Array<Array<string | number>>; // spreadsheet: baris[r][k], 0-based dari A1
 }
@@ -55,9 +56,10 @@ const log: Array<{ metode: string; url: string }> = [];
 let urut = 1;
 let galatCari = false; // files.list menjawab 503
 const galatBacaSheet = new Set<string>(); // id spreadsheet yang pembacaan nilainya 500
+const galatIsiBerkas = new Set<string>(); // id berkas JSON yang pembacaan isinya (alt=media) 500
 
 const json = (d: unknown, status = 200) => new Response(JSON.stringify(d), { status, headers: { "Content-Type": "application/json" } });
-const info = (f: Berkas) => ({ id: f.id, name: f.name, mimeType: f.mimeType, webViewLink: `https://drive.google.com/${f.id}`, ownedByMe: true });
+const info = (f: Berkas) => ({ id: f.id, name: f.name, mimeType: f.mimeType, webViewLink: `https://drive.google.com/${f.id}`, ownedByMe: true, modifiedTime: f.diubah });
 
 function tambah(f: Partial<Berkas> & { name: string; mimeType: string }): Berkas {
   const b: Berkas = { id: f.id ?? "id" + urut++, parents: ["root"], ...f };
@@ -110,7 +112,10 @@ const fetchPalsu = async (input: any, init: any = {}): Promise<Response> => {
     if (m && metode === "GET") {
       const f = files.get(m[1]);
       if (!f) return json({}, 404);
-      if (url.searchParams.get("alt") === "media") return new Response(f.isi ?? "", { status: 200 });
+      if (url.searchParams.get("alt") === "media") {
+        if (galatIsiBerkas.has(f.id)) return json({ error: { message: "galat sementara" } }, 500);
+        return new Response(f.isi ?? "", { status: 200 });
+      }
       return json(info(f));
     }
     if (m && metode === "PATCH") {
@@ -204,6 +209,7 @@ function isiDrive() {
   urut = 1;
   galatCari = false;
   galatBacaSheet.clear();
+  galatIsiBerkas.clear();
   const f = tambah({ id: "F", name: "Keuangan", mimeType: FOLDER });
   tambah({
     id: "SP",
@@ -365,6 +371,53 @@ async function main() {
   const n = jumlahFile();
   await kirimSemuaKeDrive(TOKEN, trxBaru, [], undefined, { daftarKegiatan: [], laporan: {} } as any);
   cek("kirim lagi: tidak ada berkas baru", jumlahFile() === n, [...files.values()].map((f) => f.name));
+
+  console.log("Catatan penghapusan tidak boleh hilang walau salinan Sinkron.json terbaru tidak memuatnya");
+  for (const urutan of ["lama-dulu", "baru-dulu"] as const) {
+    isiDrive();
+    pasangUlang();
+    // Salinan lama mencatat bahwa p2 sudah dihapus; salinan terbaru (ditulis sesi yang kehilangan catatan itu) tidak.
+    const lama = { id: "SN-LAMA", name: "Sinkron.json", mimeType: "application/json", parents: ["F"], diubah: "2026-10-23T14:37:37.000Z", isi: JSON.stringify({ terhapus: ["p2", "sudah-dihapus"], diubah: {}, terakhirSinkron: "2026-10-23T14:37:35.000Z" }) };
+    const baru = { id: "SN-BARU", name: "Sinkron.json", mimeType: "application/json", parents: ["F"], diubah: "2026-10-25T10:50:43.000Z", isi: JSON.stringify({ terhapus: ["sudah-dihapus"], diubah: {}, terakhirSinkron: "2026-10-25T10:50:42.000Z" }) };
+    files.delete("SN");
+    if (urutan === "lama-dulu") {
+      tambah(lama);
+      tambah(baru);
+    } else {
+      tambah(baru);
+      tambah(lama);
+    }
+    const hasil = await tarikSemuaDariDrive(TOKEN, [], [], HARGA);
+    cek(`(${urutan}) p2 tetap terhapus: ${hasil.transaksi.length} transaksi, tanpa "Uang saku"`, hasil.transaksi.length === 3 && !hasil.transaksi.some((t) => t.id === "p2"), kunciTrx(hasil.transaksi));
+    cek(`(${urutan}) salinan yang dipakai sebagai Sinkron.json adalah yang terbaru`, hasil.contents.fileSinkron?.id === "SN-BARU", hasil.contents.fileSinkron?.id);
+    // Lokal yang masih menyimpan p2 (perangkat yang belum tahu ia dihapus) tidak boleh menghidupkannya lagi.
+    const lokalLama = [...hasil.transaksi, { id: "p2", jenis: "pemasukan", dana: "Dana Pribadi", tanggal: "2026-10-03", deskripsi: "Uang saku", kategori: "Gaji", jumlah: 1000000, metode: "Tunai", kaitan: "", catatan: "" } as Transaksi];
+    await kirimSemuaKeDrive(TOKEN, lokalLama, hasil.aset, undefined, { daftarKegiatan: [], laporan: {} } as any);
+    cek(`(${urutan}) kirim: baris p2 hilang dari sheet`, !ringkasSheet("SP").some((r) => r.includes("Uang saku")), ringkasSheet("SP"));
+    const tertulis = JSON.parse(files.get("SN-BARU")!.isi!);
+    cek(`(${urutan}) Sinkron.json terbaru kini memuat p2 dan catatan lamanya`, tertulis.terhapus.includes("p2") && tertulis.terhapus.includes("sudah-dihapus"), tertulis.terhapus);
+    cek(`(${urutan}) tidak ada salinan Sinkron.json tambahan`, nama("Sinkron.json").length === 2, nama("Sinkron.json").map((f) => f.id));
+  }
+
+  console.log("Sinkron.json terbaru gagal dibaca: kirim ditahan, tidak menulis");
+  isiDrive();
+  pasangUlang();
+  const awal2 = await tarikSemuaDariDrive(TOKEN, [], [], HARGA);
+  galatIsiBerkas.add("SN");
+  log.length = 0;
+  let pesanTahan = "";
+  try {
+    await kirimSemuaKeDrive(TOKEN, awal2.transaksi, awal2.aset, undefined, { daftarKegiatan: [], laporan: {} } as any);
+  } catch (err: any) {
+    pesanTahan = err.message;
+  }
+  cek("kirim melempar galat tentang catatan penghapusan", /Sinkron\.json/.test(pesanTahan), pesanTahan);
+  cek("tidak ada yang ditulis ke Drive", tulis().length === 0, tulis());
+  cek("Sinkron.json tidak berubah", JSON.parse(files.get("SN")!.isi!).terhapus.includes("sudah-dihapus"));
+  pasangUlang();
+  const tidakLengkap = await tarikSemuaDariDrive(TOKEN, [], [], HARGA);
+  cek("tarik dengan Sinkron.json tak terbaca tidak membuka penjaga kirim", !sudahTarikLengkap() && tidakLengkap.transaksi.length >= 0);
+  galatIsiBerkas.delete("SN");
 
   if (gagal) {
     console.log(`\n${gagal} uji gagal`);

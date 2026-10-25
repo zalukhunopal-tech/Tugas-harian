@@ -36,7 +36,7 @@ const trx = (o: Partial<Transaksi>): Transaksi => ({
 });
 
 const A: RentangKegiatan = { id: "kA", nama: "Survei Hulu Contoh", tanggalMulai: "2026-09-16", tanggalSelesai: "2026-10-24" };
-const B: RentangKegiatan = { id: "kB", nama: "Monev Mentarang", tanggalMulai: "2026-11-02", tanggalSelesai: "2026-11-10" };
+const B: RentangKegiatan = { id: "kB", nama: "Monev Contoh", tanggalMulai: "2026-11-02", tanggalSelesai: "2026-11-10" };
 const semua = [A, B];
 
 console.log("Dana awal terisi otomatis");
@@ -47,7 +47,7 @@ cek("dana awal terhitung di penyelesaian", hitungPenyelesaian(transaksiKegiatan(
 cek("di luar rentang kegiatan: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", tanggal: "2026-09-10" })], A, semua).length);
 cek("tepat di tanggal mulai dan selesai: ikut", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-09-16" }), trx({ jenis: "pemasukan", tanggal: "2026-10-24" })], A, semua).length === 2);
 cek("terhubung id ke kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kegiatanId: "kB" })], A, semua).length);
-cek("kaitan = nama kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "monev mentarang" })], A, semua).length);
+cek("kaitan = nama kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "monev contoh" })], A, semua).length);
 cek("kaitan teks bebas (bukan nama kegiatan): ikut", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "Lembaga" })], A, semua).length === 1);
 // Perdiem tanpa kaitan (kolom kegiatan tidak tersimpan di Google Sheets) ikut kegiatan yang rentangnya memuat tanggalnya.
 const perdiemBebas = (tanggal: string, o: Partial<Transaksi> = {}) => trx({ kategori: "Perdiem", jumlah: 200000, tanggal, ...o });
@@ -55,7 +55,7 @@ cek("perdiem tanpa kaitan dalam rentang satu kegiatan: ikut", transaksiKegiatan(
 cek("perdiem tanpa kaitan terhitung di penyelesaian", hitungPenyelesaian(transaksiKegiatan([perdiemBebas("2026-10-01"), perdiemBebas("2026-10-02")], A, semua)).totalPerdiem === 400000);
 cek("perdiem tanpa kaitan di luar rentang: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-09-10")], A, semua).length);
 cek("perdiem terhubung ke kegiatan lain: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { kegiatanId: "kB" })], A, semua).length);
-cek("perdiem dengan kaitan nama kegiatan lain: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { kaitan: "monev mentarang" })], A, semua).length);
+cek("perdiem dengan kaitan nama kegiatan lain: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { kaitan: "monev contoh" })], A, semua).length);
 const C: RentangKegiatan = { id: "kC", nama: "Kegiatan Beririsan", tanggalMulai: "2026-10-10", tanggalSelesai: "2026-10-30" };
 cek("tanggal perdiem di rentang dua kegiatan: tidak ditebak", !transaksiKegiatan([perdiemBebas("2026-10-12")], A, [A, C]).length && !transaksiKegiatan([perdiemBebas("2026-10-12")], C, [A, C]).length);
 cek("tanggal perdiem hanya di rentang satu dari dua kegiatan beririsan: ikut kegiatan itu", transaksiKegiatan([perdiemBebas("2026-10-05")], A, [A, C]).length === 1);

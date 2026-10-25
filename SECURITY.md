@@ -64,6 +64,49 @@ Repo ini publik, jadi **tidak boleh** memuat data pribadi pemakainya:
 - Batasnya: ini penjaga di aplikasi, bukan enkripsi data. Orang yang menguasai penyimpanan browser perangkat bisa menghapus
   data situs; data di Drive tetap hanya terbuka bagi akun Google pemiliknya.
 
+## Data pribadi tidak boleh menempel
+
+Aplikasi menyalin isi folder Keuangan di Drive ke penyimpanan browser supaya bisa dipakai tanpa jaringan. Salinan itu milik
+pemakainya, bukan bagian aplikasi:
+
+- **Kode dan hasil build tidak memuat data siapa pun.** Bawaan Profil Pelapor kosong, tidak ada transaksi, ID folder, atau
+  email yang ditanam (dijaga `scripts/periksa_data_pribadi.sh` di CI). Orang yang memasang aplikasi mulai dari kosong dan
+  hanya melihat isi Drive miliknya sendiri.
+- **Keluar dari sinkron membersihkan perangkat.** Tombol *Keluar* di Drive Keuangan menawarkan "Hapus data dari perangkat ini"
+  (pilihan bawaan): data dikirim ke Drive dulu, lalu transaksi, aset, profil, kunci aplikasi, Authenticator, antrean bukti
+  offline, dan token dihapus dari browser. Hanya tema dan karakter yang tinggal. Bila pengiriman gagal, penghapusan butuh
+  persetujuan eksplisit karena yang belum terkirim akan hilang. Data yang sudah ada di perangkat tanpa sambungan bisa dihapus
+  lewat tautan *Hapus dari perangkat ini*. Bila Anda memilih "Simpan data", salinan tetap ada dan akan ditulis balik ke Drive
+  saat masuk lagi.
+- **Yang sudah dihapus tetap terhapus.** Daftar ID terhapus di `Sinkron.json` hanya bertambah dan dibaca dari semua salinan
+  berkas itu (salinan lama, termasuk yang di Sampah, masih menyimpan catatan penghapusan). Pengiriman ditahan bila
+  `Sinkron.json` ada tetapi gagal dibaca, supaya satu pengiriman tidak membuang catatan itu dan menghidupkan lagi baris yang
+  sudah dibuang.
+- **Catatan ganda dirapikan oleh pemakai.** Riwayat menampilkan kartu peringatan bila ada catatan dengan dana, jenis,
+  tanggal, jumlah, dan uraian yang sama (huruf besar/kecil diabaikan); *Periksa dan rapikan* menyarankan mana yang dihapus
+  dan selalu menyisakan satu.
+
+Periksa sendiri dengan kata-kata milik Anda (nama, lembaga, toko langganan, lokasi kegiatan; kata itu tidak ditulis di repo):
+
+```bash
+PERIKSA_KATA_PRIBADI="kata satu|kata dua" bash scripts/periksa_data_pribadi.sh                      # berkas yang dilacak
+PERIKSA_KATA_PRIBADI="kata satu|kata dua" PERIKSA_RIWAYAT=1 bash scripts/periksa_data_pribadi.sh   # termasuk riwayat Git
+```
+
+### Membersihkan riwayat Git
+
+Menghapus sesuatu dari berkas tidak menghapusnya dari riwayat: commit lama di repo publik tetap bisa dibaca siapa pun. Bila
+pemeriksaan riwayat di atas menemukan sesuatu yang harus hilang, ada dua jalan, dan keduanya hanya boleh dilakukan pemilik:
+
+1. **Tulis ulang riwayat** (`git filter-repo --replace-text` atau `--path`), lalu `git push --force` untuk semua cabang dan
+   tag. Semua pemakai repo harus mengkloning ulang, PR yang terbuka rusak, dan GitHub masih menyimpan commit lama selama masih
+   ada rujukan `refs/pull/*` atau fork; hubungi GitHub Support untuk membersihkan *cached views* dan rujukan itu.
+2. **Buat repo baru yang bersih** dari isi terbaru (tanpa riwayat), lalu hapus repo lama. Paling tuntas, tetapi alamat, Pages,
+   dan pengaturan harus dibuat ulang.
+
+Ganti juga apa pun yang pernah terlanjur terbuka: folder Drive yang pernah dibagikan lewat tautan harus dibatasi lagi, dan ID
+folder yang tercatat di riwayat tidak berbahaya selama folder itu privat.
+
 ## Yang perlu dilakukan pemilik (sekali)
 
 ### 1. Aktifkan GitHub Pages dari GitHub Actions

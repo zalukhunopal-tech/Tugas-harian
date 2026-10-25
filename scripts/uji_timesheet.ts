@@ -36,7 +36,7 @@ function cek(nama: string, kondisi: boolean, rincian?: unknown) {
 }
 
 const NAMA_BATCH4 = "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)";
-const JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Adat, Asesmen Kader Lokal, Penggalian Keruangan, dan Koordinasi Multipihak Tata Kelola Hutan di Kalimantan Utara (Batch 4)";
+const JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Contoh, Asesmen Kader Lokal, Penggalian Data Keruangan, dan Koordinasi Multipihak Tata Kelola Hutan di Provinsi Contoh (Batch 4)";
 
 console.log("Nama file dan batch");
 cek("file timesheet dikenali", adalahFileTimesheet(NAMA_BATCH4) && !adalahFileTimesheet("Keuangan Kegiatan 2026"));
@@ -203,7 +203,7 @@ const semuaTrx = [
   nyasar({ id: "j1", deskripsi: "Total", jumlah: 6800000 }),
   nyasar({ id: "j2", deskripsi: "Total", jumlah: 6800000 }),
   nyasar({ id: "j3", deskripsi: "Perjalanan dari Kota Asal menuju Kabupaten Contoh melalui jalur darat", jumlah: 200000, kategori: "Kabupaten Contoh" }),
-  nyasar({ id: "s1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 26370000 }),
+  nyasar({ id: "s1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 25000000 }),
   nyasar({ id: "s2", deskripsi: "Total", kegiatanId: "kg4" }),
   nyasar({ id: "s3", deskripsi: "Total", catatan: "dicatat sendiri" }),
   trx({ id: "s4", deskripsi: "Total", dana: "Dana Pribadi", jenis: "pemasukan" }),
@@ -223,7 +223,7 @@ console.log("Catatan mencurigakan (konfirmasi pengguna)");
 const mencurigakan = cariCatatanMencurigakan([
   nyasar({ id: "m1", deskripsi: "Teks tak dikenal", kategori: "Desa Ba' Liku", jumlah: 200000 }),
   nyasar({ id: "m2", deskripsi: "Total", jumlah: 6800000 }),
-  nyasar({ id: "ok1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 26370000 }),
+  nyasar({ id: "ok1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 25000000 }),
   nyasar({ id: "ok2", deskripsi: "Pindah", kategori: "Pindah Dana" }),
   nyasar({ id: "ok3", deskripsi: "Ada kegiatan", kategori: "Desa X", kegiatanId: "kg4" }),
   nyasar({ id: "ok4", deskripsi: "Ada catatan", kategori: "Desa X", catatan: "dicatat sendiri" }),
