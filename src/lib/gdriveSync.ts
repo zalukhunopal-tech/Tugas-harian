@@ -38,18 +38,25 @@ export interface KeuanganDriveContents {
   allFiles: GDriveFileInfo[];
 }
 
+/**
+ * Dari beberapa folder bernama sama pilih yang milik akun ini; urutan createdTime (terlama dulu) membuat pilihannya
+ * stabil: tanpa itu, dua folder "Keuangan" bisa bergantian terpilih dan data terbelah di antara keduanya.
+ */
+function pilihFolderKeuangan(files: Array<GDriveFolder & { ownedByMe?: boolean }> | undefined): GDriveFolder | null {
+  return (files ?? []).find((f) => f.ownedByMe !== false) ?? null;
+}
+
 export async function cariFolderKeuangan(token: string): Promise<GDriveFolder | null> {
+  const lapangan = "fields=files(id,name,webViewLink,ownedByMe)&orderBy=createdTime";
   // 1. Cari folder bernama "Keuangan"
-  const urlCariNama = `https://www.googleapis.com/drive/v3/files?q=name%3D'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&fields=files(id,name,webViewLink)`;
+  const urlCariNama = `https://www.googleapis.com/drive/v3/files?q=name%3D'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&${lapangan}`;
   try {
     const res = await fetch(urlCariNama, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      const data = await res.json();
-      if (data.files && data.files.length > 0) {
-        return data.files[0] as GDriveFolder;
-      }
+      const folder = pilihFolderKeuangan((await res.json()).files);
+      if (folder) return folder;
     }
   } catch (e) {
     console.warn("Cari nama folder Keuangan gagal:", e);
@@ -57,40 +64,89 @@ export async function cariFolderKeuangan(token: string): Promise<GDriveFolder | 
 
   // 2. Cari folder yang namanya mengandung "Keuangan"
   try {
-    const urlCariContains = `https://www.googleapis.com/drive/v3/files?q=name+contains+'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&fields=files(id,name,webViewLink)`;
+    const urlCariContains = `https://www.googleapis.com/drive/v3/files?q=name+contains+'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&${lapangan}`;
     const res = await fetch(urlCariContains, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      const data = await res.json();
-      if (data.files && data.files.length > 0) {
-        return data.files[0] as GDriveFolder;
-      }
+      const folder = pilihFolderKeuangan((await res.json()).files);
+      if (folder) return folder;
     }
   } catch (e) {
     console.warn("Cari contains Keuangan gagal:", e);
   }
 
-  // 3. Folder ID bawaan dari template Apps Script jika ada. Hanya dipakai bila folder itu milik akun yang sedang masuk:
-  // folder ini bisa dibuka siapa saja yang punya tautannya, jadi tanpa pemeriksaan ini anggota keluarga yang baru
-  // memasang aplikasi akan "menemukan" folder milik orang lain sebagai folder Keuangan mereka.
-  const defaultFolderId = "ID_FOLDER_DIHAPUS";
-  try {
-    const resId = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${defaultFolderId}?fields=id,name,webViewLink,trashed,ownedByMe`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (resId.ok) {
-      const folderData = await resId.json();
-      if (!folderData.trashed && folderData.ownedByMe === true) {
-        return folderData as GDriveFolder;
-      }
-    }
-  } catch {
-    // abaikan jika tidak bisa diakses
-  }
-
+  // Tidak ada ID folder bawaan: folder dicari hanya lewat nama di Drive akun yang sedang masuk, jadi tidak pernah
+  // menunjuk ke folder milik orang lain.
   return null;
+}
+
+export type KeberadaanFolder = { status: "ada"; folder: GDriveFolder } | { status: "tidak-ada" } | { status: "galat"; pesan: string };
+
+/** Cari folder dengan kueri Drive. Hasil berupa teks = pesan galat, supaya gangguan tidak disangka "folder tidak ada". */
+export async function cariFolderDrive(token: string, q: string): Promise<GDriveFolder[] | string> {
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink,ownedByMe)&orderBy=createdTime`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return `Pencarian folder gagal (${res.status})`;
+    const data = await res.json();
+    // Folder milik orang lain yang kebetulan bernama sama tidak dianggap folder saya.
+    return ((data.files || []) as Array<GDriveFolder & { ownedByMe?: boolean }>).filter((f) => f.ownedByMe !== false);
+  } catch (err: any) {
+    return `Pencarian folder gagal: ${err?.message ?? err}`;
+  }
+}
+
+/**
+ * Apakah folder Keuangan sudah ada? Berbeda dari cariFolderKeuangan, galat jaringan atau izin dibedakan dari "memang belum
+ * ada": hanya yang kedua boleh berujung pembuatan folder, supaya gangguan sesaat tidak menghasilkan folder Keuangan kedua.
+ */
+export async function periksaKeberadaanFolder(token: string): Promise<KeberadaanFolder> {
+  const tipe = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+  for (const q of [`name = 'Keuangan' and ${tipe}`, `name contains 'Keuangan' and ${tipe}`]) {
+    const hasil = await cariFolderDrive(token, q);
+    if (typeof hasil === "string") return { status: "galat", pesan: hasil };
+    if (hasil.length > 0) return { status: "ada", folder: hasil[0] };
+  }
+  return { status: "tidak-ada" };
+}
+
+let pastikanFolderBerjalan: Promise<{ folder: GDriveFolder; baru: boolean }> | null = null;
+let folderBaruDibuat: { folder: GDriveFolder; waktu: number } | null = null;
+const BATAS_INDEKS_DRIVE_MS = 2 * 60 * 1000;
+
+/**
+ * Satu-satunya jalan membuat folder Keuangan. Memakai yang sudah ada; membuat HANYA bila pencarian berhasil dan memang
+ * kosong. Pencarian yang gagal melempar galat (tidak membuat apa pun). Pemanggilan bersamaan berbagi satu proses, dan
+ * folder yang baru dibuat diingat beberapa menit karena indeks pencarian Drive bisa tertinggal.
+ */
+export function pastikanFolderKeuangan(token: string): Promise<{ folder: GDriveFolder; baru: boolean }> {
+  if (!pastikanFolderBerjalan) {
+    pastikanFolderBerjalan = (async () => {
+      const ada = await periksaKeberadaanFolder(token);
+      if (ada.status === "galat") throw new Error(`Folder Keuangan belum bisa diperiksa: ${ada.pesan}`);
+      if (ada.status === "ada") return { folder: ada.folder, baru: false };
+      if (folderBaruDibuat && Date.now() - folderBaruDibuat.waktu < BATAS_INDEKS_DRIVE_MS) {
+        // Indeks pencarian bisa tertinggal: pakai folder yang baru dibuat, asal memang masih ada dan tidak di Sampah.
+        try {
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderBaruDibuat.folder.id}?fields=id,name,webViewLink,trashed`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok && !(await res.json()).trashed) return { folder: folderBaruDibuat.folder, baru: false };
+        } catch {
+          // lanjut membuat bila tidak bisa diverifikasi
+        }
+        folderBaruDibuat = null;
+      }
+      const folder = await buatFolderKeuangan(token);
+      folderBaruDibuat = { folder, waktu: Date.now() };
+      return { folder, baru: true };
+    })().finally(() => {
+      pastikanFolderBerjalan = null;
+    });
+  }
+  return pastikanFolderBerjalan;
 }
 
 export async function buatFolderKeuangan(token: string): Promise<GDriveFolder> {
@@ -374,19 +430,20 @@ export async function temukanAtauBuatSubfolder(
     q
   )}&fields=files(id,name,webViewLink)`;
 
+  // Pencarian yang gagal TIDAK boleh berujung pembuatan: folder yang sebenarnya sudah ada akan terbuat kembar.
+  let res: Response;
   try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) {
-      const data = await res.json();
-      const existing = (data.files || []).find(
-        (f: any) => f.name.toLowerCase() === namaFolder.toLowerCase()
-      );
-      if (existing) {
-        return existing as GDriveFolder;
-      }
-    }
-  } catch (e) {
-    console.warn(`Pencarian folder ${namaFolder} gagal:`, e);
+    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  } catch (e: any) {
+    throw new Error(`Pencarian folder '${namaFolder}' gagal: ${e?.message ?? e}`);
+  }
+  if (!res.ok) {
+    throw new Error(`Pencarian folder '${namaFolder}' gagal (${res.status}); tidak membuat folder baru.`);
+  }
+  const data = await res.json();
+  const existing = (data.files || []).find((f: any) => f.name.toLowerCase() === namaFolder.toLowerCase());
+  if (existing) {
+    return existing as GDriveFolder;
   }
 
   // Buat folder jika belum ada
@@ -514,6 +571,25 @@ export function adalahJudulSheetKeuangan(judul: unknown[] | undefined): boolean 
   return Array.isArray(judul) && judul.some((c) => /uraian|pemasukan|pengeluaran/i.test(String(c ?? "")));
 }
 
+/** FNV-1a 32-bit sebagai heksadesimal: sidik jari isi baris, tanpa pustaka tambahan. */
+function hashTeks(teks: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < teks.length; i++) {
+    h ^= teks.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, "0");
+}
+
+/**
+ * ID untuk baris sheet yang kolom J-nya kosong (mis. diketik langsung di Google Sheets). Diturunkan dari isi baris, bukan
+ * acak: tanpa ini setiap tarik memberi baris itu ID baru dan tarik kedua (atau pasang ulang lalu tarik lagi) menggandakannya.
+ * `urut` membedakan baris yang isinya persis sama.
+ */
+export function idStabilBaris(isi: Array<string | number>, urut = 0): string {
+  return `sheet-${hashTeks(isi.join("|"))}${urut > 0 ? `-${urut}` : ""}`;
+}
+
 /**
  * Membaca transaksi dari rentang B7:K dari sebuah spreadsheet.
  * Mengabaikan transaksi yang ID-nya ada di daftar terhapus.
@@ -552,6 +628,8 @@ export async function bacaTransaksiDariSpreadsheet(
   }
   const rows = semuaBaris.slice(1);
   const hasil: Transaksi[] = [];
+  // Cacah baris tanpa ID yang isinya sama, supaya dua baris kembar yang sah tetap mendapat ID berbeda tetapi stabil.
+  const hitungIsi = new Map<string, number>();
 
   for (let idx = 0; idx < rows.length; idx++) {
     const r = rows[idx];
@@ -569,6 +647,14 @@ export async function bacaTransaksiDariSpreadsheet(
     const rawId = String(r[8] || "").trim();
     // Kolom K (indeks ke-9 dari baris B..L)
     const metode = String(r[9] || "").trim() || "Tunai";
+    let idDasar = rawId;
+    if (!idDasar) {
+      const isiBaris = [targetDana, tgl, uraian, kategori, masuk, keluar, kaitan, metode];
+      const kunci = isiBaris.join("|");
+      const urut = hitungIsi.get(kunci) ?? 0;
+      hitungIsi.set(kunci, urut + 1);
+      idDasar = idStabilBaris(isiBaris, urut);
+    }
     // Kolom L (indeks ke-10 dari baris B..L): link bukti dipisahkan baris baru
     const rawBukti = String(r[10] || "").trim();
     const buktiItems: import("../types").BuktiItem[] = [];
@@ -584,16 +670,16 @@ export async function bacaTransaksiDariSpreadsheet(
       }
     }
 
-    if (rawId && idTerhapus.has(rawId)) {
+    if (idTerhapus.has(idDasar)) {
       // Abaikan transaksi yang telah terhapus
       continue;
     }
 
-    const diubahTimestamp = (rawId && mapDiubahDrive?.[rawId]) || undefined;
+    const diubahTimestamp = mapDiubahDrive?.[idDasar] || undefined;
 
     if (masuk > 0 && keluar > 0) {
-      const idM = rawId ? `${rawId}-m` : buatId();
-      const idK = rawId ? `${rawId}-k` : buatId();
+      const idM = `${idDasar}-m`;
+      const idK = `${idDasar}-k`;
       if (!idTerhapus.has(idM)) {
         hasil.push(
           normalisasiTransaksi({
@@ -631,7 +717,7 @@ export async function bacaTransaksiDariSpreadsheet(
         );
       }
     } else if (masuk > 0) {
-      const id = rawId || buatId();
+      const id = idDasar;
       if (!idTerhapus.has(id)) {
         hasil.push(
           normalisasiTransaksi({
@@ -651,7 +737,7 @@ export async function bacaTransaksiDariSpreadsheet(
         );
       }
     } else if (keluar > 0) {
-      const id = rawId || buatId();
+      const id = idDasar;
       if (!idTerhapus.has(id)) {
         hasil.push(
           normalisasiTransaksi({
@@ -684,9 +770,11 @@ export async function bacaSemuaTransaksiDariFolder(
   contents: KeuanganDriveContents,
   idTerhapus: Set<string>,
   mapDiubahDrive?: Record<string, string>
-): Promise<{ transaksi: Transaksi[]; jumlahFile: number }> {
+): Promise<{ transaksi: Transaksi[]; jumlahFile: number; jumlahGalat: number }> {
   const hasilSemua: Transaksi[] = [];
   let fileDibaca = 0;
+  // Spreadsheet Google berjudul pribadi/kegiatan yang GAGAL dibaca. Berkas .xlsx tidak dihitung (memang tidak bisa dibaca lewat Sheets API).
+  let jumlahGalat = 0;
 
   for (const file of contents.spreadsheets) {
     const namaLower = file.name.toLowerCase();
@@ -711,6 +799,7 @@ export async function bacaSemuaTransaksiDariFolder(
         fileDibaca++;
       } catch (err: any) {
         console.warn(`Gagal membaca spreadsheet ${file.name}:`, err.message);
+        if (file.mimeType === "application/vnd.google-apps.spreadsheet") jumlahGalat++;
       }
     } else {
       // Spreadsheet yang tidak memiliki kata pribadi/kegiatan di nama file: periksa tab sheet
@@ -743,7 +832,7 @@ export async function bacaSemuaTransaksiDariFolder(
     }
   }
 
-  return { transaksi: hasilSemua, jumlahFile: fileDibaca };
+  return { transaksi: hasilSemua, jumlahFile: fileDibaca, jumlahGalat };
 }
 
 /**
@@ -1167,6 +1256,28 @@ export async function temukanAtauBuatSpreadsheetTahun(
 }
 
 /**
+ * Penjaga "tarik dulu". Setelah pasang ulang (atau di sesi baru) data lokal bisa kosong atau belum lengkap, sedangkan kirim
+ * menulis ulang spreadsheet dari data lokal dan mengosongkan tahun yang tidak ada di sana. Mengirim sebelum menarik berarti
+ * menimpa isi Drive. Karena itu kirim ditolak sampai satu tarik selesai TANPA galat baca di sesi ini.
+ */
+let tarikLengkapSesi = false;
+
+export class GalatBelumTarik extends Error {
+  constructor() {
+    super(
+      "Tarik data dari Google Drive dulu sampai berhasil tanpa galat, supaya isi spreadsheet Anda tidak tertimpa data lokal yang belum lengkap."
+    );
+    this.name = "GalatBelumTarik";
+  }
+}
+
+export const sudahTarikLengkap = (): boolean => tarikLengkapSesi;
+/** Dipanggil saat keluar atau ganti akun: data lokal tidak boleh dikirim ke Drive akun lain sebelum ditarik. */
+export const resetStatusTarik = (): void => {
+  tarikLengkapSesi = false;
+};
+
+/**
  * Menyimpan seluruh data transaksi dan aset ke Google Drive secara komprehensif:
  * - Menghitung saldo berjalan kolom G (angka) urut tanggal dan waktu input.
  * - Menulis kolom K "Metode Bayar" (dan memastikan K6 terisi).
@@ -1181,10 +1292,12 @@ export async function kirimSemuaKeDrive(
   pengaturan?: import("../types").PengaturanKeuangan,
   laporanKegiatan?: LaporanKegiatanFileContent
 ): Promise<{ jumlahTrx: number; jumlahAset: number }> {
+  if (!tarikLengkapSesi) throw new GalatBelumTarik();
+
   // 1. Temukan atau buat folder Keuangan
   let folder = await cariFolderKeuangan(token);
   if (!folder) {
-    folder = await buatFolderKeuangan(token);
+    folder = (await pastikanFolderKeuangan(token)).folder;
   }
 
   const contents = await ambilIsiFolderKeuangan(token, folder.id);
@@ -1409,10 +1522,17 @@ export async function tarikSemuaDariDrive(
 }> {
   const folder = await cariFolderKeuangan(token);
   if (!folder) {
+    // cariFolderKeuangan juga null saat pencarian GAGAL. Hanya "memang tidak ada" yang berarti tidak ada isi Drive yang
+    // bisa tertimpa; gangguan jaringan tidak boleh membuka penjaga kirim.
+    const ada = await periksaKeberadaanFolder(token);
+    if (ada.status === "galat") throw new Error(`Folder 'Keuangan' belum bisa diperiksa: ${ada.pesan}`);
+    if (ada.status === "tidak-ada") tarikLengkapSesi = true;
     throw new Error("Folder 'Keuangan' tidak ditemukan di Google Drive Anda.");
   }
 
   const contents = await ambilIsiFolderKeuangan(token, folder.id);
+  // Bacaan yang gagal membuat tarik tidak lengkap: data lokal belum boleh dikirim menimpa Drive.
+  let galatBaca = 0;
 
   // 1. Baca metadata sinkronisasi dan satukan ID terhapus
   const idTerhapusLokal = muatIdTerhapus();
@@ -1420,6 +1540,7 @@ export async function tarikSemuaDariDrive(
 
   if (contents.fileSinkron) {
     const metaDrive = await bacaSinkronMeta(token, contents.fileSinkron.id);
+    if (!metaDrive) galatBaca++;
     if (metaDrive) {
       if (Array.isArray(metaDrive.terhapus)) {
         for (const id of metaDrive.terhapus) {
@@ -1432,12 +1553,13 @@ export async function tarikSemuaDariDrive(
   }
 
   // 2. Baca seluruh transaksi dari semua file spreadsheet di folder
-  const { transaksi: remoteTrx } = await bacaSemuaTransaksiDariFolder(
+  const { transaksi: remoteTrx, jumlahGalat } = await bacaSemuaTransaksiDariFolder(
     token,
     contents,
     idTerhapusLokal,
     mapDiubahDrive
   );
+  galatBaca += jumlahGalat;
 
   // 3. Gabungkan transaksi lokal dan remote berdasarkan `diubah` terbaru
   const hasilGabungTrx = gabungTransaksi(transaksiLokal, remoteTrx, idTerhapusLokal);
@@ -1454,6 +1576,7 @@ export async function tarikSemuaDariDrive(
       }
     } catch (e: any) {
       console.warn("Gagal membaca Aset.json dari Drive:", e.message);
+      galatBaca++;
     }
   }
 
@@ -1480,6 +1603,7 @@ export async function tarikSemuaDariDrive(
       }
     } catch (e: any) {
       console.warn("Gagal membaca Pengaturan.json dari Drive:", e.message);
+      galatBaca++;
     }
   }
 
@@ -1494,8 +1618,12 @@ export async function tarikSemuaDariDrive(
       }
     } catch (e: any) {
       console.warn("Gagal membaca Laporan Kegiatan.json dari Drive:", e.message);
+      galatBaca++;
     }
   }
+
+  // Tarik lengkap tanpa galat baca: sekarang data lokal memuat isi Drive, jadi kirim aman dibuka untuk sesi ini.
+  if (galatBaca === 0) tarikLengkapSesi = true;
 
   return {
     transaksi: hasilGabungTrx,

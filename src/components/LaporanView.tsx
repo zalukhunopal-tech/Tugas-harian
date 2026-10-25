@@ -1029,12 +1029,20 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
               <div style={{ fontSize: "0.74rem", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--accent)", fontWeight: 700 }}>
                 Pelapor / Penanggung Jawab Lapangan:
               </div>
-              <div style={{ fontSize: "1.05rem", fontWeight: 800, marginTop: "2px" }}>
-                {profilPelapor.nama}
-              </div>
-              <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                {profilPelapor.jabatan} · {profilPelapor.lembaga} (Proyek: {profilPelapor.proyek})
-              </div>
+              {profilPelapor.nama ? (
+                <>
+                  <div style={{ fontSize: "1.05rem", fontWeight: 800, marginTop: "2px" }}>
+                    {profilPelapor.nama}
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    {profilPelapor.jabatan} · {profilPelapor.lembaga} (Proyek: {profilPelapor.proyek})
+                  </div>
+                </>
+              ) : (
+                <div id="profil-belum-diisi" style={{ fontSize: "0.88rem", marginTop: "2px", color: "var(--text-muted)" }}>
+                  Profil Pelapor belum diisi. Isi di tab Saya → Profil Pelapor supaya nama Anda tercantum di laporan.
+                </div>
+              )}
             </div>
 
             {batasLaporanFisik && (

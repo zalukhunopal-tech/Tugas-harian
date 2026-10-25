@@ -37,6 +37,33 @@ Keterbatasan yang perlu diketahui: izin Drive yang diminta aplikasi (`.../auth/d
 Drive**, bukan hanya folder `Keuangan`, karena aplikasi membaca folder yang sudah ada. Kode aplikasi hanya
 menyentuh folder `Keuangan`, tetapi jika akses Google Anda bocor, yang terbuka adalah seluruh Drive.
 
+## Data pribadi dan folder Keuangan
+
+Repo ini publik, jadi **tidak boleh** memuat data pribadi pemakainya:
+
+- Nama, jabatan, lembaga, dan proyek di Profil Pelapor kosong secara bawaan; tiap pemakai mengisinya sendiri
+  (tab Saya → Profil Pelapor). Isinya hanya ada di perangkat dan di Drive pemakai.
+- Tidak ada ID folder atau berkas Google Drive di kode. Aplikasi mencari folder `Keuangan` lewat nama di Drive akun yang
+  sedang masuk, dan mengabaikan folder bernama sama milik orang lain. `public/apps-script/Code.gs` juga mencari lewat nama
+  (isi `FOLDER_ID` hanya bila perlu).
+- Data contoh di uji memakai nama fiktif dan `@example.org`. `scripts/periksa_data_pribadi.sh` (dijalankan di job
+  `periksa`) menolak ID Drive, email nyata, bawaan Profil Pelapor yang terisi, dan arsip `.zip` lama di `public/`.
+- Folder `Keuangan` dan spreadsheet di dalamnya **jangan** dibagikan sebagai "siapa saja yang punya tautan". Pilihan dana di
+  tab Keluarga tidak berlaku untuk berkas yang bertautan publik; aplikasi menampilkan peringatan bila menemukannya.
+- Riwayat Git menyimpan semua yang pernah di-commit. Bila data pribadi pernah masuk, menghapusnya dari berkas tidak cukup:
+  batasi akses ke sumbernya (mis. folder Drive-nya) dan, bila perlu, bersihkan riwayat dengan `git filter-repo`.
+
+## Kunci Aplikasi dan Google Authenticator
+
+- PIN disimpan sebagai hash SHA-256 bergaram; konfigurasi kunci ikut tersinkron ke `Pengaturan.json` di Drive pemakai
+  sehingga satu PIN berlaku di semua perangkat. PIN 4-6 angka mudah ditebak bila hash-nya terbaca, jadi folder Drive harus
+  tetap privat.
+- Google Authenticator (TOTP, RFC 6238) adalah langkah kedua setelah PIN atau sidik jari. Rahasianya dibuat di perangkat dan
+  **hanya** disimpan di perangkat itu (tidak ikut ke Drive atau GitHub). Kode yang sama tidak bisa dipakai dua kali, dan
+  salah lima kali berturut-turut memberi jeda yang makin lama. Menonaktifkannya butuh kode yang sah.
+- Batasnya: ini penjaga di aplikasi, bukan enkripsi data. Orang yang menguasai penyimpanan browser perangkat bisa menghapus
+  data situs; data di Drive tetap hanya terbuka bagi akun Google pemiliknya.
+
 ## Yang perlu dilakukan pemilik (sekali)
 
 ### 1. Aktifkan GitHub Pages dari GitHub Actions

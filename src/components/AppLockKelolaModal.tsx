@@ -14,6 +14,8 @@ interface AppLockKelolaModalProps {
   onClose: () => void;
   config: AppLockConfig;
   onSimpanConfig: (config: AppLockConfig) => void;
+  /** Google Authenticator aktif: kunci tidak boleh dimatikan sebelum Authenticator-nya dimatikan dengan kode sah. */
+  totpAktif?: boolean;
 }
 
 export const AppLockKelolaModal: React.FC<AppLockKelolaModalProps> = ({
@@ -21,6 +23,7 @@ export const AppLockKelolaModal: React.FC<AppLockKelolaModalProps> = ({
   onClose,
   config,
   onSimpanConfig,
+  totpAktif = false,
 }) => {
   const [mode, setMode] = useState<"aktifkan" | "nonaktifkan" | "ubah_pin">("aktifkan");
   const [pinLama, setPinLama] = useState("");
@@ -238,15 +241,22 @@ export const AppLockKelolaModal: React.FC<AppLockKelolaModalProps> = ({
             >
               Ubah PIN &amp; Biometrik
             </button>
-            <button
-              type="button"
-              className="chip"
-              aria-checked={mode === "nonaktifkan"}
-              onClick={() => setMode("nonaktifkan")}
-            >
-              Nonaktifkan Kunci
-            </button>
+            {!totpAktif && (
+              <button
+                type="button"
+                className="chip"
+                aria-checked={mode === "nonaktifkan"}
+                onClick={() => setMode("nonaktifkan")}
+              >
+                Nonaktifkan Kunci
+              </button>
+            )}
           </div>
+        )}
+        {config.enabled && totpAktif && (
+          <p className="help" id="kunci-butuh-totp-mati" style={{ margin: "0 0 14px", fontSize: "0.8rem" }}>
+            Untuk menonaktifkan Kunci Aplikasi, matikan Google Authenticator lebih dulu (dengan kode dari ponsel).
+          </p>
         )}
 
         {pesanError && (

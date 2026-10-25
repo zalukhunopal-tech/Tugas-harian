@@ -758,7 +758,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
           <textarea
             id="ket-laporan"
             rows={2}
-            placeholder="Contoh: Perjalanan dari Tanjung Selor ke Tarakan dengan speedboat reguler SB Sekatak AAA Kaltara."
+            placeholder="Contoh: Perjalanan dari Kota A ke Kota B dengan speedboat reguler."
             value={keteranganLaporan}
             onChange={(e) => onUpdateKeteranganLaporan(e.target.value)}
             style={{ width: "100%", padding: "8px", fontSize: "0.84rem", borderRadius: "8px" }}
@@ -861,7 +861,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 <input
                   id="trans-dari"
                   type="text"
-                  placeholder="Tanjung Selor"
+                  placeholder="Kota asal"
                   value={transportasi.dari || ""}
                   onChange={(e) => onUpdateTransportasi({ ...transportasi, dari: e.target.value })}
                 />
@@ -927,7 +927,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Dari (Asal)</label>
               <input
                 type="text"
-                placeholder="Tanjung Selor"
+                placeholder="Kota asal"
                 value={transportasi.dari || ""}
                 onChange={(e) => onUpdateTransportasi({ ...transportasi, dari: e.target.value })}
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
@@ -1223,7 +1223,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Dari - Ke (Rute)</label>
               <input
                 type="text"
-                placeholder="Tanjung Selor - Malinau"
+                placeholder="Kota A - Kota B"
                 value={bbm.dari && bbm.ke ? `${bbm.dari} - ${bbm.ke}` : bbm.dari || ""}
                 onChange={(e) => {
                   const parts = e.target.value.split("-");
@@ -1772,7 +1772,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>Lokasi Kegiatan</label>
                 <input
                   type="text"
-                  placeholder="Contoh: Desa Long Belaka, Kec. Kayan Hilir"
+                  placeholder="Contoh: Desa X, Kec. Y"
                   value={lokasiBaru}
                   onChange={(e) => setLokasiBaru(e.target.value)}
                 />

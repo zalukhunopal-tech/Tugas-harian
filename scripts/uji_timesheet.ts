@@ -101,15 +101,15 @@ const hari = (i: number) => {
   const d = new Date(Date.UTC(2026, 8, 20 + i));
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
 };
-const baris34: string[][] = Array.from({ length: 34 }, (_, i) => [String(i + 1), hari(i), `Kegiatan hari ke-${i + 1}, bersama warga`, i === 0 ? "Kabupaten Malinau" : "Desa Long Bawan", "200.000"]);
+const baris34: string[][] = Array.from({ length: 34 }, (_, i) => [String(i + 1), hari(i), `Kegiatan hari ke-${i + 1}, bersama warga`, i === 0 ? "Kabupaten Contoh" : "Desa Contoh Satu", "200.000"]);
 const nilaiNyata: string[][] = [
   [],
   ["", "", "Detail Keuangan"],
   ["", "", "Perdiem Kegiatan Lapangan"],
   [],
-  ["Proyek", ": Nama Proyek"],
+  ["Proyek", ": Proyek Contoh"],
   ["Judul Kegiatan", ": " + JUDUL],
-  ["Nama", ": Nama Pelapor"],
+  ["Nama", ": Budi Santoso"],
   ["Bulan", ": September - Oktober 2026"],
   [],
   ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"],
@@ -120,27 +120,27 @@ const nilaiNyata: string[][] = [
   [],
   [],
   [],
-  ["", "Nama Pelapor", "", "Nama Penyetuju"],
+  ["", "Budi Santoso", "", "Sari Wulandari"],
 ];
 // Baris nyata dari file pengguna (tanda baca, apostrof lengkung, dan tanggal 1 Oktober yang tampil "10/1/2026").
-nilaiNyata[10 + 2] = ["3", "9/22/2026", "Analisis dokumen sejarah lokasi Terang Baru di Desa Long Bawan dilanjutkan dengan diskusi batas desa Long Api, Buduk Tumu, dan Pa’ Nado di Desa Long Berayang dan Desa Buduk Tumu", "Desa Buduk Tumu", "200.000"];
-nilaiNyata[10 + 11] = ["12", "10/1/2026", "Pengambilan titik koordinat referensi bentang alam, persawahan, batas wilayah, dan situs budaya di Desa Long Rungan dan Desa Long Kelupan bersama aparat desa dan tetua adat", "Desa Long Rungan", "200.000"];
+nilaiNyata[10 + 2] = ["3", "9/22/2026", "Analisis dokumen sejarah lokasi Dusun Contoh di Desa Contoh Satu dilanjutkan dengan diskusi batas desa Alfa, Beta, dan Pa’ Gamma di Desa Contoh Tiga dan Desa Contoh Satu", "Desa Contoh Satu", "200.000"];
+nilaiNyata[10 + 11] = ["12", "10/1/2026", "Pengambilan titik koordinat referensi bentang alam, persawahan, batas wilayah, dan situs budaya di Desa Contoh Dua dan Desa Contoh Empat bersama aparat desa dan tetua adat", "Desa Contoh Dua", "200.000"];
 const isi = uraikanIsiTimesheet(nilaiNyata, { mulai: "2026-09-20", selesai: "2026-10-23" });
-cek("proyek, judul, nama, bulan", isi.proyek === "Nama Proyek" && isi.judulKegiatan === JUDUL && isi.nama === "Nama Pelapor" && isi.bulan === "September - Oktober 2026", isi);
+cek("proyek, judul, nama, bulan", isi.proyek === "Proyek Contoh" && isi.judulKegiatan === JUDUL && isi.nama === "Budi Santoso" && isi.bulan === "September - Oktober 2026", isi);
 cek("34 baris", isi.baris.length === 34, isi.baris.length);
 cek("tanggal berurutan 20 Sep - 23 Okt 2026", isi.baris[0].tanggal === "2026-09-20" && isi.baris[11].tanggal === "2026-10-01" && isi.baris[33].tanggal === "2026-10-23", [isi.baris[0], isi.baris[11], isi.baris[33]]);
-cek("keterangan dan lokasi terbaca", isi.baris[0].lokasi === "Kabupaten Malinau" && isi.baris[1].keterangan.startsWith("Kegiatan hari ke-2"));
-cek("baris nyata: koma dan apostrof lengkung utuh, 10/1/2026 = 1 Oktober", isi.baris[2].keterangan.includes("Long Api, Buduk Tumu, dan Pa’ Nado") && isi.baris[2].lokasi === "Desa Buduk Tumu" && isi.baris[11].tanggal === "2026-10-01" && isi.baris[11].lokasi === "Desa Long Rungan");
+cek("keterangan dan lokasi terbaca", isi.baris[0].lokasi === "Kabupaten Contoh" && isi.baris[1].keterangan.startsWith("Kegiatan hari ke-2"));
+cek("baris nyata: koma dan apostrof lengkung utuh, 10/1/2026 = 1 Oktober", isi.baris[2].keterangan.includes("Alfa, Beta, dan Pa’ Gamma") && isi.baris[2].lokasi === "Desa Contoh Satu" && isi.baris[11].tanggal === "2026-10-01" && isi.baris[11].lokasi === "Desa Contoh Dua");
 cek("jumlah dan total", isi.baris.every((b) => b.jumlah === 200000) && isi.total === 6800000);
-cek("tanda tangan", isi.dilaporkanOleh === "Nama Pelapor" && isi.disetujuiOleh === "Nama Penyetuju", isi);
+cek("tanda tangan", isi.dilaporkanOleh === "Budi Santoso" && isi.disetujuiOleh === "Sari Wulandari", isi);
 cek("salinan simpan tanpa jumlah", barisUntukSimpan(isi.baris).every((b) => b.jumlah === undefined && b.keterangan !== ""));
 cek("sheet kosong tidak membuat galat", uraikanIsiTimesheet([]).baris.length === 0 && uraikanIsiTimesheet([["acak"]]).baris.length === 0);
 
 console.log("Bangun isi file baru");
 const baru = susunIsiTimesheet({
-  proyek: "Nama Proyek",
+  proyek: "Proyek Contoh",
   judulKegiatan: "Kegiatan Baru (Batch 5)",
-  nama: "Nama Pelapor",
+  nama: "Budi Santoso",
   mulai: "2026-11-10",
   selesai: "2026-11-12",
   baris: [
@@ -148,16 +148,16 @@ const baru = susunIsiTimesheet({
     { tanggal: "2026-11-10", keterangan: "Hari pertama", lokasi: "Desa A", jumlah: 200000 },
     { tanggal: "2026-11-12", keterangan: "", lokasi: "", jumlah: 200000 },
   ],
-  disetujuiOleh: "Nama Penyetuju",
+  disetujuiOleh: "Sari Wulandari",
 });
 cek("data mulai baris 11, urut tanggal", baru.nilai[10][0] === 1 && baru.nilai[10][2] === "Hari pertama" && baru.nilai[11][2] === "Hari kedua");
 cek("tanggal ditulis sebagai teks dengan apostrof", baru.nilai[10][1] === "'11/10/2026", baru.nilai[10]);
 cek("total di baris 45 dengan rumus", baru.barisTotal === 45 && baru.nilai[44][4] === "=SUM(E11:E44)" && baru.nilai[44][2] === "Total", baru.nilai[44]);
-cek("tanda tangan di bawah total", baru.nilai[46][1] === "Dilaporkan Oleh :" && baru.nilai[46][3] === "Disetujui Oleh :" && baru.nilai[50][1] === "Nama Pelapor" && baru.nilai[50][3] === "Nama Penyetuju", baru.nilai[50]);
+cek("tanda tangan di bawah total", baru.nilai[46][1] === "Dilaporkan Oleh :" && baru.nilai[46][3] === "Disetujui Oleh :" && baru.nilai[50][1] === "Budi Santoso" && baru.nilai[50][3] === "Sari Wulandari", baru.nilai[50]);
 cek("bulan pada kop", baru.nilai[7][1] === ": November 2026");
 cek("dibaca balik sama", (() => {
   const balik = uraikanIsiTimesheet(baru.nilai.map((b) => b.map((v) => String(v).replace(/^'/, "").replace(/^=.*/, ""))), { mulai: "2026-11-10", selesai: "2026-11-12" });
-  return balik.baris.length === 3 && balik.baris[0].tanggal === "2026-11-10" && balik.baris[0].keterangan === "Hari pertama" && balik.disetujuiOleh === "Nama Penyetuju";
+  return balik.baris.length === 3 && balik.baris[0].tanggal === "2026-11-10" && balik.baris[0].keterangan === "Hari pertama" && balik.disetujuiOleh === "Sari Wulandari";
 })());
 const banyak = susunIsiTimesheet({
   proyek: "P", judulKegiatan: "J", nama: "N", mulai: "2026-01-01", selesai: "2026-02-15",
@@ -173,36 +173,36 @@ const trx = (o: Partial<Transaksi>): Transaksi => ({
   jumlah: 200000, metode: "Tunai", kaitan: "", catatan: "", ...o,
 });
 const tsBaris = [
-  { tanggal: "2026-09-20", keterangan: "Perjalanan ke Malinau", lokasi: "Kabupaten Malinau" },
-  { tanggal: "2026-09-22", keterangan: "Analisis dokumen", lokasi: "Desa Buduk Tumu" },
+  { tanggal: "2026-09-20", keterangan: "Perjalanan ke Kota Tujuan", lokasi: "Kabupaten Contoh" },
+  { tanggal: "2026-09-22", keterangan: "Analisis dokumen", lokasi: "Desa Contoh Satu" },
 ];
 const perdiem = barisPerdiemKegiatan(
   [trx({}), trx({ tanggal: "2026-09-21" }), trx({ tanggal: "2026-09-22" }), trx({ kategori: "Konsumsi", tanggal: "2026-09-23" }), trx({ jenis: "pemasukan", tanggal: "2026-09-24" })],
   tsBaris
 );
 cek("hanya perdiem Dana Kegiatan", perdiem.length === 3 && perdiem.map((b) => b.tanggal).join() === "2026-09-20,2026-09-21,2026-09-22", perdiem);
-cek("keterangan dan lokasi dari timesheet, jumlah dari transaksi", perdiem[0].keterangan === "Perjalanan ke Malinau" && perdiem[0].jumlah === 200000 && perdiem[2].lokasi === "Desa Buduk Tumu");
+cek("keterangan dan lokasi dari timesheet, jumlah dari transaksi", perdiem[0].keterangan === "Perjalanan ke Kota Tujuan" && perdiem[0].jumlah === 200000 && perdiem[2].lokasi === "Desa Contoh Satu");
 cek("hari tanpa baris di timesheet tetap muncul dengan keterangan kosong", perdiem[1].keterangan === "" && perdiem[1].jumlah === 200000);
 
 console.log("Daftar perdiem untuk dokumen");
 const daftar = susunDaftarPerdiem(
   [trx({}), trx({ tanggal: "2026-09-21" }), trx({ tanggal: "2026-10-01" })],
-  { nama: JUDUL, batch: undefined, timesheetNama: NAMA_BATCH4, timesheetBaris: [{ tanggal: "2026-10-01", keterangan: "Pengambilan titik koordinat", lokasi: "Desa Long Rungan" }] },
-  { nama: "Nama Pelapor", proyek: "Nama Proyek", penyetuju: "Nama Penyetuju" }
+  { nama: JUDUL, batch: undefined, timesheetNama: NAMA_BATCH4, timesheetBaris: [{ tanggal: "2026-10-01", keterangan: "Pengambilan titik koordinat", lokasi: "Desa Contoh Dua" }] },
+  { nama: "Budi Santoso", proyek: "Proyek Contoh", penyetuju: "Sari Wulandari" }
 );
-cek("kop sama dengan file timesheet", daftar?.proyek === "Nama Proyek" && daftar.judulKegiatan === JUDUL && daftar.bulan === "September - Oktober 2026" && daftar.nama === "Nama Pelapor", daftar);
+cek("kop sama dengan file timesheet", daftar?.proyek === "Proyek Contoh" && daftar.judulKegiatan === JUDUL && daftar.bulan === "September - Oktober 2026" && daftar.nama === "Budi Santoso", daftar);
 cek("tanggal gaya timesheet, nomor urut, total", daftar?.baris.map((b) => b.tanggal).join() === "9/20/2026,9/21/2026,10/1/2026" && daftar.baris[2].no === 3 && daftar.total === 600000, daftar?.baris);
-cek("keterangan dan lokasi dari timesheet", daftar?.baris[2].keterangan === "Pengambilan titik koordinat" && daftar.baris[2].lokasi === "Desa Long Rungan" && daftar.baris[0].keterangan === "");
-cek("hari berketerangan dan penyetuju", daftar?.hariBerketerangan === 1 && daftar.disetujuiOleh === "Nama Penyetuju" && daftar.dilaporkanOleh === "Nama Pelapor");
+cek("keterangan dan lokasi dari timesheet", daftar?.baris[2].keterangan === "Pengambilan titik koordinat" && daftar.baris[2].lokasi === "Desa Contoh Dua" && daftar.baris[0].keterangan === "");
+cek("hari berketerangan dan penyetuju", daftar?.hariBerketerangan === 1 && daftar.disetujuiOleh === "Sari Wulandari" && daftar.dilaporkanOleh === "Budi Santoso");
 cek("tanpa perdiem -> null", susunDaftarPerdiem([trx({ kategori: "Konsumsi" })], { nama: "K", batch: 1, timesheetNama: undefined, timesheetBaris: [] }, { nama: "N", proyek: "P" }) === null);
 
 console.log("Pembersihan transaksi nyasar dari file timesheet");
 const nyasar = (o: Partial<Transaksi>) => trx({ jenis: "pemasukan", kategori: "Lain-lain", ...o });
-const daftarTs = [{ timesheetBaris: [{ tanggal: "2026-09-20", keterangan: "Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat", lokasi: "Kabupaten Malinau" }] }];
+const daftarTs = [{ timesheetBaris: [{ tanggal: "2026-09-20", keterangan: "Perjalanan dari Kota Asal menuju Kabupaten Contoh melalui jalur darat", lokasi: "Kabupaten Contoh" }] }];
 const semuaTrx = [
   nyasar({ id: "j1", deskripsi: "Total", jumlah: 6800000 }),
   nyasar({ id: "j2", deskripsi: "Total", jumlah: 6800000 }),
-  nyasar({ id: "j3", deskripsi: "Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat", jumlah: 200000, kategori: "Kabupaten Malinau" }),
+  nyasar({ id: "j3", deskripsi: "Perjalanan dari Kota Asal menuju Kabupaten Contoh melalui jalur darat", jumlah: 200000, kategori: "Kabupaten Contoh" }),
   nyasar({ id: "s1", deskripsi: "Penerimaan Dana Awal Kegiatan", kategori: "Penerimaan Dana", jumlah: 26370000 }),
   nyasar({ id: "s2", deskripsi: "Total", kegiatanId: "kg4" }),
   nyasar({ id: "s3", deskripsi: "Total", catatan: "dicatat sendiri" }),
@@ -216,7 +216,7 @@ cek("transaksi sungguhan tidak tersentuh (dana awal, ada kegiatan/catatan, priba
 cek("tanpa timesheet tersalin, hanya baris Total yang dikenali", cariTransaksiNyasarTimesheet(semuaTrx, []).map((t) => t.id).join() === "j1,j2");
 cek(
   "keterangan dari file timesheet di Drive juga dikenali (kegiatan belum dicocokkan)",
-  cariTransaksiNyasarTimesheet(semuaTrx, [], ["Perjalanan dari Tanjung Selor menuju Kabupaten Malinau melalui jalur darat"]).map((t) => t.id).join() === "j1,j2,j3"
+  cariTransaksiNyasarTimesheet(semuaTrx, [], ["Perjalanan dari Kota Asal menuju Kabupaten Contoh melalui jalur darat"]).map((t) => t.id).join() === "j1,j2,j3"
 );
 
 console.log("Catatan mencurigakan (konfirmasi pengguna)");

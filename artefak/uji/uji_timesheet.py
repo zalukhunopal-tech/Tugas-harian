@@ -31,6 +31,12 @@ def cek(kondisi, pesan):
         gagal.append(pesan)
 
 
+# Bawaan Profil Pelapor di aplikasi kosong; uji ini mengisinya seperti pengguna.
+PROFIL_UJI = json.dumps(
+    json.dumps({"nama": "Budi Santoso", "jabatan": "Surveyor", "lembaga": "Lembaga Contoh", "proyek": "Proyek Contoh", "penyetuju": "Sari Wulandari"})
+)
+INIT_PROFIL = "if (!localStorage.getItem('__p')) { localStorage.setItem('__p', '1'); localStorage.setItem('keuangan-profil-pelapor', %s); }" % PROFIL_UJI
+
 JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Adat dan Koordinasi Multipihak di Kalimantan Utara (Batch 4)"
 NAMA_TS4 = "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)"
 
@@ -45,7 +51,7 @@ def hari(i):
 
 def baris_timesheet():
     rows = [[], ["", "", "Detail Keuangan"], ["", "", "Perdiem Kegiatan Lapangan"], [],
-            ["Proyek", ": Nama Proyek"], ["Judul Kegiatan", ": " + JUDUL], ["Nama", ": Nama Pelapor"],
+            ["Proyek", ": Proyek Contoh"], ["Judul Kegiatan", ": " + JUDUL], ["Nama", ": Budi Santoso"],
             ["Bulan", ": September - Oktober 2026"], [], ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"]]
     for i in range(34):
         iso, tampil = hari(i)
@@ -54,7 +60,7 @@ def baris_timesheet():
     rows.append([])
     rows.append(["", "Dilaporkan Oleh :", "", "Disetujui Oleh :"])
     rows += [[], [], []]
-    rows.append(["", "Nama Pelapor", "", "Nama Penyetuju"])
+    rows.append(["", "Budi Santoso", "", "Sari Wulandari"])
     return rows
 
 
@@ -95,6 +101,7 @@ def buka(p, lebar=420):
     pg.on("pageerror", lambda e: galat.append("PAGEERROR " + str(e)[:300]))
     pg.on("console", lambda m: m.type == "error" and "Failed to load resource" not in m.text and galat.append("CONSOLE " + m.text[:300]))
     pg.add_init_script(TIRUAN)
+    pg.add_init_script(INIT_PROFIL)
     pg.add_init_script(INIT_DRIVE)
     pg.goto(BASE)
     pg.wait_for_selector(".navbar", timeout=15000)
@@ -162,7 +169,7 @@ def isi_sk_pengguna():
 
     bln = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
     rows = [["1", "2026-09-19", "Penerimaan Dana Awal Kegiatan", "Penerimaan Dana", "26370000", "", "26370000", "", "", "idk1", "Transfer", ""],
-            ["2", "2026-09-20", "Pembelian konsumsi perjalanan (snack)", "Konsumsi", "", "65800", "26304200", "Perjalanan Tanjung Selor - Malinau (20 Sep 2026)", "Bayar tunai", "idk2", "Tunai", ""]]
+            ["2", "2026-09-20", "Pembelian konsumsi perjalanan (snack)", "Konsumsi", "", "65800", "26304200", "Perjalanan Kota Asal - Kota Tujuan (20 Sep 2026)", "Bayar tunai", "idk2", "Tunai", ""]]
     for i in range(34):
         d = datetime.date(2026, 9, 20) + datetime.timedelta(days=i)
         rows.append([str(i + 3), d.isoformat(), f"Perdiem Kalimantan · {d.day} {bln[d.month - 1]} 2026", "Perdiem", "", "200000", "0", "", "", f"pd{i}", "Tunai", ""])
@@ -177,6 +184,7 @@ def buka_pengguna(p, lebar=420):
     galat = []
     pg.on("pageerror", lambda e: galat.append("PAGEERROR " + str(e)[:300]))
     pg.add_init_script(TIRUAN)
+    pg.add_init_script(INIT_PROFIL)
     pg.add_init_script(
         """(() => { const D = window.__drive; D.mulai(); const rows = %s;
           D.tambahFile({ id: 'TS4', title: %s, mimeType: 'application/vnd.google-apps.spreadsheet', parentId: 'F1', modifiedTime: '2026-10-24T11:22:44.066Z' });
@@ -225,13 +233,13 @@ with sync_playwright() as p:
     cek(lembar.count() == 1, "ada satu lembar daftar perdiem berformat timesheet")
     teks = re.sub(r"\s+", " ", lembar.inner_text())
     cek("Detail Keuangan" in teks and "Perdiem Kegiatan Lapangan" in teks, "kop 'Detail Keuangan / Perdiem Kegiatan Lapangan'")
-    cek(": Nama Proyek" in teks and ": September - Oktober 2026" in teks and "Nama Pelapor" in teks, "Proyek, Nama, Bulan")
+    cek(": Proyek Contoh" in teks and ": September - Oktober 2026" in teks and "Budi Santoso" in teks, "Proyek, Nama, Bulan")
     cek(JUDUL in teks, "Judul Kegiatan")
     cek(pg.locator("[data-testid=lembar-timesheet] .dsc-ts__baris[role=row]").count() == 34 + 2, "34 baris data + kepala + total")
     cek("9/20/2026" in teks and "10/1/2026" in teks and "10/23/2026" in teks, "tanggal bergaya M/D/YYYY seperti file")
     cek("Kegiatan lapangan hari ke-12, bersama warga" in teks and "Desa Contoh 2" in teks, "Keterangan dan Lokasi dari timesheet tampil")
     cek("Total 6.800.000" in teks, "Total 6.800.000")
-    cek("Dilaporkan Oleh :" in teks and "Disetujui Oleh :" in teks and "Nama Penyetuju" in teks, "kolom tanda tangan")
+    cek("Dilaporkan Oleh :" in teks and "Disetujui Oleh :" in teks and "Sari Wulandari" in teks, "kolom tanda tangan")
     lebar_halaman = pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
     cek(not lebar_halaman, "tanpa overflow horizontal di HP")
 
@@ -245,7 +253,7 @@ with sync_playwright() as p:
     cek("Detail Keuangan" in tw and "Perdiem Kegiatan Lapangan" in tw, "Word: kop timesheet")
     cek("Kegiatan lapangan hari ke-12, bersama warga" in tw and "Desa Contoh 2" in tw, "Word: Keterangan dan Lokasi")
     cek("10/1/2026" in tw and "9/20/2026" in tw, "Word: tanggal bergaya timesheet")
-    cek("Nama Penyetuju" in tw and "Dilaporkan Oleh :" in tw, "Word: Dilaporkan Oleh / Disetujui Oleh")
+    cek("Sari Wulandari" in tw and "Dilaporkan Oleh :" in tw, "Word: Dilaporkan Oleh / Disetujui Oleh")
     cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 
@@ -295,7 +303,7 @@ with sync_playwright() as p:
     cek(rows5[44][2] == "Total" and str(rows5[44][4]).startswith("=SUM(E11:E44)"), f"Total memakai rumus SUM ({rows5[44][2:5]})")
     cek("Patroli Hutan Desa Contoh (Batch 5)" in str(rows5[5][1]), f"judul kegiatan berakhiran (Batch 5) ({rows5[5][1]})")
     cek(": November 2026" in str(rows5[7][1]), "kop Bulan: November 2026")
-    cek(rows5[50][1] == "Nama Pelapor" and rows5[50][3] == "Nama Penyetuju", "nama pelapor dan penyetuju di tanda tangan")
+    cek(rows5[50][1] == "Budi Santoso" and rows5[50][3] == "Sari Wulandari", "nama pelapor dan penyetuju di tanda tangan")
     cek(snapshot_ts4(pg) == awal_ts4, "file batch 4 milik pengguna tetap tidak berubah")
     kg5 = [k for k in kegiatan_lokal(pg) if k["nama"].startswith("Patroli")][0]
     cek(kg5.get("batch") == 5 and kg5.get("timesheetId") == id5 and kg5.get("timesheetDibuatApp") is True, "kegiatan menyimpan batch, ID file, penanda buatan aplikasi")
