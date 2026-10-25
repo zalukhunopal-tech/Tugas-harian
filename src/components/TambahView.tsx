@@ -895,7 +895,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   );
   const blokTanggal = (
     <>
-      <div className="field">
+      <div className="field f-tanggal">
         <label htmlFor="tanggal">Tanggal</label>
         <input
           type="date"
@@ -911,7 +911,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   );
   const blokUraian = (
     <>
-      <div className="field">
+      <div className="field f-uraian">
         <label htmlFor="deskripsi">Uraian</label>
         <input
           type="text"
@@ -932,7 +932,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const blokKategori = (
     <>
       {modeTransaksi !== "pindah_dana" && (
-        <div className="field">
+        <div className="field f-kategori">
           <label htmlFor="kategori">Kategori</label>
           <div
             style={{
@@ -1006,7 +1006,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
     <>
       {modeTransaksi !== "pindah_dana" && kategori === "Tabungan" && daftarTargetTabungan && daftarTargetTabungan.length > 0 && (
         <div
-          className="field"
+          className="field f-target"
           style={{
             background: "rgba(16, 185, 129, 0.08)",
             padding: "12px",
@@ -1038,7 +1038,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   );
   const blokJumlah = (
     <>
-      <div className="field">
+      <div className="field f-jumlah">
         <label htmlFor="jumlah">Jumlah (Rp)</label>
         <input
           type="number"
@@ -1055,7 +1055,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   );
   const blokMetode = (
     <>
-      <div className="field">
+      <div className="field f-metode">
         <label htmlFor="metode">Metode bayar</label>
         <select
           id="metode"
@@ -1078,7 +1078,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {renderDanaKegiatan()}
         </div>
       ) : (
-        <div className="field">
+        <div className="field f-kaitan">
           <label htmlFor="kaitan" id="label-kaitan">
             {kaitanMeta.label}
           </label>
@@ -1886,7 +1886,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
       <section className="card" id="kartu-form">
         <h2 id="judul-form">{editTransaksi ? "Ubah Transaksi" : "Formulir Transaksi"}</h2>
-        <form id="form-transaksi" ref={formRef} onSubmit={handleSubmit}>
+        <form id="form-transaksi" ref={formRef} onSubmit={handleSubmit} data-mode={modeTransaksi}>
           {dialihkanDariPerdiemPribadi && (
             <p
               id="info-dialihkan-perdiem"
@@ -1903,7 +1903,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
               Perubahan di sini ikut mengubah pemasukan pribadinya.
             </p>
           )}
-          <fieldset className="field segmented">
+          <fieldset className="field segmented f-jenis">
             <legend>Jenis Transaksi</legend>
             <div className="segmented-options" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
               <label style={{ flex: 1, minWidth: "100px" }}>
@@ -2023,7 +2023,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className="field">
+            <div className="field f-dana">
               <label htmlFor="dana">Dana</label>
               <select
                 id="dana"

@@ -946,8 +946,12 @@ html[data-tema="jujutsu"] .saya-app-ikon {
 }
 
 html[data-tema="jujutsu"] .saya-kembali {
-  background: rgba(0, 0, 0, 0.45);
-  border-color: rgba(var(--k1), 0.45);
+  /* Latar OPAK (lapisan --surface di bawah semburat warna tokoh). Dulu hitam 45% tembus pandang sehingga wallpaper
+     tampak menembus dan tombol terlihat seperti noda gelap. */
+  background: linear-gradient(145deg, rgba(var(--k1), 0.34), rgba(var(--k1), 0.1)), var(--surface);
+  border: 2px solid rgba(var(--k1), 0.85);
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.55), 0 0 14px rgba(var(--k1), 0.4);
 }
 
 html[data-tema="jujutsu"] .saya-appbar-judul {
