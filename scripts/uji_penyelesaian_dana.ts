@@ -35,7 +35,7 @@ const trx = (o: Partial<Transaksi>): Transaksi => ({
   ...o,
 });
 
-const A: RentangKegiatan = { id: "kA", nama: "Survei Hulu Kayan", tanggalMulai: "2026-09-16", tanggalSelesai: "2026-10-24" };
+const A: RentangKegiatan = { id: "kA", nama: "Survei Hulu Contoh", tanggalMulai: "2026-09-16", tanggalSelesai: "2026-10-24" };
 const B: RentangKegiatan = { id: "kB", nama: "Monev Mentarang", tanggalMulai: "2026-11-02", tanggalSelesai: "2026-11-10" };
 const semua = [A, B];
 

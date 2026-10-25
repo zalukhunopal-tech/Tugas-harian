@@ -70,7 +70,7 @@ import {
 import {
   cariFolderKeuangan,
   ambilIsiFolderKeuangan,
-  buatFolderKeuangan,
+  pastikanFolderKeuangan,
   kirimSemuaKeDrive,
   tarikSemuaDariDrive,
   simpanAsetKeDrive,
@@ -79,6 +79,8 @@ import {
   KeuanganDriveContents,
   dapatkanFolderLaporanKegiatan,
   simpanDocxLaporanKeDrive,
+  sudahTarikLengkap,
+  resetStatusTarik,
 } from "./lib/gdriveSync";
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
 import { batchKegiatan, cariCatatanMencurigakan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
@@ -102,6 +104,7 @@ import { GrafikView } from "./components/GrafikView";
 import { SayaView } from "./components/SayaView";
 import { TransaksiBerulangModal } from "./components/TransaksiBerulangModal";
 import { AppLockModal } from "./components/AppLockModal";
+import { hapusTotp } from "./lib/totp";
 
 /** Kegiatan yang selesai sebelum tanggal ini dianggap lama: file timesheet-nya tidak dibuat otomatis. */
 const KUNCI_JEJAK_TIMESHEET = "keuangan-jejak-timesheet";
@@ -341,6 +344,9 @@ export default function App() {
   const percobaanTimesheetRef = React.useRef<Set<string>>(new Set());
   const syncPendingRef = React.useRef<boolean>(false);
   const initialPullDoneRef = React.useRef<boolean>(false);
+  // Diisi setelah handleTarikDariDrive dan jadwalkanAutoSync didefinisikan (keduanya dibuat sesudah jalankanAutoKirimKeDrive).
+  const tarikDuluRef = React.useRef<((auto?: boolean) => Promise<void>) | null>(null);
+  const jadwalkanAutoSyncRef = React.useRef<(() => void) | null>(null);
 
   const periksaDriveOtomatis = useCallback(async (token: string) => {
     setMemuatDrive(true);
@@ -396,6 +402,20 @@ export default function App() {
       return;
     }
 
+    // Pasang ulang atau sesi baru: data lokal bisa kosong atau belum lengkap. Tarik dulu; kirim baru dijadwalkan setelah itu
+    // (supaya state hasil tarik sudah terpasang), jadi isi Drive tidak pernah tertimpa data lokal yang belum lengkap.
+    if (!sudahTarikLengkap()) {
+      setSyncStatus({ pesan: "Menarik data dari Drive dulu…", status: "kerja" });
+      await tarikDuluRef.current?.(true);
+      if (sudahTarikLengkap()) {
+        jadwalkanAutoSyncRef.current?.();
+      } else {
+        syncPendingRef.current = true;
+        setSyncStatus({ pesan: "Belum tersinkron", status: "gagal" });
+      }
+      return;
+    }
+
     setSyncStatus({ pesan: "Menyinkronkan ke Drive…", status: "kerja" });
     try {
       await kirimSemuaKeDrive(
@@ -433,6 +453,7 @@ export default function App() {
       void jalankanAutoKirimKeDrive();
     }, 5000);
   }, [jalankanAutoKirimKeDrive]);
+  jadwalkanAutoSyncRef.current = jadwalkanAutoSync;
 
   // Otomatis buat dan perbarui dokumen Word SPJ di Drive: Keuangan / Laporan Kegiatan / "Laporan Keuangan – <nama kegiatan>.docx" (jeda ±10 detik)
   const jalankanAutoSyncDocxKegiatan = useCallback(async () => {
@@ -448,7 +469,7 @@ export default function App() {
     try {
       let folderKeuangan = await cariFolderKeuangan(token);
       if (!folderKeuangan) {
-        folderKeuangan = await buatFolderKeuangan(token);
+        folderKeuangan = (await pastikanFolderKeuangan(token)).folder;
       }
       const folderLaporan = await dapatkanFolderLaporanKegiatan(token, folderKeuangan.id);
 
@@ -653,7 +674,7 @@ export default function App() {
       try {
         let folder = await cariFolderKeuangan(token);
         if (!folder) {
-          folder = await buatFolderKeuangan(token);
+          folder = (await pastikanFolderKeuangan(token)).folder;
         }
         const targetFolder = await dapatkanFolderBuktiTarget(token, folder.id, trx.dana);
 
@@ -729,7 +750,7 @@ export default function App() {
 
       let folder = await cariFolderKeuangan(token);
       if (!folder) {
-        folder = await buatFolderKeuangan(token);
+        folder = (await pastikanFolderKeuangan(token)).folder;
       }
 
       let adaPerubahan = false;
@@ -909,6 +930,8 @@ export default function App() {
     }
   };
 
+  tarikDuluRef.current = handleTarikDariDrive;
+
   // Aplikasi baru dipasang di perangkat (PWA): bila sudah masuk Google, siapkan folder Keuangan saat itu juga. Bila belum
   // masuk, penyiapan berjalan pada masuk pertama lewat periksaDriveOtomatis.
   useEffect(() => {
@@ -976,6 +999,7 @@ export default function App() {
 
   const handleGoogleLogout = async () => {
     await logoutGoogle();
+    resetStatusTarik();
     setGoogleUser(null);
     setGoogleAccessToken("");
     setDriveContents(null);
@@ -988,6 +1012,20 @@ export default function App() {
     if (!token) {
       token = await handleGoogleLogin();
       if (!token) return;
+    }
+
+    // Setelah pasang ulang data lokal bisa kosong: tarik dulu, jangan kirim sebelum isi Drive terbaca lengkap.
+    if (!sudahTarikLengkap()) {
+      await handleTarikDariDrive(false);
+      if (sudahTarikLengkap()) {
+        setSyncPesan("Data dari Google Drive ditarik dulu supaya isinya tidak tertimpa. Tekan kirim lagi bila masih ingin menyimpan.");
+      } else {
+        setSyncPesan(
+          "Tarik data dari folder Keuangan dulu sampai berhasil tanpa galat. Sebagian isi Drive belum terbaca, jadi data tidak dikirim supaya isi Drive tidak tertimpa."
+        );
+        setSyncStatus({ pesan: "Kirim ditahan: tarik data dulu", status: "gagal" });
+      }
+      return;
     }
 
     // Konfirmasi eksplisit untuk tombol manual
@@ -1006,7 +1044,7 @@ export default function App() {
           "Folder 'Keuangan' belum ada di Google Drive Anda. Buat folder baru 'Keuangan' sekarang?"
         );
         if (!buat) return;
-        folder = await buatFolderKeuangan(token);
+        folder = (await pastikanFolderKeuangan(token)).folder;
       }
 
       const res = await kirimSemuaKeDrive(
@@ -1350,6 +1388,8 @@ export default function App() {
   };
 
   const handleSimpanAppLockConfig = (cfg: AppLockConfig) => {
+    // Authenticator hanyalah langkah kedua setelah PIN; tanpa kunci aplikasi tidak ada yang memintanya, jadi rahasianya dibuang.
+    if (!cfg.enabled) hapusTotp();
     setAppLockConfig(cfg);
     simpanAppLock(cfg);
 

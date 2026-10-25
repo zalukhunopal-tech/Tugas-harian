@@ -26,7 +26,6 @@ function cek(nama: string, kondisi: boolean, rincian?: unknown) {
 
 const FOLDER = "application/vnd.google-apps.folder";
 const SHEET = "application/vnd.google-apps.spreadsheet";
-const ID_BAWAAN = "1zRqAgxStMdx3Ksm_K1R8R_pec_pMg6qf";
 
 interface BerkasPalsu {
   id: string;
@@ -178,21 +177,16 @@ const tulis = () => log.filter((l) => l.metode !== "GET");
 const buatFolder = () => log.filter((l) => l.metode === "POST" && l.url === "/drive/v3/files");
 
 async function main() {
-  console.log("Folder bawaan milik orang lain tidak dianggap folder Keuangan saya");
+  console.log("Pencarian folder Keuangan: hanya milik saya, stabil, tanpa ID bawaan");
   reset();
-  tambah({ id: ID_BAWAAN, name: "Keuangan", mimeType: FOLDER, ownedByMe: false, pemilik: "penulis@example.org" });
-  files.get(ID_BAWAAN)!.parents = ["x"];
-  // Pencarian nama (langkah 1-2) sengaja tidak menemukannya agar langkah ID bawaan yang diuji: sembunyikan dari pencarian.
-  const asalFetch = (globalThis as any).fetch;
-  (globalThis as any).fetch = async (u: any, i: any) => {
-    const url = new URL(String(u));
-    if (url.pathname === "/drive/v3/files" && !url.searchParams.get("q")?.includes("in parents") && (i?.method || "GET") === "GET") return json({ files: [] });
-    return asalFetch(u, i);
-  };
-  cek("folder bawaan yang bukan milik saya diabaikan", (await cariFolderKeuangan(TOKEN)) === null);
-  files.get(ID_BAWAAN)!.ownedByMe = true;
-  cek("folder bawaan milik saya (pemilik aplikasi) tetap ditemukan", (await cariFolderKeuangan(TOKEN))?.id === ID_BAWAAN);
-  (globalThis as any).fetch = asalFetch;
+  cek("tanpa folder bernama Keuangan -> null", (await cariFolderKeuangan(TOKEN)) === null);
+  cek("tidak ada permintaan ke satu berkas lewat ID (tidak ada ID bawaan)", !log.some((l) => /^\/drive\/v3\/files\/[^/?]+(\?|$)/.test(l.url)), log.map((l) => l.url));
+  tambah({ id: "ORANG", name: "Keuangan", mimeType: FOLDER, ownedByMe: false, pemilik: "orang@example.org" });
+  cek("folder bernama Keuangan milik orang lain diabaikan", (await cariFolderKeuangan(TOKEN)) === null);
+  tambah({ id: "ASLI", name: "Keuangan", mimeType: FOLDER, parents: ["root"] });
+  tambah({ id: "KEMBAR", name: "Keuangan", mimeType: FOLDER, parents: ["root"] });
+  cek("dua folder milik saya: yang paling lama dibuat selalu terpilih", (await cariFolderKeuangan(TOKEN))?.id === "ASLI");
+  cek("pemeriksaan penyiapan juga memilih yang sama dan mengabaikan milik orang lain", (await periksaKeberadaanFolder(TOKEN)).status === "ada" && ((await periksaKeberadaanFolder(TOKEN)) as any).folder.id === "ASLI");
 
   console.log("Penyiapan folder Keuangan untuk pengguna baru (Drive kosong)");
   reset();

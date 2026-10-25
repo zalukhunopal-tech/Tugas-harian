@@ -88,6 +88,36 @@
   };
   D.mulai();
 
+  // Potret seluruh isi Drive palsu sebagai teks dan pemulihannya, supaya uji bisa memuat ulang halaman (yang menghapus
+  // memori halaman) seperti pasang ulang aplikasi sementara isi Drive tetap ada.
+  D.potret = () =>
+    JSON.stringify({
+      files: [...D.files.entries()].map(([k, f]) => [k, { ...f, bytes: f.bytes ? kePb64(f.bytes) : undefined }]),
+      sheets: [...D.sheets.entries()],
+      trashed: [...D.trashed],
+      izinFile: [...D.izinFile.entries()],
+      publik: [...D.publik],
+      dibagikan: D.dibagikan,
+      urut,
+    });
+  D.pulihkan = (teks) => {
+    const d = JSON.parse(teks);
+    D.files.clear();
+    for (const [k, f] of d.files) D.files.set(k, { ...f, bytes: f.bytes ? dariB64(f.bytes) : undefined });
+    D.sheets.clear();
+    for (const [k, v] of d.sheets) D.sheets.set(k, v);
+    D.trashed.clear();
+    d.trashed.forEach((x) => D.trashed.add(x));
+    D.izinFile.clear();
+    for (const [k, v] of d.izinFile) D.izinFile.set(k, v);
+    D.publik.clear();
+    d.publik.forEach((x) => D.publik.add(x));
+    D.dibagikan.length = 0;
+    D.dibagikan.push(...d.dibagikan);
+    urut = d.urut;
+    D.calls.length = 0;
+  };
+
   /* ---- Sheets ---- */
   const kolomKe = (h) => [...h.toUpperCase()].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
   function urai(rentang) {

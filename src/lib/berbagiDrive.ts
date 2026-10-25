@@ -2,6 +2,7 @@ import { Transaksi } from "../types";
 import type { GDriveFileInfo, KeuanganDriveContents } from "./gdriveSync";
 import { bacaTransaksiDariSpreadsheet } from "./gdriveSync";
 import {
+  akunPemilikDariIzin,
   BerkasDibagikan,
   BerkasKeuangan,
   DanaBerbagi,
@@ -56,6 +57,23 @@ export async function muatBerkasKeuangan(token: string, contents: KeuanganDriveC
     hasil.push({ id: f.id, nama: f.name, dana, izin: await ambilIzinBerkas(token, f.id) });
   }
   return hasil;
+}
+
+/**
+ * Email akun Google yang sedang tertaut ke Drive, dibaca dari pemilik spreadsheet keuangan sendiri. Dipakai saat profil masuk
+ * tidak membawa email asli (mode artefak). Null bila belum ada spreadsheet atau izinnya tidak bisa dibaca.
+ */
+export async function emailAkunDrive(token: string, contents: KeuanganDriveContents): Promise<string | null> {
+  for (const f of contents.spreadsheets) {
+    if (!danaDariNamaFile(f.name)) continue;
+    try {
+      const akun = akunPemilikDariIzin([{ id: f.id, nama: f.name, dana: "pribadi", izin: await ambilIzinBerkas(token, f.id) }]);
+      if (akun) return akun.email;
+    } catch {
+      // coba berkas berikutnya
+    }
+  }
+  return null;
 }
 
 /** Beri izin baca kepada satu akun Google. Tanpa email pemberitahuan: orangnya melihatnya di aplikasi. */

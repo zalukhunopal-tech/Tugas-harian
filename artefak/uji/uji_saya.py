@@ -25,7 +25,7 @@ def cek(kondisi, pesan):
         gagal.append(pesan)
 
 
-KEGIATAN = [{"id": "kg1", "nama": "Survei Hulu Kayan", "lokasi": "Malinau", "tanggalMulai": "2026-09-20", "tanggalSelesai": "2026-10-23"}]
+KEGIATAN = [{"id": "kg1", "nama": "Survei Hulu Contoh", "lokasi": "Kota Tujuan", "tanggalMulai": "2026-09-20", "tanggalSelesai": "2026-10-23"}]
 TRANSAKSI = [
     {"id": "p1", "jenis": "pengeluaran", "dana": "Dana Kegiatan", "tanggal": "2026-09-21", "deskripsi": "Perdiem Kalimantan · 21 Sep 2026", "kategori": "Perdiem",
      "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""},

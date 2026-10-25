@@ -502,7 +502,7 @@ export const KeluargaView: React.FC<KeluargaViewProps> = ({ googleUser, ambilTok
               type="email"
               inputMode="email"
               value={emailManual}
-              placeholder="nama@gmail.com"
+              placeholder="nama@example.com"
               onChange={(e) => {
                 setEmailManual(e.target.value);
                 tulisLokal(KUNCI_EMAIL, e.target.value);
