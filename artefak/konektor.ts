@@ -24,6 +24,9 @@ export const SERVER_SHEETS = "Google Sheets";
 
 const MIME_FOLDER = "application/vnd.google-apps.folder";
 const NAMA_JSON_KEADAAN = /^(Aset|Sinkron|Pengaturan|Laporan Kegiatan)\.json$/i;
+// Yang cukup satu salinan terbaru. Sinkron.json tidak termasuk: salinan lamanya (juga yang sudah di Sampah, yang tak bisa
+// disaring dari pencarian) menyimpan catatan penghapusan yang harus ikut dibaca aplikasi, lihat bacaSinkronGabungan.
+const NAMA_JSON_SATU_SALINAN = /^(Aset|Pengaturan|Laporan Kegiatan)\.json$/i;
 const BATAS_BASE64_INLINE = 700 * 1024; // input callTool dibatasi 1 MiB
 const BARIS_PER_TULIS = 500;
 
@@ -332,12 +335,12 @@ async function daftarFile(url: URL): Promise<Response> {
   // Jaga-jaga bila file lama belum hilang dari hasil pencarian: untuk file keadaan aplikasi pakai yang terbaru.
   const terbaru = new Map<string, any>();
   for (const f of hasil) {
-    if (!NAMA_JSON_KEADAAN.test(f.title ?? "")) continue;
+    if (!NAMA_JSON_SATU_SALINAN.test(f.title ?? "")) continue;
     const kunci = String(f.title).toLowerCase();
     const lama = terbaru.get(kunci);
     if (!lama || String(f.modifiedTime ?? "") > String(lama.modifiedTime ?? "")) terbaru.set(kunci, f);
   }
-  hasil = hasil.filter((f) => !NAMA_JSON_KEADAAN.test(f.title ?? "") || terbaru.get(String(f.title).toLowerCase()) === f);
+  hasil = hasil.filter((f) => !NAMA_JSON_SATU_SALINAN.test(f.title ?? "") || terbaru.get(String(f.title).toLowerCase()) === f);
 
   return teksKeJson({ files: hasil.map(bentukFileDrive) });
 }
