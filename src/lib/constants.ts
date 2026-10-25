@@ -107,7 +107,6 @@ export interface KarakterMeta {
   lambang: string;
   tagline: string;
   teknik: string;
-  domain: string;
 }
 
 export const KARAKTER: Record<KarakterId, KarakterMeta> = {
@@ -117,7 +116,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "無",
     tagline: "Penyihir Terkuat · Saldo selalu terjaga aman",
     teknik: "Tanpa Batas (Mukagen)",
-    domain: "無量空処 (Muryōkūsho)",
   },
   sukuna: {
     id: "sukuna",
@@ -125,7 +123,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "宿",
     tagline: "Raja Kutukan · Setiap pengeluaran terhitung tajam",
     teknik: "Tebasan Pembelah",
-    domain: "伏魔御廚子 (Fukuma Mizushi)",
   },
   jogo: {
     id: "jogo",
@@ -133,7 +130,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "火",
     tagline: "Roh Kutukan Api · Jaga anggaran jangan meletus",
     teknik: "Api Gunung Berapi",
-    domain: "蓋棺鉄囲山 (Gaikan Tetsuisen)",
   },
   nanami: {
     id: "nanami",
@@ -141,7 +137,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "七",
     tagline: "Penyihir Tingkat 1 · Disiplin keuangan tepat waktu",
     teknik: "Teknik Rasio 7:3",
-    domain: "Titik Lemah 7:3",
   },
   itadori: {
     id: "itadori",
@@ -149,7 +144,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "虎",
     tagline: "Wadah Sukuna · Pukulan pengeluaran tepat sasaran",
     teknik: "Kilatan Hitam (Kokusen)",
-    domain: "Tinju Berpencar (Divergent Fist)",
   },
   megumi: {
     id: "megumi",
@@ -157,7 +151,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "影",
     tagline: "Sepuluh Bayangan · Aset terlindungi dalam bayang",
     teknik: "Teknik Sepuluh Bayangan",
-    domain: "嵌合暗翳庭 (Chimera Shadow Garden)",
   },
   nobara: {
     id: "nobara",
@@ -165,7 +158,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "釘",
     tagline: "Penyihir Jujutsu · Pengeluaran tertancap presisi",
     teknik: "Boneka Jerami (Resonansi)",
-    domain: "Resonansi Paku (Kanzashi)",
   },
   yuta: {
     id: "yuta",
@@ -173,7 +165,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "愛",
     tagline: "Penyihir Khusus · Energi tak terbatas masa depan",
     teknik: "Rika & Salin Teknik (Copy)",
-    domain: "真正相互愛 (Shinsetsu Sōgo Ai)",
   },
   toji: {
     id: "toji",
@@ -181,7 +172,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "天",
     tagline: "Pembantai Penyihir · Bebas dari takdir dan ikatan kutukan",
     teknik: "Batasan Surgawi Fisik Murni",
-    domain: "Gudang Senjata Roh Kutukan",
   },
   geto: {
     id: "geto",
@@ -189,7 +179,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "呪",
     tagline: "Manipulasi Kutukan · Menghimpun ribuan kekuatan",
     teknik: "Manipulasi Roh Kutukan (Juryoku Sōsa)",
-    domain: "極ノ番「うずまき」 (Uzumaki)",
   },
   maki: {
     id: "maki",
@@ -197,7 +186,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "真",
     tagline: "Pejuang Tanpa Kutukan · Membelah segalanya dengan baja",
     teknik: "Batasan Surgawi & Pedang Jiwa",
-    domain: "Pedang Pemotong Jiwa (Shiratama)",
   },
   mahito: {
     id: "mahito",
@@ -205,7 +193,6 @@ export const KARAKTER: Record<KarakterId, KarakterMeta> = {
     lambang: "魂",
     tagline: "Roh Kutukan Jiwa · Bentuk sejati dari kehendak jiwa",
     teknik: "Mutasi Jiwa (Mui Tenpen)",
-    domain: "自閉円頓裹 (Jihei Endonka)",
   },
 };
 
