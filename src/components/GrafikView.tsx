@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import { Transaksi, NamaDana, AnggaranKategoriMap, ProfilPelapor, DataKegiatan } from "../types";
+import { Transaksi, NamaDana, AnggaranKategoriMap } from "../types";
 import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from "../lib/constants";
-import { LaporanView } from "./LaporanView";
 import { RingkasanTahunanView } from "./RingkasanTahunanView";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 import { TeksLayar } from "./TeksLayar";
@@ -13,13 +12,6 @@ interface GrafikViewProps {
   onSetAnggaran: (nilai: number) => void;
   anggaranKategori?: AnggaranKategoriMap;
   onSetAnggaranKategori?: (dana: NamaDana, kategori: string, nilai: number) => void;
-  profilPelapor?: ProfilPelapor;
-  daftarKegiatan?: DataKegiatan[];
-  onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
-  onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
-  onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
-  googleToken?: string;
-  isLoggedInGoogle?: boolean;
 }
 
 export const GrafikView: React.FC<GrafikViewProps> = ({
@@ -29,15 +21,8 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   onSetAnggaran,
   anggaranKategori = { "Dana Pribadi": {}, "Dana Kegiatan": {} },
   onSetAnggaranKategori,
-  profilPelapor,
-  daftarKegiatan,
-  onUpdateKegiatan,
-  onSimpanProfilPelapor,
-  onTambahKegiatan,
-  googleToken,
-  isLoggedInGoogle,
 }) => {
-  const [subTab, setSubTab] = useState<"grafik" | "tahunan" | "laporan">("grafik");
+  const [subTab, setSubTab] = useState<"grafik" | "tahunan">("grafik");
   const [inputBatas, setInputBatas] = useState(anggaran > 0 ? String(anggaran) : "");
 
   // Tab pemilihan dana untuk anggaran kategori
@@ -112,7 +97,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
 
   return (
     <section className="view" id="view-grafik" data-view="grafik">
-      <div className="filter-chips no-print" style={{ marginBottom: "16px" }} role="tablist">
+      <div className="filter-chips chips-dua no-print" style={{ marginBottom: "16px" }} role="tablist">
         <button
           type="button"
           className="chip"
@@ -133,30 +118,9 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
         >
           📅 Ringkasan Tahunan
         </button>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={subTab === "laporan"}
-          role="tab"
-          onClick={() => setSubTab("laporan")}
-          style={{ minHeight: "44px", fontWeight: 700 }}
-        >
-          📋 Laporan Dana Kegiatan
-        </button>
       </div>
 
-      {subTab === "laporan" ? (
-        <LaporanView
-          transaksi={transaksi}
-          profilPelapor={profilPelapor}
-          daftarKegiatan={daftarKegiatan}
-          onUpdateKegiatan={onUpdateKegiatan}
-          onSimpanProfilPelapor={onSimpanProfilPelapor}
-          onTambahKegiatan={onTambahKegiatan}
-          googleToken={googleToken}
-          isLoggedInGoogle={isLoggedInGoogle}
-        />
-      ) : subTab === "tahunan" ? (
+      {subTab === "tahunan" ? (
         <RingkasanTahunanView
           transaksi={transaksi}
           tahunAwal={Number(bulanTerpilih.slice(0, 4))}

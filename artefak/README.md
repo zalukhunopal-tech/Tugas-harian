@@ -94,6 +94,7 @@ npx vite build --config artefak/vite.config.ts
 python3 -m http.server 8766 --bind 127.0.0.1 --directory dist-artefak &
 python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
 python3 artefak/uji/uji_timesheet.py http://127.0.0.1:8766/ [/path/ke/chromium]   # timesheet perdiem
+python3 artefak/uji/uji_saya.py http://127.0.0.1:8766/ [/path/ke/chromium]         # tab Saya (layar aplikasi), Laporan di Saya
 ```
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,
