@@ -763,7 +763,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
         <>
           <div className="saya-appbar no-print">
             <button type="button" className="saya-kembali" onClick={() => bukaAplikasi(null)} aria-label="Kembali ke daftar aplikasi">
-              <ArrowLeft size={20} />
+              <ArrowLeft size={22} strokeWidth={2.6} />
             </button>
             <span className="saya-appbar-ikon" style={gayaIkon(aplikasiAktif)} aria-hidden="true">
               {aplikasiAktif.id === "tema" && tema === "jujutsu" ? (

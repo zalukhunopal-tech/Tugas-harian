@@ -116,6 +116,7 @@ npx tsx scripts/uji_drive_rest.ts                          # jalur REST (izin de
 npx tsx scripts/uji_pasang_ulang.ts                        # pasang ulang: tarik dulu, tanpa berkas/baris ganda, galat tidak membuat folder
 npx tsx scripts/uji_totp.ts                                # Google Authenticator: vektor RFC 4226/6238, jendela, jeda, pemakaian ulang
 python3 artefak/uji/uji_totp.py http://127.0.0.1:8766/ [/path/ke/chromium]          # Authenticator di layar kunci (kode dihitung di Python)
+python3 artefak/uji/uji_form_transaksi.py http://127.0.0.1:8766/ [/path/ke/chromium]   # Formulir transaksi tablet/PC rapi, HP satu kolom, tombol kembali opak
 bash scripts/periksa_data_pribadi.sh                       # tanpa ID Drive, email nyata, bawaan profil, atau .zip di repo
 ```
 
