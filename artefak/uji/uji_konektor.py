@@ -322,8 +322,9 @@ with sync_playwright() as p:
     hubungkan(pg)
     nav(pg, "Saya")
     pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
-    setujui_dialog(pg)
+    # Tarik belum lengkap: aplikasi menarik dulu dan menahan kirim, jadi tidak ada dialog konfirmasi.
     pg.get_by_text("Tarik data dari folder Keuangan dulu").first.wait_for(timeout=10000)
+    cek(pg.locator(".dlg-artefak").count() == 0, "kirim ditahan sebelum dialog konfirmasi")
     cek(True, "pesan 'tarik dulu' tampil")
     tulis = [c["tool"] for c in panggilan(pg) if c["tool"] in ("create_file", "update_values", "batch_clear_values", "trash_file")]
     cek(tulis == [], f"tidak ada panggilan tulis saat ditolak ({tulis})")
@@ -380,6 +381,39 @@ with sync_playwright() as p:
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
     cek(pg.locator("li.kartu-transaksi-bertingkat", has_text="Uji gaji").count() == 1, "Batal: transaksi tetap ada")
+    b.close()
+
+    print("15. Pasang ulang: penyimpanan lokal hilang, Drive masih berisi data")
+    b, pg, galat = buka(p, denganAset=True)
+    hubungkan(pg)
+    tambah_transaksi(pg, "Uji sebelum pasang ulang", 31000)
+    pg.wait_for_function("window.__drive.sheets.get('SP').tabs[0].rows.some(r => r && r[2] === 'Uji sebelum pasang ulang')", timeout=60000)
+    pg.wait_for_timeout(2500)
+    sheet_awal = baris_sheet(pg, "SP")
+    jumlah_file_awal = pg.evaluate("[...window.__drive.files.values()].filter(f => !window.__drive.trashed.has(f.id)).length")
+    cek(any(r[1] == "Uji sebelum pasang ulang" for r in sheet_awal), f"sebelum pasang ulang: transaksi ada di Drive {sheet_awal}")
+    # Pasang ulang = seluruh penyimpanan lokal hilang (Drive tetap). Dua kali, supaya terlihat tidak ada yang menggandakan.
+    for ke in (1, 2):
+        # Muat ulang menghapus memori halaman (tempat Drive palsu hidup); potret dipulihkan lewat skrip awal yang berjalan sesudah tiruan.
+        potret = pg.evaluate("window.__drive.potret()")
+        pg.add_init_script("window.__drive.pulihkan(" + json.dumps(potret) + ");")
+        pg.evaluate("localStorage.clear()")
+        pg.reload()
+        pg.wait_for_selector(".navbar")
+        pg.wait_for_timeout(800)
+        # Sebelum tarik selesai, aplikasi tidak boleh mengirim data lokal yang kosong ke Drive.
+        pg.get_by_role("button", name="Sambungkan konektor Google Drive").count()
+        hubungkan(pg)
+        pg.wait_for_timeout(2500)
+        nav(pg, "Riwayat")
+        teks = pg.inner_text("body")
+        cek("Uji sebelum pasang ulang" in teks and "Uji makan siang" in teks and "Uji gaji" in teks, f"pasang ulang ke-{ke}: semua transaksi kembali dari Drive")
+        cek(teks.count("Uji sebelum pasang ulang") == 1, f"pasang ulang ke-{ke}: transaksi tidak berganda ({teks.count('Uji sebelum pasang ulang')}x)")
+        sheet_kini = baris_sheet(pg, "SP")
+        cek(sorted(map(tuple, sheet_kini)) == sorted(map(tuple, sheet_awal)), f"pasang ulang ke-{ke}: isi sheet Drive tidak berubah {sheet_kini}")
+        jumlah_kini = pg.evaluate("[...window.__drive.files.values()].filter(f => !window.__drive.trashed.has(f.id)).length")
+        cek(jumlah_kini == jumlah_file_awal, f"pasang ulang ke-{ke}: tidak ada berkas atau folder baru ({jumlah_file_awal} -> {jumlah_kini})")
+        cek(len(file_di_folder(pg, "Keuangan")) == 0 and pg.evaluate("[...window.__drive.files.values()].filter(f => f.title === 'Keuangan').length") == 1, f"pasang ulang ke-{ke}: tetap satu folder Keuangan")
     b.close()
 
 print()

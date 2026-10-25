@@ -8,6 +8,8 @@ import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
 import { cekStatusSesiGoogle } from "../lib/googleAuth";
 import { AppLockKelolaModal } from "./AppLockKelolaModal";
+import { TotpKelolaModal } from "./TotpKelolaModal";
+import { LABEL_INTERVAL, muatTotp } from "../lib/totp";
 import { LaporanView } from "./LaporanView";
 import { KeluargaView } from "./KeluargaView";
 
@@ -97,6 +99,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
 }) => {
   const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
+  const [modalTotpBuka, setModalTotpBuka] = useState(false);
+  const [totp, setTotp] = useState(() => muatTotp());
   const [profilForm, setProfilForm] = useState<ProfilPelapor>(() => {
     return profilPelapor || PROFIL_PELAPOR_DEFAULT;
   });
@@ -434,7 +438,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
                 type="text"
                 value={profilForm.lembaga}
                 onChange={(e) => setProfilForm({ ...profilForm, lembaga: e.target.value })}
-                placeholder="Contoh: KKI Warsi"
+                placeholder="Contoh: Nama lembaga atau organisasi"
                 required
               />
             </div>
@@ -449,7 +453,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
                 type="text"
                 value={profilForm.proyek}
                 onChange={(e) => setProfilForm({ ...profilForm, proyek: e.target.value })}
-                placeholder="Contoh: Kayan-Mentarang"
+                placeholder="Contoh: Nama proyek atau lanskap"
                 required
               />
             </div>
@@ -457,7 +461,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
             {/* Baris terpisah di bawah: Keterangan Awal & Tombol Simpan (md:col-span-2) */}
             <div className="profil-pelapor-footer md:col-span-2">
               <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                Awal: Adrila Nopal Prastian Zalukhu (Surveyor, KKI Warsi, Kayan-Mentarang)
+                Isi sekali; tersimpan di perangkat ini dan di Drive Anda.
               </span>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 {statusSimpanProfil && (
@@ -618,6 +622,45 @@ export const SayaView: React.FC<SayaViewProps> = ({
               {appLockConfig.enabled ? "Kelola Kunci / PIN" : "Aktifkan Kunci Aplikasi"}
             </button>
           </div>
+
+          <div
+            id="kartu-totp"
+            style={{
+              padding: "14px 16px",
+              borderRadius: "14px",
+              background: totp ? "rgba(16, 185, 129, 0.12)" : "var(--surface-hover, rgba(255, 255, 255, 0.04))",
+              border: `1px solid ${totp ? "#10b981" : "var(--border)"}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "12px",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: "1 1 200px" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: totp ? "#10b981" : "var(--text)" }}>
+                {totp ? "🔐 Google Authenticator Aktif" : "🔐 Google Authenticator"}
+              </div>
+              <span className="help" style={{ fontSize: "0.78rem", overflowWrap: "anywhere" }}>
+                {totp
+                  ? `Akun tertaut: ${totp.email || "—"} • ${LABEL_INTERVAL[totp.interval]}`
+                  : appLockConfig.enabled
+                    ? "Langkah kedua setelah PIN: kode 6 angka dari ponsel, terikat ke akun email Google Drive Anda."
+                    : "Aktifkan Kunci Aplikasi (PIN) lebih dulu untuk memakai langkah kedua ini."}
+              </span>
+            </div>
+            <button
+              type="button"
+              id="btn-totp"
+              className={totp ? "btn-secondary" : "btn-primary"}
+              disabled={!appLockConfig.enabled && !totp}
+              onClick={() => setModalTotpBuka(true)}
+              style={{ fontSize: "0.85rem", padding: "8px 16px", fontWeight: 700 }}
+            >
+              {totp ? "Kelola" : "Aktifkan"}
+            </button>
+          </div>
     </>
   );
 
@@ -772,8 +815,18 @@ export const SayaView: React.FC<SayaViewProps> = ({
           onClose={() => setModalAppLockBuka(false)}
           config={appLockConfig}
           onSimpanConfig={onSimpanAppLockConfig}
+          totpAktif={Boolean(totp)}
         />
       )}
+      <TotpKelolaModal
+        isOpen={modalTotpBuka}
+        onClose={() => setModalTotpBuka(false)}
+        kunciAktif={appLockConfig.enabled}
+        googleUser={googleUser}
+        ambilToken={ambilToken}
+        driveContents={driveContents}
+        onBerubah={() => setTotp(muatTotp())}
+      />
     </section>
   );
 };

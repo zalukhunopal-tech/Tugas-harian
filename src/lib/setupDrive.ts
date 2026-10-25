@@ -3,9 +3,10 @@ import {
   GDriveFolder,
   KeuanganDriveContents,
   ambilIsiFolderKeuangan,
-  buatFolderKeuangan,
+  cariFolderDrive,
   dapatkanFolderBuktiTarget,
   dapatkanFolderLaporanKegiatan,
+  pastikanFolderKeuangan,
   temukanAtauBuatSpreadsheetTahun,
 } from "./gdriveSync";
 import type { NamaDana } from "../types";
@@ -20,36 +21,7 @@ import type { NamaDana } from "../types";
  * Aman dijalankan berulang: yang sudah ada dipakai, tidak dibuat kembar.
  */
 
-export type KeberadaanFolder = { status: "ada"; folder: GDriveFolder } | { status: "tidak-ada" } | { status: "galat"; pesan: string };
-
-const SELEKSI = "fields=files(id,name,webViewLink)";
-
-async function cari(token: string, q: string): Promise<GDriveFolder[] | string> {
-  try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&${SELEKSI}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return `Pencarian folder gagal (${res.status})`;
-    const data = await res.json();
-    return (data.files || []) as GDriveFolder[];
-  } catch (err: any) {
-    return `Pencarian folder gagal: ${err?.message ?? err}`;
-  }
-}
-
-/**
- * Apakah folder Keuangan sudah ada? Berbeda dari cariFolderKeuangan, galat jaringan atau izin dibedakan dari "memang belum
- * ada": hanya yang kedua boleh berujung pembuatan folder, supaya gangguan sesaat tidak menghasilkan folder Keuangan kedua.
- */
-export async function periksaKeberadaanFolder(token: string): Promise<KeberadaanFolder> {
-  const tipe = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-  for (const q of [`name = 'Keuangan' and ${tipe}`, `name contains 'Keuangan' and ${tipe}`]) {
-    const hasil = await cari(token, q);
-    if (typeof hasil === "string") return { status: "galat", pesan: hasil };
-    if (hasil.length > 0) return { status: "ada", folder: hasil[0] };
-  }
-  return { status: "tidak-ada" };
-}
+export { periksaKeberadaanFolder, type KeberadaanFolder } from "./gdriveSync";
 
 export interface HasilSetupDrive {
   folder: GDriveFolder;
@@ -78,17 +50,9 @@ async function jalankan(token: string, tahun: number): Promise<HasilSetupDrive> 
   const dibuat: string[] = [];
   const gagal: string[] = [];
 
-  const ada = await periksaKeberadaanFolder(token);
-  if (ada.status === "galat") throw new Error(ada.pesan);
-  let folder: GDriveFolder;
-  let folderBaru = false;
-  if (ada.status === "ada") {
-    folder = ada.folder;
-  } else {
-    folder = await buatFolderKeuangan(token);
-    folderBaru = true;
-    dibuat.push("Keuangan");
-  }
+  // pastikanFolderKeuangan memakai folder yang ada; membuat hanya bila pencarian berhasil dan kosong, melempar galat bila gagal.
+  const { folder, baru: folderBaru } = await pastikanFolderKeuangan(token);
+  if (folderBaru) dibuat.push("Keuangan");
 
   const langkah = async (nama: string, kerja: () => Promise<unknown>) => {
     try {
@@ -100,7 +64,7 @@ async function jalankan(token: string, tahun: number): Promise<HasilSetupDrive> 
 
   // Subfolder: temukanAtauBuatSubfolder memakai yang ada; "dibuat" dicatat dari isi folder sebelum dan sesudah.
   const adaFolderDiDalam = async (): Promise<Set<string>> => {
-    const hasil = await cari(token, `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
+    const hasil = await cariFolderDrive(token, `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
     return new Set(typeof hasil === "string" ? [] : hasil.map((f) => f.name.toLowerCase()));
   };
   const sebelumFolder = await adaFolderDiDalam();

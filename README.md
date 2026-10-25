@@ -46,6 +46,14 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan
   gangguan jaringan sesaat tidak pernah membuat folder kedua.
+- **Kunci Aplikasi + Google Authenticator** (tab Saya → Kunci Aplikasi): PIN dan sidik jari, ditambah langkah kedua
+  berupa kode 6 angka dari Google Authenticator (TOTP standar RFC 6238). Entri di Authenticator diberi nama akun email
+  Google Drive yang tertaut. Rahasianya hanya di perangkat (tidak ke Drive), kode tidak bisa dipakai ulang, salah berulang
+  memberi jeda, dan menonaktifkannya butuh kode yang sah. Kode diminta tiap kunci dibuka, atau sekali per 8/24 jam.
+- **Aman dipasang ulang**: setelah aplikasi dipasang ulang (penyimpanan lokal kosong) data ditarik dari Drive lebih dulu;
+  kirim ke Drive ditahan sampai tarik selesai tanpa galat, folder dan berkas dicari sebelum dibuat (galat pencarian tidak
+  pernah membuat folder kembar), dan baris spreadsheet tanpa ID mendapat ID tetap sehingga tidak berganda.
+- **Tanpa data pribadi bawaan**: Profil Pelapor kosong sampai pemakai mengisinya, dan tidak ada ID folder Drive di kode.
 - **Ekspor Data**:
   - Unduh seluruh riwayat transaksi dalam format CSV ber-BOM UTF-8.
 

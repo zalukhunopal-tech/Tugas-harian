@@ -11,3 +11,6 @@ node_modules/
 # Hasil build (disajikan lewat GitHub Pages dari workflow, jangan di-commit)
 dist/
 dist-artefak/
+
+# Arsip Android dibuat ulang dengan: python3 scripts/buat_zip_android.py (membawa salinan aplikasi, jadi jangan dilacak)
+public/*.zip
