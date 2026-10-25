@@ -1454,13 +1454,6 @@ export default function App() {
                   onSetAnggaran={handleSetAnggaran}
                   anggaranKategori={pengaturan.anggaranKategori}
                   onSetAnggaranKategori={handleSetAnggaranKategori}
-                  profilPelapor={profilPelapor}
-                  daftarKegiatan={daftarKegiatan}
-                  onUpdateKegiatan={handleUpdateKegiatan}
-                  onSimpanProfilPelapor={handleSimpanProfilPelapor}
-                  onTambahKegiatan={handleTambahKegiatan}
-                  googleToken={googleAccessToken || undefined}
-                  isLoggedInGoogle={Boolean(googleUser)}
                 />
               </div>
             )}
@@ -1496,6 +1489,10 @@ export default function App() {
                   onSimpanAppLockConfig={handleSimpanAppLockConfig}
                   profilPelapor={profilPelapor}
                   onSimpanProfilPelapor={handleSimpanProfilPelapor}
+                  daftarKegiatan={daftarKegiatan}
+                  onUpdateKegiatan={handleUpdateKegiatan}
+                  onTambahKegiatan={handleTambahKegiatan}
+                  googleToken={googleAccessToken || undefined}
                 />
               </div>
             )}

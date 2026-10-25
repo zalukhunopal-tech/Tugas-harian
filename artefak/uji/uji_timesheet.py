@@ -102,7 +102,24 @@ def buka(p, lebar=420):
     return b, pg, galat
 
 
+def buka_app_saya(pg, app):
+    """Tab Saya berupa layar aplikasi: buka satu aplikasi (drive, laporan, profil, tema, rutin, kunci) dari daftar ikon."""
+    pg.locator(".navbar button", has_text="Saya").first.click()
+    pg.wait_for_timeout(300)
+    if pg.locator(".saya-peluncur").count() == 0:
+        if pg.locator(f"#panel-{app}").count() or (app == "laporan" and pg.locator(".laporan-container").count()):
+            return
+        pg.get_by_role("button", name="Kembali ke daftar aplikasi").click()
+        pg.wait_for_timeout(200)
+    pg.locator(f"[data-app={app}]").click()
+    pg.wait_for_timeout(400)
+
+
 def nav(pg, nama):
+    if nama == "Saya":
+        # Semua pemakaian tab Saya di uji ini menyangkut Drive/konektor.
+        buka_app_saya(pg, "drive")
+        return
     if nama == "Tambah":
         pg.locator(".navbar button").nth(2).click()
     else:
@@ -132,9 +149,8 @@ def snapshot_ts4(pg):
 
 
 def buka_laporan(pg, id_kegiatan="kg4"):
-    nav(pg, "Grafik")
-    pg.get_by_role("tab", name="Laporan Dana Kegiatan").click()
-    pg.wait_for_timeout(500)
+    buka_app_saya(pg, "laporan")
+    pg.wait_for_timeout(300)
     pg.select_option("#lap-kegiatan-select", id_kegiatan)
     pg.wait_for_timeout(500)
 
@@ -439,8 +455,7 @@ with sync_playwright() as p:
     hubungkan(pg)
     pg.wait_for_timeout(1500)
     cek(kegiatan_lokal(pg) == [], "awalnya tidak ada kegiatan (kondisi pengguna)")
-    nav(pg, "Grafik")
-    pg.get_by_role("tab", name="Laporan Dana Kegiatan").click()
+    buka_app_saya(pg, "laporan")
     pg.wait_for_timeout(500)
     cek(pg.locator("#lap-kegiatan-select").count() == 0, "pilihan 'Pilih Kegiatan Lapangan' memang belum ada tanpa kegiatan")
     kd = pg.locator("[data-testid=kartu-timesheet-drive]")

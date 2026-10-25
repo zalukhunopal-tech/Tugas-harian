@@ -1,7 +1,6 @@
 import React from "react";
 import { ViewTab, KarakterId } from "../types";
 import { KARAKTER } from "../lib/constants";
-import { jalankanPerluasanDomain } from "../lib/domain";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 
 interface SidebarProps {
@@ -27,9 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             karakter={karakter}
             ukuran={44}
             showAura
-            interaktif
-            onClick={() => jalankanPerluasanDomain(karakter)}
-            title={`Karakter Aktif: ${meta.nama}. Klik untuk efek domain!`}
+            title={`Karakter Aktif: ${meta.nama}`}
           />
         </div>
         <div className="sidebar-brand-info">

@@ -47,8 +47,25 @@ def buka(p, **opsi):
     return b, pg, galat
 
 
+def buka_app_saya(pg, app):
+    """Tab Saya berupa layar aplikasi: buka satu aplikasi (drive, laporan, profil, tema, rutin, kunci) dari daftar ikon."""
+    pg.locator(".navbar button", has_text="Saya").first.click()
+    pg.wait_for_timeout(300)
+    if pg.locator(".saya-peluncur").count() == 0:
+        if pg.locator(f"#panel-{app}").count() or (app == "laporan" and pg.locator(".laporan-container").count()):
+            return
+        pg.get_by_role("button", name="Kembali ke daftar aplikasi").click()
+        pg.wait_for_timeout(200)
+    pg.locator(f"[data-app={app}]").click()
+    pg.wait_for_timeout(400)
+
+
 def nav(pg, nama):
-    if nama == "Tambah":  # tombol tengah berupa ikon "+", tanpa teks
+    if nama == "Saya":
+        # Semua pemakaian tab Saya di uji ini menyangkut Drive/konektor.
+        buka_app_saya(pg, "drive")
+        return
+    if nama == "Tambah":
         pg.locator(".navbar button").nth(2).click()
     else:
         pg.locator(".navbar button", has_text=nama).first.click()

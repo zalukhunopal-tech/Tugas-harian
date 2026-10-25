@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor } from "../types";
+import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Palette, type LucideIcon } from "lucide-react";
+import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan } from "../types";
 import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
 import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
 import { KarakterAnimasi } from "./KarakterAnimasi";
@@ -7,6 +8,7 @@ import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
 import { cekStatusSesiGoogle } from "../lib/googleAuth";
 import { AppLockKelolaModal } from "./AppLockKelolaModal";
+import { LaporanView } from "./LaporanView";
 
 interface SayaViewProps {
   tema: TemaId;
@@ -36,6 +38,29 @@ interface SayaViewProps {
 
   profilPelapor?: ProfilPelapor;
   onSimpanProfilPelapor?: (profil: ProfilPelapor) => void;
+
+  // Laporan Dana Kegiatan
+  daftarKegiatan?: DataKegiatan[];
+  onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
+  onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
+  googleToken?: string;
+}
+
+/** Aplikasi-aplikasi di tab Saya: tiap pilihan tampil sebagai ikon di layar utama, lalu membuka isinya satu per satu. */
+type IdAplikasi = "drive" | "laporan" | "profil" | "tema" | "rutin" | "kunci";
+
+interface AplikasiSaya {
+  id: IdAplikasi;
+  nama: string;
+  /** Teks status kecil di bawah nama (bekas "petunjuk" di baris folder). */
+  status: string;
+  ikon: LucideIcon;
+  /** Dua warna gradasi ikon. */
+  warna: [string, string];
+  /** Bulatan kecil di sudut ikon: hijau = aktif/terhubung, kuning = perlu perhatian. */
+  titik?: "ok" | "perhatian";
+  /** Angka di sudut ikon (mis. jumlah jadwal aktif). */
+  angka?: number;
 }
 
 export const SayaView: React.FC<SayaViewProps> = ({
@@ -61,7 +86,12 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onSimpanAppLockConfig,
   profilPelapor,
   onSimpanProfilPelapor,
+  daftarKegiatan = [],
+  onUpdateKegiatan,
+  onTambahKegiatan,
+  googleToken,
 }) => {
+  const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
   const [profilForm, setProfilForm] = useState<ProfilPelapor>(() => {
     return profilPelapor || PROFIL_PELAPOR_DEFAULT;
@@ -125,18 +155,10 @@ export const SayaView: React.FC<SayaViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <section className="view" id="view-saya" data-view="saya">
-      {/* ===== Folder 1: Sinkronisasi Google Drive (Folder Keuangan) ===== */}
-      <details className="folder" id="folder-gdrive" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true"></span>
-          <span className="folder-title">Folder Keuangan di Google Drive</span>
-          <span className="folder-hint" id="hint-gdrive">
-            {googleUser ? "terhubung" : "belum masuk"}
-          </span>
-        </summary>
-        <div className="folder-body">
+
+  // Isi tiap aplikasi: sama dengan isi folder sebelumnya.
+  const isiDrive = (
+    <>
           <p className="help">
             Sinkronkan langsung data transaksi dan aset dengan folder <strong>Keuangan</strong> di
             Google Drive Anda, termasuk spreadsheet <em>Keuangan Pribadi</em>,{" "}
@@ -345,19 +367,11 @@ export const SayaView: React.FC<SayaViewProps> = ({
               {syncStatusPesan}
             </p>
           )}
-        </div>
-      </details>
+    </>
+  );
 
-      {/* ===== Folder: Profil Pelapor (Dana Kegiatan) ===== */}
-      <details className="folder" id="folder-profil-pelapor" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true">📋</span>
-          <span className="folder-title">Profil Pelapor Dana Kegiatan</span>
-          <span className="folder-hint" id="hint-profil-pelapor">
-            {profilForm.nama ? `${profilForm.jabatan} • ${profilForm.lembaga}` : "belum diatur"}
-          </span>
-        </summary>
-        <div className="folder-body">
+  const isiProfil = (
+    <>
           <p className="help">
             Profil pelapor digunakan sebagai identitas resmi penyusun Laporan Pertanggungjawaban (SPJ) Dana Kegiatan.
             Data ini tersimpan aman di berkas <code>Laporan Kegiatan.json</code> di folder Keuangan dan tersinkronisasi otomatis.
@@ -448,19 +462,11 @@ export const SayaView: React.FC<SayaViewProps> = ({
               </div>
             </div>
           </form>
-        </div>
-      </details>
+    </>
+  );
 
-      {/* ===== Folder 2: Tema & Karakter ===== */}
-      <details className="folder" id="folder-tema" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true"></span>
-          <span className="folder-title">Tema &amp; Karakter</span>
-          <span className="folder-hint" id="hint-tema">
-            {tema === "jujutsu" ? KARAKTER[karakter].nama : "Standar"}
-          </span>
-        </summary>
-        <div className="folder-body">
+  const isiTema = (
+    <>
           <div className="theme-row">
             <button
               type="button"
@@ -481,7 +487,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
                   karakter={karakter}
                   ukuran={64}
                   showAura
-                  interaktif
                 />
                 <div className="karakter-mascot-info">
                   <span className="karakter-mascot-role">Pendamping Aktif</span>
@@ -536,19 +541,11 @@ export const SayaView: React.FC<SayaViewProps> = ({
               </div>
             </>
           )}
-        </div>
-      </details>
+    </>
+  );
 
-      {/* ===== Folder 4: Transaksi Berulang (Rutin) ===== */}
-      <details className="folder" id="folder-berulang" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true">🔁</span>
-          <span className="folder-title">Transaksi Berulang (Rutin)</span>
-          <span className="folder-hint" id="hint-berulang">
-            {jumlahTransaksiBerulang > 0 ? `${jumlahTransaksiBerulang} jadwal aktif` : "jadwal rutin"}
-          </span>
-        </summary>
-        <div className="folder-body">
+  const isiRutin = (
+    <>
           <p className="help">
             Otomatisasi pencatatan keuangan rutin seperti gaji bulanan, uang sewa kos, tagihan listrik &amp; internet, cicilan, maupun langganan streaming bulanan.
           </p>
@@ -564,19 +561,11 @@ export const SayaView: React.FC<SayaViewProps> = ({
               </button>
             </div>
           )}
-        </div>
-      </details>
+    </>
+  );
 
-      {/* ===== Folder 5: Keamanan & Kunci Aplikasi (PIN & Biometrik) ===== */}
-      <details className="folder" id="folder-kunci" open>
-        <summary>
-          <span className="folder-icon" aria-hidden="true">🔒</span>
-          <span className="folder-title">Kunci Aplikasi (PIN &amp; Biometrik)</span>
-          <span className="folder-hint" id="hint-kunci">
-            {appLockConfig.enabled ? "aktif" : "nonaktif"}
-          </span>
-        </summary>
-        <div className="folder-body">
+  const isiKunci = (
+    <>
           <p className="help">
             Amankan privasi data keuangan Anda dengan PIN 4–6 digit angka dan autentikasi biometrik
             (Sidik Jari / Face ID melalui WebAuthn). Aplikasi otomatis terkunci setelah ditinggal di latar belakang selama 1 menit.
@@ -616,8 +605,137 @@ export const SayaView: React.FC<SayaViewProps> = ({
               {appLockConfig.enabled ? "Kelola Kunci / PIN" : "Aktifkan Kunci Aplikasi"}
             </button>
           </div>
-        </div>
-      </details>
+    </>
+  );
+
+  const aplikasi: AplikasiSaya[] = [
+    {
+      id: "drive",
+      nama: "Drive Keuangan",
+      status: googleUser ? "terhubung" : "belum masuk",
+      ikon: Cloud,
+      warna: ["#3b82f6", "#06b6d4"],
+      titik: googleUser ? "ok" : "perhatian",
+    },
+    {
+      id: "laporan",
+      nama: "Laporan Kegiatan",
+      status: daftarKegiatan.length > 0 ? `${daftarKegiatan.length} kegiatan` : "SPJ & timesheet",
+      ikon: FileText,
+      warna: ["#f59e0b", "#f97316"],
+    },
+    {
+      id: "profil",
+      nama: "Profil Pelapor",
+      status: profilForm.nama ? `${profilForm.jabatan} • ${profilForm.lembaga}` : "belum diatur",
+      ikon: IdCard,
+      warna: ["#8b5cf6", "#6366f1"],
+    },
+    {
+      id: "tema",
+      nama: "Tema & Karakter",
+      status: tema === "jujutsu" ? KARAKTER[karakter].nama : "Standar",
+      ikon: Palette,
+      warna: tema === "jujutsu" ? [TOKOH_TEMA[karakter].warna, TOKOH_TEMA[karakter].warnaKedua] : ["#ec4899", "#f97316"],
+    },
+    {
+      id: "rutin",
+      nama: "Transaksi Rutin",
+      status: jumlahTransaksiBerulang > 0 ? `${jumlahTransaksiBerulang} jadwal aktif` : "jadwal rutin",
+      ikon: CalendarClock,
+      warna: ["#10b981", "#14b8a6"],
+      angka: jumlahTransaksiBerulang > 0 ? jumlahTransaksiBerulang : undefined,
+    },
+    {
+      id: "kunci",
+      nama: "Kunci Aplikasi",
+      status: appLockConfig.enabled ? "aktif" : "nonaktif",
+      ikon: Fingerprint,
+      warna: ["#64748b", "#334155"],
+      titik: appLockConfig.enabled ? "ok" : "perhatian",
+    },
+  ];
+
+  const aplikasiAktif = aplikasi.find((a) => a.id === appAktif) ?? null;
+
+  const bukaAplikasi = (id: IdAplikasi | null) => {
+    setAppAktif(id);
+    window.scrollTo({ top: 0 });
+  };
+
+  const gayaIkon = (a: AplikasiSaya) =>
+    ({ "--ikon-1": a.warna[0], "--ikon-2": a.warna[1] }) as React.CSSProperties;
+
+  return (
+    <section className="view" id="view-saya" data-view="saya">
+      {!aplikasiAktif ? (
+        <nav className="saya-peluncur" aria-label="Aplikasi">
+          {aplikasi.map((a) => {
+            const Ikon = a.ikon;
+            const pakaiAvatar = a.id === "tema" && tema === "jujutsu";
+            return (
+              <button
+                key={a.id}
+                type="button"
+                className="saya-app"
+                data-app={a.id}
+                onClick={() => bukaAplikasi(a.id)}
+              >
+                <span className="saya-app-ikon" style={gayaIkon(a)} aria-hidden="true">
+                  {pakaiAvatar ? (
+                    <img className="saya-app-avatar" src={TOKOH_TEMA[karakter].avatar} alt="" width={156} height={156} decoding="async" />
+                  ) : (
+                    <Ikon size={32} strokeWidth={1.9} />
+                  )}
+                  {a.titik && <span className={`saya-app-titik ${a.titik}`} />}
+                  {a.angka !== undefined && <span className="saya-app-angka">{a.angka}</span>}
+                </span>
+                <span className="saya-app-nama">{a.nama}</span>
+                <span className="saya-app-status">{a.status}</span>
+              </button>
+            );
+          })}
+        </nav>
+      ) : (
+        <>
+          <div className="saya-appbar no-print">
+            <button type="button" className="saya-kembali" onClick={() => bukaAplikasi(null)} aria-label="Kembali ke daftar aplikasi">
+              <ArrowLeft size={20} />
+            </button>
+            <span className="saya-appbar-ikon" style={gayaIkon(aplikasiAktif)} aria-hidden="true">
+              {aplikasiAktif.id === "tema" && tema === "jujutsu" ? (
+                <img className="saya-app-avatar" src={TOKOH_TEMA[karakter].avatar} alt="" width={156} height={156} decoding="async" />
+              ) : (
+                <aplikasiAktif.ikon size={18} strokeWidth={2} />
+              )}
+            </span>
+            <h2 className="saya-appbar-judul">{aplikasiAktif.nama}</h2>
+          </div>
+
+          {aplikasiAktif.id === "laporan" ? (
+            <LaporanView
+              transaksi={transaksi}
+              profilPelapor={profilPelapor}
+              daftarKegiatan={daftarKegiatan}
+              onUpdateKegiatan={onUpdateKegiatan}
+              onSimpanProfilPelapor={onSimpanProfilPelapor}
+              onTambahKegiatan={onTambahKegiatan}
+              googleToken={googleToken}
+              isLoggedInGoogle={Boolean(googleUser)}
+            />
+          ) : (
+            <div className="folder saya-panel" id={`panel-${aplikasiAktif.id}`}>
+              <div className="folder-body">
+                {aplikasiAktif.id === "drive" && isiDrive}
+                {aplikasiAktif.id === "profil" && isiProfil}
+                {aplikasiAktif.id === "tema" && isiTema}
+                {aplikasiAktif.id === "rutin" && isiRutin}
+                {aplikasiAktif.id === "kunci" && isiKunci}
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {onSimpanAppLockConfig && (
         <AppLockKelolaModal
@@ -627,7 +745,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
           onSimpanConfig={onSimpanAppLockConfig}
         />
       )}
-
     </section>
   );
 };
