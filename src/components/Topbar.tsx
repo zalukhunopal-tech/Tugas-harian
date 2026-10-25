@@ -1,7 +1,6 @@
 import React from "react";
 import { KarakterId, Transaksi } from "../types";
 import { KARAKTER, formatRupiah, namaBulanPendek } from "../lib/constants";
-import { jalankanPerluasanDomain } from "../lib/domain";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 
 interface TopbarProps {
@@ -51,9 +50,7 @@ export const Topbar: React.FC<TopbarProps> = ({
               karakter={karakter}
               ukuran={40}
               showAura
-              interaktif
-              onClick={() => jalankanPerluasanDomain(karakter)}
-              title={`Karakter Aktif: ${meta.nama}. Klik untuk efek domain!`}
+              title={`Karakter Aktif: ${meta.nama}`}
             />
           </div>
           <div className="brand-text">
