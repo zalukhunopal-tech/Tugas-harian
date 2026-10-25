@@ -42,7 +42,7 @@ Terbitkan `dist-artefak/index.html` beserta `assets/` dan berkas publik lainnya 
 {
   "mcp": {
     "servers": [
-      { "server": "Google Drive", "tools": ["search_files", "get_file_metadata", "download_file_content", "create_file", "copy_file", "trash_file"] },
+      { "server": "Google Drive", "tools": ["search_files", "get_file_metadata", "download_file_content", "create_file", "copy_file", "trash_file", "share_file", "get_file_permissions"] },
       { "server": "Google Sheets", "tools": ["get_spreadsheet", "get_values", "update_values", "batch_clear_values"] }
     ]
   }
@@ -75,6 +75,17 @@ dengan pesan yang jelas. Bila `gdriveSync.ts` memakai endpoint baru, tambahkan t
   dibuat lewat `copy_file` dari file timesheet terbaru, dikosongkan (`batch_clear_values`) lalu diisi
   (`update_values`, tanggal berawalan apostrof agar tetap teks). Nama tab tidak bisa diganti (tidak ada `batchUpdate`)
   dan baris di atas kapasitas 34 hari tidak berformat. File timesheet yang sudah ada tidak pernah ditulis.
+- **Keluarga & Komunitas** (`src/lib/berbagi.ts`, `berbagiDrive.ts`, `components/KeluargaView.tsx`): berbagi memakai izin
+  Google Drive (`share_file`, peran baca saja) dan membaca izin lewat `get_file_permissions`; "Dibagikan kepada saya"
+  memakai `search_files` dengan `sharedWithMe = true`. Batas konektor: **tidak ada pencabutan izin** dan jawaban
+  `get_file_permissions` tidak menyertakan ID izin, jadi `DELETE .../permissions/{id}` dijawab `501`. Aplikasi lalu
+  menampilkan petunjuk "cabut sendiri di Google Drive" dengan tautan berkas, dan daftar anggota tetap mengikuti izin
+  Drive yang sebenarnya (saklar tidak pura-pura mati). Email akun sendiri (untuk Kode saya) diambil dari izin berperan
+  `owner` pada berkas keuangan, karena profil konektor tidak memuat email. Pemindai kamera memakai `getUserMedia`, yang
+  bisa diblokir sandbox; foto kode dan tempel kode tetap tersedia.
+- **Folder Keuangan otomatis** (`src/lib/setupDrive.ts`): folder dan subfolder dibuat lewat `create_file`; spreadsheet tahun
+  berjalan hanya bisa dibuat bila ada spreadsheet lain di folder untuk disalin. Pada folder yang benar-benar kosong
+  langkah itu dilaporkan sebagai "Belum bisa" (bukan dilewati diam-diam).
 - Nilai sel datang sebagai teks terformat (`valueRenderOption` diabaikan); pembaca di aplikasi sudah menanganinya.
 - Satu sinkron = puluhan panggilan berurutan, jadi lebih lambat daripada lewat REST. Sinkron otomatis 5 detik
   setelah perubahan tetap berjalan, tetapi tidak pernah dua sekaligus.
@@ -95,6 +106,9 @@ python3 -m http.server 8766 --bind 127.0.0.1 --directory dist-artefak &
 python3 artefak/uji/uji_konektor.py http://127.0.0.1:8766/ [/path/ke/chromium]
 python3 artefak/uji/uji_timesheet.py http://127.0.0.1:8766/ [/path/ke/chromium]   # timesheet perdiem
 python3 artefak/uji/uji_saya.py http://127.0.0.1:8766/ [/path/ke/chromium]         # tab Saya (layar aplikasi), Laporan di Saya
+python3 artefak/uji/uji_keluarga.py http://127.0.0.1:8766/ [/path/ke/chromium]      # Keluarga (QR, dana, izin), folder Keuangan otomatis
+npx tsx scripts/uji_berbagi.ts                             # logika kode QR dan rencana izin
+npx tsx scripts/uji_drive_rest.ts                          # jalur REST (izin dengan ID, pencabutan, penyiapan folder)
 ```
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,

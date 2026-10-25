@@ -30,8 +30,22 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
 - **Tema & Visual Jujutsu Kaisen**:
   - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
-  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan, Profil Pelapor, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya.
+  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan, Keluarga, Profil Pelapor, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya.
   - Pilihan beralih ke Tema Standar.
+- **Keluarga & Komunitas** (tab Saya → Keluarga):
+  - Terhubung lewat **kode QR**: anggota menampilkan *Kode saya* (nama dan email Google), pemilik data memindainya dengan
+    kamera, foto kode, atau menempel teks kodenya.
+  - Pemilik memilih dana yang boleh dilihat: **Dana Pribadi** dan/atau **Dana Kegiatan** (bawaan: Kegiatan saja), dan bisa
+    mengubahnya kapan saja lewat saklar. Tanpa server perantara: aplikasi memberi izin *baca* pada spreadsheet Keuangan
+    Pribadi/Kegiatan di Google Drive pemilik, sehingga dana yang tidak dipilih memang ditolak oleh Google.
+  - Daftar "Terhubung dengan saya" dibaca dari izin Drive yang sebenarnya; "Dibagikan kepada saya" menampilkan data orang
+    lain secara baca-saja (ringkasan per bulan dan transaksi terbaru), tidak digabung dengan data sendiri.
+  - Peringatan bila folder atau berkas keuangan bertautan publik ("siapa saja yang punya tautan"), karena itu melemahkan
+    pilihan dana. Timesheet tidak pernah ikut dibagikan.
+- **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
+  ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
+  spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan
+  gangguan jaringan sesaat tidak pernah membuat folder kedua.
 - **Ekspor Data**:
   - Unduh seluruh riwayat transaksi dalam format CSV ber-BOM UTF-8.
 

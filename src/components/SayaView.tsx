@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Palette, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Palette, Users, type LucideIcon } from "lucide-react";
 import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan } from "../types";
 import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
 import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
@@ -9,6 +9,7 @@ import { KeuanganDriveContents } from "../lib/gdriveSync";
 import { cekStatusSesiGoogle } from "../lib/googleAuth";
 import { AppLockKelolaModal } from "./AppLockKelolaModal";
 import { LaporanView } from "./LaporanView";
+import { KeluargaView } from "./KeluargaView";
 
 interface SayaViewProps {
   tema: TemaId;
@@ -44,10 +45,12 @@ interface SayaViewProps {
   onUpdateKegiatan?: (kegiatan: DataKegiatan) => void;
   onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
   googleToken?: string;
+  /** Token Google saat ini; dipakai Keluarga & Komunitas untuk membagikan dan membaca berkas di Drive. */
+  ambilToken?: () => Promise<string | null>;
 }
 
 /** Aplikasi-aplikasi di tab Saya: tiap pilihan tampil sebagai ikon di layar utama, lalu membuka isinya satu per satu. */
-type IdAplikasi = "drive" | "laporan" | "profil" | "tema" | "rutin" | "kunci";
+type IdAplikasi = "drive" | "laporan" | "keluarga" | "profil" | "tema" | "rutin" | "kunci";
 
 interface AplikasiSaya {
   id: IdAplikasi;
@@ -90,6 +93,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onUpdateKegiatan,
   onTambahKegiatan,
   googleToken,
+  ambilToken,
 }) => {
   const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
@@ -329,9 +333,18 @@ export const SayaView: React.FC<SayaViewProps> = ({
                   </div>
                 </div>
               ) : (
-                <p className="help">
-                  {memuatDrive ? "Mencari folder Keuangan di Google Drive…" : "Folder belum diperiksa."}
-                </p>
+                <div>
+                  <p className="help">
+                    {memuatDrive
+                      ? "Memeriksa folder Keuangan di Google Drive…"
+                      : "Folder belum diperiksa. Bila folder 'Keuangan' belum ada, aplikasi membuatnya otomatis beserta isinya."}
+                  </p>
+                  <div className="sync-buttons">
+                    <button type="button" className="btn-secondary" disabled={memuatDrive} onClick={() => void onPeriksaDrive()}>
+                      Periksa &amp; siapkan folder Keuangan
+                    </button>
+                  </div>
+                </div>
               )}
 
               <div className="sync-buttons">
@@ -625,6 +638,13 @@ export const SayaView: React.FC<SayaViewProps> = ({
       warna: ["#f59e0b", "#f97316"],
     },
     {
+      id: "keluarga",
+      nama: "Keluarga",
+      status: googleUser ? "hubungkan & bagikan" : "masuk Google dulu",
+      ikon: Users,
+      warna: ["#f43f5e", "#be123c"],
+    },
+    {
       id: "profil",
       nama: "Profil Pelapor",
       status: profilForm.nama ? `${profilForm.jabatan} • ${profilForm.lembaga}` : "belum diatur",
@@ -727,6 +747,15 @@ export const SayaView: React.FC<SayaViewProps> = ({
             <div className="folder saya-panel" id={`panel-${aplikasiAktif.id}`}>
               <div className="folder-body">
                 {aplikasiAktif.id === "drive" && isiDrive}
+                {aplikasiAktif.id === "keluarga" && (
+                  <KeluargaView
+                    googleUser={googleUser}
+                    ambilToken={ambilToken ?? (async () => googleToken ?? null)}
+                    driveContents={driveContents}
+                    namaPelapor={profilPelapor?.nama}
+                    onPeriksaDrive={onPeriksaDrive}
+                  />
+                )}
                 {aplikasiAktif.id === "profil" && isiProfil}
                 {aplikasiAktif.id === "tema" && isiTema}
                 {aplikasiAktif.id === "rutin" && isiRutin}

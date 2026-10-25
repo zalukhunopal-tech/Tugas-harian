@@ -28,6 +28,10 @@
     createTanpaId: false, // create_file/copy_file menjawab tanpa id
     gagal: {}, // tool -> objek galat yang dilempar
     hariIni: new Date().toISOString().slice(0, 10),
+    akun: "saya@example.org", // email akun Google pemilik sesi ini
+    izinFile: new Map(), // id file -> izin tambahan (selain pemilik) yang diberikan lewat share_file
+    publik: new Set(), // id file yang bertautan publik ("siapa saja yang punya tautan")
+    dibagikan: [], // file milik orang lain yang dibagikan kepada akun ini: {id, title, mimeType, owner, modifiedTime}
   });
 
   const header = [
@@ -56,12 +60,16 @@
   }
 
   D.tambahFile = tambahFile;
+  D.tambahSheet = tambahSheet;
 
   D.mulai = (opsi = {}) => {
     D.files.clear();
     D.sheets.clear();
     D.calls.length = 0;
     D.trashed.clear();
+    D.izinFile.clear();
+    D.publik.clear();
+    D.dibagikan.length = 0;
     tambahFile({ id: "root1", title: "My Drive", mimeType: FOLDER });
     tambahFile({ id: "F1", title: "Keuangan", mimeType: FOLDER, parentId: "root1" });
     tambahFile({ id: "SP", title: "Keuangan Pribadi 2026", mimeType: SHEET, parentId: "F1" });
@@ -104,6 +112,7 @@
   /* ---- Drive ---- */
   function cocok(f, klausa) {
     let m;
+    if (klausa === "sharedWithMe = true") return true; // sumbernya sudah D.dibagikan
     if ((m = /^title (=|contains) '(.*)'$/.exec(klausa))) {
       return m[1] === "=" ? f.title === m[2] : f.title.toLowerCase().includes(m[2].toLowerCase());
     }
@@ -119,17 +128,41 @@
     modifiedTime: f.modifiedTime,
     viewUrl: f.mimeType === FOLDER ? `https://drive.google.com/drive/folders/${f.id}` : `https://drive.google.com/file/d/${f.id}/view?usp=drivesdk`,
     resourceUri: `googledrive://file/${f.id}`,
-    owner: "pemilik@example.org",
+    owner: f.owner || "pemilik@example.org",
   });
 
   const alat = {
     Drive: {
       search_files: (i) => {
-        const klausa = i.query.split(/ and (?=(?:title|parentId|mimeType) )/);
+        const klausa = i.query.split(/ and (?=(?:title|parentId|mimeType|sharedWithMe) )/);
+        if (klausa.includes("sharedWithMe = true")) {
+          const bagi = D.dibagikan.filter((f) => klausa.every((k) => cocok(f, k)));
+          return { files: bagi.map((f) => ({ ...bentuk(f), owner: f.owner, sharedWithMeTime: f.modifiedTime })), nextPageToken: "~!!~token" };
+        }
         const hasil = [...D.files.values()].filter(
           (f) => f.id !== "root1" && !D.trashed.has(f.id) && !f.belumTerindeks && klausa.every((k) => cocok(f, k))
         );
         return { files: hasil.map(bentuk), nextPageToken: "~!!~token" };
+      },
+      get_file_permissions: (i) => {
+        if (!D.files.has(i.fileId)) throw { code: "tool_error", message: "File tidak ditemukan" };
+        return {
+          permissions: [
+            ...(D.publik.has(i.fileId) ? [{ role: "reader", type: "anyone" }] : []),
+            { displayName: "Saya", emailAddress: D.akun, role: "owner", type: "user" },
+            ...(D.izinFile.get(i.fileId) || []),
+          ],
+        };
+      },
+      share_file: (i) => {
+        if (!D.files.has(i.fileId)) throw { code: "tool_error", message: "File tidak ditemukan" };
+        if (!["reader", "commenter", "writer"].includes(i.role)) throw { code: "tool_error", message: "Peran tidak didukung" };
+        const daftar = D.izinFile.get(i.fileId) || [];
+        const ada = daftar.find((x) => x.emailAddress === i.emailAddress);
+        if (ada) ada.role = i.role;
+        else daftar.push({ displayName: i.emailAddress.split("@")[0], emailAddress: i.emailAddress, role: i.role, type: "user" });
+        D.izinFile.set(i.fileId, daftar);
+        return {};
       },
       get_file_metadata: (i) => {
         const f = D.files.get(i.fileId);
