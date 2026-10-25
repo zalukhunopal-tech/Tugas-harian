@@ -34,6 +34,7 @@ import {
   bacaStorage,
   tulisStorage,
   bacaJsonStorage,
+  simpanIndeksTimesheet,
   tambahIdTerhapus,
   muatPengaturan,
   simpanPengaturan,
@@ -857,6 +858,7 @@ export default function App() {
           jadwalkanAutoSyncDocx(ts.daftar.map((k) => k.id));
         }
         if (ts.galat.length) console.warn("Sebagian timesheet gagal ditarik:", ts.galat);
+        simpanIndeksTimesheet((res.contents.timesheets ?? []).map((f) => f.name));
         const jejak = await kumpulkanKeteranganTimesheet(token, res.contents);
         if (jejak.length > 0) {
           const dibatasi = jejak.slice(0, 3000);
@@ -1456,6 +1458,7 @@ export default function App() {
                   daftarKegiatan={daftarKegiatan}
                   onUpdateKegiatan={handleUpdateKegiatan}
                   onSimpanProfilPelapor={handleSimpanProfilPelapor}
+                  onTambahKegiatan={handleTambahKegiatan}
                   googleToken={googleAccessToken || undefined}
                   isLoggedInGoogle={Boolean(googleUser)}
                 />

@@ -139,6 +139,41 @@ def buka_laporan(pg, id_kegiatan="kg4"):
     pg.wait_for_timeout(500)
 
 
+
+def isi_sk_pengguna():
+    """Sheet Keuangan Kegiatan seperti milik pengguna: dana awal, satu konsumsi berkaitan teks, perdiem tanpa kaitan."""
+    import datetime
+
+    bln = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+    rows = [["1", "2026-09-19", "Penerimaan Dana Awal Kegiatan", "Penerimaan Dana", "26370000", "", "26370000", "", "", "idk1", "Transfer", ""],
+            ["2", "2026-09-20", "Pembelian konsumsi perjalanan (snack)", "Konsumsi", "", "65800", "26304200", "Perjalanan Tanjung Selor - Malinau (20 Sep 2026)", "Bayar tunai", "idk2", "Tunai", ""]]
+    for i in range(34):
+        d = datetime.date(2026, 9, 20) + datetime.timedelta(days=i)
+        rows.append([str(i + 3), d.isoformat(), f"Perdiem Kalimantan · {d.day} {bln[d.month - 1]} 2026", "Perdiem", "", "200000", "0", "", "", f"pd{i}", "Tunai", ""])
+    return rows
+
+
+def buka_pengguna(p, lebar=420):
+    """Peramban dengan Drive palsu: file timesheet Batch 4 + sheet Keuangan Kegiatan pengguna, TANPA data lokal dan TANPA daftar kegiatan."""
+    b = p.chromium.launch(executable_path=CHROMIUM) if CHROMIUM else p.chromium.launch()
+    ctx = b.new_context(viewport={"width": lebar, "height": 900}, service_workers="block", is_mobile=lebar < 640, has_touch=lebar < 640)
+    pg = ctx.new_page()
+    galat = []
+    pg.on("pageerror", lambda e: galat.append("PAGEERROR " + str(e)[:300]))
+    pg.add_init_script(TIRUAN)
+    pg.add_init_script(
+        """(() => { const D = window.__drive; D.mulai(); const rows = %s;
+          D.tambahFile({ id: 'TS4', title: %s, mimeType: 'application/vnd.google-apps.spreadsheet', parentId: 'F1', modifiedTime: '2026-10-24T11:22:44.066Z' });
+          D.sheets.set('TS4', { tabs: [{ sheetId: 111, title: 'Timesheet Batch 4', rows }] });
+          const sk = D.sheets.get('SK'); sk.tabs[0].rows = sk.tabs[0].rows.slice(0, 6).concat(%s); })();"""
+        % (json.dumps(baris_timesheet()), json.dumps(NAMA_TS4), json.dumps(isi_sk_pengguna()))
+    )
+    pg.goto(BASE)
+    pg.wait_for_selector(".navbar", timeout=15000)
+    pg.wait_for_timeout(500)
+    return b, pg, galat
+
+
 with sync_playwright() as p:
     print("1. Tarik data: file timesheet dibaca, bukan dianggap sheet Keuangan Kegiatan")
     b, pg, galat = buka(p)
@@ -396,6 +431,73 @@ with sync_playwright() as p:
     cek(not [t for t in trx if t["id"].startswith("aneh")], "Hapus: ketiganya terhapus")
     cek(len([t for t in trx if t["kategori"] == "Perdiem"]) == 34 and any(t["deskripsi"] == "Penerimaan Dana Awal Kegiatan" for t in trx), "perdiem dan dana awal sungguhan tetap")
     cek(pg.locator("[data-testid=kartu-mencurigakan]").count() == 0, "peringatan hilang setelah dihapus")
+    cek(not galat, f"tanpa galat JS ({galat})")
+    b.close()
+
+    print("11. Pengguna tanpa daftar kegiatan: buat kegiatan dari file timesheet, lalu perdiem tanpa kaitan ikut masuk")
+    b, pg, galat = buka_pengguna(p)
+    hubungkan(pg)
+    pg.wait_for_timeout(1500)
+    cek(kegiatan_lokal(pg) == [], "awalnya tidak ada kegiatan (kondisi pengguna)")
+    nav(pg, "Grafik")
+    pg.get_by_role("tab", name="Laporan Dana Kegiatan").click()
+    pg.wait_for_timeout(500)
+    cek(pg.locator("#lap-kegiatan-select").count() == 0, "pilihan 'Pilih Kegiatan Lapangan' memang belum ada tanpa kegiatan")
+    kd = pg.locator("[data-testid=kartu-timesheet-drive]")
+    cek(kd.count() == 1 and "Belum ada data kegiatan" in kd.inner_text(), "kartu 'Timesheet di Google Drive' menjelaskan dan menawarkan jalan keluar")
+    n_tulis = len(panggilan(pg, "copy_file")) + len(panggilan(pg, "update_values", "TS4"))
+    kd.get_by_role("button", name=re.compile("Cek file timesheet")).click()
+    pg.wait_for_timeout(1200)
+    cek(NAMA_TS4 in kd.inner_text(), "file timesheet Batch 4 terdaftar")
+    kd.get_by_role("button", name="Buat kegiatan dari file ini").click()
+    pg.wait_for_timeout(2500)
+    kgs = kegiatan_lokal(pg)
+    cek(len(kgs) == 1 and kgs[0]["tanggalMulai"] == "2026-09-20" and kgs[0]["tanggalSelesai"] == "2026-10-23" and kgs[0].get("batch") == 4,
+        f"kegiatan dibuat: rentang 20 Sep - 23 Okt 2026, batch 4 ({[(k['tanggalMulai'], k['tanggalSelesai'], k.get('batch')) for k in kgs]})")
+    cek(kgs and kgs[0].get("timesheetId") == "TS4" and len(kgs[0].get("timesheetBaris", [])) == 34 and kgs[0]["nama"] == JUDUL, "terhubung ke file, 34 hari berisi keterangan, nama = Judul Kegiatan di file")
+    cek(len(panggilan(pg, "copy_file")) + len(panggilan(pg, "update_values", "TS4")) == n_tulis, "membuat kegiatan tidak menyalin atau menulis file apa pun")
+    pg.wait_for_timeout(6000)
+    cek(len(panggilan(pg, "copy_file")) == 0, "tidak ada file timesheet kedua dibuat otomatis")
+    pg.select_option("#lap-kegiatan-select", kgs[0]["id"])
+    pg.wait_for_timeout(600)
+    cek("34 dari 34 hari perdiem" in pg.locator("[data-testid=kartu-timesheet]").inner_text(), "kartu Timesheet Perdiem: 34 dari 34 hari (perdiem tanpa kaitan ikut dihitung)")
+    pg.locator("button.btn-small", has_text="Sepanjang Waktu").first.click()
+    pg.wait_for_timeout(900)
+    cek(pg.locator("[data-testid=lembar-timesheet] .dsc-ts__baris[role=row]").count() == 36, "lembar daftar perdiem berformat timesheet berisi 34 hari")
+    cek(not galat, f"tanpa galat JS ({galat})")
+    b.close()
+
+    print("12. Form kegiatan baru menyarankan batch file yang sudah ada (bukan batch 1) dan tidak membuat file kedua")
+    b, pg, galat = buka_pengguna(p)
+    hubungkan(pg)
+    pg.wait_for_timeout(1500)
+    nav(pg, "Tambah")
+    pg.get_by_text("Isi Formulir Manual").first.click()
+    pg.wait_for_timeout(400)
+    pg.select_option("#dana", "Dana Kegiatan")
+    pg.wait_for_timeout(300)
+    pg.click(".bertahap-kegiatan__baru")
+    pg.wait_for_timeout(300)
+    modal = pg.locator(".modal-backdrop [role=group]")
+    modal.locator("input[type=text]").nth(0).fill("Fasilitasi Klaim Wilayah Adat Krayan")
+    modal.locator("input[type=text]").nth(1).fill("Krayan")
+    modal.locator("input[type=date]").nth(0).fill("2026-09-20")
+    modal.locator("input[type=date]").nth(1).fill("2026-10-23")
+    pg.wait_for_timeout(300)
+    cek(modal.locator("input[type=number]").input_value() == "4", f"saran batch = 4 karena file Batch 4 meliputi periode itu ({modal.locator('input[type=number]').input_value()})")
+    cek("sudah ada dan akan dipakai" in modal.inner_text(), "pesan: file sudah ada dan akan dipakai")
+    modal.locator("input[type=date]").nth(0).fill("2026-11-10")
+    modal.locator("input[type=date]").nth(1).fill("2026-11-12")
+    pg.wait_for_timeout(300)
+    cek(modal.locator("input[type=number]").input_value() == "5", "periode baru (Nov 2026): saran batch 5")
+    modal.locator("input[type=date]").nth(0).fill("2026-09-20")
+    modal.locator("input[type=date]").nth(1).fill("2026-10-23")
+    pg.wait_for_timeout(200)
+    modal.locator("input[type=number]").fill("1")
+    pg.wait_for_timeout(200)
+    modal.get_by_role("button", name="Simpan & Pilih Kegiatan").click()
+    pg.wait_for_timeout(7000)
+    cek(len(panggilan(pg, "copy_file")) == 0, "batch 1 untuk periode yang sudah punya file: tidak membuat file kedua")
     cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 

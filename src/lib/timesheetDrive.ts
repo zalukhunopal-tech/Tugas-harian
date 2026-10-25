@@ -1,9 +1,11 @@
 import { BarisTimesheet, DataKegiatan, ProfilPelapor, Transaksi } from "../types";
 import type { GDriveFileInfo, KeuanganDriveContents } from "./gdriveSync";
+import { buatId } from "./storage";
 import { adalahPerdiemKegiatan, daftarTanggalRentang } from "./perdiemOtomatis";
 import { transaksiKegiatan } from "./penyelesaianDana";
 import {
   barisUntukSimpan,
+  batchDariJudul,
   batchDariNama,
   batchKegiatan,
   BerkasTimesheet,
@@ -11,6 +13,7 @@ import {
   IsiTimesheet,
   judulTabTimesheet,
   judulUntukTimesheet,
+  namaFileBeririsan,
   namaFileTimesheet,
   rentangBersih,
   susunIsiTimesheet,
@@ -278,6 +281,13 @@ export async function siapkanTimesheetKegiatan(
   if (!batch) {
     throw new Error("Isi batch kegiatan dulu supaya aplikasi tahu file timesheet yang dipakai.");
   }
+  // Sudah ada file timesheet untuk periode yang sama (batch lain): jangan menambah file kedua, pilih yang sudah ada.
+  const sePeriode = (contents.timesheets ?? []).find((f) => namaFileBeririsan(f.name, k.tanggalMulai, k.tanggalSelesai));
+  if (sePeriode) {
+    throw new Error(
+      `Sudah ada file timesheet untuk periode ini: "${sePeriode.name}". Pilih file itu lewat "Pakai file lain", atau ubah nomor batch kegiatan bila memang berbeda.`
+    );
+  }
   const contoh = [...(contents.timesheets ?? [])].sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""))[0];
   if (!contoh) {
     throw new Error(
@@ -343,4 +353,29 @@ export async function perbaruiFileTimesheetKegiatan(
     timesheetSinkron: new Date().toISOString(),
   };
   return { kegiatan, status: "diperbarui", berubah: true };
+}
+
+/**
+ * Buat data kegiatan dari sebuah file timesheet yang belum punya kegiatan di aplikasi: nama dari Judul Kegiatan, rentang dari
+ * tanggal pertama dan terakhir, batch dari nama file, dan Keterangan/Lokasi langsung tersalin. File hanya dibaca.
+ */
+export async function buatKegiatanDariTimesheet(token: string, berkas: GDriveFileInfo): Promise<DataKegiatan> {
+  const isi = await bacaIsiFileTimesheet(token, berkas.id);
+  const tanggal = isi.baris.map((b) => b.tanggal).sort();
+  if (tanggal.length === 0) throw new Error(`File "${berkas.name}" belum berisi tanggal perdiem.`);
+  const batch = batchDariNama(berkas.name) ?? batchDariJudul(isi.judulKegiatan);
+  cacheKeterangan.set(berkas.id, { diubah: berkas.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) });
+  return {
+    id: "kg_" + buatId(),
+    nama: isi.judulKegiatan || berkas.name,
+    lokasi: isi.proyek,
+    tanggalMulai: tanggal[0],
+    tanggalSelesai: tanggal[tanggal.length - 1],
+    ...(batch ? { batch } : {}),
+    timesheetId: berkas.id,
+    timesheetNama: berkas.name,
+    timesheetBaris: barisUntukSimpan(isi.baris),
+    timesheetSinkron: new Date().toISOString(),
+    dibuat: new Date().toISOString(),
+  };
 }
