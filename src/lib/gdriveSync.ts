@@ -71,16 +71,18 @@ export async function cariFolderKeuangan(token: string): Promise<GDriveFolder | 
     console.warn("Cari contains Keuangan gagal:", e);
   }
 
-  // 3. Folder ID bawaan dari template Apps Script jika ada
+  // 3. Folder ID bawaan dari template Apps Script jika ada. Hanya dipakai bila folder itu milik akun yang sedang masuk:
+  // folder ini bisa dibuka siapa saja yang punya tautannya, jadi tanpa pemeriksaan ini anggota keluarga yang baru
+  // memasang aplikasi akan "menemukan" folder milik orang lain sebagai folder Keuangan mereka.
   const defaultFolderId = "ID_FOLDER_DIHAPUS";
   try {
     const resId = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${defaultFolderId}?fields=id,name,webViewLink,trashed`,
+      `https://www.googleapis.com/drive/v3/files/${defaultFolderId}?fields=id,name,webViewLink,trashed,ownedByMe`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (resId.ok) {
       const folderData = await resId.json();
-      if (!folderData.trashed) {
+      if (!folderData.trashed && folderData.ownedByMe === true) {
         return folderData as GDriveFolder;
       }
     }

@@ -83,6 +83,7 @@ import {
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
 import { batchKegiatan, cariCatatanMencurigakan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
 import { KartuCatatanMencurigakan } from "./components/KartuCatatanMencurigakan";
+import { periksaKeberadaanFolder, ringkasSetup, siapkanFolderKeuangan } from "./lib/setupDrive";
 import { kumpulkanKeteranganTimesheet, siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
 import {
   simpanBuktiOffline,
@@ -346,8 +347,21 @@ export default function App() {
     try {
       let folder = await cariFolderKeuangan(token);
       if (!folder) {
+        // Belum ada folder (mis. aplikasi baru dipasang): siapkan otomatis, tetapi hanya bila pencarian benar-benar
+        // berhasil dan folder memang tidak ada, supaya gangguan sesaat tidak membuat folder Keuangan kedua.
+        const ada = await periksaKeberadaanFolder(token);
+        if (ada.status === "tidak-ada") {
+          const hasil = await siapkanFolderKeuangan(token);
+          setDriveContents(hasil.contents);
+          setSyncPesan(ringkasSetup(hasil));
+          setSyncStatus({ pesan: "Folder Keuangan disiapkan otomatis di Google Drive", status: "sukses" });
+          setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
+          return;
+        }
         setSyncPesan(
-          "Folder 'Keuangan' belum ditemukan di Google Drive Anda. Pastikan folder bernama 'Keuangan' ada di Google Drive Anda."
+          ada.status === "galat"
+            ? `Folder 'Keuangan' belum bisa diperiksa: ${ada.pesan}. Coba lagi sebentar lagi.`
+            : "Folder 'Keuangan' belum ditemukan di Google Drive Anda."
         );
         setDriveContents(null);
         return;
@@ -894,6 +908,17 @@ export default function App() {
       setMemuatDrive(false);
     }
   };
+
+  // Aplikasi baru dipasang di perangkat (PWA): bila sudah masuk Google, siapkan folder Keuangan saat itu juga. Bila belum
+  // masuk, penyiapan berjalan pada masuk pertama lewat periksaDriveOtomatis.
+  useEffect(() => {
+    const saatTerpasang = async () => {
+      const token = await getAccessToken();
+      if (token) void periksaDriveOtomatis(token);
+    };
+    window.addEventListener("appinstalled", saatTerpasang);
+    return () => window.removeEventListener("appinstalled", saatTerpasang);
+  }, [periksaDriveOtomatis]);
 
   // Firebase Google Auth Listener & Auto-pull saat aplikasi dibuka jika sudah login
   useEffect(() => {
@@ -1493,6 +1518,7 @@ export default function App() {
                   onUpdateKegiatan={handleUpdateKegiatan}
                   onTambahKegiatan={handleTambahKegiatan}
                   googleToken={googleAccessToken || undefined}
+                  ambilToken={getAccessToken}
                 />
               </div>
             )}

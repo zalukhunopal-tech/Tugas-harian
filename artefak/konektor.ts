@@ -204,6 +204,8 @@ function bentukFileDrive(f: any) {
     webViewLink: f.viewUrl ?? f.webViewLink,
     modifiedTime: f.modifiedTime,
     parents: f.parentId ? [f.parentId] : undefined,
+    // Konektor hanya memberi email pemilik (kolom `owner`), tanpa nama.
+    owners: f.owner ? [{ emailAddress: f.owner }] : undefined,
     trashed: false,
   };
 }
@@ -242,6 +244,10 @@ export function terjemahkanKueri(q: string): string {
     const s = klausa.trim();
     let m: RegExpExecArray | null;
     if (/^trashed\s*=\s*false$/i.test(s)) continue;
+    if (/^sharedWithMe\s*=\s*true$/i.test(s)) {
+      hasil.push("sharedWithMe = true");
+      continue;
+    }
     if ((m = new RegExp(`^name\\s*(=|contains)\\s*${KUTIP}$`, "i").exec(s))) {
       hasil.push(`title ${m[1].toLowerCase()} ${m[2]}`);
     } else if ((m = new RegExp(`^${KUTIP}\\s+in\\s+parents$`, "i").exec(s))) {
@@ -490,6 +496,22 @@ async function salinFile(idAsal: string, badan: { name?: string; parents?: strin
   return teksKeJson({ id, name: nama, mimeType: f.mimeType, webViewLink: f.viewUrl ?? f.webViewLink });
 }
 
+/* ---------- izin berbagi ---------- */
+
+async function izinFile(idDiminta: string): Promise<Response> {
+  const r = await baca(SERVER_DRIVE, "get_file_permissions", { fileId: idTerkini(idDiminta) });
+  return teksKeJson({ permissions: Array.isArray(r.permissions) ? r.permissions : [] });
+}
+
+async function bagikanFile(idDiminta: string, badan: { type?: string; role?: string; emailAddress?: string }): Promise<Response> {
+  if (badan.type !== "user" || !badan.emailAddress) {
+    throw new GalatHttp(400, "Konektor hanya bisa membagikan kepada akun Google tertentu (alamat email).");
+  }
+  const role = badan.role === "writer" || badan.role === "commenter" ? badan.role : "reader";
+  await tulis(SERVER_DRIVE, "share_file", { fileId: idTerkini(idDiminta), role, emailAddress: badan.emailAddress });
+  return teksKeJson({ id: `${badan.emailAddress}:${role}`, type: "user", role, emailAddress: badan.emailAddress });
+}
+
 /* ---------- Sheets ---------- */
 
 async function ambilNilai(idSheet: string, rentang: string): Promise<Response> {
@@ -589,6 +611,14 @@ async function tangani(url: URL, metode: string, input: RequestInfo | URL, init?
   if (url.hostname === "www.googleapis.com") {
     if (metode === "GET" && path === "/drive/v3/files") return daftarFile(url);
 
+    if ((m = /^\/drive\/v3\/files\/([^/]+)\/permissions$/.exec(path))) {
+      const id = decodeURIComponent(m[1]);
+      if (metode === "GET") return izinFile(id);
+      if (metode === "POST") return bagikanFile(id, JSON.parse(String((await bacaBadan(input, init)) ?? "{}")));
+    }
+    if (/^\/drive\/v3\/files\/[^/]+\/permissions\/[^/]+$/.test(path) && metode === "DELETE") {
+      throw new GalatHttp(501, "Konektor Google Drive tidak bisa mencabut izin. Cabut lewat menu Bagikan di Google Drive.");
+    }
     if ((m = /^\/drive\/v3\/files\/([^/]+)\/copy$/.exec(path)) && metode === "POST") {
       const badan = JSON.parse(String(await bacaBadan(input, init) ?? "{}"));
       return salinFile(decodeURIComponent(m[1]), badan);
