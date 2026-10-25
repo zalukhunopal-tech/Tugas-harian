@@ -18,7 +18,17 @@
  * Kolom A dan G TIDAK PERNAH ditulis oleh skrip ini.
  */
 
-var FOLDER_ID = "ID_FOLDER_DIHAPUS";
+// Kosongkan untuk memakai folder "Keuangan" di Google Drive akun yang memasang skrip ini (dicari lewat nama).
+// Isi dengan ID folder hanya bila namanya bukan "Keuangan" atau ada lebih dari satu folder bernama itu.
+var FOLDER_ID = "";
+var NAMA_FOLDER_KEUANGAN = "Keuangan";
+
+function ambilFolderKeuangan() {
+  if (FOLDER_ID) return DriveApp.getFolderById(FOLDER_ID);
+  var ada = DriveApp.getFoldersByName(NAMA_FOLDER_KEUANGAN);
+  if (!ada.hasNext()) throw new Error("Folder '" + NAMA_FOLDER_KEUANGAN + "' tidak ditemukan di Google Drive Anda");
+  return ada.next();
+}
 var NAMA_SHEET = { "Dana Pribadi": "Keuangan Pribadi", "Dana Kegiatan": "Keuangan Kegiatan" };
 var BARIS_HEADER = 6;
 var BARIS_AWAL = 7;
@@ -113,7 +123,7 @@ function cariFileSheet(dana) {
   if (cacheFile[dana]) return cacheFile[dana];
   var nama = NAMA_SHEET[dana];
   if (!nama) throw new Error("Dana tidak dikenal: " + dana);
-  var files = DriveApp.getFolderById(FOLDER_ID).getFiles();
+  var files = ambilFolderKeuangan().getFiles();
   var terbaru = null;
   while (files.hasNext()) {
     var f = files.next();
@@ -380,7 +390,7 @@ function perbaruiHargaTerjadwal() {
 }
 
 function ambilFolderAntrean(buat) {
-  var induk = DriveApp.getFolderById(FOLDER_ID);
+  var induk = ambilFolderKeuangan();
   var ada = induk.getFoldersByName(NAMA_FOLDER_ANTREAN);
   if (ada.hasNext()) return ada.next();
   return buat ? induk.createFolder(NAMA_FOLDER_ANTREAN) : null;
@@ -461,7 +471,7 @@ function beriIdSheet(sheet) {
 /* ---------- File JSON di folder Keuangan: Aset.json dan Harga Pasar.json ---------- */
 
 function bacaFileJson(nama) {
-  var files = DriveApp.getFolderById(FOLDER_ID).getFilesByName(nama);
+  var files = ambilFolderKeuangan().getFilesByName(nama);
   if (!files.hasNext()) return null;
   try {
     return JSON.parse(files.next().getBlob().getDataAsString());
@@ -472,7 +482,7 @@ function bacaFileJson(nama) {
 
 function tulisFileJson(nama, isi) {
   var teks = JSON.stringify(isi, null, 1);
-  var folder = DriveApp.getFolderById(FOLDER_ID);
+  var folder = ambilFolderKeuangan();
   var files = folder.getFilesByName(nama);
   if (files.hasNext()) files.next().setContent(teks);
   else folder.createFile(nama, teks, "application/json");

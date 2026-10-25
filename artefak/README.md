@@ -86,6 +86,10 @@ dengan pesan yang jelas. Bila `gdriveSync.ts` memakai endpoint baru, tambahkan t
 - **Folder Keuangan otomatis** (`src/lib/setupDrive.ts`): folder dan subfolder dibuat lewat `create_file`; spreadsheet tahun
   berjalan hanya bisa dibuat bila ada spreadsheet lain di folder untuk disalin. Pada folder yang benar-benar kosong
   langkah itu dilaporkan sebagai "Belum bisa" (bukan dilewati diam-diam).
+- **Tarik dulu berlaku di semua build.** `kirimSemuaKeDrive` di `src/lib/gdriveSync.ts` menolak (GalatBelumTarik) sampai satu
+  tarik selesai tanpa galat baca; pembungkus artefak punya penjaga sendiri yang bertumpuk dengan ini. Setelah pasang ulang,
+  `App.tsx` menarik dulu sebelum mengirim. `uji_konektor.py` langkah 15 memuat ulang halaman dengan penyimpanan kosong
+  (isi Drive palsu dipulihkan dari potret lewat `D.potret/D.pulihkan` di `tiruan-konektor.js`).
 - Nilai sel datang sebagai teks terformat (`valueRenderOption` diabaikan); pembaca di aplikasi sudah menanganinya.
 - Satu sinkron = puluhan panggilan berurutan, jadi lebih lambat daripada lewat REST. Sinkron otomatis 5 detik
   setelah perubahan tetap berjalan, tetapi tidak pernah dua sekaligus.
@@ -109,6 +113,10 @@ python3 artefak/uji/uji_saya.py http://127.0.0.1:8766/ [/path/ke/chromium]      
 python3 artefak/uji/uji_keluarga.py http://127.0.0.1:8766/ [/path/ke/chromium]      # Keluarga (QR, dana, izin), folder Keuangan otomatis
 npx tsx scripts/uji_berbagi.ts                             # logika kode QR dan rencana izin
 npx tsx scripts/uji_drive_rest.ts                          # jalur REST (izin dengan ID, pencabutan, penyiapan folder)
+npx tsx scripts/uji_pasang_ulang.ts                        # pasang ulang: tarik dulu, tanpa berkas/baris ganda, galat tidak membuat folder
+npx tsx scripts/uji_totp.ts                                # Google Authenticator: vektor RFC 4226/6238, jendela, jeda, pemakaian ulang
+python3 artefak/uji/uji_totp.py http://127.0.0.1:8766/ [/path/ke/chromium]          # Authenticator di layar kunci (kode dihitung di Python)
+bash scripts/periksa_data_pribadi.sh                       # tanpa ID Drive, email nyata, bawaan profil, atau .zip di repo
 ```
 
 `uji_konektor.py` (Playwright) menguji: hubungkan dan tarik data, dialog konfirmasi, kirim manual dan otomatis,

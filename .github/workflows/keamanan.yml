@@ -3,7 +3,8 @@
 # Job `periksa` (keamanan). Namanya sengaja dipertahankan supaya aturan "Require status checks"
 # di GitHub yang menunjuk ke `periksa` tidak putus:
 #   1. menolak commit yang memuat URL Web App, kunci, token, atau kredensial Google;
-#   2. memeriksa sintaks Code.gs yang ikut dikirim di public/apps-script/.
+#   2. menolak data pribadi (ID folder Drive, email nyata, bawaan Profil Pelapor, arsip .zip lama);
+#   3. memeriksa sintaks Code.gs yang ikut dikirim di public/apps-script/.
 #
 # Job `tipe` (kualitas): menjalankan `tsc --noEmit`, sama seperti langkah pertama `npm run build`.
 # Dibuat terpisah agar kesalahan tipe dari edit di AI Studio terlihat jelas tanpa mencampurnya
@@ -40,6 +41,9 @@ jobs:
             exit 1
           fi
           echo "Tidak ada pola rahasia."
+
+      - name: Cari data pribadi yang tidak boleh masuk repo publik
+        run: bash scripts/periksa_data_pribadi.sh
 
       - uses: actions/setup-node@v4
         with:

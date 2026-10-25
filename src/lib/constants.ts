@@ -67,12 +67,13 @@ export const LAPORAN_KEGIATAN_KEY = "keuangan-laporan-kegiatan";
 export const PROFIL_PELAPOR_KEY = "keuangan-profil-pelapor";
 export const DAFTAR_KEGIATAN_KEY = "keuangan-daftar-kegiatan";
 
+/** Sengaja kosong: aplikasi ini dipakai banyak orang, jadi tidak ada nama atau lembaga yang ikut terpasang. Diisi di tab Saya → Profil Pelapor. */
 export const PROFIL_PELAPOR_DEFAULT = {
-  nama: "Nama Pelapor",
-  jabatan: "Surveyor",
-  lembaga: "Nama Lembaga",
-  proyek: "Nama Proyek",
-  penyetuju: "Nama Penyetuju",
+  nama: "",
+  jabatan: "",
+  lembaga: "",
+  proyek: "",
+  penyetuju: "",
 };
 
 export const DAFTAR_JENIS_BUKTI = [
@@ -88,8 +89,8 @@ export const DAFTAR_JENIS_BUKTI = [
 export const DANA_DEFAULT: NamaDana = "Dana Pribadi";
 
 export const KAITAN: Record<NamaDana, { label: string; placeholder: string }> = {
-  "Dana Pribadi": { label: "Sumber / Tujuan", placeholder: "Contoh: Warung Bu Sri - Tanjung Selor" },
-  "Dana Kegiatan": { label: "Kaitan Kegiatan", placeholder: "Contoh: Perjalanan Tanjung Selor - Malinau" },
+  "Dana Pribadi": { label: "Sumber / Tujuan", placeholder: "Contoh: Warung Bu Sri - Kota A" },
+  "Dana Kegiatan": { label: "Kaitan Kegiatan", placeholder: "Contoh: Perjalanan Kota A - Kota B" },
 };
 
 export const METODE_BAYAR = [

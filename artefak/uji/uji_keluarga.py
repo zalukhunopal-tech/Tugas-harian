@@ -129,7 +129,7 @@ with sync_playwright() as p:
     buka_keluarga(pgB)
     cek(pgB.locator("#keluarga-kode-saya canvas.kode-qr").count() == 1, "kode QR tampil")
     cek("adik@example.org" in pgB.locator("#keluarga-kode-saya .keluarga-email").inner_text(), "email diambil dari pemilik berkas (profil artefak tidak punya email)")
-    pgB.fill("#keluarga-nama", "Adik Zalukhu")
+    pgB.fill("#keluarga-nama", "Adik Rahayu")
     pgB.wait_for_timeout(400)
     cek(pgB.locator("#keluarga-pindai").is_enabled(), "tombol pindai aktif")
     galatPeta = pgB.evaluate("""() => { const c = document.querySelector('canvas.kode-qr'); const x = c.getContext('2d');
@@ -158,7 +158,7 @@ with sync_playwright() as p:
     pgA.locator("#keluarga-pindai").click()
     pgA.wait_for_selector("#keluarga-konfirmasi", timeout=15000)
     cek(pgA.locator(".pemindai-latar").count() == 0, "jendela pemindai tertutup setelah kode terbaca")
-    cek("Adik Zalukhu" in pgA.locator("#keluarga-konfirmasi").inner_text() and "adik@example.org" in pgA.locator("#keluarga-konfirmasi").inner_text(), "konfirmasi memuat nama dan email dari QR")
+    cek("Adik Rahayu" in pgA.locator("#keluarga-konfirmasi").inner_text() and "adik@example.org" in pgA.locator("#keluarga-konfirmasi").inner_text(), "konfirmasi memuat nama dan email dari QR")
     cek(saklar(pgA, "#keluarga-konfirmasi", "Dana Pribadi").get_attribute("aria-checked") == "false", "Dana Pribadi mati secara bawaan")
     cek(saklar(pgA, "#keluarga-konfirmasi", "Dana Kegiatan").get_attribute("aria-checked") == "true", "Dana Kegiatan hidup secara bawaan")
     cek(len(panggilan(pgA, "share_file")) == 0, "belum ada yang dibagikan sebelum dikonfirmasi")
@@ -198,7 +198,7 @@ with sync_playwright() as p:
     cek(all(c["input"].get("role") == "reader" for c in panggilan(pgA, "share_file")), "semua izin berperan reader")
     k = "li.keluarga-anggota[data-email='adik@example.org']"
     cek(saklar(pgA, k, "Dana Kegiatan").get_attribute("aria-checked") == "true" and saklar(pgA, k, "Dana Pribadi").get_attribute("aria-checked") == "false", "daftar terhubung: Kegiatan hidup, Pribadi mati")
-    cek("Adik Zalukhu" in pgA.locator(k).inner_text(), "nama anggota dari QR tampil (Drive hanya memberi 'adik')")
+    cek("Adik Rahayu" in pgA.locator(k).inner_text(), "nama anggota dari QR tampil (Drive hanya memberi 'adik')")
 
     print("6. Ubah dana lewat saklar")
     saklar(pgA, k, "Dana Pribadi").click()

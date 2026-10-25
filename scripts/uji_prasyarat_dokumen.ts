@@ -64,7 +64,7 @@ cek("foto bukti dianjurkan, bukan wajib", (() => { const p = daftarPrasyarat(das
 cek("setiap prasyarat menunjuk langkah yang ada", daftarPrasyarat(dasar({ kategori: "Rental Kendaraan" })).every((p) => indeksLangkah(p.langkah) >= 0));
 
 console.log("Prasyarat per kategori");
-cek("transportasi speedboat: cukup rute dan moda", kurangWajib(dasar({ kategori: "Transportasi", detail: { transportasi: { dari: "Tanjung Selor", ke: "Tarakan", moda: "Speedboat / Kapal" } } })).length === 0);
+cek("transportasi speedboat: cukup rute dan moda", kurangWajib(dasar({ kategori: "Transportasi", detail: { transportasi: { dari: "Kota Asal", ke: "Tarakan", moda: "Speedboat / Kapal" } } })).length === 0);
 cek("transportasi ojek: wajib data sopir", kurangWajib(dasar({ kategori: "Transportasi", detail: { transportasi: { dari: "A", ke: "B", moda: "Ojek" } } })).includes("sopir"));
 cek("transportasi ojek lengkap", kurangWajib(dasar({ kategori: "Transportasi", detail: { transportasi: { dari: "A", ke: "B", moda: "Ojek", namaSopir: "Pak Udin", noTelpSopir: "0812", noPolisi: "KU 1 A" } } })).length === 0);
 cek("rental: kendaraan, tanggal, timesheet wajib", JSON.stringify(kurangWajib(dasar({ kategori: "Rental Kendaraan", detail: {} }))) === JSON.stringify(["kendaraan", "tgl-sewa", "timesheet"]));
@@ -82,7 +82,7 @@ cek("perdiem rentang dihitung dari rentang", kurangWajib(dasar({ kategori: "Perd
 console.log("Saran");
 cek("moda sewaan butuh sopir", modaPerluDataSopir("Travel / Mobil sewa") && modaPerluDataSopir("ojek") && !modaPerluDataSopir("Speedboat / Kapal") && !modaPerluDataSopir(undefined));
 cek("jenis bukti disarankan", saranJenisBukti("BBM", {}) === "Struk thermal (minimarket/SPBU)" && saranJenisBukti("Transportasi", { transportasi: { moda: "Pesawat" } }) === "Tiket pesawat/e-ticket" && saranJenisBukti("Transportasi", { transportasi: { moda: "Speedboat / Kapal" } }) === "Tiket" && saranJenisBukti("Konsumsi", {}) === "Kwitansi");
-cek("uraian transportasi", saranUraian("Transportasi", { transportasi: { dari: "Tanjung Selor", ke: "Tarakan", moda: "Speedboat / Kapal" } }) === "Transportasi Tanjung Selor – Tarakan (Speedboat / Kapal)");
+cek("uraian transportasi", saranUraian("Transportasi", { transportasi: { dari: "Kota Asal", ke: "Tarakan", moda: "Speedboat / Kapal" } }) === "Transportasi Kota Asal – Tarakan (Speedboat / Kapal)");
 cek("uraian konsumsi", saranUraian("Konsumsi", { konsumsi: { lokasi: "Balai Desa", jumlahPeserta: 15 } }) === "Konsumsi Balai Desa (15 orang)");
 cek("uraian rental tanpa merk", saranUraian("Rental Kendaraan", { rentalKendaraan: { noPolisi: "KU 8899 AB" } }) === "Sewa kendaraan KU 8899 AB");
 cek("uraian perdiem", saranUraian("Perdiem", {}) === "Perdiem lapangan" && saranUraian("Perdiem", { perdiem: { keterangan: "Kalimantan" } }) === "Perdiem Kalimantan");

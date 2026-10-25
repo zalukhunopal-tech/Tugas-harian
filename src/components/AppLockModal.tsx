@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AppLockConfig, KarakterId } from "../types";
 import { verifyPin, authenticateBiometric } from "../lib/appLock";
+import { muatTotp, perluKodeTotp, periksaDanCatatTotp, sisaDetikKunci } from "../lib/totp";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 
 interface AppLockModalProps {
@@ -18,6 +19,22 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
   const [errorPesan, setErrorPesan] = useState<string>("");
   const [memverifikasi, setMemverifikasi] = useState<boolean>(false);
   const [goyang, setGoyang] = useState<boolean>(false);
+  // Langkah kedua (Google Authenticator) hanya bila diaktifkan dan masa percaya perangkat sudah habis.
+  const [tahap, setTahap] = useState<"pin" | "totp">("pin");
+  const [kodeTotp, setKodeTotp] = useState<string>("");
+  const [sisaKunci, setSisaKunci] = useState<number>(0);
+
+  const lanjutSetelahFaktorPertama = useCallback(() => {
+    const t = muatTotp();
+    if (perluKodeTotp(t, Date.now())) {
+      setErrorPesan("");
+      setKodeTotp("");
+      setSisaKunci(sisaDetikKunci(t, Date.now()));
+      setTahap("totp");
+    } else {
+      onUnlock();
+    }
+  }, [onUnlock]);
 
   const handleCobaBiometrik = useCallback(async () => {
     if (!config.webAuthnEnabled) return;
@@ -26,7 +43,7 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
     try {
       const berhasil = await authenticateBiometric(config.credentialId);
       if (berhasil) {
-        onUnlock();
+        lanjutSetelahFaktorPertama();
       } else {
         setErrorPesan("Verifikasi biometrik tidak berhasil. Silakan gunakan PIN.");
       }
@@ -35,17 +52,17 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
     } finally {
       setMemverifikasi(false);
     }
-  }, [config.credentialId, config.webAuthnEnabled, onUnlock]);
+  }, [config.credentialId, config.webAuthnEnabled, lanjutSetelahFaktorPertama]);
 
   // Otomatis buka prompt biometrik saat lock screen pertama kali muncul jika diaktifkan
   useEffect(() => {
-    if (config.webAuthnEnabled) {
+    if (config.webAuthnEnabled && tahap === "pin") {
       const timer = setTimeout(() => {
         void handleCobaBiometrik();
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [config.webAuthnEnabled, handleCobaBiometrik]);
+  }, [config.webAuthnEnabled, handleCobaBiometrik, tahap]);
 
   const prosesVerifikasiPin = useCallback(
     async (pinInput: string) => {
@@ -54,7 +71,7 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
       try {
         const cocok = await verifyPin(pinInput, config);
         if (cocok) {
-          onUnlock();
+          lanjutSetelahFaktorPertama();
         } else {
           setGoyang(true);
           setErrorPesan("PIN salah. Silakan coba lagi.");
@@ -67,7 +84,7 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
         setMemverifikasi(false);
       }
     },
-    [config, onUnlock]
+    [config, lanjutSetelahFaktorPertama]
   );
 
   const handleTekanAngka = (angka: string) => {
@@ -106,7 +123,7 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
   // Dengarkan input keyboard fisik
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (memverifikasi) return;
+      if (memverifikasi || tahap !== "pin") return;
       if (e.key >= "0" && e.key <= "9") {
         handleTekanAngka(e.key);
       } else if (e.key === "Backspace") {
@@ -122,7 +139,46 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pin, memverifikasi, prosesVerifikasiPin]);
+  }, [pin, memverifikasi, prosesVerifikasiPin, tahap]);
+
+  // Hitung mundur jeda setelah terlalu banyak salah kode.
+  useEffect(() => {
+    if (tahap !== "totp" || sisaKunci <= 0) return;
+    const timer = setInterval(() => setSisaKunci((n) => (n > 0 ? n - 1 : 0)), 1000);
+    return () => clearInterval(timer);
+  }, [tahap, sisaKunci > 0]);
+
+  const kirimKodeTotp = useCallback(
+    async (kode: string) => {
+      if (memverifikasi) return;
+      setMemverifikasi(true);
+      setErrorPesan("");
+      try {
+        const hasil = await periksaDanCatatTotp(kode);
+        if (hasil.cocok) {
+          onUnlock();
+        } else {
+          setGoyang(true);
+          setErrorPesan(hasil.pesan);
+          setKodeTotp("");
+          setSisaKunci(hasil.terkunciDetik);
+          setTimeout(() => setGoyang(false), 500);
+        }
+      } catch {
+        setErrorPesan("Terjadi kesalahan saat memeriksa kode.");
+      } finally {
+        setMemverifikasi(false);
+      }
+    },
+    [memverifikasi, onUnlock]
+  );
+
+  const ubahKodeTotp = (nilai: string) => {
+    const bersih = nilai.replace(/\D/g, "").slice(0, 6);
+    setKodeTotp(bersih);
+    setErrorPesan("");
+    if (bersih.length === 6 && sisaKunci <= 0) void kirimKodeTotp(bersih);
+  };
 
   return (
     <div
@@ -160,6 +216,69 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
           <span style={{ fontSize: "1.4rem" }}>🔒</span>
           <h2 style={{ margin: 0, fontSize: "1.3rem", fontWeight: 800 }}>Aplikasi Terkunci</h2>
         </div>
+        {tahap === "totp" ? (
+          <form
+            id="lock-totp"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (kodeTotp.length === 6 && sisaKunci <= 0) void kirimKodeTotp(kodeTotp);
+            }}
+          >
+            <p className="help" style={{ margin: "0 0 6px", fontSize: "0.9rem", fontWeight: 600 }}>
+              Verifikasi Google Authenticator
+            </p>
+            <p className="help" style={{ margin: "0 0 16px", fontSize: "0.82rem", overflowWrap: "anywhere" }}>
+              Masukkan kode 6 angka dari entri <strong>Catatan Keuangan</strong>
+              {muatTotp()?.email ? ` (${muatTotp()!.email})` : ""} di Google Authenticator.
+            </p>
+            <input
+              id="lock-kode-totp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+              value={kodeTotp}
+              onChange={(e) => ubahKodeTotp(e.target.value)}
+              disabled={memverifikasi}
+              placeholder="000000"
+              aria-label="Kode Google Authenticator"
+              style={{ width: "100%", boxSizing: "border-box", textAlign: "center", fontSize: "1.8rem", letterSpacing: "10px", marginBottom: "12px" }}
+            />
+            {sisaKunci > 0 && (
+              <div id="lock-totp-jeda" style={{ color: "#f59e0b", fontSize: "0.85rem", fontWeight: 600, marginBottom: "8px" }}>
+                Dikunci sementara: {sisaKunci} detik
+              </div>
+            )}
+            {errorPesan && (
+              <div id="lock-totp-galat" role="alert" style={{ color: "#ef4444", fontSize: "0.85rem", fontWeight: 600, marginBottom: "12px" }}>
+                {errorPesan}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={memverifikasi || kodeTotp.length !== 6 || sisaKunci > 0}
+              style={{ width: "100%", justifyContent: "center", marginBottom: "10px" }}
+            >
+              {memverifikasi ? "Memeriksa…" : "Verifikasi"}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setTahap("pin");
+                setPin("");
+                setErrorPesan("");
+              }}
+              disabled={memverifikasi}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
+              Kembali ke PIN
+            </button>
+          </form>
+        ) : (
+          <>
         <p className="help" style={{ margin: "0 0 20px", fontSize: "0.85rem" }}>
           Masukkan PIN 4–6 angka Anda untuk membuka
         </p>
@@ -332,6 +451,8 @@ export const AppLockModal: React.FC<AppLockModalProps> = ({
             <span style={{ fontSize: "1.2rem" }}>👆</span>
             <span>Gunakan Sidik Jari / Face ID</span>
           </button>
+        )}
+          </>
         )}
       </div>
     </div>
