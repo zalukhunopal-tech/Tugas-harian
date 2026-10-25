@@ -12,6 +12,8 @@ import { TotpKelolaModal } from "./TotpKelolaModal";
 import { LABEL_INTERVAL, muatTotp } from "../lib/totp";
 import { LaporanView } from "./LaporanView";
 import { KeluargaView } from "./KeluargaView";
+import { HasilKirim, KeluarDriveModal } from "./KeluarDriveModal";
+import { adaDataDiPerangkat } from "../lib/bersihkanPerangkat";
 
 interface SayaViewProps {
   tema: TemaId;
@@ -24,6 +26,10 @@ interface SayaViewProps {
   googleLoading: boolean;
   onGoogleLogin: () => Promise<void>;
   onGoogleLogout: () => Promise<void>;
+  /** Kirim data ke Drive sebelum dihapus dari perangkat saat keluar. */
+  onKirimSebelumKeluar?: () => Promise<HasilKirim>;
+  /** Putus akun, hapus data keuangan dari perangkat ini, lalu muat ulang aplikasi. */
+  onKeluarDanHapus?: () => Promise<void>;
   driveContents: KeuanganDriveContents | null;
   memuatDrive: boolean;
   onPeriksaDrive: () => Promise<void>;
@@ -77,6 +83,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
   googleLoading,
   onGoogleLogin,
   onGoogleLogout,
+  onKirimSebelumKeluar,
+  onKeluarDanHapus,
   driveContents,
   memuatDrive,
   onPeriksaDrive,
@@ -100,6 +108,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
   const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
   const [modalTotpBuka, setModalTotpBuka] = useState(false);
+  const [modalKeluarBuka, setModalKeluarBuka] = useState(false);
   const [totp, setTotp] = useState(() => muatTotp());
   const [profilForm, setProfilForm] = useState<ProfilPelapor>(() => {
     return profilPelapor || PROFIL_PELAPOR_DEFAULT;
@@ -214,6 +223,14 @@ export const SayaView: React.FC<SayaViewProps> = ({
                   </span>
                 </div>
               </button>
+              {onKeluarDanHapus && (transaksi.length > 0 || aset.length > 0 || adaDataDiPerangkat()) && (
+                <p className="help" style={{ marginTop: "12px" }}>
+                  Data keuangan masih tersimpan di perangkat ini.{" "}
+                  <button type="button" className="btn-link" id="btn-hapus-data-perangkat" onClick={() => setModalKeluarBuka(true)}>
+                    Hapus dari perangkat ini
+                  </button>
+                </p>
+              )}
             </div>
           ) : (
             <div>
@@ -240,7 +257,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
                 <button
                   type="button"
                   className="btn-small btn-delete"
-                  onClick={() => void onGoogleLogout()}
+                  id="btn-keluar-drive"
+                  onClick={() => setModalKeluarBuka(true)}
                 >
                   Keluar
                 </button>
@@ -827,6 +845,20 @@ export const SayaView: React.FC<SayaViewProps> = ({
         driveContents={driveContents}
         onBerubah={() => setTotp(muatTotp())}
       />
+      {modalKeluarBuka && (
+        <KeluarDriveModal
+          akun={googleUser ? googleUser.email || googleUser.displayName || "Google" : null}
+          jumlahTransaksi={transaksi.length}
+          jumlahAset={aset.length}
+          onKirimDulu={onKirimSebelumKeluar ?? (async () => ({ ok: true }))}
+          onKeluarDanHapus={async () => {
+            if (onKeluarDanHapus) await onKeluarDanHapus();
+            else await onGoogleLogout();
+          }}
+          onKeluarSaja={onGoogleLogout}
+          onTutup={() => setModalKeluarBuka(false)}
+        />
+      )}
     </section>
   );
 };

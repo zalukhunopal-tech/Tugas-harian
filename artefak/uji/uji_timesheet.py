@@ -37,7 +37,7 @@ PROFIL_UJI = json.dumps(
 )
 INIT_PROFIL = "if (!localStorage.getItem('__p')) { localStorage.setItem('__p', '1'); localStorage.setItem('keuangan-profil-pelapor', %s); }" % PROFIL_UJI
 
-JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Adat dan Koordinasi Multipihak di Kalimantan Utara (Batch 4)"
+JUDUL = "Kegiatan Fasilitasi Penyelesaian Klaim Wilayah Contoh dan Koordinasi Multipihak di Provinsi Contoh (Batch 4)"
 NAMA_TS4 = "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)"
 
 
@@ -66,7 +66,7 @@ def baris_timesheet():
 
 def transaksi_seed():
     t = [{"id": "dana1", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-09-19", "deskripsi": "Penerimaan Dana Awal Kegiatan",
-          "kategori": "Penerimaan Dana", "jumlah": 26370000, "metode": "Transfer", "kaitan": "", "catatan": ""}]
+          "kategori": "Penerimaan Dana", "jumlah": 25000000, "metode": "Transfer", "kaitan": "", "catatan": ""}]
     for i in range(34):
         iso, _ = hari(i)
         t.append({"id": f"pd{i}", "jenis": "pengeluaran", "dana": "Dana Kegiatan", "tanggal": iso, "deskripsi": f"Perdiem Kalimantan · {iso}",
@@ -74,7 +74,7 @@ def transaksi_seed():
     return t
 
 
-KEGIATAN_SEED = [{"id": "kg4", "nama": JUDUL, "lokasi": "Krayan", "tanggalMulai": "2026-09-20", "tanggalSelesai": "2026-10-23"}]
+KEGIATAN_SEED = [{"id": "kg4", "nama": JUDUL, "lokasi": "Kecamatan Contoh", "tanggalMulai": "2026-09-20", "tanggalSelesai": "2026-10-23"}]
 
 INIT_DRIVE = """
 (() => {
@@ -168,7 +168,7 @@ def isi_sk_pengguna():
     import datetime
 
     bln = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
-    rows = [["1", "2026-09-19", "Penerimaan Dana Awal Kegiatan", "Penerimaan Dana", "26370000", "", "26370000", "", "", "idk1", "Transfer", ""],
+    rows = [["1", "2026-09-19", "Penerimaan Dana Awal Kegiatan", "Penerimaan Dana", "25000000", "", "25000000", "", "", "idk1", "Transfer", ""],
             ["2", "2026-09-20", "Pembelian konsumsi perjalanan (snack)", "Konsumsi", "", "65800", "26304200", "Perjalanan Kota Asal - Kota Tujuan (20 Sep 2026)", "Bayar tunai", "idk2", "Tunai", ""]]
     for i in range(34):
         d = datetime.date(2026, 9, 20) + datetime.timedelta(days=i)
@@ -411,7 +411,7 @@ with sync_playwright() as p:
     junk = [{"id": f"junkM{i}", "jenis": "pemasukan", "dana": "Dana Kegiatan", "tanggal": "2026-10-10", "deskripsi": f"Kegiatan lapangan hari ke-{i + 10}, bersama warga",
              "kategori": "Desa Ba' Liku", "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""} for i in range(1, 5)]
     # Tanggal kegiatan tidak beririsan dengan periode file: kegiatan tidak mungkin dicocokkan ke file timesheet.
-    kegs = [{"id": "kg4", "nama": "Kegiatan Tanpa Nomor", "lokasi": "Krayan", "tanggalMulai": "2026-12-01", "tanggalSelesai": "2026-12-05"}]
+    kegs = [{"id": "kg4", "nama": "Kegiatan Tanpa Nomor", "lokasi": "Kecamatan Contoh", "tanggalMulai": "2026-12-01", "tanggalSelesai": "2026-12-05"}]
     pg.evaluate("""([j, k]) => { const a = JSON.parse(localStorage.getItem('pengeluaran-harian')); localStorage.setItem('pengeluaran-harian', JSON.stringify(a.concat(j)));
                      localStorage.setItem('keuangan-daftar-kegiatan', JSON.stringify(k)); }""", [junk, kegs])
     pg.reload()
@@ -502,8 +502,8 @@ with sync_playwright() as p:
     pg.click(".bertahap-kegiatan__baru")
     pg.wait_for_timeout(300)
     modal = pg.locator(".modal-backdrop [role=group]")
-    modal.locator("input[type=text]").nth(0).fill("Fasilitasi Klaim Wilayah Adat Krayan")
-    modal.locator("input[type=text]").nth(1).fill("Krayan")
+    modal.locator("input[type=text]").nth(0).fill("Fasilitasi Klaim Wilayah Contoh")
+    modal.locator("input[type=text]").nth(1).fill("Kecamatan Contoh")
     modal.locator("input[type=date]").nth(0).fill("2026-09-20")
     modal.locator("input[type=date]").nth(1).fill("2026-10-23")
     pg.wait_for_timeout(300)
