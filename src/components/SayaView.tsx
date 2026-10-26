@@ -120,6 +120,42 @@ export const SayaView: React.FC<SayaViewProps> = ({
   const [modalTotpBuka, setModalTotpBuka] = useState(false);
   const [modalKeluarBuka, setModalKeluarBuka] = useState(false);
   const [totp, setTotp] = useState(() => muatTotp());
+  const [ukuranIkonPx, setUkuranIkonPx] = useState<number>(() => {
+    try {
+      const u = localStorage.getItem("keuangan-ukuran-ikon-px");
+      if (u) {
+        const val = Number(u);
+        if (!isNaN(val) && val >= 52 && val <= 92) return val;
+      }
+    } catch (_) {}
+    return 70; // Standar default: 4 kolom
+  });
+
+  const handleGantiUkuran = (val: number) => {
+    const clamped = Math.max(52, Math.min(92, val));
+    setUkuranIkonPx(clamped);
+    try {
+      localStorage.setItem("keuangan-ukuran-ikon-px", String(clamped));
+    } catch (_) {}
+  };
+
+  // Menentukan jumlah kolom dan label berdasarkan ukuran ikon sehingga pilihan berpindah posisi saat ukuran dinaik-turunkan
+  const infoUkuran = React.useMemo(() => {
+    if (ukuranIkonPx < 58) {
+      return { kolom: 6, label: "Sangat Kecil", gapX: 4, gapY: 14 };
+    }
+    if (ukuranIkonPx < 66) {
+      return { kolom: 5, label: "Kecil", gapX: 6, gapY: 18 };
+    }
+    if (ukuranIkonPx <= 76) {
+      return { kolom: 4, label: "Standar", gapX: 8, gapY: 24 };
+    }
+    if (ukuranIkonPx <= 84) {
+      return { kolom: 3, label: "Besar", gapX: 14, gapY: 28 };
+    }
+    return { kolom: 2, label: "Sangat Besar", gapX: 20, gapY: 32 };
+  }, [ukuranIkonPx]);
+
   const [profilForm, setProfilForm] = useState<ProfilPelapor>(() => {
     return profilPelapor || PROFIL_PELAPOR_DEFAULT;
   });
@@ -951,33 +987,87 @@ export const SayaView: React.FC<SayaViewProps> = ({
   return (
     <section className="view" id="view-saya" data-view="saya">
       {!aplikasiAktif ? (
-        <nav className="saya-peluncur" aria-label="Aplikasi">
-          {aplikasi.map((a) => {
-            const Ikon = a.ikon;
-            const pakaiAvatar = a.id === "tema" && tema === "jujutsu";
-            return (
-              <button
-                key={a.id}
-                type="button"
-                className="saya-app"
-                data-app={a.id}
-                onClick={() => bukaAplikasi(a.id)}
-              >
-                <span className="saya-app-ikon" style={gayaIkon(a)} aria-hidden="true">
-                  {pakaiAvatar ? (
-                    <img className="saya-app-avatar" src={TOKOH_TEMA[karakter].avatar} alt="" width={156} height={156} decoding="async" />
-                  ) : (
-                    <Ikon size={32} strokeWidth={1.9} />
-                  )}
-                  {a.titik && <span className={`saya-app-titik ${a.titik}`} />}
-                  {a.angka !== undefined && <span className="saya-app-angka">{a.angka}</span>}
-                </span>
-                <span className="saya-app-nama">{a.nama}</span>
-                <span className="saya-app-status">{a.status}</span>
-              </button>
-            );
-          })}
-        </nav>
+        <>
+          <div className="saya-peluncur-topbar no-print">
+            <div className="saya-peluncur-judul">
+              <span>Layanan &amp; Fitur</span>
+              <span className="saya-kolom-lencana">
+                {infoUkuran.kolom} Kolom · {infoUkuran.label}
+              </span>
+            </div>
+            <div className="saya-bar-ukuran">
+              <span className="saya-bar-ukuran-label">Ukuran:</span>
+              <div className="saya-bar-slider-wrap">
+                <button
+                  type="button"
+                  className="saya-slider-btn"
+                  onClick={() => handleGantiUkuran(ukuranIkonPx - 6)}
+                  title="Perkecil ukuran ikon"
+                  aria-label="Perkecil ukuran ikon"
+                >
+                  −
+                </button>
+                <input
+                  type="range"
+                  className="saya-slider-range"
+                  min="52"
+                  max="92"
+                  step="2"
+                  value={ukuranIkonPx}
+                  onChange={(e) => handleGantiUkuran(Number(e.target.value))}
+                  aria-label="Atur ukuran pilihan aplikasi"
+                />
+                <button
+                  type="button"
+                  className="saya-slider-btn"
+                  onClick={() => handleGantiUkuran(ukuranIkonPx + 6)}
+                  title="Perbesar ukuran ikon"
+                  aria-label="Perbesar ukuran ikon"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <nav
+            className="saya-peluncur"
+            style={{
+              "--saya-kolom": infoUkuran.kolom,
+              "--saya-ukuran": `${ukuranIkonPx}px`,
+              "--saya-gap-y": `${infoUkuran.gapY}px`,
+              "--saya-gap-x": `${infoUkuran.gapX}px`,
+            } as React.CSSProperties}
+            aria-label="Aplikasi"
+          >
+            {aplikasi.map((a) => {
+              const Ikon = a.ikon;
+              const pakaiAvatar = a.id === "tema" && tema === "jujutsu";
+              const svgUkuran = Math.round(ukuranIkonPx * 0.44);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  className="saya-app"
+                  data-app={a.id}
+                  onClick={() => bukaAplikasi(a.id)}
+                >
+                  <span className="saya-app-ikon" style={gayaIkon(a)} aria-hidden="true">
+                    {pakaiAvatar ? (
+                      <img className="saya-app-avatar" src={TOKOH_TEMA[karakter].avatar} alt="" width={156} height={156} decoding="async" />
+                    ) : (
+                      <Ikon size={svgUkuran} strokeWidth={1.9} />
+                    )}
+                    {a.titik && <span className={`saya-app-titik ${a.titik}`} />}
+                    {a.angka !== undefined && <span className="saya-app-angka">{a.angka}</span>}
+                  </span>
+                  <span className="saya-app-nama">{a.nama}</span>
+                  <span className="saya-app-status">{a.status}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </>
       ) : (
         <>
           <div className="saya-appbar no-print">

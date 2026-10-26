@@ -23,12 +23,18 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   onSetAnggaranKategori,
 }) => {
   const [subTab, setSubTab] = useState<"grafik" | "tahunan">("grafik");
+  const [filterDana, setFilterDana] = useState<"Semua" | "Dana Pribadi" | "Dana Kegiatan">("Semua");
   const [inputBatas, setInputBatas] = useState(anggaran > 0 ? String(anggaran) : "");
 
   // Tab pemilihan dana untuk anggaran kategori
   const [danaAnggaran, setDanaAnggaran] = useState<NamaDana>("Dana Pribadi");
   const [kategoriEdit, setKategoriEdit] = useState<string | null>(null);
   const [inputBatasKat, setInputBatasKat] = useState<string>("");
+
+  // Transaksi tersaring berdasarkan kategori dana pilihan (Semua / Dana Pribadi / Dana Kegiatan)
+  const transaksiTersaring = filterDana === "Semua"
+    ? transaksi
+    : transaksi.filter((t) => t.dana === filterDana);
 
   // 6 bulan terakhir sampai bulan terpilih (Kategori Pindah Dana TIDAK dihitung)
   const [th, bl] = bulanTerpilih.split("-").map(Number);
@@ -37,7 +43,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   for (let i = 5; i >= 0; i--) {
     const d = new Date(th, bl - 1 - i, 1);
     const kunci = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const list = transaksi.filter((t) => t.tanggal.startsWith(kunci) && t.kategori !== "Pindah Dana");
+    const list = transaksiTersaring.filter((t) => t.tanggal.startsWith(kunci) && t.kategori !== "Pindah Dana");
     const masuk = list.filter((t) => t.jenis === "pemasukan").reduce((s, t) => s + t.jumlah, 0);
     const keluar = list.filter((t) => t.jenis === "pengeluaran").reduce((s, t) => s + t.jumlah, 0);
     daftarBulan.push({
@@ -53,7 +59,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
   // Kategori bulan terpilih (Kategori Pindah Dana TIDAK dihitung)
   const [thBln, blBln] = bulanTerpilih.split("-").map(Number);
   const namaBulanPenuh = namaBulan.format(new Date(thBln, blBln - 1, 1));
-  const transaksiBulan = transaksi.filter(
+  const transaksiBulan = transaksiTersaring.filter(
     (t) => t.tanggal.startsWith(bulanTerpilih) && t.kategori !== "Pindah Dana"
   );
 
@@ -128,15 +134,66 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
       ) : (
         <>
           <div className="card card-tren">
-        <h2>Tren 6 bulan terakhir</h2>
-        <div className="legenda">
-          <span>
-            <i className="swatch masuk"></i>Pemasukan
-          </span>
-          <span>
-            <i className="swatch keluar"></i>Pengeluaran
-          </span>
-        </div>
+            <div className="dana-filter-bar no-print">
+              <div className="dana-filter-info">
+                <span className="dana-filter-title">Kategori Dana:</span>
+                <span className="dana-status-text">
+                  {filterDana === "Semua" ? "Semua Dana (Default)" : filterDana}
+                </span>
+                {filterDana !== "Semua" && (
+                  <button
+                    type="button"
+                    className="dana-reset-link"
+                    onClick={() => {
+                      setFilterDana("Semua");
+                      setDanaAnggaran("Dana Pribadi");
+                    }}
+                    title="Kembali ke Semua Dana (Default)"
+                  >
+                    ✕ Reset
+                  </button>
+                )}
+              </div>
+              <div className="dana-filter-dua-pilihan" role="group" aria-label="Filter Kategori Dana">
+                <button
+                  type="button"
+                  className={`dana-filter-chip ${filterDana === "Dana Kegiatan" ? "aktif" : ""}`}
+                  onClick={() => {
+                    const next = filterDana === "Dana Kegiatan" ? "Semua" : "Dana Kegiatan";
+                    setFilterDana(next);
+                    setDanaAnggaran(next === "Dana Kegiatan" ? "Dana Kegiatan" : "Dana Pribadi");
+                  }}
+                  title={filterDana === "Dana Kegiatan" ? "Ketuk untuk kembali ke Semua Dana (Default)" : "Filter Dana Kegiatan"}
+                >
+                  💼 Dana Kegiatan
+                </button>
+                <button
+                  type="button"
+                  className={`dana-filter-chip ${filterDana === "Dana Pribadi" ? "aktif" : ""}`}
+                  onClick={() => {
+                    const next = filterDana === "Dana Pribadi" ? "Semua" : "Dana Pribadi";
+                    setFilterDana(next);
+                    setDanaAnggaran("Dana Pribadi");
+                  }}
+                  title={filterDana === "Dana Pribadi" ? "Ketuk untuk kembali ke Semua Dana (Default)" : "Filter Dana Pribadi"}
+                >
+                  👤 Dana Pribadi
+                </button>
+              </div>
+            </div>
+
+            <h2>
+              Tren 6 bulan terakhir
+              {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
+            </h2>
+            <div className="legenda">
+              <span>
+                <i className="swatch masuk"></i>Pemasukan
+              </span>
+              <span>
+                <i className="swatch keluar"></i>Pengeluaran
+              </span>
+            </div>
 
         <div className="tren" id="tren-bulanan" role="img" aria-label="Pemasukan dan pengeluaran per bulan">
           {daftarBulan.map((b) => {
@@ -194,7 +251,10 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
       </div>
 
       <div className="card card-ringkasan-kategori">
-        <h2 id="judul-kategori">Ringkasan per Kategori — {namaBulanPenuh}</h2>
+        <h2 id="judul-kategori">
+          Ringkasan per Kategori — {namaBulanPenuh}
+          {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
+        </h2>
 
         <h3>Pengeluaran</h3>
         {kategoriKeluar.length > 0 ? (
