@@ -9,10 +9,44 @@ import {
 } from "../types";
 import { STORAGE_KEY, BUDGET_KEY, TEMA_KEY, KARAKTER_KEY, SYNC_URL_KEY, SYNC_KUNCI_KEY, SYNC_QUEUE_KEY, SYNC_TIME_KEY, ASET_KEY, HARGA_KEY, DANA_DEFAULT } from "./constants";
 
+import { ambilAkunAktif, buatIdAkun } from "./multiAkun";
+
+const KUNCI_GLOBAL = new Set([
+  "keuangan-tema",
+  "keuangan-karakter",
+  "keuangan-isi-bertahap",
+  "app-layout",
+  "keuangan_gdrive_daftar_akun",
+  "keuangan_gdrive_akun_aktif_id",
+  "keuangan_migrasi_multi_akun_selesai",
+]);
+
+export function kunciPenyimpanan(kunci: string): string {
+  if (KUNCI_GLOBAL.has(kunci)) {
+    return kunci;
+  }
+  const akun = ambilAkunAktif();
+  if (!akun) {
+    return kunci;
+  }
+  const idAkun = buatIdAkun(akun.email || akun.uid);
+  return `keuangan_u_${idAkun}_${kunci}`;
+}
+
 export function bacaStorage(kunci: string, cadangan: string = ""): string {
   try {
-    const val = localStorage.getItem(kunci);
-    return val === null ? cadangan : val;
+    const k = kunciPenyimpanan(kunci);
+    const val = localStorage.getItem(k);
+    if (val !== null) return val;
+    // Cek kunci global lama jika partisi belum memiliki nilai
+    if (k !== kunci) {
+      const oldVal = localStorage.getItem(kunci);
+      if (oldVal !== null) {
+        localStorage.setItem(k, oldVal);
+        return oldVal;
+      }
+    }
+    return cadangan;
   } catch {
     return cadangan;
   }
@@ -20,10 +54,11 @@ export function bacaStorage(kunci: string, cadangan: string = ""): string {
 
 export function tulisStorage(kunci: string, nilai: string | null | undefined): boolean {
   try {
+    const k = kunciPenyimpanan(kunci);
     if (nilai === null || nilai === "" || nilai === undefined) {
-      localStorage.removeItem(kunci);
+      localStorage.removeItem(k);
     } else {
-      localStorage.setItem(kunci, nilai);
+      localStorage.setItem(k, nilai);
     }
     return true;
   } catch {
@@ -33,7 +68,15 @@ export function tulisStorage(kunci: string, nilai: string | null | undefined): b
 
 export function bacaJsonStorage<T>(kunci: string, cadangan: T): T {
   try {
-    const raw = localStorage.getItem(kunci);
+    const k = kunciPenyimpanan(kunci);
+    let raw = localStorage.getItem(k);
+    if (!raw && k !== kunci) {
+      const oldRaw = localStorage.getItem(kunci);
+      if (oldRaw) {
+        localStorage.setItem(k, oldRaw);
+        raw = oldRaw;
+      }
+    }
     if (!raw) return cadangan;
     return JSON.parse(raw) as T;
   } catch {

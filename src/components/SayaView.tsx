@@ -36,6 +36,12 @@ interface SayaViewProps {
   onTarikDariDrive: () => Promise<void>;
   onKirimKeDrive: () => Promise<void>;
 
+  // Multi-Akun Google
+  daftarAkunGoogle?: import("../lib/googleAuth").AkunGoogleTersimpan[];
+  onBeralihAkun?: (emailOrUid: string) => Promise<void>;
+  onTambahAkun?: () => Promise<string | null>;
+  onHapusAkun?: (emailOrUid: string) => Promise<void>;
+
   transaksi: Transaksi[];
   aset: AsetItem[];
   syncStatusPesan: string;
@@ -104,6 +110,10 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onTambahKegiatan,
   googleToken,
   ambilToken,
+  daftarAkunGoogle = [],
+  onBeralihAkun,
+  onTambahAkun,
+  onHapusAkun,
 }) => {
   const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
@@ -186,6 +196,64 @@ export const SayaView: React.FC<SayaViewProps> = ({
 
           {!googleUser ? (
             <div style={{ margin: "14px 0" }}>
+              {daftarAkunGoogle && daftarAkunGoogle.length > 0 && (
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "8px", color: "var(--text)" }}>
+                    Pilih Akun yang Tersimpan di Perangkat:
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {daftarAkunGoogle.map((akun) => (
+                      <div
+                        key={akun.uid || akun.email}
+                        className="gdrive-user-card"
+                        style={{ margin: 0, padding: "10px 12px" }}
+                      >
+                        <div className="gdrive-user-info">
+                          {akun.photoURL ? (
+                            <img
+                              src={akun.photoURL}
+                              alt={akun.displayName || "User"}
+                              style={{ width: 34, height: 34, borderRadius: "50%" }}
+                            />
+                          ) : (
+                            <div className="gdrive-avatar" style={{ width: 34, height: 34, fontSize: "0.85rem" }}>
+                              {(akun.displayName || akun.email || "U")[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <strong style={{ fontSize: "0.88rem" }}>{akun.displayName || "Pengguna Google"}</strong>
+                            <div style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{akun.email}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            className="btn-small btn-primary"
+                            onClick={() => onBeralihAkun && void onBeralihAkun(akun.email || akun.uid)}
+                          >
+                            Aktifkan
+                          </button>
+                          {onHapusAkun && (
+                            <button
+                              type="button"
+                              className="btn-small btn-delete"
+                              title="Hapus akun dan datanya dari perangkat ini"
+                              onClick={() => {
+                                if (window.confirm(`Hapus akun ${akun.email} dan data lokalnya dari perangkat ini?`)) {
+                                  void onHapusAkun(akun.email || akun.uid);
+                                }
+                              }}
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
                 className="gsi-material-button"
@@ -250,7 +318,21 @@ export const SayaView: React.FC<SayaViewProps> = ({
                     </div>
                   )}
                   <div>
-                    <strong>{googleUser.displayName || "Pengguna Google"}</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <strong>{googleUser.displayName || "Pengguna Google"}</strong>
+                      <span
+                        className="gdrive-badge"
+                        style={{
+                          background: "rgba(34, 197, 94, 0.2)",
+                          color: "#22c55e",
+                          fontSize: "0.7rem",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        Aktif
+                      </span>
+                    </div>
                     <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
                       {googleUser.email}
                     </div>
@@ -263,6 +345,125 @@ export const SayaView: React.FC<SayaViewProps> = ({
                   onClick={() => setModalKeluarBuka(true)}
                 >
                   Keluar
+                </button>
+              </div>
+
+              {/* Beralih ke Akun Lain yang Sudah Ada di Perangkat */}
+              {daftarAkunGoogle &&
+                daftarAkunGoogle.filter((a) => a.email !== googleUser.email).length > 0 && (
+                  <div
+                    style={{
+                      margin: "8px 0 12px",
+                      padding: "10px 12px",
+                      background: "rgba(255, 255, 255, 0.03)",
+                      borderRadius: "8px",
+                      border: "1px dashed var(--border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        marginBottom: "8px",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Beralih ke Akun Lain di Perangkat Ini:
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {daftarAkunGoogle
+                        .filter((a) => a.email !== googleUser.email)
+                        .map((akun) => (
+                          <div
+                            key={akun.uid || akun.email}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "6px 8px",
+                              background: "var(--surface)",
+                              borderRadius: "6px",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {akun.photoURL ? (
+                                <img
+                                  src={akun.photoURL}
+                                  alt=""
+                                  style={{ width: 28, height: 28, borderRadius: "50%" }}
+                                />
+                              ) : (
+                                <div
+                                  className="gdrive-avatar"
+                                  style={{ width: 28, height: 28, fontSize: "0.8rem" }}
+                                >
+                                  {(akun.displayName || akun.email || "U")[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontSize: "0.82rem", fontWeight: 600 }}>
+                                  {akun.displayName || akun.email}
+                                </div>
+                                <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+                                  {akun.email}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button
+                                type="button"
+                                className="btn-small"
+                                style={{ fontSize: "0.75rem", padding: "3px 8px" }}
+                                onClick={() =>
+                                  onBeralihAkun && void onBeralihAkun(akun.email || akun.uid)
+                                }
+                              >
+                                Ganti Akun
+                              </button>
+                              {onHapusAkun && (
+                                <button
+                                  type="button"
+                                  className="btn-small btn-delete"
+                                  style={{ fontSize: "0.75rem", padding: "3px 6px" }}
+                                  title="Hapus dari perangkat"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `Hapus data akun ${akun.email} dari perangkat ini?`
+                                      )
+                                    ) {
+                                      void onHapusAkun(akun.email || akun.uid);
+                                    }
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Tombol Tambah / Masuk dengan Akun Google Lain */}
+              <div style={{ margin: "6px 0 12px" }}>
+                <button
+                  type="button"
+                  className="btn-small btn-secondary"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "center", padding: "8px 12px" }}
+                  onClick={() => {
+                    if (onTambahAkun) void onTambahAkun();
+                    else void onGoogleLogin();
+                  }}
+                  disabled={googleLoading}
+                >
+                  <span style={{ fontSize: "0.95rem" }}>➕</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {googleLoading ? "Menghubungkan…" : "Tambah / Masuk Akun Google Lain"}
+                  </span>
                 </button>
               </div>
 

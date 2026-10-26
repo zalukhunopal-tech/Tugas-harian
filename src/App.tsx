@@ -66,6 +66,11 @@ import {
   logoutGoogle,
   getAccessToken,
   cekStatusSesiGoogle,
+  ambilDaftarAkun,
+  ambilAkunAktif,
+  beralihAkunGoogle,
+  hapusAkunDariDaftar,
+  AkunGoogleTersimpan,
 } from "./lib/googleAuth";
 import {
   cariFolderKeuangan,
@@ -170,6 +175,7 @@ export default function App() {
   const [googleUser, setGoogleUser] = useState<User | null>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string>("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [daftarAkunGoogle, setDaftarAkunGoogle] = useState<AkunGoogleTersimpan[]>(() => ambilDaftarAkun());
   const [driveContents, setDriveContents] = useState<KeuanganDriveContents | null>(null);
   const [memuatDrive, setMemuatDrive] = useState(false);
 
@@ -1011,16 +1017,92 @@ export default function App() {
     return () => unsubscribe();
   }, [periksaDriveOtomatis, prosesAntreanBuktiOffline]);
 
-  const handleGoogleLogin = async (): Promise<string | null> => {
+  const muatUlangSemuaState = () => {
+    const trxBaru = muatTransaksi();
+    setTransaksi(trxBaru);
+    transaksiRef.current = trxBaru;
+
+    const asetBaru = muatAset();
+    setAset(asetBaru);
+    asetRef.current = asetBaru;
+
+    const hargaBaru = muatHarga();
+    setHarga(hargaBaru);
+
+    const pengBaru = muatPengaturan();
+    setPengaturan(pengBaru);
+    pengaturanRef.current = pengBaru;
+
+    const kegBaru = muatDaftarKegiatan();
+    setDaftarKegiatan(kegBaru);
+
+    const profBaru = muatProfilPelapor();
+    setProfilPelapor(profBaru);
+
+    setDaftarBerulang(muatTransaksiBerulang());
+    setAppLockConfig(muatAppLock());
+  };
+
+  const handleBeralihAkun = async (emailOrUid: string) => {
+    // 1. Simpan dulu perubahan di memori untuk akun saat ini
+    simpanTransaksi(transaksiRef.current);
+    simpanAset(asetRef.current);
+    simpanPengaturan(pengaturanRef.current);
+    simpanDaftarKegiatan(daftarKegiatan);
+    simpanProfilPelapor(profilPelapor);
+
+    // 2. Alihkan akun aktif
+    const target = beralihAkunGoogle(emailOrUid);
+    if (!target) return;
+
+    // 3. Muat ulang seluruh state dari partisi akun baru
+    muatUlangSemuaState();
+    resetStatusTarik();
+    setDriveContents(null);
+    setDaftarAkunGoogle(ambilDaftarAkun());
+
+    // 4. Perbarui data profil Google user di state
+    setGoogleUser({
+      uid: target.uid,
+      email: target.email,
+      displayName: target.displayName,
+      photoURL: target.photoURL,
+    } as User);
+
+    const token = await getAccessToken();
+    if (token) {
+      setGoogleAccessToken(token);
+      setSyncStatus({ pesan: `Beralih ke akun ${target.email || target.displayName}`, status: "sukses" });
+      await periksaDriveOtomatis(token);
+      void prosesAntreanBuktiOffline();
+      void handleTarikDariDrive(true);
+    } else {
+      setGoogleAccessToken("");
+      setSyncStatus({ pesan: `Sesi ${target.email} perlu masuk ulang`, status: "tunggu" });
+    }
+  };
+
+  const handleTambahAkun = async (): Promise<string | null> => {
+    simpanTransaksi(transaksiRef.current);
+    simpanAset(asetRef.current);
+    simpanPengaturan(pengaturanRef.current);
+    simpanDaftarKegiatan(daftarKegiatan);
+    simpanProfilPelapor(profilPelapor);
+
     setGoogleLoading(true);
     try {
-      const res = await googleSignIn();
+      const res = await googleSignIn({ forceSelectAccount: true });
       if (res) {
         setGoogleUser(res.user);
         setGoogleAccessToken(res.accessToken);
-        setSyncStatus({ pesan: "Terhubung ke Google Drive", status: "sukses" });
+        setDaftarAkunGoogle(ambilDaftarAkun());
+        muatUlangSemuaState();
+        resetStatusTarik();
+        setDriveContents(null);
+        setSyncStatus({ pesan: `Terhubung dengan ${res.user.email}`, status: "sukses" });
         await periksaDriveOtomatis(res.accessToken);
         void prosesAntreanBuktiOffline();
+        void handleTarikDariDrive(true);
         return res.accessToken;
       }
       return null;
@@ -1033,13 +1115,36 @@ export default function App() {
     }
   };
 
+  const handleHapusAkun = async (emailOrUid: string) => {
+    hapusAkunDariDaftar(emailOrUid);
+    setDaftarAkunGoogle(ambilDaftarAkun());
+    const aktif = ambilAkunAktif();
+    if (!aktif) {
+      await logoutGoogle(false);
+      resetStatusTarik();
+      setGoogleUser(null);
+      setGoogleAccessToken("");
+      setDriveContents(null);
+    } else {
+      await handleBeralihAkun(aktif.email || aktif.uid);
+    }
+    muatUlangSemuaState();
+    setSyncStatus({ pesan: "Akun berhasil dihapus dari perangkat ini", status: "sukses" });
+  };
+
+  const handleGoogleLogin = async (): Promise<string | null> => {
+    return handleTambahAkun();
+  };
+
   const handleGoogleLogout = async () => {
-    await logoutGoogle();
+    await logoutGoogle(false);
     resetStatusTarik();
     setGoogleUser(null);
     setGoogleAccessToken("");
     setDriveContents(null);
-    setSyncPesan("Koneksi akun Google diputuskan.");
+    setDaftarAkunGoogle(ambilDaftarAkun());
+    muatUlangSemuaState();
+    setSyncPesan("Koneksi akun Google diputuskan. Data lokal tetap tersimpan di perangkat.");
     setSyncStatus({ pesan: "", status: "idle" });
   };
 
@@ -1608,6 +1713,10 @@ export default function App() {
                     await handleGoogleLogin();
                   }}
                   onGoogleLogout={handleGoogleLogout}
+                  daftarAkunGoogle={daftarAkunGoogle}
+                  onBeralihAkun={handleBeralihAkun}
+                  onTambahAkun={handleTambahAkun}
+                  onHapusAkun={handleHapusAkun}
                   onKirimSebelumKeluar={handleKirimSebelumKeluar}
                   onKeluarDanHapus={handleKeluarDanHapus}
                   driveContents={driveContents}
