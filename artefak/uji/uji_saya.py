@@ -30,7 +30,7 @@ TRANSAKSI = [
     {"id": "p1", "jenis": "pengeluaran", "dana": "Dana Kegiatan", "tanggal": "2026-09-21", "deskripsi": "Perdiem Kalimantan · 21 Sep 2026", "kategori": "Perdiem",
      "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""},
 ]
-APLIKASI = ["drive", "laporan", "keluarga", "profil", "tema", "rutin", "kunci"]
+APLIKASI = ["drive", "laporan", "keluarga", "tema", "rutin", "kunci"]
 
 
 def buka(p, lebar):
@@ -62,9 +62,9 @@ with sync_playwright() as p:
         print(f"== {nama} ({lebar}px)")
         b, pg, galat = buka(p, lebar)
         nav(pg, "Saya")
-        cek(pg.locator(".saya-peluncur .saya-app").count() == 7, "tujuh aplikasi tampil sebagai ikon")
+        cek(pg.locator(".saya-peluncur .saya-app").count() == 6, "enam aplikasi tampil sebagai ikon (Profil Pelapor menyatu dengan Laporan)")
         cek(pg.locator("details.folder").count() == 0, "tidak ada lagi baris berbentuk folder")
-        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Keluarga", "Profil Pelapor", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
+        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Keluarga", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
             "nama aplikasi sesuai konteks kerja")
         kolom = pg.evaluate("new Set([...document.querySelectorAll('.saya-app')].map(e => Math.round(e.getBoundingClientRect().x))).size")
         cek(kolom == 4, f"empat kolom ({kolom})")
@@ -77,6 +77,40 @@ with sync_playwright() as p:
             pg.get_by_role("button", name="Kembali ke daftar aplikasi").click()
             pg.wait_for_timeout(200)
             cek(pg.locator(".saya-peluncur").count() == 1, f"{app}: tombol kembali menampilkan daftar ikon")
+        cek(not galat, f"tanpa galat JS ({galat})")
+        b.close()
+
+    print("== Profil Pelapor menyatu di Laporan Kegiatan")
+    for lebar in (412, 1280):
+        b, pg, galat = buka(p, lebar)
+        nav(pg, "Saya")
+        cek(pg.locator("[data-app=profil]").count() == 0, f"{lebar}px: tidak ada lagi ikon Profil Pelapor terpisah")
+        cek("profil pelapor belum diisi" in pg.locator("[data-app=laporan]").inner_text(), f"{lebar}px: ikon Laporan mengingatkan profil yang belum diisi")
+        pg.locator("[data-app=laporan]").click()
+        pg.wait_for_timeout(400)
+        panel = pg.locator("details#panel-profil")
+        cek(panel.count() == 1 and panel.evaluate("e => e.open"), f"{lebar}px: bagian Profil Pelapor terbuka di atas laporan selama belum diisi")
+        cek(pg.locator("#panel-profil").evaluate("(e) => e.compareDocumentPosition(document.querySelector('.laporan-container')) & 4") > 0, f"{lebar}px: profil berada di atas parameter laporan")
+        pg.fill("#profil-nama", "Budi Santoso")
+        pg.fill("#profil-jabatan", "Surveyor")
+        pg.fill("#profil-lembaga", "Lembaga Contoh")
+        pg.fill("#profil-proyek", "Proyek Contoh")
+        pg.get_by_role("button", name="Simpan Profil Pelapor").click()
+        pg.wait_for_timeout(400)
+        ringkas = pg.locator("#panel-profil summary").inner_text()
+        cek("Budi Santoso" in ringkas and "Surveyor" in ringkas, f"{lebar}px: ringkasan memuat nama dan jabatan ({ringkas!r})")
+        cek("Budi Santoso" in pg.evaluate("localStorage.getItem('keuangan-profil-pelapor')"), f"{lebar}px: profil tersimpan")
+        pg.emulate_media(media="print")
+        cek(pg.evaluate("getComputedStyle(document.querySelector('#panel-profil')).display") == "none", f"{lebar}px: formulir profil tidak ikut dicetak")
+        pg.emulate_media(media="screen")
+        pg.reload()
+        pg.locator(".navbar:visible, .sidebar:visible").first.wait_for()
+        pg.wait_for_timeout(500)
+        nav(pg, "Saya")
+        pg.locator("[data-app=laporan]").click()
+        pg.wait_for_timeout(400)
+        cek(not pg.locator("details#panel-profil").evaluate("e => e.open"), f"{lebar}px: setelah diisi, bagian profil terlipat")
+        cek(not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{lebar}px: tanpa luapan horizontal")
         cek(not galat, f"tanpa galat JS ({galat})")
         b.close()
 

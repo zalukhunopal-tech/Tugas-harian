@@ -67,7 +67,7 @@ export const LAPORAN_KEGIATAN_KEY = "keuangan-laporan-kegiatan";
 export const PROFIL_PELAPOR_KEY = "keuangan-profil-pelapor";
 export const DAFTAR_KEGIATAN_KEY = "keuangan-daftar-kegiatan";
 
-/** Sengaja kosong: aplikasi ini dipakai banyak orang, jadi tidak ada nama atau lembaga yang ikut terpasang. Diisi di tab Saya → Profil Pelapor. */
+/** Sengaja kosong: aplikasi ini dipakai banyak orang, jadi tidak ada nama atau lembaga yang ikut terpasang. Diisi di tab Saya → Laporan Kegiatan (bagian Profil Pelapor). */
 export const PROFIL_PELAPOR_DEFAULT = {
   nama: "",
   jabatan: "",
