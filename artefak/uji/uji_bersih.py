@@ -130,7 +130,7 @@ with sync_playwright() as p:
     b, pg, galat, _ = buka(p)
     cek(kunci_data(pg) == [], f"tidak ada kunci data di penyimpanan baru ({kunci_data(pg)})")
     cek(pg.evaluate("JSON.parse(localStorage.getItem('pengeluaran-harian') || '[]').length") == 0, "tidak ada transaksi")
-    buka_app_saya(pg, "profil")
+    buka_app_saya(pg, "laporan")
     cek(pg.input_value("#profil-nama") == "", "profil pelapor kosong")
     buka_app_saya(pg, "drive")
     cek(pg.locator("#btn-hapus-data-perangkat").count() == 0, "tanpa data, tautan hapus-dari-perangkat tidak muncul")
