@@ -242,6 +242,11 @@ with sync_playwright() as p:
     cek("Dilaporkan Oleh :" in teks and "Disetujui Oleh :" in teks and "Sari Wulandari" in teks, "kolom tanda tangan")
     lebar_halaman = pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
     cek(not lebar_halaman, "tanpa overflow horizontal di HP")
+    cek("dsc-lanskap" in (lembar.get_attribute("class") or ""), "lembar daftar perdiem berformat lanskap")
+    pg.emulate_media(media="print")
+    cek(pg.evaluate("getComputedStyle(document.querySelector('[data-testid=lembar-timesheet]')).page") == "lanskap", "saat dicetak lembar perdiem memakai halaman A4 lanskap")
+    cek(pg.evaluate("getComputedStyle(document.querySelector('.dsc-kertas:not(.dsc-lanskap)')).page") in ("auto", ""), "lembar lain tetap potret")
+    pg.emulate_media(media="screen")
 
     print("3. Word memakai format yang sama")
     with pg.expect_download(timeout=60000) as d:
@@ -254,6 +259,7 @@ with sync_playwright() as p:
     cek("Kegiatan lapangan hari ke-12, bersama warga" in tw and "Desa Contoh 2" in tw, "Word: Keterangan dan Lokasi")
     cek("10/1/2026" in tw and "9/20/2026" in tw, "Word: tanggal bergaya timesheet")
     cek("Sari Wulandari" in tw and "Dilaporkan Oleh :" in tw, "Word: Dilaporkan Oleh / Disetujui Oleh")
+    cek('w:orient="landscape"' in xml, "Word: daftar perdiem di bagian halaman lanskap")
     cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 

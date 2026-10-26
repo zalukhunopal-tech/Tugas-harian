@@ -429,6 +429,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   // untuk Perdiem dan Honorarium yang punya hitungannya sendiri.
   const seksiRincian = (
   <div
+    className="kartu-rincian"
     style={{
       background: "var(--surface)",
       padding: "10px 12px",
@@ -918,11 +919,11 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
       {semua && kategori === "Transportasi" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🚗 Detail Khusus Transportasi
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: "8px", marginBottom: "8px" }}>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: "8px", marginBottom: "8px" }}>
             <div>
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Dari (Asal)</label>
               <input
@@ -943,7 +944,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Moda</label>
               <input
                 type="text"
@@ -955,8 +956,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Sopir (Travel/Ojek)</label>
               <input
                 type="text"
@@ -991,12 +992,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "Rental Kendaraan" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🚙 Detail Khusus Rental Kendaraan
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jenis &amp; Merk</label>
               <input
                 type="text"
@@ -1026,7 +1027,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Pemilik</label>
               <input
                 type="text"
@@ -1038,7 +1039,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div className="grid-sewa-rental" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 100px", gap: "8px", marginBottom: "8px" }}>
+          <div className="grid-sewa-rental kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 100px", gap: "8px", marginBottom: "8px" }}>
             <div>
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tanggal Mulai Sewa</label>
               <input
@@ -1081,7 +1082,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
           {/* Timesheet Harian Toggle */}
           <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed var(--border)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="kepala-timesheet-rental" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>
                 📅 Timesheet Harian Rental ({(rentalKendaraan.timesheet || []).length} rute)
               </span>
@@ -1194,11 +1195,11 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "BBM" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             ⛽ Detail Khusus Pengisian BBM
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "8px", marginBottom: "8px" }}>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "8px", marginBottom: "8px" }}>
             <div>
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>KM Saat Isi</label>
               <input
@@ -1219,7 +1220,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Dari - Ke (Rute)</label>
               <input
                 type="text"
@@ -1236,7 +1237,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>No. Polisi Kendaraan</label>
               <input
                 type="text"
@@ -1251,12 +1252,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "Akomodasi" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🏨 Detail Khusus Akomodasi &amp; Penginapan
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Penginapan / Rumah Singgah</label>
               <input
                 type="text"
@@ -1284,7 +1285,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jml Malam</label>
               <input
                 type="number"
@@ -1295,8 +1296,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Pemilik / Resepsionis</label>
               <input
                 type="text"
@@ -1306,7 +1307,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>No. Telp Pemilik</label>
               <input
                 type="tel"
@@ -1321,12 +1322,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "Konsumsi" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🍽️ Detail Khusus Konsumsi Kegiatan
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Penyedia / Rumah Makan</label>
               <input
                 type="text"
@@ -1336,7 +1337,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>No. Telp Penyedia</label>
               <input
                 type="tel"
@@ -1346,7 +1347,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Lokasi Pertemuan/Makan</label>
               <input
                 type="text"
@@ -1356,7 +1357,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Peserta (Orang)</label>
               <input
                 type="number"
@@ -1372,11 +1373,11 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "Perdiem" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             📅 Perdiem (hak uang harian di lapangan)
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
             {!rentangAktif && (
               <div>
                 <label htmlFor="perdiem-hari" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Hari</label>
@@ -1392,7 +1393,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 />
               </div>
             )}
-            <div>
+            {/* Di HP tarif selebar kartu bila Jumlah Hari disembunyikan (isi sekaligus). */}
+            <div className={rentangAktif ? "isi-penuh" : undefined}>
               <label htmlFor="perdiem-tarif" style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tarif per Hari (Rp)</label>
               <input
                 id="perdiem-tarif"
@@ -1462,12 +1464,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       )}
 
       {tampil("rincian") && kategori === "Honorarium & Ganti Hari" && (
-        <div style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
+        <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             💼 Detail Khusus Honorarium &amp; Perhitungan Pajak
           </strong>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "10px" }}>
-            <div>
+          <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "10px" }}>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Lengkap Penerima</label>
               <input
                 type="text"
@@ -1477,7 +1479,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div>
+            <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nomor Urut Absen</label>
               <input
                 type="text"
@@ -1509,7 +1511,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
+          <div className="baris-centang" style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", cursor: "pointer", fontWeight: 600 }}>
               <input
                 type="checkbox"
@@ -1533,6 +1535,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
           {/* Kotak Penghitungan Pajak Otomatis */}
           <div
+            className="ringkasan-honor"
             style={{
               padding: "10px 12px",
               borderRadius: "8px",

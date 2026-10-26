@@ -957,3 +957,19 @@ html[data-tema="jujutsu"] .saya-kembali {
 html[data-tema="jujutsu"] .saya-appbar-judul {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }
+
+/* Saat dicetak: bingkai energi kartu (cincin ber-mask di ::after) dan latar kartu yang tembus pandang tidak ikut. Di PDF
+   mask-nya bisa lepas sehingga gradasinya menutupi seluruh kartu laporan, apalagi pada halaman lanskap yang lebih lebar. */
+@media print {
+  html[data-tema="jujutsu"] .card::before,
+  html[data-tema="jujutsu"] .card::after,
+  html[data-tema="jujutsu"] .balance::after,
+  html[data-tema="jujutsu"] .folder::after {
+    display: none !important;
+  }
+
+  html[data-tema="jujutsu"] .card {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}

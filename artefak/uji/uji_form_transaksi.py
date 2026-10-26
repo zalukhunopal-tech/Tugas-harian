@@ -108,6 +108,50 @@ with sync_playwright() as p:
         cek(not galat, "tanpa galat halaman")
         ctx.close()
 
+    print("== Rincian Dana Kegiatan di HP: isian sejajar, teks panjang selebar kartu, kotak centang normal")
+    for lebar in (360, 412):
+        for kat in ("Konsumsi", "Honorarium & Ganti Hari", "Akomodasi", "Rental Kendaraan", "BBM", "Perdiem"):
+            ctx, pg, galat = buka_form(b, lebar, 1400)
+            pg.select_option("#dana", "Dana Kegiatan")
+            pg.wait_for_timeout(300)
+            pg.locator(".bertahap-kegiatan__item").first.click()
+            pg.wait_for_timeout(250)
+            pg.locator(f'.bertahap-ubin__item[data-kategori="{kat}"]').click()
+            pg.wait_for_timeout(250)
+            if pg.locator(".bertahap-ubin").count():
+                pg.get_by_role("button", name="Lanjut", exact=True).click()
+            pg.wait_for_timeout(300)
+            hasil = pg.evaluate("""() => {
+              const grids = [...document.querySelectorAll('.kartu-detail__grid')];
+              let tidakSejajar = [], penuhSempit = [], luap = [];
+              for (const g of grids) {
+                const gr = g.getBoundingClientRect();
+                const kids = [...g.children].filter(e => e.offsetParent !== null);
+                for (const k of kids) {
+                  const inp = k.querySelector('input, select'); if (!inp) continue;
+                  const r = inp.getBoundingClientRect();
+                  if (r.right > gr.right + 1 || r.left < gr.left - 1) luap.push(k.innerText.split(String.fromCharCode(10))[0]);
+                  if (k.classList.contains('isi-penuh') && r.width < gr.width * 0.95) penuhSempit.push(k.innerText.split(String.fromCharCode(10))[0]);
+                }
+                // Isian yang berdampingan dalam satu baris harus rata bawah.
+                const baris = {};
+                for (const k of kids) { const inp = k.querySelector('input, select'); if (!inp) continue; const kr = k.getBoundingClientRect(); const y = Math.round(kr.top);
+                  (baris[y] = baris[y] || []).push(Math.round(inp.getBoundingClientRect().bottom)); }
+                for (const y in baris) if (new Set(baris[y]).size > 1) tidakSejajar.push(baris[y].join('/'));
+              }
+              const centang = [...document.querySelectorAll('.kartu-detail input[type=checkbox]')].map(c => Math.round(c.getBoundingClientRect().width));
+              return { grids: grids.length, tidakSejajar, penuhSempit, luap, centang,
+                       luapHalaman: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 }; }""")
+            nama = f"{lebar}px {kat}"
+            cek(hasil["grids"] > 0, f"{nama}: kartu detail ditemukan")
+            cek(not hasil["tidakSejajar"], f"{nama}: isian sebaris rata bawah {hasil['tidakSejajar']}")
+            cek(not hasil["penuhSempit"], f"{nama}: isian teks panjang selebar kartu {hasil['penuhSempit']}")
+            cek(not hasil["luap"], f"{nama}: tidak ada isian yang keluar kartu {hasil['luap']}")
+            cek(all(w <= 24 for w in hasil["centang"]), f"{nama}: kotak centang berukuran normal {hasil['centang']}")
+            cek(not hasil["luapHalaman"], f"{nama}: tanpa gulir horizontal")
+            cek(not galat, f"{nama}: tanpa galat halaman")
+            ctx.close()
+
     print("== Tombol kembali opak di semua karakter")
     for k in KARAKTER:
         ctx = b.new_context(viewport={"width": 420, "height": 700}, service_workers="block", is_mobile=True, has_touch=True)
