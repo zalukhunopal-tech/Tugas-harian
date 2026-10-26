@@ -164,6 +164,39 @@ with sync_playwright() as p:
     cek(not galat, f"tanpa galat JS ({galat})")
     b.close()
 
+    print("== Pengatur ukuran ikon: satu baris tipis, tombol −/+ dan garis geser")
+    for lebar in (360, 1280):
+        b, pg, galat = buka(p, lebar)
+        nav(pg, "Saya")
+        bar = pg.locator(".saya-peluncur-topbar").bounding_box()
+        cek(bar["height"] <= 40, f"{lebar}px: judul dan pengatur muat satu baris ({round(bar['height'])}px)")
+        cek(not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{lebar}px: tanpa luapan horizontal")
+        jumlah_kolom = "new Set([...document.querySelectorAll('.saya-app')].map(e => Math.round(e.getBoundingClientRect().x))).size"
+        perkecil = pg.get_by_role("button", name="Perkecil ikon")
+        perbesar = pg.get_by_role("button", name="Perbesar ikon")
+        for _ in range(8):
+            if perkecil.is_disabled():
+                break
+            perkecil.click()
+        pg.wait_for_timeout(200)
+        cek(perkecil.is_disabled() and pg.locator(".saya-peluncur-kolom").inner_text() == "6 kolom", "ukuran terkecil: 6 kolom, tombol perkecil nonaktif")
+        cek(pg.evaluate(jumlah_kolom) == 6, "kisi ikon ikut menjadi 6 kolom")
+        for _ in range(8):
+            if perbesar.is_disabled():
+                break
+            perbesar.click()
+        pg.wait_for_timeout(200)
+        cek(perbesar.is_disabled() and pg.locator(".saya-peluncur-kolom").inner_text() == "2 kolom", "ukuran terbesar: 2 kolom, tombol perbesar nonaktif")
+        pg.locator(".saya-ukuran-geser").fill("70")
+        pg.wait_for_timeout(200)
+        cek(pg.locator(".saya-peluncur-kolom").inner_text() == "4 kolom" and pg.evaluate(jumlah_kolom) == 4, "garis geser mengubah ukuran (4 kolom)")
+        pg.reload()
+        pg.locator(".navbar:visible, .sidebar:visible").first.wait_for(timeout=15000)
+        nav(pg, "Saya")
+        cek(pg.locator(".saya-ukuran-geser").input_value() == "70", "ukuran tersimpan setelah dimuat ulang")
+        cek(not galat, f"tanpa galat JS ({galat})")
+        b.close()
+
 if gagal:
     print(f"\n{len(gagal)} uji gagal")
     sys.exit(1)

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Palette, Users, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Minus, Palette, Plus, Users, type LucideIcon } from "lucide-react";
 import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan } from "../types";
 import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
 import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
@@ -988,45 +988,47 @@ export const SayaView: React.FC<SayaViewProps> = ({
     <section className="view" id="view-saya" data-view="saya">
       {!aplikasiAktif ? (
         <>
+          {/* Judul dan pengatur ukuran ikon dalam satu baris tipis: garis geser diapit − dan +, jumlah kolom sebagai teks redup. */}
           <div className="saya-peluncur-topbar no-print">
             <div className="saya-peluncur-judul">
-              <span>Layanan &amp; Fitur</span>
-              <span className="saya-kolom-lencana">
-                {infoUkuran.kolom} Kolom · {infoUkuran.label}
+              Layanan &amp; Fitur
+              <span className="saya-peluncur-kolom" title={infoUkuran.label}>
+                {infoUkuran.kolom} kolom
               </span>
             </div>
-            <div className="saya-bar-ukuran">
-              <span className="saya-bar-ukuran-label">Ukuran:</span>
-              <div className="saya-bar-slider-wrap">
-                <button
-                  type="button"
-                  className="saya-slider-btn"
-                  onClick={() => handleGantiUkuran(ukuranIkonPx - 6)}
-                  title="Perkecil ukuran ikon"
-                  aria-label="Perkecil ukuran ikon"
-                >
-                  −
-                </button>
-                <input
-                  type="range"
-                  className="saya-slider-range"
-                  min="52"
-                  max="92"
-                  step="2"
-                  value={ukuranIkonPx}
-                  onChange={(e) => handleGantiUkuran(Number(e.target.value))}
-                  aria-label="Atur ukuran pilihan aplikasi"
-                />
-                <button
-                  type="button"
-                  className="saya-slider-btn"
-                  onClick={() => handleGantiUkuran(ukuranIkonPx + 6)}
-                  title="Perbesar ukuran ikon"
-                  aria-label="Perbesar ukuran ikon"
-                >
-                  +
-                </button>
-              </div>
+            <div className="saya-ukuran" role="group" aria-label="Ukuran ikon">
+              <button
+                type="button"
+                className="saya-ukuran-btn"
+                onClick={() => handleGantiUkuran(ukuranIkonPx - 6)}
+                disabled={ukuranIkonPx <= 52}
+                aria-label="Perkecil ikon"
+                title="Perkecil ikon"
+              >
+                <Minus size={14} strokeWidth={2.4} />
+              </button>
+              <input
+                type="range"
+                className="saya-ukuran-geser"
+                min="52"
+                max="92"
+                step="2"
+                value={ukuranIkonPx}
+                onChange={(e) => handleGantiUkuran(Number(e.target.value))}
+                aria-label="Ukuran ikon"
+                aria-valuetext={`${infoUkuran.kolom} kolom, ${infoUkuran.label}`}
+                style={{ "--isi": `${((ukuranIkonPx - 52) / 40) * 100}%` } as React.CSSProperties}
+              />
+              <button
+                type="button"
+                className="saya-ukuran-btn"
+                onClick={() => handleGantiUkuran(ukuranIkonPx + 6)}
+                disabled={ukuranIkonPx >= 92}
+                aria-label="Perbesar ikon"
+                title="Perbesar ikon"
+              >
+                <Plus size={14} strokeWidth={2.4} />
+              </button>
             </div>
           </div>
 

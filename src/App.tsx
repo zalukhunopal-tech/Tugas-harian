@@ -364,7 +364,8 @@ export default function App() {
   const tarikDuluRef = React.useRef<((auto?: boolean) => Promise<void>) | null>(null);
   const jadwalkanAutoSyncRef = React.useRef<(() => void) | null>(null);
 
-  const periksaDriveOtomatis = useCallback(async (token: string) => {
+  // Mengembalikan true bila folder Keuangan baru saja dibuat (isinya masih kosong, jadi tidak ada yang perlu ditarik).
+  const periksaDriveOtomatis = useCallback(async (token: string): Promise<boolean> => {
     setMemuatDrive(true);
     try {
       let folder = await cariFolderKeuangan(token);
@@ -378,7 +379,7 @@ export default function App() {
           setSyncPesan(ringkasSetup(hasil));
           setSyncStatus({ pesan: "Folder Keuangan disiapkan otomatis di Google Drive", status: "sukses" });
           setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
-          return;
+          return true;
         }
         setSyncPesan(
           ada.status === "galat"
@@ -386,7 +387,7 @@ export default function App() {
             : "Folder 'Keuangan' belum ditemukan di Google Drive Anda."
         );
         setDriveContents(null);
-        return;
+        return false;
       }
       const contents = await ambilIsiFolderKeuangan(token, folder.id);
       setDriveContents(contents);
@@ -398,6 +399,7 @@ export default function App() {
     } finally {
       setMemuatDrive(false);
     }
+    return false;
   }, []);
 
   const jalankanAutoKirimKeDrive = useCallback(async () => {
@@ -1073,9 +1075,10 @@ export default function App() {
     if (token) {
       setGoogleAccessToken(token);
       setSyncStatus({ pesan: `Beralih ke akun ${target.email || target.displayName}`, status: "sukses" });
-      await periksaDriveOtomatis(token);
+      const folderBaru = await periksaDriveOtomatis(token);
       void prosesAntreanBuktiOffline();
-      void handleTarikDariDrive(true);
+      // Folder yang baru dibuat masih kosong; menariknya hanya akan menimpa pesan penyiapan dengan "0 transaksi".
+      if (!folderBaru) void handleTarikDariDrive(true);
     } else {
       setGoogleAccessToken("");
       setSyncStatus({ pesan: `Sesi ${target.email} perlu masuk ulang`, status: "tunggu" });
@@ -1100,9 +1103,9 @@ export default function App() {
         resetStatusTarik();
         setDriveContents(null);
         setSyncStatus({ pesan: `Terhubung dengan ${res.user.email}`, status: "sukses" });
-        await periksaDriveOtomatis(res.accessToken);
+        const folderBaru = await periksaDriveOtomatis(res.accessToken);
         void prosesAntreanBuktiOffline();
-        void handleTarikDariDrive(true);
+        if (!folderBaru) void handleTarikDariDrive(true);
         return res.accessToken;
       }
       return null;
