@@ -198,7 +198,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
     <div className="ringkasan-tahunan-container">
       {/* Pengatur Tahun */}
       <div
-        className="card"
+        className="card ringkasan-tahun-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -301,6 +301,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
 
       {/* Tiga Kartu Metrik Utama & Perbandingan dengan Tahun Lalu */}
       <div
+        className="ringkasan-metrik-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
