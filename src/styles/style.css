@@ -4967,30 +4967,289 @@ button {
    Tab Saya sebagai layar aplikasi: tiap pilihan berupa ikon di layar utama (seperti memilih aplikasi di ponsel);
    mengetuknya membuka isinya dengan bilah atas dan tombol kembali. Ikon dan isinya diatur di SayaView.tsx.
    ========================================================================== */
-.saya-peluncur {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px 6px;
-  padding: 12px 0 28px;
-  justify-items: center;
-}
-
-@media (max-width: 400px) {
-  /* HP kecil: ikon sedikit lebih ramping supaya empat kolom tetap muat. */
-  .saya-app-ikon {
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
-  }
+.saya-peluncur-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 6px 12px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
 }
 
 @media (min-width: 640px) {
-  /* Tablet dan PC: 4 kolom (7 aplikasi = 4 + 3), lebar kolom sama seperti sebelumnya, dipusatkan dan sedikit lebih lega. */
+  .saya-peluncur-topbar {
+    max-width: 640px;
+    margin: 0 auto 8px;
+    padding: 6px 0 14px;
+  }
+}
+
+.saya-peluncur-judul {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.saya-bar-ukuran {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.saya-bar-ukuran-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.saya-bar-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--track);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.saya-slider-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.saya-slider-btn:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.saya-slider-range {
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  outline: none;
+  cursor: pointer;
+}
+
+.saya-slider-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.saya-slider-range::-webkit-slider-thumb:hover,
+.saya-slider-range:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.saya-slider-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.saya-kolom-lencana {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
+  color: var(--accent);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/* Tab Saya peluncur: pilihan berpindah posisi saat ukuran diatur dinaik-turunkan */
+.saya-peluncur {
+  display: grid;
+  grid-template-columns: repeat(var(--saya-kolom, 4), minmax(0, 1fr));
+  gap: var(--saya-gap-y, 24px) var(--saya-gap-x, 6px);
+  padding: 12px 0 28px;
+  justify-items: center;
+  transition: gap 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  /* Tablet dan PC: batas maksimal lebar dipusatkan */
   .saya-peluncur {
     max-width: 640px;
     margin: 0 auto;
-    gap: 36px 20px;
     padding-top: 24px;
+  }
+}
+
+/* ==========================================================================
+   Filter Kategori Dana (Cukup 2 Pilihan: Dana Kegiatan & Dana Pribadi; Default: Semua Dana)
+   ========================================================================== */
+.dana-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dana-filter-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dana-filter-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.dana-status-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.dana-reset-link {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.dana-reset-link:hover {
+  color: var(--accent);
+}
+
+.dana-filter-dua-pilihan {
+  display: inline-flex;
+  align-items: center;
+  background: var(--track);
+  padding: 3px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  gap: 3px;
+}
+
+.dana-filter-chip {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.dana-filter-chip:hover {
+  color: var(--text);
+}
+
+.dana-filter-chip.aktif {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.dana-badge-aktif {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  color: var(--accent);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+@media (max-width: 639.98px) {
+  /* Tampilan HP: 2 pilihan rapi 50% - 50% selebar kartu, tanpa terlipat janggal */
+  .dana-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+  }
+
+  .dana-filter-info {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .dana-filter-dua-pilihan {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .dana-filter-dua-pilihan .dana-filter-chip {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 6px;
+    font-size: 0.8rem;
   }
 }
 
@@ -5008,22 +5267,23 @@ button {
   align-items: center;
   gap: 7px;
   width: 100%;
-  max-width: 128px;
+  max-width: calc(var(--saya-ukuran, 72px) * 1.55);
   text-align: center;
   -webkit-tap-highlight-color: transparent;
+  transition: transform 0.18s ease;
 }
 
 .saya-app-ikon {
   position: relative;
-  width: 72px;
-  height: 72px;
-  border-radius: 23px;
+  width: var(--saya-ukuran, 72px);
+  height: var(--saya-ukuran, 72px);
+  border-radius: calc(var(--saya-ukuran, 72px) * 0.32);
   display: grid;
   place-items: center;
   color: #ffffff;
   background: linear-gradient(145deg, var(--ikon-1), var(--ikon-2));
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  transition: transform 0.12s ease;
+  transition: width 0.15s ease, height 0.15s ease, border-radius 0.15s ease, transform 0.12s ease;
 }
 
 .saya-app:active .saya-app-ikon {
@@ -5086,7 +5346,7 @@ button {
 }
 
 .saya-app-nama {
-  font-size: 0.86rem;
+  font-size: clamp(0.74rem, calc(var(--saya-ukuran, 72px) * 0.0125rem), 0.94rem);
   font-weight: 700;
   line-height: 1.2;
   max-width: 100%;
@@ -5094,7 +5354,7 @@ button {
 }
 
 .saya-app-status {
-  font-size: 0.72rem;
+  font-size: clamp(0.64rem, calc(var(--saya-ukuran, 72px) * 0.0105rem), 0.76rem);
   line-height: 1.25;
   color: var(--muted);
   max-width: 100%;

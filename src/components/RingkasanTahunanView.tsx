@@ -33,6 +33,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
   });
 
   const [tabKategori, setTabKategori] = useState<"pengeluaran" | "pemasukan">("pengeluaran");
+  const [filterDana, setFilterDana] = useState<"Semua" | "Dana Pribadi" | "Dana Kegiatan">("Semua");
 
   // Daftar tahun yang ada pada catatan transaksi
   const daftarTahunTersedia = useMemo(() => {
@@ -50,16 +51,26 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
 
   const tahunSebelumnya = tahunPilihan - 1;
 
-  // Transaksi tahun pilihan & tahun sebelumnya (Kategori Pindah Dana TIDAK dihitung)
+  // Transaksi tahun pilihan & tahun sebelumnya tersaring berdasarkan kategori dana
   const trxTahunIni = useMemo(() => {
     const prefix = String(tahunPilihan);
-    return transaksi.filter((t) => t.tanggal.startsWith(prefix) && t.kategori !== "Pindah Dana");
-  }, [transaksi, tahunPilihan]);
+    return transaksi.filter(
+      (t) =>
+        t.tanggal.startsWith(prefix) &&
+        t.kategori !== "Pindah Dana" &&
+        (filterDana === "Semua" || t.dana === filterDana)
+    );
+  }, [transaksi, tahunPilihan, filterDana]);
 
   const trxTahunLalu = useMemo(() => {
     const prefix = String(tahunSebelumnya);
-    return transaksi.filter((t) => t.tanggal.startsWith(prefix) && t.kategori !== "Pindah Dana");
-  }, [transaksi, tahunSebelumnya]);
+    return transaksi.filter(
+      (t) =>
+        t.tanggal.startsWith(prefix) &&
+        t.kategori !== "Pindah Dana" &&
+        (filterDana === "Semua" || t.dana === filterDana)
+    );
+  }, [transaksi, tahunSebelumnya, filterDana]);
 
   // 12 Bulan dalam Tahun Terpilih
   const rekap12Bulan = useMemo(() => {
@@ -248,6 +259,44 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
             →
           </button>
         </div>
+
+        {/* Pemilih Kategori Dana: Cukup 2 Pilihan (Dana Kegiatan & Dana Pribadi; Default: Semua Dana) */}
+        <div className="dana-filter-bar no-print">
+          <div className="dana-filter-info">
+            <span className="dana-filter-title">Kategori Dana:</span>
+            <span className="dana-status-text">
+              {filterDana === "Semua" ? "Semua Dana (Default)" : filterDana}
+            </span>
+            {filterDana !== "Semua" && (
+              <button
+                type="button"
+                className="dana-reset-link"
+                onClick={() => setFilterDana("Semua")}
+                title="Kembali ke Semua Dana (Default)"
+              >
+                ✕ Reset
+              </button>
+            )}
+          </div>
+          <div className="dana-filter-dua-pilihan" role="group" aria-label="Filter Kategori Dana Tahunan">
+            <button
+              type="button"
+              className={`dana-filter-chip ${filterDana === "Dana Kegiatan" ? "aktif" : ""}`}
+              onClick={() => setFilterDana(filterDana === "Dana Kegiatan" ? "Semua" : "Dana Kegiatan")}
+              title={filterDana === "Dana Kegiatan" ? "Ketuk untuk kembali ke Semua Dana (Default)" : "Filter Dana Kegiatan"}
+            >
+              💼 Dana Kegiatan
+            </button>
+            <button
+              type="button"
+              className={`dana-filter-chip ${filterDana === "Dana Pribadi" ? "aktif" : ""}`}
+              onClick={() => setFilterDana(filterDana === "Dana Pribadi" ? "Semua" : "Dana Pribadi")}
+              title={filterDana === "Dana Pribadi" ? "Ketuk untuk kembali ke Semua Dana (Default)" : "Filter Dana Pribadi"}
+            >
+              👤 Dana Pribadi
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Tiga Kartu Metrik Utama & Perbandingan dengan Tahun Lalu */}
@@ -337,9 +386,10 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
 
       {/* Bagian 1: Tabel & Grafik 12 Bulan dalam Tahun yang Dipilih */}
       <div className="card" style={{ marginBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
           <h3 style={{ margin: 0, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
             <span>📊</span> Rincian 12 Bulan (Tahun {tahunPilihan})
+            {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
           </h3>
           <div className="legenda" style={{ margin: 0 }}>
             <span>
@@ -499,6 +549,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
           <h3 style={{ margin: 0, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
             <span>🏷️</span> Total per Kategori Setahun ({tahunPilihan})
+            {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
           </h3>
           <div className="filter-chips" style={{ margin: 0 }}>
             <button
@@ -560,6 +611,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
       <div className="card">
         <h3 className="judul-perbandingan" style={{ margin: "0 0 8px", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
           <span>⚖️</span> Perbandingan Pengeluaran vs Tahun {tahunSebelumnya}
+          {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
         </h3>
         <p className="help" style={{ margin: "0 0 14px", fontSize: "0.85rem" }}>
           Perbandingan perubahan nominal dan persentase belanja per kategori antara tahun {tahunSebelumnya} dan {tahunPilihan}.
