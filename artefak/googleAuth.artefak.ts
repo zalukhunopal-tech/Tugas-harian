@@ -6,7 +6,10 @@
  * Bentuk ekspornya sama dengan modul asli supaya `App.tsx` dan `SayaView.tsx` tidak perlu diubah.
  */
 import type { User } from "firebase/auth";
+import type { AkunGoogleTersimpan } from "../src/lib/multiAkun";
 import { dapatkanIzin, dapatkanMcp, SERVER_DRIVE, SERVER_SHEETS } from "./konektor";
+
+export type { AkunGoogleTersimpan };
 
 export const SCOPES: string[] = [];
 export const DURASI_SESI_MS = 90 * 24 * 60 * 60 * 1000;
@@ -56,7 +59,7 @@ function tulisFlag(nilai: boolean): void {
   }
 }
 
-export function cekStatusSesiGoogle(): {
+export function cekStatusSesiGoogle(_waktuSpesifik?: number | null): {
   aktif: boolean;
   sisaHari: number;
   tanggalKedaluwarsa: string;
@@ -108,7 +111,24 @@ export const initAuth = (
   };
 };
 
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+/* Banyak akun Google (src/lib/multiAkun.ts) tidak berlaku di artefak: hanya ada satu "akun", yaitu konektor Google Drive
+   milik akun Claude pemilik halaman. Fungsi-fungsi di bawah memberi bentuk yang sama supaya App.tsx tidak perlu cabang. */
+function akunKonektor(): AkunGoogleTersimpan {
+  return { uid: PROFIL.uid, email: PROFIL.email ?? "", displayName: PROFIL.displayName, photoURL: PROFIL.photoURL, terakhirAktif: Date.now() };
+}
+
+export const ambilDaftarAkun = (): AkunGoogleTersimpan[] => (aktif ? [akunKonektor()] : []);
+
+export const ambilAkunAktif = (): AkunGoogleTersimpan | null => (aktif ? akunKonektor() : null);
+
+export const beralihAkunGoogle = (_emailAtauUid: string): AkunGoogleTersimpan | null => ambilAkunAktif();
+
+export const hapusAkunDariDaftar = (_emailAtauUid: string): void => {
+  aktif = false;
+  tulisFlag(false);
+};
+
+export const googleSignIn = async (_opsi?: { forceSelectAccount?: boolean }): Promise<{ user: User; accessToken: string } | null> => {
   const mcp = await dapatkanMcp();
   if (!mcp) {
     throw new Error(
@@ -165,7 +185,7 @@ export const setCachedAccessToken = (token: string | null) => {
   tulisFlag(aktif);
 };
 
-export const logoutGoogle = async () => {
+export const logoutGoogle = async (_hapusDariPerangkat: boolean = false) => {
   aktif = false;
   tulisFlag(false);
 };

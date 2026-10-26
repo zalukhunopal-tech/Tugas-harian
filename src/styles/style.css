@@ -4967,128 +4967,160 @@ button {
    Tab Saya sebagai layar aplikasi: tiap pilihan berupa ikon di layar utama (seperti memilih aplikasi di ponsel);
    mengetuknya membuka isinya dengan bilah atas dan tombol kembali. Ikon dan isinya diatur di SayaView.tsx.
    ========================================================================== */
+/* Baris judul peluncur + pengatur ukuran ikon: satu baris tipis tanpa kotak. Garis geser 3 px dengan isian warna aksen
+   sampai titik pegangan (--isi dari SayaView), diapit tombol ikon − dan + seukuran sentuhan. */
 .saya-peluncur-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 4px 6px 12px;
-  margin-bottom: 2px;
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 2px 4px 4px;
+  margin-bottom: 4px;
 }
 
 @media (min-width: 640px) {
   .saya-peluncur-topbar {
     max-width: 640px;
-    margin: 0 auto 8px;
-    padding: 6px 0 14px;
+    margin: 0 auto 4px;
+    padding: 4px 0;
   }
 }
 
 .saya-peluncur-judul {
-  font-size: 0.88rem;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text);
-  letter-spacing: -0.2px;
-}
-
-.saya-bar-ukuran {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.saya-bar-ukuran-label {
-  font-weight: 600;
-  font-size: 0.78rem;
   white-space: nowrap;
 }
 
-.saya-bar-slider-wrap {
+.saya-peluncur-kolom {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.saya-ukuran {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--track);
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  min-width: 140px;
-  max-width: 220px;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
-.saya-slider-btn {
+.saya-ukuran-btn {
   appearance: none;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  width: 22px;
-  height: 22px;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0;
+  border: 0;
   border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
   display: grid;
   place-items: center;
-  font-size: 1.1rem;
-  font-weight: 700;
-  line-height: 1;
   cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.saya-slider-btn:hover {
+.saya-ukuran-btn:hover:not(:disabled),
+.saya-ukuran-btn:focus-visible {
   color: var(--text);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
-.saya-slider-range {
+.saya-ukuran-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.saya-ukuran-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.saya-ukuran-geser {
   appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--text) 20%, transparent);
-  outline: none;
+  -webkit-appearance: none;
+  flex: 0 1 104px;
+  width: 104px;
+  min-width: 60px;
+  height: 24px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
+  --jalur: color-mix(in srgb, var(--text) 18%, transparent);
 }
 
-.saya-slider-range::-webkit-slider-thumb {
+.saya-ukuran-geser:focus {
+  outline: none;
+}
+
+/* Tema Jujutsu memberi semua input latar gelap dan bayangan fokus; garis geser tetap tanpa kotak. */
+.saya-peluncur-topbar input.saya-ukuran-geser,
+.saya-peluncur-topbar input.saya-ukuran-geser:focus {
+  background: transparent;
+  box-shadow: none;
+}
+
+.saya-ukuran-geser::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) 0 var(--isi, 45%), var(--jalur) var(--isi, 45%) 100%);
+}
+
+.saya-ukuran-geser::-webkit-slider-thumb {
+  -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
   border-radius: 50%;
   background: var(--accent);
-  border: 2px solid var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
   transition: transform 0.12s ease;
 }
 
-.saya-slider-range::-webkit-slider-thumb:hover,
-.saya-slider-range:active::-webkit-slider-thumb {
+.saya-ukuran-geser:active::-webkit-slider-thumb,
+.saya-ukuran-geser:focus-visible::-webkit-slider-thumb {
   transform: scale(1.2);
 }
 
-.saya-slider-range::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
+.saya-ukuran-geser:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.saya-kolom-lencana {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 15%, var(--surface));
-  color: var(--accent);
-  margin-left: 6px;
-  white-space: nowrap;
+.saya-ukuran-geser::-moz-range-track {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--jalur);
+}
+
+.saya-ukuran-geser::-moz-range-progress {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.saya-ukuran-geser::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
 }
 
 /* Tab Saya peluncur: pilihan berpindah posisi saat ukuran diatur dinaik-turunkan */
