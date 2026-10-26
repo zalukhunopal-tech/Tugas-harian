@@ -42,7 +42,7 @@ menyentuh folder `Keuangan`, tetapi jika akses Google Anda bocor, yang terbuka a
 Repo ini publik, jadi **tidak boleh** memuat data pribadi pemakainya:
 
 - Nama, jabatan, lembaga, dan proyek di Profil Pelapor kosong secara bawaan; tiap pemakai mengisinya sendiri
-  (tab Saya → Profil Pelapor). Isinya hanya ada di perangkat dan di Drive pemakai.
+  (tab Saya → Laporan Kegiatan, bagian Profil Pelapor). Isinya hanya ada di perangkat dan di Drive pemakai.
 - Tidak ada ID folder atau berkas Google Drive di kode. Aplikasi mencari folder `Keuangan` lewat nama di Drive akun yang
   sedang masuk, dan mengabaikan folder bernama sama milik orang lain. `public/apps-script/Code.gs` juga mencari lewat nama
   (isi `FOLDER_ID` hanya bila perlu).

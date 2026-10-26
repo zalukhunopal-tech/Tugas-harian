@@ -58,7 +58,7 @@ interface SayaViewProps {
 }
 
 /** Aplikasi-aplikasi di tab Saya: tiap pilihan tampil sebagai ikon di layar utama, lalu membuka isinya satu per satu. */
-type IdAplikasi = "drive" | "laporan" | "keluarga" | "profil" | "tema" | "rutin" | "kunci";
+type IdAplikasi = "drive" | "laporan" | "keluarga" | "tema" | "rutin" | "kunci";
 
 interface AplikasiSaya {
   id: IdAplikasi;
@@ -114,6 +114,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
     return profilPelapor || PROFIL_PELAPOR_DEFAULT;
   });
   const [statusSimpanProfil, setStatusSimpanProfil] = useState<string>("");
+  // Profil Pelapor kini bagian dari Laporan Kegiatan: terbuka sendiri selama belum diisi, terlipat bila sudah.
+  const [profilTerbuka, setProfilTerbuka] = useState<boolean>(() => !profilPelapor?.nama);
 
   React.useEffect(() => {
     if (profilPelapor) {
@@ -694,9 +696,14 @@ export const SayaView: React.FC<SayaViewProps> = ({
     {
       id: "laporan",
       nama: "Laporan Kegiatan",
-      status: daftarKegiatan.length > 0 ? `${daftarKegiatan.length} kegiatan` : "SPJ & timesheet",
+      status: !profilForm.nama
+        ? "profil pelapor belum diisi"
+        : daftarKegiatan.length > 0
+          ? `${daftarKegiatan.length} kegiatan`
+          : "SPJ, timesheet & profil",
       ikon: FileText,
       warna: ["#f59e0b", "#f97316"],
+      titik: profilForm.nama ? undefined : "perhatian",
     },
     {
       id: "keluarga",
@@ -704,13 +711,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
       status: googleUser ? "hubungkan & bagikan" : "masuk Google dulu",
       ikon: Users,
       warna: ["#f43f5e", "#be123c"],
-    },
-    {
-      id: "profil",
-      nama: "Profil Pelapor",
-      status: profilForm.nama ? `${profilForm.jabatan} • ${profilForm.lembaga}` : "belum diatur",
-      ikon: IdCard,
-      warna: ["#8b5cf6", "#6366f1"],
     },
     {
       id: "tema",
@@ -794,16 +794,40 @@ export const SayaView: React.FC<SayaViewProps> = ({
           </div>
 
           {aplikasiAktif.id === "laporan" ? (
-            <LaporanView
-              transaksi={transaksi}
-              profilPelapor={profilPelapor}
-              daftarKegiatan={daftarKegiatan}
-              onUpdateKegiatan={onUpdateKegiatan}
-              onSimpanProfilPelapor={onSimpanProfilPelapor}
-              onTambahKegiatan={onTambahKegiatan}
-              googleToken={googleToken}
-              isLoggedInGoogle={Boolean(googleUser)}
-            />
+            <>
+              {/* Profil Pelapor (identitas penyusun SPJ) digabung ke Laporan Kegiatan; tidak ikut dicetak. */}
+              <details
+                className="folder saya-panel profil-lipat no-print"
+                id="panel-profil"
+                open={profilTerbuka}
+                onToggle={(e) => setProfilTerbuka((e.currentTarget as HTMLDetailsElement).open)}
+              >
+                <summary className="profil-lipat__ringkas">
+                  <span className="profil-lipat__ikon" aria-hidden="true">
+                    <IdCard size={18} strokeWidth={2} />
+                  </span>
+                  <span className="profil-lipat__teks">
+                    <strong>Profil Pelapor</strong>
+                    <span>
+                      {profilPelapor?.nama
+                        ? [profilPelapor.nama, profilPelapor.jabatan, profilPelapor.lembaga].filter(Boolean).join(" · ")
+                        : "Belum diisi. Isi supaya nama Anda tercantum di laporan."}
+                    </span>
+                  </span>
+                </summary>
+                <div className="folder-body">{isiProfil}</div>
+              </details>
+              <LaporanView
+                transaksi={transaksi}
+                profilPelapor={profilPelapor}
+                daftarKegiatan={daftarKegiatan}
+                onUpdateKegiatan={onUpdateKegiatan}
+                onSimpanProfilPelapor={onSimpanProfilPelapor}
+                onTambahKegiatan={onTambahKegiatan}
+                googleToken={googleToken}
+                isLoggedInGoogle={Boolean(googleUser)}
+              />
+            </>
           ) : (
             <div className="folder saya-panel" id={`panel-${aplikasiAktif.id}`}>
               <div className="folder-body">
@@ -817,7 +841,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
                     onPeriksaDrive={onPeriksaDrive}
                   />
                 )}
-                {aplikasiAktif.id === "profil" && isiProfil}
                 {aplikasiAktif.id === "tema" && isiTema}
                 {aplikasiAktif.id === "rutin" && isiRutin}
                 {aplikasiAktif.id === "kunci" && isiKunci}

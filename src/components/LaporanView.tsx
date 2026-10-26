@@ -1040,7 +1040,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                 </>
               ) : (
                 <div id="profil-belum-diisi" style={{ fontSize: "0.88rem", marginTop: "2px", color: "var(--text-muted)" }}>
-                  Profil Pelapor belum diisi. Isi di tab Saya → Profil Pelapor supaya nama Anda tercantum di laporan.
+                  Profil Pelapor belum diisi. Isi di bagian Profil Pelapor di atas supaya nama Anda tercantum di laporan.
                 </div>
               )}
             </div>

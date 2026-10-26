@@ -117,8 +117,9 @@ npx tsx scripts/uji_pasang_ulang.ts                        # pasang ulang: tarik
 npx tsx scripts/uji_totp.ts                                # Google Authenticator: vektor RFC 4226/6238, jendela, jeda, pemakaian ulang
 npx tsx scripts/uji_data_ganda.ts                          # pencarian catatan kembar (huruf besar/kecil, metode bayar), urutan yang dipertahankan
 npx tsx scripts/uji_bersih_perangkat.ts                    # kunci data yang dihapus saat keluar; tema tetap
+npx tsx scripts/uji_docx_perdiem.ts                        # Word: daftar perdiem di bagian lanskap, bagian lain potret, tanpa halaman kosong
 python3 artefak/uji/uji_totp.py http://127.0.0.1:8766/ [/path/ke/chromium]          # Authenticator di layar kunci (kode dihitung di Python)
-python3 artefak/uji/uji_form_transaksi.py http://127.0.0.1:8766/ [/path/ke/chromium]   # Formulir transaksi tablet/PC rapi, HP satu kolom, tombol kembali opak
+python3 artefak/uji/uji_form_transaksi.py http://127.0.0.1:8766/ [/path/ke/chromium]   # Formulir transaksi tablet/PC rapi, HP satu kolom, Rincian Dana Kegiatan di HP, tombol kembali opak
 python3 artefak/uji/uji_bersih.py http://127.0.0.1:8766/ [/path/ke/chromium]            # Keluar = bersihkan perangkat, catatan terhapus tetap terhapus, data ganda
 bash scripts/periksa_data_pribadi.sh                       # tanpa ID Drive, email nyata, bawaan profil, atau .zip di repo
 ```

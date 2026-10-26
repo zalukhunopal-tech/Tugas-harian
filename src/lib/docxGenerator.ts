@@ -17,6 +17,7 @@ import {
   HeightRule,
   VerticalAlign,
   ShadingType,
+  PageOrientation,
 } from "docx";
 import {
   Transaksi,
@@ -621,7 +622,18 @@ export async function buatDokumenLaporanKegiatanDocx(
     insideVertical: borderNone,
   };
 
-  const childrenSections: (Paragraph | Table)[] = [];
+  // Dokumen Word dibagi menjadi beberapa bagian (section): daftar perdiem berformat timesheet dicetak lanskap supaya kolomnya
+  // tidak berhimpit, bagian lain tetap potret. `childrenSections` selalu menunjuk isi bagian yang sedang diisi.
+  const bagianWord: { lanskap: boolean; isi: (Paragraph | Table)[] }[] = [{ lanskap: false, isi: [] }];
+  let childrenSections = bagianWord[0].isi;
+  /** Pindah ke bagian baru (mulai di halaman baru) bila orientasinya berbeda; true bila bagian baru dibuat. */
+  const pindahOrientasi = (lanskap: boolean): boolean => {
+    if (bagianWord[bagianWord.length - 1].lanskap === lanskap) return false;
+    const baru = { lanskap, isi: [] as (Paragraph | Table)[] };
+    bagianWord.push(baru);
+    childrenSections = baru.isi;
+    return true;
+  };
 
   // ==========================================
   // BAGIAN 3A: JUDUL & IDENTITAS
@@ -1227,10 +1239,15 @@ export async function buatDokumenLaporanKegiatanDocx(
 
     const subtotalKelompok = trxDalamKelompok.reduce((s, t) => s + t.jumlah, 0);
 
+    // Perdiem dengan daftar berformat timesheet dicetak lanskap; kelompok lain potret. Bagian baru sudah mulai di halaman
+    // baru, jadi judulnya tidak diberi pemisah halaman lagi (menghindari halaman kosong).
+    const daftarPerdiem = namaKelompok === KATEGORI_PERDIEM ? susunDaftarPerdiem(trxDalamKelompok, kegiatan, profilPelapor) : null;
+    const bagianBaruKelompok = pindahOrientasi(Boolean(daftarPerdiem));
+
     // Judul Kelompok dimulai di halaman baru
     childrenSections.push(
       new Paragraph({
-        pageBreakBefore: true,
+        pageBreakBefore: !bagianBaruKelompok,
         spacing: { before: 80, after: 40 },
         children: [
           new TextRun({
@@ -1268,15 +1285,14 @@ export async function buatDokumenLaporanKegiatanDocx(
     // Perdiem: daftar harian berformat timesheet (Keterangan dan Lokasi dari file timesheet) menggantikan kotak tempel.
     // Perdiem yang punya foto atau bukti tetap mendapat halaman buktinya di bawah daftar.
     let trxUntukKotak = trxDalamKelompok;
-    if (namaKelompok === KATEGORI_PERDIEM) {
-      const daftarPerdiem = susunDaftarPerdiem(trxDalamKelompok, kegiatan, profilPelapor);
-      if (daftarPerdiem) {
-        childrenSections.push(...buatBagianPerdiemTimesheet(daftarPerdiem));
-        trxUntukKotak = trxDalamKelompok.filter(
-          (t) => (t.bukti && t.bukti.length > 0) || (t.detailKegiatan?.fotoPendukung && t.detailKegiatan.fotoPendukung.length > 0)
-        );
-        if (trxUntukKotak.length === 0) continue;
-      }
+    if (daftarPerdiem) {
+      childrenSections.push(...buatBagianPerdiemTimesheet(daftarPerdiem));
+      trxUntukKotak = trxDalamKelompok.filter(
+        (t) => (t.bukti && t.bukti.length > 0) || (t.detailKegiatan?.fotoPendukung && t.detailKegiatan.fotoPendukung.length > 0)
+      );
+      if (trxUntukKotak.length === 0) continue;
+      // Halaman bukti perdiem (bila ada) kembali potret.
+      pindahOrientasi(false);
     }
 
     // Hitung posisi transaksi dalam halaman (maksimal 2 transaksi sederhana per halaman)
@@ -2306,6 +2322,9 @@ export async function buatDokumenLaporanKegiatanDocx(
     }
   }
 
+  // Sesudah daftar kelompok (yang bisa berakhir di bagian lanskap perdiem) dokumen kembali potret.
+  const bagianBaruPenutup = pindahOrientasi(false);
+
   // =========================================================
   // BAGIAN 3F: "DAFTAR PERIKSA KELENGKAPAN" (HALAMAN TERAKHIR)
   // BISA DIMATIKAN
@@ -2313,7 +2332,7 @@ export async function buatDokumenLaporanKegiatanDocx(
   if (sertakanDaftarPeriksa) {
     childrenSections.push(
       new Paragraph({
-        pageBreakBefore: true,
+        pageBreakBefore: !bagianBaruPenutup,
         alignment: AlignmentType.CENTER,
         spacing: { before: 80, after: 40 },
         children: [
@@ -2503,13 +2522,16 @@ export async function buatDokumenLaporanKegiatanDocx(
         },
       },
     },
-    sections: [
-      {
+    sections: bagianWord
+      .filter((b) => b.isi.length > 0)
+      .map((b) => ({
         properties: {
           page: {
             size: {
               width: convertMillimetersToTwip(210), // A4: 210mm
               height: convertMillimetersToTwip(297), // A4: 297mm
+              // Lanskap: docx menukar lebar dan tinggi sendiri (297 x 210 mm).
+              orientation: b.lanskap ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
             },
             margin: {
               top: convertMillimetersToTwip(20), // 2 cm
@@ -2573,9 +2595,8 @@ export async function buatDokumenLaporanKegiatanDocx(
             ],
           }),
         },
-        children: childrenSections,
-      },
-    ],
+        children: b.isi,
+      })),
   });
 
   return await Packer.toBlob(doc);

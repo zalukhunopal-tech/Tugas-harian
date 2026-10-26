@@ -30,7 +30,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
 - **Tema & Visual Jujutsu Kaisen**:
   - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
-  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan, Keluarga, Profil Pelapor, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya.
+  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya.
   - Pilihan beralih ke Tema Standar.
 - **Keluarga & Komunitas** (tab Saya → Keluarga):
   - Terhubung lewat **kode QR**: anggota menampilkan *Kode saya* (nama dan email Google), pemilik data memindainya dengan
