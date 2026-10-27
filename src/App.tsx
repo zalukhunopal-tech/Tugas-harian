@@ -66,6 +66,7 @@ import {
   googleSignIn,
   logoutGoogle,
   getAccessToken,
+  perbaruiTokenDrive,
   cekStatusSesiGoogle,
   ambilDaftarAkun,
   ambilAkunAktif,
@@ -87,6 +88,7 @@ import {
   simpanDocxLaporanKeDrive,
   sudahTarikLengkap,
   resetStatusTarik,
+  daftarkanTokenRefresher,
 } from "./lib/gdriveSync";
 import { buatDokumenLaporanKegiatanDocx } from "./lib/docxGenerator";
 import { batchKegiatan, cariCatatanMencurigakan, cariTransaksiNyasarTimesheet } from "./lib/timesheet";
@@ -876,10 +878,13 @@ export default function App() {
   }, [jalankanAutoKirimKeDrive, prosesAntreanBuktiOffline]);
 
   const handleTarikDariDrive = async (isAuto = false) => {
-    let token = await getAccessToken();
+    let token = await getAccessToken({ interactive: !isAuto });
     if (!token) {
-      if (isAuto) return;
-      token = await handleGoogleLogin();
+      if (isAuto) {
+        setSyncStatus({ pesan: "Akses Drive kedaluwarsa — Ketuk untuk perbarui", status: "gagal" });
+        return;
+      }
+      token = await handlePerbaruiAksesDrive();
       if (!token) return;
     }
 
@@ -976,8 +981,19 @@ export default function App() {
     } catch (err: any) {
       const msg = `Gagal menarik dari Drive: ${err.message}`;
       setSyncPesan(msg);
+      const is401 = String(err.message || "").includes("401");
+      if (is401 && !isAuto) {
+        try {
+          const tokenBaru = await handlePerbaruiAksesDrive();
+          if (tokenBaru) return;
+        } catch {}
+      }
       setSyncStatus({
-        pesan: isAuto ? "Belum tersinkron" : `Sinkron Drive gagal: ${err.message}`,
+        pesan: isAuto
+          ? is401
+            ? "Akses Drive kedaluwarsa — Ketuk untuk perbarui"
+            : "Belum tersinkron"
+          : `Sinkron Drive gagal: ${err.message}`,
         status: "gagal",
       });
     } finally {
@@ -986,6 +1002,33 @@ export default function App() {
   };
 
   tarikDuluRef.current = handleTarikDariDrive;
+
+  const handlePerbaruiAksesDrive = useCallback(async (): Promise<string | null> => {
+    setGoogleLoading(true);
+    setSyncStatus({ pesan: "Menyambungkan ke Google Drive…", status: "kerja" });
+    try {
+      const tokenBaru = await perbaruiTokenDrive({ interactive: true });
+      if (tokenBaru) {
+        setGoogleAccessToken(tokenBaru);
+        setSyncStatus({ pesan: "Akses Google Drive berhasil diperbarui!", status: "sukses" });
+        setTimeout(() => {
+          setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev));
+        }, 3500);
+        void periksaDriveOtomatis(tokenBaru);
+        void handleTarikDariDrive(true);
+        return tokenBaru;
+      }
+      setSyncStatus({ pesan: "Akses Drive kedaluwarsa — Ketuk untuk perbarui", status: "gagal" });
+      return null;
+    } catch (err: any) {
+      console.warn("Gagal memperbarui akses Google Drive:", err);
+      setSyncPesan(`Pembaruan akses Drive gagal: ${err.message || err}`);
+      setSyncStatus({ pesan: "Gagal memperbarui akses — Coba lagi", status: "gagal" });
+      return null;
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [periksaDriveOtomatis]);
 
   // Aplikasi baru dipasang di perangkat (PWA): bila sudah masuk Google, siapkan folder Keuangan saat itu juga. Bila belum
   // masuk, penyiapan berjalan pada masuk pertama lewat periksaDriveOtomatis.
@@ -998,8 +1041,15 @@ export default function App() {
     return () => window.removeEventListener("appinstalled", saatTerpasang);
   }, [periksaDriveOtomatis]);
 
-  // Firebase Google Auth Listener & Auto-pull saat aplikasi dibuka jika sudah login
+  // Firebase Google Auth Listener, Token Refresher & Auto-pull saat aplikasi dibuka jika sudah login
   useEffect(() => {
+    daftarkanTokenRefresher(async () => {
+      const tokenBaru = await getAccessToken({ forceRefresh: true, interactive: false });
+      if (tokenBaru) return tokenBaru;
+      setSyncStatus({ pesan: "Akses Drive kedaluwarsa — Ketuk untuk perbarui", status: "gagal" });
+      return null;
+    });
+
     const unsubscribe = initAuth(
       (user, token) => {
         setGoogleUser(user);
@@ -1191,9 +1241,9 @@ export default function App() {
   };
 
   const handleKirimKeDrive = async () => {
-    let token = await getAccessToken();
+    let token = await getAccessToken({ interactive: true });
     if (!token) {
-      token = await handleGoogleLogin();
+      token = await handlePerbaruiAksesDrive();
       if (!token) return;
     }
 
@@ -1720,6 +1770,9 @@ export default function App() {
                     setCurrentView("tambah");
                   }}
                   googleToken={googleAccessToken || undefined}
+                  onPerbaruiAksesDrive={async () => {
+                    await handlePerbaruiAksesDrive();
+                  }}
                 />
               </div>
             )}
@@ -1778,12 +1831,14 @@ export default function App() {
                   driveContents={driveContents}
                   memuatDrive={memuatDrive}
                   onPeriksaDrive={async () => {
-                    const token = await getAccessToken();
+                    let token = await getAccessToken({ interactive: true });
+                    if (!token) token = await handlePerbaruiAksesDrive();
                     if (token) await periksaDriveOtomatis(token);
                     else alert("Silakan masuk dengan Google terlebih dahulu.");
                   }}
                   onTarikDariDrive={handleTarikDariDrive}
                   onKirimKeDrive={handleKirimKeDrive}
+                  onPerbaruiAksesDrive={handlePerbaruiAksesDrive}
                   transaksi={transaksi}
                   aset={aset}
                   syncStatusPesan={syncPesan}

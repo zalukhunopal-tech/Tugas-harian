@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 
@@ -207,8 +208,17 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Setup Vite middleware untuk mode development
-const isDev = process.env.NODE_ENV !== "production";
+// Jalur folder dist hasil build
+const distPath = path.resolve(__dirname, "dist");
+const hasDist = fs.existsSync(path.resolve(distPath, "index.html"));
+
+// Penentuan mode:
+// Di Cloud Run (K_SERVICE terdefinisi), mode produksi (NODE_ENV=production),
+// atau saat folder dist sudah ada dan bukan mode dev eksplisit: layani static build.
+// Vite middleware hanya digunakan saat development lokal eksplisit.
+const isDev =
+  process.env.NODE_ENV === "development" ||
+  (!hasDist && !process.env.K_SERVICE && process.env.NODE_ENV !== "production");
 
 async function startServer() {
   if (isDev) {
@@ -219,8 +229,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Mode produksi: layani static build
-    const distPath = path.resolve(__dirname, "dist");
+    // Mode produksi: layani static build secara efisien untuk container Cloud Run
     app.use(express.static(distPath));
     app.use((_req, res) => {
       res.sendFile(path.resolve(distPath, "index.html"));
@@ -228,10 +237,15 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server Catatan Keuangan berjalan di port ${PORT}`);
+    console.log(
+      `Server Catatan Keuangan aktif pada port ${PORT} [mode: ${
+        isDev ? "development (vite middleware)" : "production (static dist)"
+      }]`
+    );
   });
 }
 
 startServer().catch((err) => {
   console.error("Gagal menjalankan server:", err);
 });
+

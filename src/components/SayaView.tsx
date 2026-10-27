@@ -37,6 +37,7 @@ interface SayaViewProps {
   onPeriksaDrive: () => Promise<void>;
   onTarikDariDrive: () => Promise<void>;
   onKirimKeDrive: () => Promise<void>;
+  onPerbaruiAksesDrive?: () => Promise<any>;
 
   // Multi-Akun Google
   daftarAkunGoogle?: import("../lib/googleAuth").AkunGoogleTersimpan[];
@@ -106,6 +107,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onPeriksaDrive,
   onTarikDariDrive,
   onKirimKeDrive,
+  onPerbaruiAksesDrive,
   transaksi,
   aset,
   syncStatusPesan,
@@ -524,54 +526,104 @@ export const SayaView: React.FC<SayaViewProps> = ({
                 </button>
               </div>
 
-              {/* Status Masa Berlaku Sesi 3 Bulan */}
+              {/* Status Masa Berlaku Sesi 3 Bulan & Akses Token Drive */}
               {(() => {
                 const statusSesi = cekStatusSesiGoogle();
+                const perluPerpanjang = !statusSesi.tokenAktif || statusSesi.perluPembaruanToken || syncStatusPesan?.includes("401");
                 return (
-                  <div
-                    style={{
-                      margin: "8px 0 10px",
-                      padding: "8px 11px",
-                      borderRadius: "10px",
-                      background: statusSesi.kedaluwarsa
-                        ? "rgba(239, 68, 68, 0.12)"
-                        : "rgba(34, 197, 94, 0.1)",
-                      border: `1px solid ${
-                        statusSesi.kedaluwarsa
-                          ? "rgba(239, 68, 68, 0.3)"
-                          : "rgba(34, 197, 94, 0.3)"
-                      }`,
-                    }}
-                  >
+                  <div style={{ margin: "8px 0 10px" }}>
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        fontSize: "0.8rem",
-                        fontWeight: 700,
-                        color: statusSesi.kedaluwarsa ? "#ef4444" : "#22c55e",
+                        padding: "8px 11px",
+                        borderRadius: "10px",
+                        background: statusSesi.kedaluwarsa
+                          ? "rgba(239, 68, 68, 0.12)"
+                          : "rgba(34, 197, 94, 0.1)",
+                        border: `1px solid ${
+                          statusSesi.kedaluwarsa
+                            ? "rgba(239, 68, 68, 0.3)"
+                            : "rgba(34, 197, 94, 0.3)"
+                        }`,
                       }}
                     >
-                      <span>{statusSesi.kedaluwarsa ? "⚠️" : "🔒"}</span>
-                      <span>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          color: statusSesi.kedaluwarsa ? "#ef4444" : "#22c55e",
+                        }}
+                      >
+                        <span>{statusSesi.kedaluwarsa ? "⚠️" : "🔒"}</span>
+                        <span>
+                          {statusSesi.kedaluwarsa
+                            ? "Sesi Sinkronisasi 3 Bulan Kedaluwarsa"
+                            : `Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`}
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          margin: "3px 0 0",
+                          fontSize: "0.74rem",
+                          color: "var(--muted)",
+                          lineHeight: 1.35,
+                        }}
+                      >
                         {statusSesi.kedaluwarsa
-                          ? "Sesi Sinkronisasi 3 Bulan Kedaluwarsa"
-                          : `Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`}
-                      </span>
+                          ? "Batas waktu 3 bulan telah berakhir. Silakan masuk ulang dengan Google untuk memperpanjang."
+                          : `Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`}
+                      </p>
                     </div>
-                    <p
-                      style={{
-                        margin: "3px 0 0",
-                        fontSize: "0.74rem",
-                        color: "var(--muted)",
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {statusSesi.kedaluwarsa
-                        ? "Batas waktu 3 bulan telah berakhir. Silakan masuk ulang dengan Google untuk memperpanjang."
-                        : `Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`}
-                    </p>
+
+                    {/* Banner Peringatan & Tombol Perbarui Akses 1-Ketukan jika token Drive kedaluwarsa atau mendapat 401 */}
+                    {perluPerpanjang && onPerbaruiAksesDrive && (
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          padding: "10px 12px",
+                          borderRadius: "10px",
+                          background: "rgba(245, 158, 11, 0.12)",
+                          border: "1.5px solid #f59e0b",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ fontSize: "1rem" }}>⚡</span>
+                          <strong style={{ fontSize: "0.82rem", color: "#f59e0b" }}>
+                            Akses Google Drive Perlu Diperbarui
+                          </strong>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "0.74rem", color: "var(--muted)", lineHeight: 1.35 }}>
+                          Token akses Google Drive kedaluwarsa setelah 1 jam (kebijakan keamanan Google). Data Anda tetap aman. Cukup ketuk tombol di bawah untuk menyambungkan kembali tanpa perlu keluar dari akun:
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          disabled={googleLoading}
+                          style={{
+                            background: "#f59e0b",
+                            borderColor: "#f59e0b",
+                            color: "#000",
+                            fontWeight: 700,
+                            padding: "7px 12px",
+                            fontSize: "0.8rem",
+                            borderRadius: "8px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            marginTop: "2px",
+                          }}
+                          onClick={() => void onPerbaruiAksesDrive()}
+                        >
+                          🔄 {googleLoading ? "Menyambungkan…" : "Perbarui Akses Drive Sekarang (1 Ketukan)"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -630,6 +682,21 @@ export const SayaView: React.FC<SayaViewProps> = ({
               )}
 
               <div className="sync-buttons">
+                {onPerbaruiAksesDrive && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{
+                      borderColor: "var(--accent)",
+                      color: "var(--accent)",
+                      fontWeight: 600,
+                    }}
+                    disabled={googleLoading || memuatDrive}
+                    onClick={() => void onPerbaruiAksesDrive()}
+                  >
+                    🔄 {googleLoading ? "Memperbarui…" : "Perbarui Akses Drive (1-Klik)"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-primary"

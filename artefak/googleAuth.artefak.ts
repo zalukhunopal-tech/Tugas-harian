@@ -12,7 +12,14 @@ import { dapatkanIzin, dapatkanMcp, SERVER_DRIVE, SERVER_SHEETS } from "./konekt
 export type { AkunGoogleTersimpan };
 
 export const SCOPES: string[] = [];
-export const DURASI_SESI_MS = 90 * 24 * 60 * 60 * 1000;
+export const DURASI_SESI_AKUN_MS = 90 * 24 * 60 * 60 * 1000;
+export const DURASI_SESI_MS = DURASI_SESI_AKUN_MS;
+export const DURASI_TOKEN_AKSES_MS = 50 * 60 * 1000;
+
+export function apakahTokenKedaluwarsa(_waktu?: number | null): boolean {
+  return false;
+}
+
 export const KEY_TOKEN = "keuangan_gdrive_token";
 export const KEY_TOKEN_TIME = "keuangan_gdrive_token_time";
 export const KEY_USER_PROFILE = "keuangan_gdrive_user_profile";
@@ -61,16 +68,20 @@ function tulisFlag(nilai: boolean): void {
 
 export function cekStatusSesiGoogle(_waktuSpesifik?: number | null): {
   aktif: boolean;
+  tokenAktif: boolean;
   sisaHari: number;
   tanggalKedaluwarsa: string;
   kedaluwarsa: boolean;
+  perluPembaruanToken: boolean;
   pesan: string;
 } {
   return {
     aktif,
+    tokenAktif: aktif,
     sisaHari: 0,
     tanggalKedaluwarsa: "-",
     kedaluwarsa: false,
+    perluPembaruanToken: false,
     pesan: aktif ? "Terhubung lewat konektor Google Drive di akun Claude" : "Belum terhubung ke Google Drive",
   };
 }
@@ -179,6 +190,12 @@ export const googleSignIn = async (_opsi?: { forceSelectAccount?: boolean }): Pr
 };
 
 export const getAccessToken = async (): Promise<string | null> => (aktif ? TOKEN_KONEKTOR : null);
+
+export const cobaRefreshSilentGIS = async (_emailHint?: string): Promise<string | null> =>
+  aktif ? TOKEN_KONEKTOR : null;
+
+export const perbaruiTokenDrive = async (_opsi?: { interactive?: boolean }): Promise<string | null> =>
+  aktif ? TOKEN_KONEKTOR : null;
 
 export const setCachedAccessToken = (token: string | null) => {
   aktif = Boolean(token);
