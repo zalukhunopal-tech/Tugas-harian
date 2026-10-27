@@ -30,7 +30,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
 - **Tema & Visual Jujutsu Kaisen**:
   - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
-  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya.
+  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
   - Pilihan beralih ke Tema Standar.
 - **Keluarga & Komunitas** (tab Saya → Keluarga):
   - Terhubung lewat **kode QR**: anggota menampilkan *Kode saya* (nama dan email Google), pemilik data memindainya dengan
@@ -52,9 +52,20 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     yang mengabaikan halaman bernama (orientasi di jendela cetak Android tetap perlu dicocokkan). Tabel mengalir penuh halaman:
     kepala berulang, Total dan tanda tangan hanya di akhir.
   - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan.
-  - **Lembar Tempel Bukti / Nota Asli** (A4 potret, area 190 × 277 mm): kotak Tipe A struk 92 × 132 mm (4 per halaman), Tipe B
-    kuitansi/tiket 190 × 88 mm (3 per halaman), Tipe C kuitansi besar/faktur 190 × 132 mm (2 per halaman); dipilih otomatis
-    menurut jenis bukti dan kategori, bisa diubah per pengeluaran.
+  - **Lampiran Bukti** (A4 potret, area 190 × 277 mm): foto bukti digital dan kotak kosong tempat nota/struk/tiket asli ditempel
+    berada di **satu lembar yang sama** per pengeluaran dan tidak terbelah antarhalaman. Tipe A (struk): foto di kiri, area tempel
+    92 × 120 mm di kanan, dua kartu per halaman; Tipe B (kuitansi/tiket, area 190 × 76 mm) dan Tipe C (kuitansi besar/faktur,
+    190 × 120 mm): foto di atas, area tempel di bawah, satu kartu per halaman. Pengeluaran tanpa foto mendapat kotak tempel ringkas
+    (A 92 × 132 mm berpasangan, B 190 × 88 mm, C 190 × 132 mm). Ukuran dipilih otomatis menurut jenis bukti dan kategori, bisa diubah
+    per pengeluaran. Dokumen Word memakai tata letaknya sendiri.
+  - Kartu ringkasan saldo di Laporan: empat kartu sebaris di PC (≥ 1024 px), 2 × 2 di tablet, label di atas dan nominal di bawah sejajar.
+- **Umur Pakai & Penyusutan Barang** (opsional, di formulir pengeluaran): centang *Hitung Penyusutan & Umur Barang*, pilih preset
+  (oli mesin 2.000 km, oli gardan 8.000 km, kampas rem, aki, ban, baterai, busi, rantai & gir; laptop, ponsel, kendaraan, peralatan,
+  perabot) atau isi manual, dengan basis **waktu kalender** (hari/bulan/tahun) atau **pemakaian** (km/jam). Rumus: garis lurus
+  `D = (C − S) / n`, `BV = C − D × t`, `P_sisa = BV / C × 100%`; saldo menurun ganda `R = 2 / n`, `BV = C × (1 − R)^t` (minimal S);
+  sisa umur `Sisa Hari = Total Umur − (hari ini − tanggal beli)` atau `Sisa KM = Batas − (KM sekarang − KM saat ganti)`. Bila sisa nilai
+  **atau** sisa umur ≤ 30%: lencana kuning/merah menyala, banner di Riwayat dan Aset, bilah merah. Di tab Aset: perbarui KM, tandai
+  "sudah diganti/diservis", atau hapus pantauan. Pantauan disimpan di pengaturan (ikut tersinkron) dan terhapus bersama transaksinya.
 - **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan

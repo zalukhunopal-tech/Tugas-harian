@@ -11,6 +11,7 @@ import {
   NamaDana,
   PengaturanKeuangan,
   ItemHutangPiutang,
+  ItemPenyusutan,
   TargetTabunganItem,
   AppLockConfig,
   ProfilPelapor,
@@ -895,6 +896,9 @@ export default function App() {
       setDriveContents(res.contents);
 
       if (res.pengaturan) {
+        // Pengaturan.json lama tidak memuat pantauan umur barang: yang ada di perangkat dipertahankan.
+        if (!Array.isArray(res.pengaturan.penyusutan)) res.pengaturan.penyusutan = pengaturanRef.current.penyusutan ?? [];
+        pengaturanRef.current = res.pengaturan;
         setPengaturan(res.pengaturan);
         simpanPengaturan(res.pengaturan);
         if (typeof res.pengaturan.anggaranHarian === "number" && res.pengaturan.anggaranHarian > 0) {
@@ -1340,6 +1344,9 @@ export default function App() {
     idsToHapus.forEach((hId) => tambahIdTerhapus(hId));
     const baru = transaksi.filter((t) => !idsToHapus.includes(t.id));
     perbaruiTransaksi(baru);
+    // Pantauan umur barang milik transaksi yang dihapus ikut dihapus.
+    const penyusutanTersisa = (pengaturanRef.current.penyusutan ?? []).filter((x) => !x.transaksiId || !idsToHapus.includes(x.transaksiId));
+    if (penyusutanTersisa.length !== (pengaturanRef.current.penyusutan ?? []).length) simpanDaftarPenyusutan(penyusutanTersisa);
     jadwalkanAutoSync();
 
     if (affectedKgIds.length > 0) {
@@ -1559,6 +1566,28 @@ export default function App() {
     jadwalkanAutoSync();
   };
 
+  // Pantauan penyusutan dan umur barang disimpan bersama pengaturan (ikut tersinkron ke Drive seperti utang dan target tabungan).
+  const simpanDaftarPenyusutan = (baru: ItemPenyusutan[]) => {
+    const pengaturanBaru: PengaturanKeuangan = {
+      ...pengaturanRef.current,
+      penyusutan: baru,
+      diubah: new Date().toISOString(),
+    };
+    pengaturanRef.current = pengaturanBaru;
+    setPengaturan(pengaturanBaru);
+    simpanPengaturan(pengaturanBaru);
+    jadwalkanAutoSync();
+  };
+
+  const handleSimpanPenyusutan = (item: ItemPenyusutan) => {
+    const daftar = pengaturanRef.current.penyusutan ?? [];
+    simpanDaftarPenyusutan(daftar.some((x) => x.id === item.id) ? daftar.map((x) => (x.id === item.id ? item : x)) : [item, ...daftar]);
+  };
+
+  const handleHapusPenyusutan = (id: string) => {
+    simpanDaftarPenyusutan((pengaturanRef.current.penyusutan ?? []).filter((x) => x.id !== id));
+  };
+
   const handleSimpanAppLockConfig = (cfg: AppLockConfig) => {
     // Authenticator hanyalah langkah kedua setelah PIN; tanpa kunci aplikasi tidak ada yang memintanya, jadi rahasianya dibuang.
     if (!cfg.enabled) hapusTotp();
@@ -1660,6 +1689,12 @@ export default function App() {
                   daftarTargetTabungan={daftarTargetTabungan}
                   onSimpanTargetTabungan={handleSimpanTargetTabungan}
                   onHapusTargetTabungan={handleHapusTargetTabungan}
+                  daftarPenyusutan={pengaturan.penyusutan ?? []}
+                  onBukaUmurBarang={() => {
+                    setArahGeser(null);
+                    setCurrentView("aset");
+                    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+                  }}
                   onBukaTambahTabungan={(targetId, targetNama) => {
                     setTargetTabunganAwalId(targetId);
                     setEditTransaksi(null);
@@ -1686,6 +1721,9 @@ export default function App() {
                   onTarikDrive={handleTarikDariDrive}
                   onKirimDrive={handleKirimKeDrive}
                   memuatDrive={memuatDrive}
+                  daftarPenyusutan={pengaturan.penyusutan ?? []}
+                  onSimpanPenyusutan={handleSimpanPenyusutan}
+                  onHapusPenyusutan={handleHapusPenyusutan}
                 />
               </div>
             )}
@@ -1774,6 +1812,9 @@ export default function App() {
                 targetTabunganAwalId={targetTabunganAwalId}
                 daftarKegiatan={daftarKegiatan}
                 onTambahKegiatan={handleTambahKegiatan}
+                daftarPenyusutan={pengaturan.penyusutan ?? []}
+                onSimpanPenyusutan={handleSimpanPenyusutan}
+                onHapusPenyusutan={handleHapusPenyusutan}
               />
             )}
           </main>

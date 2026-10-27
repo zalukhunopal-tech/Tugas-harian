@@ -1126,39 +1126,35 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </div>
         )}
 
-        {/* KARTU RINGKASAN SALDO & ARUS KAS */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-            gap: "12px",
-            marginBottom: "24px",
-          }}
-        >
-          <div style={{ padding: "14px", borderRadius: "10px", border: "1px solid var(--border)", background: "var(--surface)" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--muted)", fontWeight: 600 }}>Saldo Awal (Sebelum Periode)</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "4px", color: saldoAwal < 0 ? "var(--danger)" : "var(--text)" }}>
+        {/* KARTU RINGKASAN SALDO & ARUS KAS: 4 kolom sebaris di PC, 2 × 2 di tablet; label di atas dan nominal di bawah sejajar antarkartu */}
+        <div className="ringkasan-saldo" data-testid="ringkasan-saldo">
+          <div className="ringkasan-saldo__kartu" style={{ border: "1px solid var(--border)", background: "var(--surface)" }}>
+            <div className="ringkasan-saldo__label" style={{ color: "var(--muted)" }}>Saldo Awal (Sebelum Periode)</div>
+            <div className="ringkasan-saldo__nilai" style={{ color: saldoAwal < 0 ? "var(--danger)" : "var(--text)" }}>
               {formatRupiah(saldoAwal)}
             </div>
           </div>
 
-          <div style={{ padding: "14px", borderRadius: "10px", border: "1px solid var(--border)", background: "rgba(34, 197, 94, 0.08)" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--masuk)", fontWeight: 600 }}>Total Penerimaan (+)</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "4px", color: "var(--masuk)" }}>
+          <div className="ringkasan-saldo__kartu" style={{ border: "1px solid var(--border)", background: "rgba(34, 197, 94, 0.08)" }}>
+            <div className="ringkasan-saldo__label" style={{ color: "var(--masuk)" }}>Total Penerimaan (+)</div>
+            <div className="ringkasan-saldo__nilai" style={{ color: "var(--masuk)" }}>
               +{formatRupiah(totalPenerimaan)}
             </div>
           </div>
 
-          <div style={{ padding: "14px", borderRadius: "10px", border: "1px solid var(--border)", background: "rgba(239, 68, 68, 0.08)" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--keluar)", fontWeight: 600 }}>Total Pengeluaran (-)</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "4px", color: "var(--keluar)" }}>
+          <div className="ringkasan-saldo__kartu" style={{ border: "1px solid var(--border)", background: "rgba(239, 68, 68, 0.08)" }}>
+            <div className="ringkasan-saldo__label" style={{ color: "var(--keluar)" }}>Total Pengeluaran (-)</div>
+            <div className="ringkasan-saldo__nilai" style={{ color: "var(--keluar)" }}>
               -{formatRupiah(totalPengeluaran)}
             </div>
           </div>
 
-          <div style={{ padding: "14px", borderRadius: "10px", border: "2px solid var(--accent)", background: "color-mix(in srgb, var(--accent) 12%, var(--surface))" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>Saldo Akhir Periode</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: "4px", color: saldoAkhir < 0 ? "var(--danger)" : "var(--accent)" }}>
+          <div
+            className="ringkasan-saldo__kartu ringkasan-saldo__kartu--akhir"
+            style={{ border: "2px solid var(--accent)", background: "color-mix(in srgb, var(--accent) 12%, var(--surface))" }}
+          >
+            <div className="ringkasan-saldo__label" style={{ color: "var(--accent)", fontWeight: 700 }}>Saldo Akhir Periode</div>
+            <div className="ringkasan-saldo__nilai" style={{ color: saldoAkhir < 0 ? "var(--danger)" : "var(--accent)" }}>
               {formatRupiah(saldoAkhir)}
             </div>
           </div>
