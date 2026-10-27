@@ -6,11 +6,11 @@ import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
 import { KeuanganDriveContents } from "../lib/gdriveSync";
-import { cekStatusSesiGoogle } from "../lib/googleAuth";
 import { AppLockKelolaModal } from "./AppLockKelolaModal";
 import { TotpKelolaModal } from "./TotpKelolaModal";
 import { LABEL_INTERVAL, muatTotp } from "../lib/totp";
 import { LaporanView } from "./LaporanView";
+import { PanelDrive } from "./PanelDrive";
 import { DepresiasiAsetView } from "./DepresiasiAsetView";
 import { itemPerluPeringatan } from "../lib/penyusutan";
 import { KeluargaView } from "./KeluargaView";
@@ -38,6 +38,8 @@ interface SayaViewProps {
   onTarikDariDrive: () => Promise<void>;
   onKirimKeDrive: () => Promise<void>;
   onPerbaruiAksesDrive?: () => Promise<any>;
+  /** Sinkronisasi satu langkah untuk lingkaran "tahan 3 detik": tarik, gabung, lalu kirim; true bila berhasil. */
+  onSinkronkan?: () => Promise<boolean>;
 
   // Multi-Akun Google
   daftarAkunGoogle?: import("../lib/googleAuth").AkunGoogleTersimpan[];
@@ -108,6 +110,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onTarikDariDrive,
   onKirimKeDrive,
   onPerbaruiAksesDrive,
+  onSinkronkan,
   transaksi,
   aset,
   syncStatusPesan,
@@ -203,534 +206,6 @@ export const SayaView: React.FC<SayaViewProps> = ({
       setTimeout(() => setStatusSimpanProfil(""), 3000);
     }
   };
-
-  const handleExportCSV = () => {
-    if (transaksi.length === 0) {
-      alert("Belum ada transaksi untuk diunduh.");
-      return;
-    }
-    const header = [
-      "Tanggal",
-      "Jenis",
-      "Dana",
-      "Uraian",
-      "Kategori",
-      "Jumlah",
-      "Metode Bayar",
-      "Sumber / Tujuan",
-      "Catatan",
-      "ID",
-    ];
-    const rows = transaksi.map((t) => [
-      t.tanggal,
-      t.jenis,
-      t.dana,
-      `"${(t.deskripsi || "").replace(/"/g, '""')}"`,
-      `"${labelKategori(t.kategori || "").replace(/"/g, '""')}"`,
-      t.jumlah,
-      `"${(t.metode || "").replace(/"/g, '""')}"`,
-      `"${(t.kaitan || "").replace(/"/g, '""')}"`,
-      `"${(t.catatan || "").replace(/"/g, '""')}"`,
-      t.id,
-    ]);
-    const csvContent = "\uFEFF" + [header.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaksi-keuangan-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-
-  // Isi tiap aplikasi: sama dengan isi folder sebelumnya.
-  const isiDrive = (
-    <>
-          <p className="help">
-            Sinkronkan langsung data transaksi dan aset dengan folder <strong>Keuangan</strong> di
-            Google Drive Anda, termasuk spreadsheet <em>Keuangan Pribadi</em>,{" "}
-            <em>Keuangan Kegiatan</em>, dan file <em>Aset.json</em>.
-          </p>
-
-          {!googleUser ? (
-            <div style={{ margin: "14px 0" }}>
-              {daftarAkunGoogle && daftarAkunGoogle.length > 0 && (
-                <div style={{ marginBottom: "16px" }}>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 700, marginBottom: "8px", color: "var(--text)" }}>
-                    Pilih Akun yang Tersimpan di Perangkat:
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {daftarAkunGoogle.map((akun) => (
-                      <div
-                        key={akun.uid || akun.email}
-                        className="gdrive-user-card"
-                        style={{ margin: 0, padding: "10px 12px" }}
-                      >
-                        <div className="gdrive-user-info">
-                          {akun.photoURL ? (
-                            <img
-                              src={akun.photoURL}
-                              alt={akun.displayName || "User"}
-                              style={{ width: 34, height: 34, borderRadius: "50%" }}
-                            />
-                          ) : (
-                            <div className="gdrive-avatar" style={{ width: 34, height: 34, fontSize: "0.85rem" }}>
-                              {(akun.displayName || akun.email || "U")[0].toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <strong style={{ fontSize: "0.88rem" }}>{akun.displayName || "Pengguna Google"}</strong>
-                            <div style={{ fontSize: "0.78rem", color: "var(--muted)" }}>{akun.email}</div>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                          <button
-                            type="button"
-                            className="btn-small btn-primary"
-                            onClick={() => onBeralihAkun && void onBeralihAkun(akun.email || akun.uid)}
-                          >
-                            Aktifkan
-                          </button>
-                          {onHapusAkun && (
-                            <button
-                              type="button"
-                              className="btn-small btn-delete"
-                              title="Hapus akun dan datanya dari perangkat ini"
-                              onClick={() => {
-                                if (window.confirm(`Hapus akun ${akun.email} dan data lokalnya dari perangkat ini?`)) {
-                                  void onHapusAkun(akun.email || akun.uid);
-                                }
-                              }}
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="gsi-material-button"
-                onClick={() => void onGoogleLogin()}
-                disabled={googleLoading}
-              >
-                <div className="gsi-material-button-state"></div>
-                <div className="gsi-material-button-content-wrapper">
-                  <div className="gsi-material-button-icon">
-                    <svg
-                      version="1.1"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 48 48"
-                      style={{ display: "block" }}
-                    >
-                      <path
-                        fill="#EA4335"
-                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                      ></path>
-                      <path
-                        fill="#4285F4"
-                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                      ></path>
-                      <path
-                        fill="#FBBC05"
-                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                      ></path>
-                      <path
-                        fill="#34A853"
-                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                      ></path>
-                      <path fill="none" d="M0 0h48v48H0z"></path>
-                    </svg>
-                  </div>
-                  <span className="gsi-material-button-contents">
-                    {googleLoading ? "Menghubungkan…" : "Masuk dengan Google & Sinkron Drive"}
-                  </span>
-                </div>
-              </button>
-              {onKeluarDanHapus && (transaksi.length > 0 || aset.length > 0 || adaDataDiPerangkat()) && (
-                <p className="help" style={{ marginTop: "12px" }}>
-                  Data keuangan masih tersimpan di perangkat ini.{" "}
-                  <button type="button" className="btn-link" id="btn-hapus-data-perangkat" onClick={() => setModalKeluarBuka(true)}>
-                    Hapus dari perangkat ini
-                  </button>
-                </p>
-              )}
-            </div>
-          ) : (
-            <div>
-              <div className="gdrive-user-card">
-                <div className="gdrive-user-info">
-                  {googleUser.photoURL ? (
-                    <img
-                      src={googleUser.photoURL}
-                      alt={googleUser.displayName || "User"}
-                      style={{ width: 36, height: 36, borderRadius: "50%" }}
-                    />
-                  ) : (
-                    <div className="gdrive-avatar">
-                      {(googleUser.displayName || googleUser.email || "U")[0].toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <strong>{googleUser.displayName || "Pengguna Google"}</strong>
-                      <span
-                        className="gdrive-badge"
-                        style={{
-                          background: "rgba(34, 197, 94, 0.2)",
-                          color: "#22c55e",
-                          fontSize: "0.7rem",
-                          padding: "1px 6px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        Aktif
-                      </span>
-                    </div>
-                    <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
-                      {googleUser.email}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="btn-small btn-delete"
-                  id="btn-keluar-drive"
-                  onClick={() => setModalKeluarBuka(true)}
-                >
-                  Keluar
-                </button>
-              </div>
-
-              {/* Beralih ke Akun Lain yang Sudah Ada di Perangkat */}
-              {daftarAkunGoogle &&
-                daftarAkunGoogle.filter((a) => a.email !== googleUser.email).length > 0 && (
-                  <div
-                    style={{
-                      margin: "8px 0 12px",
-                      padding: "10px 12px",
-                      background: "rgba(255, 255, 255, 0.03)",
-                      borderRadius: "8px",
-                      border: "1px dashed var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "0.78rem",
-                        fontWeight: 700,
-                        marginBottom: "8px",
-                        color: "var(--muted)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      Beralih ke Akun Lain di Perangkat Ini:
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {daftarAkunGoogle
-                        .filter((a) => a.email !== googleUser.email)
-                        .map((akun) => (
-                          <div
-                            key={akun.uid || akun.email}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              padding: "6px 8px",
-                              background: "var(--surface)",
-                              borderRadius: "6px",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              {akun.photoURL ? (
-                                <img
-                                  src={akun.photoURL}
-                                  alt=""
-                                  style={{ width: 28, height: 28, borderRadius: "50%" }}
-                                />
-                              ) : (
-                                <div
-                                  className="gdrive-avatar"
-                                  style={{ width: 28, height: 28, fontSize: "0.8rem" }}
-                                >
-                                  {(akun.displayName || akun.email || "U")[0].toUpperCase()}
-                                </div>
-                              )}
-                              <div>
-                                <div style={{ fontSize: "0.82rem", fontWeight: 600 }}>
-                                  {akun.displayName || akun.email}
-                                </div>
-                                <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
-                                  {akun.email}
-                                </div>
-                              </div>
-                            </div>
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <button
-                                type="button"
-                                className="btn-small"
-                                style={{ fontSize: "0.75rem", padding: "3px 8px" }}
-                                onClick={() =>
-                                  onBeralihAkun && void onBeralihAkun(akun.email || akun.uid)
-                                }
-                              >
-                                Ganti Akun
-                              </button>
-                              {onHapusAkun && (
-                                <button
-                                  type="button"
-                                  className="btn-small btn-delete"
-                                  style={{ fontSize: "0.75rem", padding: "3px 6px" }}
-                                  title="Hapus dari perangkat"
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `Hapus data akun ${akun.email} dari perangkat ini?`
-                                      )
-                                    ) {
-                                      void onHapusAkun(akun.email || akun.uid);
-                                    }
-                                  }}
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-              {/* Tombol Tambah / Masuk dengan Akun Google Lain */}
-              <div style={{ margin: "6px 0 12px" }}>
-                <button
-                  type="button"
-                  className="btn-small btn-secondary"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", width: "100%", justifyContent: "center", padding: "8px 12px" }}
-                  onClick={() => {
-                    if (onTambahAkun) void onTambahAkun();
-                    else void onGoogleLogin();
-                  }}
-                  disabled={googleLoading}
-                >
-                  <span style={{ fontSize: "0.95rem" }}>➕</span>
-                  <span style={{ fontWeight: 600 }}>
-                    {googleLoading ? "Menghubungkan…" : "Tambah / Masuk Akun Google Lain"}
-                  </span>
-                </button>
-              </div>
-
-              {/* Status Masa Berlaku Sesi 3 Bulan & Akses Token Drive */}
-              {(() => {
-                const statusSesi = cekStatusSesiGoogle();
-                const perluPerpanjang = !statusSesi.tokenAktif || statusSesi.perluPembaruanToken || syncStatusPesan?.includes("401");
-                return (
-                  <div style={{ margin: "8px 0 10px" }}>
-                    <div
-                      style={{
-                        padding: "8px 11px",
-                        borderRadius: "10px",
-                        background: statusSesi.kedaluwarsa
-                          ? "rgba(239, 68, 68, 0.12)"
-                          : "rgba(34, 197, 94, 0.1)",
-                        border: `1px solid ${
-                          statusSesi.kedaluwarsa
-                            ? "rgba(239, 68, 68, 0.3)"
-                            : "rgba(34, 197, 94, 0.3)"
-                        }`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontSize: "0.8rem",
-                          fontWeight: 700,
-                          color: statusSesi.kedaluwarsa ? "#ef4444" : "#22c55e",
-                        }}
-                      >
-                        <span>{statusSesi.kedaluwarsa ? "⚠️" : "🔒"}</span>
-                        <span>
-                          {statusSesi.kedaluwarsa
-                            ? "Sesi Sinkronisasi 3 Bulan Kedaluwarsa"
-                            : `Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`}
-                        </span>
-                      </div>
-                      <p
-                        style={{
-                          margin: "3px 0 0",
-                          fontSize: "0.74rem",
-                          color: "var(--muted)",
-                          lineHeight: 1.35,
-                        }}
-                      >
-                        {statusSesi.kedaluwarsa
-                          ? "Batas waktu 3 bulan telah berakhir. Silakan masuk ulang dengan Google untuk memperpanjang."
-                          : `Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`}
-                      </p>
-                    </div>
-
-                    {/* Banner Peringatan & Tombol Perbarui Akses 1-Ketukan jika token Drive kedaluwarsa atau mendapat 401 */}
-                    {perluPerpanjang && onPerbaruiAksesDrive && (
-                      <div
-                        style={{
-                          marginTop: "8px",
-                          padding: "10px 12px",
-                          borderRadius: "10px",
-                          background: "rgba(245, 158, 11, 0.12)",
-                          border: "1.5px solid #f59e0b",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "1rem" }}>⚡</span>
-                          <strong style={{ fontSize: "0.82rem", color: "#f59e0b" }}>
-                            Akses Google Drive Perlu Diperbarui
-                          </strong>
-                        </div>
-                        <p style={{ margin: 0, fontSize: "0.74rem", color: "var(--muted)", lineHeight: 1.35 }}>
-                          Token akses Google Drive kedaluwarsa setelah 1 jam (kebijakan keamanan Google). Data Anda tetap aman. Cukup ketuk tombol di bawah untuk menyambungkan kembali tanpa perlu keluar dari akun:
-                        </p>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          disabled={googleLoading}
-                          style={{
-                            background: "#f59e0b",
-                            borderColor: "#f59e0b",
-                            color: "#000",
-                            fontWeight: 700,
-                            padding: "7px 12px",
-                            fontSize: "0.8rem",
-                            borderRadius: "8px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "6px",
-                            marginTop: "2px",
-                          }}
-                          onClick={() => void onPerbaruiAksesDrive()}
-                        >
-                          🔄 {googleLoading ? "Menyambungkan…" : "Perbarui Akses Drive Sekarang (1 Ketukan)"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {driveContents ? (
-                <div className="gdrive-folder-status">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span>
-                      Folder: <strong>{driveContents.folder.name}</strong>
-                    </span>
-                    {driveContents.folder.webViewLink && (
-                      <a
-                        href={driveContents.folder.webViewLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-link"
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Buka di Drive ↗
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="gdrive-badge-row">
-                    <span
-                      className={`gdrive-badge ${driveContents.sheetPribadi ? "ok" : ""}`}
-                    >
-                      {driveContents.sheetPribadi ? "✓ Keuangan Pribadi" : "— Keuangan Pribadi"}
-                    </span>
-                    <span
-                      className={`gdrive-badge ${driveContents.sheetKegiatan ? "ok" : ""}`}
-                    >
-                      {driveContents.sheetKegiatan ? "✓ Keuangan Kegiatan" : "— Keuangan Kegiatan"}
-                    </span>
-                    <span className={`gdrive-badge ${driveContents.fileAset ? "ok" : ""}`}>
-                      {driveContents.fileAset ? "✓ Aset.json" : "— Aset.json"}
-                    </span>
-                    <span className={`gdrive-badge ${driveContents.fileLaporanKegiatan ? "ok" : ""}`}>
-                      {driveContents.fileLaporanKegiatan ? "✓ Laporan Kegiatan.json" : "— Laporan Kegiatan.json"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <p className="help">
-                    {memuatDrive
-                      ? "Memeriksa folder Keuangan di Google Drive…"
-                      : "Folder belum diperiksa. Bila folder 'Keuangan' belum ada, aplikasi membuatnya otomatis beserta isinya."}
-                  </p>
-                  <div className="sync-buttons">
-                    <button type="button" className="btn-secondary" disabled={memuatDrive} onClick={() => void onPeriksaDrive()}>
-                      Periksa &amp; siapkan folder Keuangan
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="sync-buttons">
-                {onPerbaruiAksesDrive && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{
-                      borderColor: "var(--accent)",
-                      color: "var(--accent)",
-                      fontWeight: 600,
-                    }}
-                    disabled={googleLoading || memuatDrive}
-                    onClick={() => void onPerbaruiAksesDrive()}
-                  >
-                    🔄 {googleLoading ? "Memperbarui…" : "Perbarui Akses Drive (1-Klik)"}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={memuatDrive}
-                  onClick={() => void onTarikDariDrive()}
-                >
-                  {memuatDrive ? "Memproses…" : "Tarik Data dari Folder Keuangan"}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={memuatDrive}
-                  onClick={() => void onKirimKeDrive()}
-                >
-                  Kirim Data Lokal ke Folder Keuangan
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleExportCSV}
-                >
-                  Unduh CSV ({transaksi.length} transaksi)
-                </button>
-              </div>
-            </div>
-          )}
-
-          {syncStatusPesan && (
-            <p id="sync-detail" className="help" style={{ marginTop: "10px" }}>
-              {syncStatusPesan}
-            </p>
-          )}
-    </>
-  );
 
   const isiProfil = (
     <>
@@ -1236,7 +711,28 @@ export const SayaView: React.FC<SayaViewProps> = ({
           ) : (
             <div className="folder saya-panel" id={`panel-${aplikasiAktif.id}`}>
               <div className="folder-body">
-                {aplikasiAktif.id === "drive" && isiDrive}
+                {aplikasiAktif.id === "drive" && (
+                  <PanelDrive
+                    googleUser={googleUser}
+                    googleLoading={googleLoading}
+                    onGoogleLogin={onGoogleLogin}
+                    onBukaKeluar={() => setModalKeluarBuka(true)}
+                    tampilHapusDariPerangkat={Boolean(onKeluarDanHapus) && (transaksi.length > 0 || aset.length > 0 || adaDataDiPerangkat())}
+                    driveContents={driveContents}
+                    memuatDrive={memuatDrive}
+                    onPeriksaDrive={onPeriksaDrive}
+                    onTarikDariDrive={onTarikDariDrive}
+                    onKirimKeDrive={onKirimKeDrive}
+                    onPerbaruiAksesDrive={onPerbaruiAksesDrive}
+                    onSinkronkan={onSinkronkan}
+                    daftarAkunGoogle={daftarAkunGoogle}
+                    onBeralihAkun={onBeralihAkun}
+                    onTambahAkun={onTambahAkun}
+                    onHapusAkun={onHapusAkun}
+                    syncStatusPesan={syncStatusPesan}
+                    transaksi={transaksi}
+                  />
+                )}
                 {aplikasiAktif.id === "keluarga" && (
                   <KeluargaView
                     googleUser={googleUser}
