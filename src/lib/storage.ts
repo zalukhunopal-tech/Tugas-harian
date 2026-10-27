@@ -158,13 +158,143 @@ export function simpanTransaksi(data: Transaksi[]): void {
   tulisStorage(STORAGE_KEY, JSON.stringify(data));
 }
 
+// IndexedDB fallback untuk persistensi data Aset offline & antar-sesi
+const IDB_ASET_DB = "keuangan_aset_store_db";
+const IDB_ASET_STORE = "daftar_aset";
+
+export function bukaDbAset(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB tidak didukung"));
+      return;
+    }
+    const req = indexedDB.open(IDB_ASET_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_ASET_STORE)) {
+        db.createObjectStore(IDB_ASET_STORE, { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function simpanAsetKeIndexedDB(data: AsetItem[]): Promise<void> {
+  try {
+    const db = await bukaDbAset();
+    const tx = db.transaction(IDB_ASET_STORE, "readwrite");
+    const store = tx.objectStore(IDB_ASET_STORE);
+    store.clear();
+    for (const item of data) {
+      store.put(item);
+    }
+    return new Promise((resolve) => {
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        resolve();
+      };
+    });
+  } catch {
+    // abaikan jika indexedDB tidak tersedia di sandbox
+  }
+}
+
+export async function muatAsetDariIndexedDB(): Promise<AsetItem[]> {
+  try {
+    const db = await bukaDbAset();
+    const tx = db.transaction(IDB_ASET_STORE, "readonly");
+    const store = tx.objectStore(IDB_ASET_STORE);
+    const req = store.getAll();
+    return new Promise((resolve) => {
+      req.onsuccess = () => {
+        db.close();
+        resolve(Array.isArray(req.result) ? (req.result as AsetItem[]) : []);
+      };
+      req.onerror = () => {
+        db.close();
+        resolve([]);
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export const ASET_BACKUP_KEY = "keuangan-aset-cadangan-global";
+
 export function muatAset(): AsetItem[] {
+  // 1. Coba muat dari partisi akun saat ini
   const data = bacaJsonStorage<AsetItem[]>(ASET_KEY, []);
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data) && data.length > 0) {
+    return data;
+  }
+
+  // 2. Jika partisi kosong, periksa kunci cadangan global
+  try {
+    const rawBackup = localStorage.getItem(ASET_BACKUP_KEY);
+    if (rawBackup) {
+      const parsed = JSON.parse(rawBackup);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Pulihkan ke partisi aktif
+        tulisStorage(ASET_KEY, rawBackup);
+        return parsed as AsetItem[];
+      }
+    }
+  } catch {}
+
+  // 3. Periksa apakah ada data di kunci lama tanpa partisi
+  try {
+    const rawGlobal = localStorage.getItem(ASET_KEY);
+    if (rawGlobal) {
+      const parsed = JSON.parse(rawGlobal);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        tulisStorage(ASET_KEY, rawGlobal);
+        return parsed as AsetItem[];
+      }
+    }
+  } catch {}
+
+  // 4. Periksa partisi akun manapun yang ada di localStorage
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("keuangan_u_") && k.endsWith("_keuangan-aset")) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            tulisStorage(ASET_KEY, raw);
+            return parsed as AsetItem[];
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return [];
 }
 
 export function simpanAset(data: AsetItem[]): void {
+  // 1. Simpan ke partisi aktif
   tulisStorage(ASET_KEY, JSON.stringify(data));
+
+  // 2. Jika ada isinya, perbarui juga salinan cadangan global & IndexedDB
+  try {
+    if (Array.isArray(data) && data.length > 0) {
+      localStorage.setItem(ASET_BACKUP_KEY, JSON.stringify(data));
+      // Juga perbarui kunci lama tanpa partisi untuk kompatibilitas
+      localStorage.setItem(ASET_KEY, JSON.stringify(data));
+      void simpanAsetKeIndexedDB(data);
+    } else if (Array.isArray(data) && data.length === 0) {
+      // Jika memang sengaja dihapus semua
+      void simpanAsetKeIndexedDB([]);
+    }
+  } catch {}
 }
 
 export function muatHarga(): DataHarga {
