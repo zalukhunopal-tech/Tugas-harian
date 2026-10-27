@@ -574,18 +574,6 @@ html[data-tema="jujutsu"] .folder::after {
   }
 }
 
-html[data-tema="jujutsu"] .card h2::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 10px;
-  vertical-align: 3px;
-  background: var(--segel);
-  transform: rotate(45deg);
-  box-shadow: 0 0 8px rgba(var(--k1), 0.8);
-}
-
 html[data-tema="jujutsu"] .card h2,
 html[data-tema="jujutsu"] .folder summary {
   font-family: "Yuji Syuku", "Hiragino Mincho ProN", serif;
