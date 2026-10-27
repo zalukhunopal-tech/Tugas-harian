@@ -74,7 +74,7 @@ export const KartuTimesheetDrive: React.FC<KartuTimesheetDriveProps> = ({ daftar
       <div className="kartu-timesheet__judul">
         <h3>🗓️ Timesheet di Google Drive</h3>
         <p>
-          Belum ada data kegiatan di aplikasi, jadi pilihan kegiatan dan kartu Timesheet Perdiem belum tampil. Buat kegiatan dari file
+          Belum ada data kegiatan di aplikasi, jadi pilihan kegiatan dan kartu Timesheet Uang Harian belum tampil. Buat kegiatan dari file
           timesheet Anda di folder Keuangan.
         </p>
       </div>

@@ -31,10 +31,10 @@ import {
   KELOMPOK_DANA_KEGIATAN,
   formatRupiah,
   formatAngka,
-  hariIni,
-} from "./constants";
+  hariIni, labelKategori } from "./constants";
 import { hitungBatasLaporanFisik, KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
 import { hitungPenyelesaian, KATEGORI_PERDIEM, transaksiKegiatan } from "./penyelesaianDana";
+import { adalahKudapanPerjalanan, barisPenerimaManfaat } from "./penerimaManfaat";
 import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { ambilSemuaBuktiOffline } from "./buktiStorage";
 
@@ -402,7 +402,7 @@ function buatKotakStrukThermal(
 }
 
 /**
- * Daftar perdiem berformat file timesheet: "Detail Keuangan / Perdiem Kegiatan Lapangan", data Proyek, Judul Kegiatan,
+ * Daftar perdiem berformat file timesheet: "Detail Keuangan / Uang Harian (Per Diem) Kegiatan Lapangan", data Proyek, Judul Kegiatan,
  * Nama, Bulan, tabel No | Tanggal | Keterangan | Lokasi | Jumlah (Rp.), baris Total, lalu Dilaporkan Oleh / Disetujui Oleh.
  * Menggantikan kotak tempel per hari untuk kelompok Perdiem (perdiem tidak punya bukti fisik per hari).
  */
@@ -519,7 +519,7 @@ function buatBagianPerdiemTimesheet(daftar: DaftarPerdiemDokumen): (Paragraph | 
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 160 },
-      children: [new TextRun({ text: "Perdiem Kegiatan Lapangan", bold: true, font: "Arial", size: 24, color: "111111" })],
+      children: [new TextRun({ text: "Uang Harian (Per Diem) Kegiatan Lapangan", bold: true, font: "Arial", size: 24, color: "111111" })],
     }),
     tabelInfo,
     new Paragraph({ spacing: { before: 120, after: 60 }, border: { bottom: garisTebal }, children: [] }),
@@ -984,7 +984,7 @@ export async function buatDokumenLaporanKegiatanDocx(
     new Paragraph({ spacing: { before: 120, after: 0 }, children: [] }),
     barisPenyelesaian("Dana awal kegiatan (uang muka dari lembaga)", penyelesaian.danaAwal),
     barisPenyelesaian("Realisasi pengeluaran kegiatan", penyelesaian.realisasiOperasional),
-    barisPenyelesaian("Total perdiem", penyelesaian.totalPerdiem),
+    barisPenyelesaian("Total uang harian", penyelesaian.totalPerdiem),
     barisPenyelesaian("Total pengeluaran yang diakui", penyelesaian.totalDiakui, { tebal: true })
   );
 
@@ -1141,6 +1141,9 @@ export async function buatDokumenLaporanKegiatanDocx(
                     : []),
                 ],
               }),
+              ...(barisPenerimaManfaat(t)
+                ? [new Paragraph({ children: [new TextRun({ text: barisPenerimaManfaat(t)!, bold: true, font: "Arial", size: 17, color: "333333" })] })]
+                : []),
             ],
           }),
           new TableCell({
@@ -1148,7 +1151,7 @@ export async function buatDokumenLaporanKegiatanDocx(
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
-                children: [new TextRun({ text: t.kategori, font: "Arial", size: 19 })],
+                children: [new TextRun({ text: labelKategori(t.kategori), font: "Arial", size: 19 })],
               }),
             ],
           }),
@@ -1251,7 +1254,7 @@ export async function buatDokumenLaporanKegiatanDocx(
         spacing: { before: 80, after: 40 },
         children: [
           new TextRun({
-            text: `${kelompokAktifIndex}. ${namaKelompok.toUpperCase()}`,
+            text: `${kelompokAktifIndex}. ${labelKategori(namaKelompok).toUpperCase()}`,
             bold: true,
             font: "Arial",
             size: 26, // 13pt
@@ -1301,7 +1304,7 @@ export async function buatDokumenLaporanKegiatanDocx(
     for (const trx of trxUntukKotak) {
       const noGlobal = mapNomorUrut.get(trx.id) || 1;
       const detail = trx.detailKegiatan || {};
-      const jenisBukti = detail.jenisBukti || "Kwitansi";
+      const jenisBukti = detail.jenisBukti || "Kuitansi";
       const isThermal = jenisBukti === "Struk thermal (minimarket/SPBU)";
 
       // Cek apakah transaksi ini kompleks (memiliki beberapa kotak atau foto)
@@ -1376,16 +1379,16 @@ export async function buatDokumenLaporanKegiatanDocx(
         childrenSections.push(
           buatKotakStrukThermal(
             "TEMPEL STRUK ASLI DI SINI",
-            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}`,
+            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}${trx.detailKegiatan?.penerimaManfaat?.length ? ` · Penerima Manfaat: ${trx.detailKegiatan.penerimaManfaat.join(", ")}` : ""}`,
             fotoByte
           )
         );
       } else {
-        const tinggiMm = jenisBukti.toLowerCase().includes("tiket") || jenisBukti.toLowerCase().includes("kwitansi") ? 65 : 65;
+        const tinggiMm = jenisBukti.toLowerCase().includes("tiket") || jenisBukti.toLowerCase().includes("kuitansi") ? 65 : 65;
         childrenSections.push(
           buatKotakTempel(
             `TEMPEL ${jenisBukti.toUpperCase()} ASLI DI SINI`,
-            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}`,
+            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}${trx.detailKegiatan?.penerimaManfaat?.length ? ` · Penerima Manfaat: ${trx.detailKegiatan.penerimaManfaat.join(", ")}` : ""}`,
             tinggiMm
           )
         );
@@ -1628,11 +1631,24 @@ export async function buatDokumenLaporanKegiatanDocx(
             spacing: { after: 30 },
             children: [
               new TextRun({
-                text: `Penyedia Konsumsi: ${kon.penyedia || "-"} (Telp: ${kon.noTelp || "-"}) | Lokasi: ${kon.lokasi || "-"} | Jumlah Peserta: ${kon.jumlahPeserta || "-"} orang`,
+                text: adalahKudapanPerjalanan(namaKelompok, detail)
+                  ? `Toko/Warung Pembelian: ${kon.penyedia || "-"} (Telp: ${kon.noTelp || "-"}) | Rute/Lokasi: ${kon.lokasi || "-"}`
+                  : `Penyedia Konsumsi: ${kon.penyedia || "-"} (Telp: ${kon.noTelp || "-"}) | Lokasi: ${kon.lokasi || "-"} | Jumlah Peserta: ${kon.jumlahPeserta || "-"} orang`,
                 font: "Arial",
                 size: 19,
               }),
             ],
+          })
+        );
+      }
+
+      // Penerima manfaat (staf yang ikut memakai fasilitas atau menikmati pengeluaran ini), semua kategori
+      const teksPenerima = barisPenerimaManfaat(trx);
+      if (teksPenerima) {
+        paragrafKeterangan.push(
+          new Paragraph({
+            spacing: { after: 30 },
+            children: [new TextRun({ text: teksPenerima, bold: true, font: "Arial", size: 19 })],
           })
         );
       }

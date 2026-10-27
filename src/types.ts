@@ -205,13 +205,16 @@ export interface TransaksiBerulang {
 // --- Fitur Laporan Dana Kegiatan (Revisi) ---
 
 export type JenisBukti =
-  | "Kwitansi"
+  | "Kuitansi"
   | "Nota"
   | "Struk thermal (minimarket/SPBU)"
   | "Tiket"
   | "Tiket pesawat/e-ticket"
-  | "Invoice + kwitansi"
+  | "Invoice + kuitansi"
   | "Bukti tidak lengkap";
+
+/** Ukuran kotak tempel bukti fisik pada Lembar Tempel Bukti (A4 potret): A = struk (92 × 132 mm), B = kuitansi/tiket lebar (190 × 88 mm), C = kuitansi besar/faktur (190 × 132 mm). */
+export type UkuranKotakTempel = "A" | "B" | "C";
 
 export interface ProfilPelapor {
   nama: string;
@@ -325,6 +328,8 @@ export interface DetailKonsumsi {
   noTelp?: string;
   lokasi?: string;
   jumlahPeserta?: number;
+  /** Kudapan (snack) perjalanan: plafon sepertiga uang harian per penerima manfaat, lihat lib/penerimaManfaat.ts. */
+  kudapanPerjalanan?: boolean;
 }
 
 export interface DetailHonorarium {
@@ -362,6 +367,10 @@ export interface DataKhususKegiatan {
   konsumsi?: DetailKonsumsi;
   honorarium?: DetailHonorarium;
   perdiem?: DetailPerdiem;
+  /** Staf yang memakai fasilitas atau menerima manfaat pengeluaran ini ("numpang klaim"); kosong bila hanya pelapor. */
+  penerimaManfaat?: string[];
+  /** Ukuran kotak tempel yang dipilih manual; kosong = otomatis menurut kategori dan jenis bukti. */
+  kotakTempel?: UkuranKotakTempel;
 }
 
 export interface LaporanKegiatanFileContent {

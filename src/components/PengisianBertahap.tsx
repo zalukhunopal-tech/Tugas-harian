@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
+import { labelKategori } from "../lib/constants";
 import { KETENTUAN_DANA_KEGIATAN, KetentuanPeringatan } from "../lib/ketentuanKegiatan";
 import { LangkahBertahap, Prasyarat, URUTAN_LANGKAH, indeksLangkah, judulLangkah } from "../lib/prasyaratDokumen";
 
@@ -110,7 +111,7 @@ export const PilihJenisPengeluaran: React.FC<{
             <Ikon size={18} strokeWidth={2.3} />
           </span>
           <span className="bertahap-ubin__teks">
-            <strong>{kat}</strong>
+            <strong>{labelKategori(kat)}</strong>
             {KETENTUAN_DANA_KEGIATAN[kat]?.ringkasan && <span>{KETENTUAN_DANA_KEGIATAN[kat].ringkasan}</span>}
           </span>
         </button>

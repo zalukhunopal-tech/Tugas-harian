@@ -14,11 +14,12 @@ import {
   DetailBBM,
   DetailAkomodasi,
   DetailKonsumsi,
+  UkuranKotakTempel,
   DetailHonorarium,
   DetailPerdiem,
   DataKhususKegiatan,
 } from "../types";
-import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah, formatTanggalPanjang } from "../lib/constants";
+import { KATEGORI, KAITAN, METODE_BAYAR, hariIni, formatRupiah, formatTanggalPanjang, labelKategori } from "../lib/constants";
 import { buatId, muatIdTerhapus } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import {
@@ -46,6 +47,8 @@ import {
   indeksLangkah,
   saranUraian,
 } from "../lib/prasyaratDokumen";
+import { ingatStaf, kategoriBolehPenerima } from "../lib/penerimaManfaat";
+import { normalisasiJenisBukti } from "../lib/constants";
 import { cekKetentuanTransaksi } from "../lib/ketentuanKegiatan";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 import {
@@ -120,7 +123,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
   // Dana Kegiatan States
   const [kegiatanId, setKegiatanId] = useState<string>("");
-  const [jenisBukti, setJenisBukti] = useState<JenisBukti>("Kwitansi");
+  const [jenisBukti, setJenisBukti] = useState<JenisBukti>("Kuitansi");
   const [namaPenjualPenyedia, setNamaPenjualPenyedia] = useState<string>("");
   const [rincianBanyaknya, setRincianBanyaknya] = useState<string>("");
   const [rincianSatuan, setRincianSatuan] = useState<string>("");
@@ -146,7 +149,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
     jumlahHari: 1,
   });
   const [perdiem, setPerdiem] = useState<DetailPerdiem>({});
-  // Perdiem otomatis: pengisian sekaligus per rentang tanggal dan pemasukan pribadi yang menyertai perdiem
+  const [penerimaManfaat, setPenerimaManfaat] = useState<string[]>([]);
+  const [kotakTempel, setKotakTempel] = useState<UkuranKotakTempel | undefined>(undefined);
+  // Uang harian otomatis: pengisian sekaligus per rentang tanggal dan pemasukan pribadi yang menyertai perdiem
   const [perdiemRentang, setPerdiemRentang] = useState<PerdiemRentang>(PERDIEM_RENTANG_AWAL);
   const [catatPerdiemPribadi, setCatatPerdiemPribadi] = useState<boolean>(true);
   const [galatForm, setGalatForm] = useState<string>("");
@@ -212,7 +217,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         setKegiatanId(editTransaksi.kegiatanId || "");
         if (editTransaksi.detailKegiatan) {
           const dk = editTransaksi.detailKegiatan;
-          if (dk.jenisBukti) setJenisBukti(dk.jenisBukti);
+          if (dk.jenisBukti) setJenisBukti(normalisasiJenisBukti(dk.jenisBukti) ?? "Kuitansi");
           if (dk.namaPenjualPenyedia) setNamaPenjualPenyedia(dk.namaPenjualPenyedia);
           if (dk.rincian) {
             setRincianBanyaknya(String(dk.rincian.banyaknya || ""));
@@ -230,6 +235,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
           if (dk.konsumsi) setKonsumsi(dk.konsumsi);
           if (dk.honorarium) setHonorarium(dk.honorarium);
           setPerdiem(dk.perdiem || {});
+          setPenerimaManfaat(dk.penerimaManfaat ?? []);
+          setKotakTempel(dk.kotakTempel);
+        } else {
+          setPenerimaManfaat([]);
+          setKotakTempel(undefined);
         }
       }
       // Perdiem yang sudah punya pemasukan pribadi otomatis: pilihan awalnya tetap terhubung.
@@ -263,7 +273,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
       // Reset Dana Kegiatan
       setKegiatanId("");
-      setJenisBukti("Kwitansi");
+      setJenisBukti("Kuitansi");
       setNamaPenjualPenyedia("");
       setRincianBanyaknya("");
       setRincianSatuan("");
@@ -279,6 +289,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
       setPerdiem({});
+      setPenerimaManfaat([]);
+      setKotakTempel(undefined);
       setPerdiemRentang(PERDIEM_RENTANG_AWAL);
       setCatatPerdiemPribadi(true);
       setGalatForm("");
@@ -626,7 +638,13 @@ export const TambahView: React.FC<TambahViewProps> = ({
             konsumsi: kategori === "Konsumsi" ? konsumsi : undefined,
             honorarium: kategori === "Honorarium & Ganti Hari" ? honorarium : undefined,
             perdiem: kategori === "Perdiem" ? o.perdiem ?? perdiem : undefined,
+            penerimaManfaat:
+              (kategoriBolehPenerima(kategori) || (kategori === "Konsumsi" && konsumsi.kudapanPerjalanan)) && penerimaManfaat.length > 0
+                ? penerimaManfaat
+                : undefined,
+            kotakTempel: kategori !== "Perdiem" ? kotakTempel : undefined,
           };
+          if (detailKegiatanData.penerimaManfaat) ingatStaf(detailKegiatanData.penerimaManfaat);
         }
 
         return {
@@ -718,7 +736,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setTalanganUntuk("");
       setTargetTabunganId("");
       setKegiatanId("");
-      setJenisBukti("Kwitansi");
+      setJenisBukti("Kuitansi");
       setNamaPenjualPenyedia("");
       setRincianBanyaknya("");
       setRincianSatuan("");
@@ -734,6 +752,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setKonsumsi({});
       setHonorarium({ isPNS: false, hasNPWP: true, jumlahOrang: 1, jumlahHari: 1 });
       setPerdiem({});
+      setPenerimaManfaat([]);
+      setKotakTempel(undefined);
       setPerdiemRentang(PERDIEM_RENTANG_AWAL);
       setLangkah("kegiatan");
       setLangkahTerjauh(0);
@@ -779,6 +799,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
     konsumsi,
     honorarium,
     perdiem,
+    penerimaManfaat,
+    kotakTempel,
   };
   const isianBertahap: IsianBertahap = {
     kegiatanId,
@@ -881,6 +903,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
       onUpdateHonorarium={setHonorarium}
       perdiem={perdiem}
       onUpdatePerdiem={setPerdiem}
+      penerimaManfaat={penerimaManfaat}
+      onUpdatePenerimaManfaat={setPenerimaManfaat}
+      kotakTempel={kotakTempel}
+      onUpdateKotakTempel={setKotakTempel}
       rentangPerdiem={perdiemRentang}
       onUpdateRentangPerdiem={setPerdiemRentang}
       catatPerdiemPribadi={catatPerdiemPribadi}
@@ -903,7 +929,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           value={rentangPerdiemAktif ? perdiemRentang.mulai || tanggal : tanggal}
           onChange={(e) => setTanggal(e.target.value)}
           disabled={rentangPerdiemAktif}
-          title={rentangPerdiemAktif ? "Tanggal mengikuti rentang perdiem di bawah" : undefined}
+          title={rentangPerdiemAktif ? "Tanggal mengikuti rentang uang harian di bawah" : undefined}
           required
         />
       </div>
@@ -982,7 +1008,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
                   >
                     <Ikon size={12} strokeWidth={2.5} />
                   </span>
-                  <span>{kat}</span>
+                  <span>{labelKategori(kat)}</span>
                 </button>
               );
             })}
@@ -994,7 +1020,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           >
             {daftarKategori.map((kat) => (
               <option key={kat} value={kat}>
-                {kat}
+                {labelKategori(kat)}
               </option>
             ))}
           </select>
@@ -1445,6 +1471,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
         langkah: "nominal" as const,
       },
       { label: "Uraian", nilai: deskripsi.trim() || "—", langkah: "nominal" as const },
+      ...(penerimaManfaat.length > 0 && kategori !== "Perdiem"
+        ? [{ label: "Penerima manfaat", nilai: penerimaManfaat.join(", "), langkah: "rincian" as const }]
+        : []),
       {
         label: "Jumlah",
         nilai: hitunganRentang
@@ -1514,7 +1543,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           <>
             {kategori === "Perdiem" ? (
               <p className="help bertahap-info">
-                Perdiem dibayarkan sesuai TOR kegiatan, jadi tidak memerlukan nota. Lampiran di bawah boleh dikosongkan.
+                Uang harian dibayarkan sesuai TOR kegiatan, jadi tidak memerlukan nota. Lampiran di bawah boleh dikosongkan.
               </p>
             ) : (
               renderDanaKegiatan("bukti")
@@ -1808,7 +1837,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {/* Animasi Preview & Laser Scanning */}
           {memuatScan && previewFoto && (
             <div className="struk-preview-box">
-              <img src={previewFoto} alt="Preview Struk" className="struk-preview-img" />
+              <img src={previewFoto} alt="Pratinjau Struk" className="struk-preview-img" />
               <div className="struk-scan-laser" />
             </div>
           )}
@@ -1850,7 +1879,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <span>·</span>
                 <span>📅 {hasilScan.tanggal}</span>
                 <span>·</span>
-                <span>🏷️ {hasilScan.kategori}</span>
+                <span>🏷️ {labelKategori(hasilScan.kategori)}</span>
                 <span>·</span>
                 <span>💳 {hasilScan.metode}</span>
               </div>
@@ -1899,7 +1928,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
               }}
             >
-              Pemasukan ini dibuat otomatis dari perdiem di Dana Kegiatan, jadi yang dibuka adalah perdiem-nya.
+              Pemasukan ini dibuat otomatis dari uang harian di Dana Kegiatan, jadi yang dibuka adalah uang hariannya.
               Perubahan di sini ikut mengubah pemasukan pribadinya.
             </p>
           )}

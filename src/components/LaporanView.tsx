@@ -9,10 +9,12 @@ import {
   PROFIL_PELAPOR_DEFAULT,
   KELOMPOK_DANA_KEGIATAN,
   LAPORAN_AGENDA_KEY,
+  labelKategori,
 } from "../lib/constants";
 import { bacaJsonStorage, tulisStorage } from "../lib/storage";
 import { Pencil } from "lucide-react";
 import { DokumenSiapCetak } from "./DokumenSiapCetak";
+import { cetakDokumen } from "../lib/cetak";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
 import { KartuTimesheet } from "./KartuTimesheet";
 import { KartuTimesheetDrive } from "./KartuTimesheetDrive";
@@ -114,6 +116,22 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     [transaksi, kegiatanTerpilih, daftarKegiatan]
   );
 
+  // Pengeluaran pra-kegiatan (tiket berangkat, belanja logistik awal, kudapan keberangkatan) bertanggal sebelum tanggal mulai
+  // kegiatan. Saat sebuah kegiatan dipilih, "Dari Tanggal" otomatis sama dengan tanggal mulainya, sehingga batas bawah itu
+  // tidak boleh membuang transaksi milik kegiatan tersebut: semuanya ikut dan diurutkan menurut tanggal transaksi.
+  const tglMulaiLaporan = useMemo(() => {
+    if (!kegiatanTerpilih) return tglMulai;
+    let awal = tglMulai;
+    for (const t of transaksi) {
+      if (dana !== "Semua" && t.dana !== dana) continue;
+      if (filterKaitan !== "Semua" && t.kaitan !== filterKaitan) continue;
+      const milik = t.kegiatanId === pilihKegiatanId || t.kaitan === kegiatanTerpilih.nama || idTransaksiKegiatanTerpilih.has(t.id);
+      if (milik && t.tanggal < awal) awal = t.tanggal;
+    }
+    return awal;
+  }, [transaksi, dana, filterKaitan, tglMulai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
+  const adaPraKegiatan = tglMulaiLaporan < tglMulai;
+
   const kunciAgenda = `${pilihKegiatanId}|${filterKaitan}`;
   const agendaOtomatis = kegiatanTerpilih ? kegiatanTerpilih.nama : filterKaitan === "Semua" ? "Seluruh Kegiatan" : filterKaitan;
   const agendaTersimpan = agendaKustom[kunciAgenda];
@@ -166,12 +184,12 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
           if (!cocokId && !cocokNama && !idTransaksiKegiatanTerpilih.has(t.id)) return false;
         }
-        return t.tanggal < tglMulai;
+        return t.tanggal < tglMulaiLaporan;
       })
       .reduce((acc, t) => {
         return acc + (t.jenis === "pemasukan" ? t.jumlah : -t.jumlah);
       }, 0);
-  }, [transaksi, dana, filterKaitan, tglMulai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
+  }, [transaksi, dana, filterKaitan, tglMulaiLaporan, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
 
   // Transaksi dalam rentang tanggal dan kaitan
   const transaksiLaporan = useMemo(() => {
@@ -184,10 +202,10 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           const cocokNama = kegiatanTerpilih && t.kaitan === kegiatanTerpilih.nama;
           if (!cocokId && !cocokNama && !idTransaksiKegiatanTerpilih.has(t.id)) return false;
         }
-        return t.tanggal >= tglMulai && t.tanggal <= tglSelesai;
+        return t.tanggal >= tglMulaiLaporan && t.tanggal <= tglSelesai;
       })
       .sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-  }, [transaksi, dana, filterKaitan, tglMulai, tglSelesai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
+  }, [transaksi, dana, filterKaitan, tglMulaiLaporan, tglSelesai, pilihKegiatanId, kegiatanTerpilih, idTransaksiKegiatanTerpilih]);
 
   // Total Penerimaan & Pengeluaran dalam periode (Kategori Pindah Dana tidak dihitung)
   const totalPenerimaan = useMemo(() => {
@@ -239,7 +257,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const judul = dana === "Dana Kegiatan" ? "Laporan Penggunaan Dana Kegiatan" : `Laporan Keuangan (${dana})`;
     const barisMeta = [
       [judul],
-      [`Periode: ${tglMulai} s.d. ${tglSelesai}`],
+      [`Periode: ${tglMulaiLaporan} s.d. ${tglSelesai}`],
       [`Kaitan Kegiatan: ${filterKaitan}`],
       [`Tanggal Dibuat: ${new Date().toLocaleString("id-ID")}`],
       [],
@@ -252,7 +270,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
       ["RINCIAN PENGELUARAN PER KATEGORI"],
       ["Kategori", "Jumlah (Rp)", "Persentase (%)"],
       ...pengeluaranPerKategori.map((k) => [
-        `"${k.kategori.replace(/"/g, '""')}"`,
+        `"${labelKategori(k.kategori).replace(/"/g, '""')}"`,
         k.total,
         `${k.persen.toFixed(1)}%`,
       ]),
@@ -278,7 +296,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           idx + 1,
           t.tanggal,
           `"${(t.deskripsi || "").replace(/"/g, '""')}"`,
-          `"${(t.kategori || "").replace(/"/g, '""')}"`,
+          `"${labelKategori(t.kategori || "").replace(/"/g, '""')}"`,
           `"${(t.dana || "").replace(/"/g, '""')}"`,
           `"${(t.kaitan || "").replace(/"/g, '""')}"`,
           t.jenis === "pemasukan" ? t.jumlah : "",
@@ -295,7 +313,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `laporan-${dana.toLowerCase().replace(/\s+/g, "-")}-${tglMulai}-sd-${tglSelesai}.csv`;
+    a.download = `laporan-${dana.toLowerCase().replace(/\s+/g, "-")}-${tglMulaiLaporan}-sd-${tglSelesai}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -450,9 +468,10 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     }
   };
 
-  // Unduh PDF via Print View yang rapi
+  // Cetak / simpan sebagai PDF lewat pratinjau yang rapi: semua dokumen sekaligus (timesheet lanskap, lainnya potret).
+  // Pilihan cetak khusus timesheet atau dokumen klaim ada di bilah pratinjau (DokumenSiapCetak).
   const handleCetakPDF = () => {
-    window.print();
+    cetakDokumen("semua");
   };
 
   const judulLaporan =
@@ -491,7 +510,9 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
     return hasil.jumlahTransaksi > 0 ? hasil : null;
   }, [dana, transaksiPenyelesaian]);
   const penyelesaianSementara = kegiatanTercakup.some((k) => k.tanggalSelesai >= hariIni());
-  const periodeTeks = `Periode laporan: ${formatRentangTanggal(tglMulai, tglSelesai)}`;
+  const periodeTeks = `Periode laporan: ${formatRentangTanggal(tglMulaiLaporan, tglSelesai)}${
+    adaPraKegiatan ? ` (termasuk pengeluaran pra-kegiatan sebelum ${formatTanggalPanjang(tglMulai)})` : ""
+  }`;
 
   return (
     <div className="laporan-container" style={{ width: "100%" }}>
@@ -664,6 +685,13 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           </button>
         </div>
 
+        {adaPraKegiatan && (
+          <p className="laporan-pra-kegiatan no-print" role="status" data-testid="info-pra-kegiatan">
+            Kegiatan dimulai {formatTanggalPanjang(tglMulai)}. Laporan tetap memuat {transaksiLaporan.filter((t) => t.tanggal < tglMulai).length} transaksi
+            pra-kegiatan sejak {formatTanggalPanjang(tglMulaiLaporan)} (mis. tiket keberangkatan dan belanja awal).
+          </p>
+        )}
+
         {/* Kaitan Kegiatan / Kegiatan Lapangan */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", marginBottom: "6px" }}>
           {dana === "Dana Kegiatan" && daftarKegiatan.length > 0 && (
@@ -772,7 +800,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                     fontWeight: 700,
                   }}
                 >
-                  {transaksiPengeluaranTerurut.length} Bukti Kwitansi
+                  {transaksiPengeluaranTerurut.length} Bukti Kuitansi
                 </span>
               </div>
               <p style={{ margin: "3px 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
@@ -888,7 +916,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                                   border: "1px solid var(--border)",
                                 }}
                               >
-                                {item.kategori}
+                                {labelKategori(item.kategori)}
                               </span>
                             </td>
                             <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 700, color: "var(--keluar)" }}>
@@ -939,7 +967,10 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           <dl className="laporan-kop__data">
             <div>
               <dt>Periode</dt>
-              <dd>{formatRentangTanggal(tglMulai, tglSelesai)}</dd>
+              <dd>
+                {formatRentangTanggal(tglMulaiLaporan, tglSelesai)}
+                {adaPraKegiatan && <span className="laporan-kop__catatan"> · termasuk pengeluaran pra-kegiatan</span>}
+              </dd>
             </div>
             <div>
               <dt>Kaitan / Agenda</dt>
@@ -1174,7 +1205,7 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                   }}
                 >
                   <span>
-                    <strong>{k.kategori}</strong>{" "}
+                    <strong>{labelKategori(k.kategori)}</strong>{" "}
                     <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>({k.persen.toFixed(1)}%)</span>
                   </span>
                   <span style={{ fontWeight: 700, color: "var(--keluar)" }}>{formatRupiah(k.total)}</span>
