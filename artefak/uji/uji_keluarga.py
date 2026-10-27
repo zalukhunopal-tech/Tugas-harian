@@ -128,6 +128,11 @@ with sync_playwright() as p:
     hubungkan(pgB)
     buka_keluarga(pgB)
     cek(pgB.locator("#keluarga-kode-saya canvas.kode-qr").count() == 1, "kode QR tampil")
+    posisi_qr = pgB.evaluate("""() => { const c = document.querySelector('#keluarga-kode-saya canvas.kode-qr').getBoundingClientRect();
+        const k = document.querySelector('#keluarga-kode-saya').getBoundingClientRect(); const n = document.querySelector('#keluarga-nama').getBoundingClientRect();
+        return { selisih: Math.round((c.left + c.width / 2) - (k.left + k.width / 2)), qrAtasNama: c.bottom <= n.top + 1, lebarNama: Math.round(n.width), lebarKartu: Math.round(k.width) }; }""")
+    cek(abs(posisi_qr["selisih"]) <= 2, f"HP: kode QR tepat di tengah kartu (selisih {posisi_qr['selisih']} px)")
+    cek(posisi_qr["qrAtasNama"] and posisi_qr["lebarNama"] >= posisi_qr["lebarKartu"] - 40, "HP: nama dan email berada di bawah kode QR, selebar kartu")
     cek("adik@example.org" in pgB.locator("#keluarga-kode-saya .keluarga-email").inner_text(), "email diambil dari pemilik berkas (profil artefak tidak punya email)")
     pgB.fill("#keluarga-nama", "Adik Rahayu")
     pgB.wait_for_timeout(400)

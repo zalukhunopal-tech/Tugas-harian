@@ -5685,6 +5685,30 @@ button {
   gap: 16px;
 }
 
+.keluarga-qr-wrap {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+/* HP: kode QR tepat di tengah, lalu nama dan email selebar kartu di bawahnya. Tablet dan PC tetap berdampingan. */
+@media (max-width: 639.98px) {
+  .keluarga-kode {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .keluarga-qr-wrap {
+    width: 100%;
+  }
+
+  .keluarga-identitas {
+    flex: none;
+    width: 100%;
+  }
+}
+
 .kode-qr {
   display: block;
   width: 220px;
@@ -6439,90 +6463,273 @@ button {
   padding-top: 12px;
 }
 
-/* Kepala Ringkasan Tahunan: tata letak dasar (HP) sama seperti sebelumnya, ditengahkan di tablet dan PC (lihat di bawah). */
+/* ============================================================
+   Ringkasan Tahunan (tab Grafik): semua bagian rata tengah dan serapi satu sama lain, di HP, tablet, dan PC.
+   Kartu judul, tiga kartu angka, dan judul tiap bagian memakai pola yang sama: judul di tengah, isi mengikuti.
+   ============================================================ */
+.ringkasan-tahunan-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ringkasan-tahunan-container > .card,
+.ringkasan-tahunan-container > .ringkasan-metrik-grid {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Kartu judul: ikon, judul, keterangan, pemilih tahun, lalu Kategori Dana dipisah garis. */
 .ringkasan-tahun-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 16px 20px;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 16px 16px;
+  text-align: center;
 }
 
 .rt-judul {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .rt-judul__ikon {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
+  line-height: 1;
 }
 
 .rt-judul__nama {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 800;
+  text-wrap: balance;
 }
 
 .rt-judul__sub {
-  margin: 0;
+  margin: 2px 0 0;
   font-size: 0.85rem;
+  text-wrap: balance;
 }
 
 .rt-pemilih {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
 .rt-pemilih__tahun {
+  min-width: 156px;
   padding: 6px 14px;
   border-radius: 10px;
-  font-weight: 700;
-  font-size: 1rem;
+  border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--border);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  text-align-last: center;
 }
 
-/* ============================================================
-   Ringkasan Tahunan (tab Grafik) di tablet dan PC.
-   Hanya 640px ke atas: tampilan HP tidak berubah.
-   Gaya kartu di RingkasanTahunanView.tsx ditulis sebaris, jadi perlu !important untuk menimpanya.
-   ============================================================ */
+.ringkasan-tahun-header .dana-filter-bar {
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 14px 0 0;
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+}
+
+.ringkasan-tahun-header .dana-filter-info {
+  justify-content: center;
+  width: auto;
+}
+
+.ringkasan-tahun-header .dana-filter-dua-pilihan {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  max-width: 380px;
+}
+
+.ringkasan-tahun-header .dana-filter-chip {
+  justify-content: center;
+}
+
+/* Tiga kartu angka: HP 2 + 1 (Selisih selebar baris), tablet dan PC sejajar tiga kolom sama tinggi. */
+.ringkasan-metrik-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.rt-metrik {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 10px;
+  border-top: 3px solid var(--rt-warna, var(--accent));
+  box-shadow: inset 0 3px 0 var(--rt-warna, var(--accent));
+  text-align: center;
+}
+
+.rt-metrik--masuk {
+  --rt-warna: #10b981;
+}
+
+.rt-metrik--keluar {
+  --rt-warna: #ef4444;
+}
+
+.rt-metrik--surplus {
+  --rt-warna: var(--accent);
+}
+
+.rt-metrik--defisit {
+  --rt-warna: #f97316;
+}
+
+.rt-metrik--selisih {
+  grid-column: 1 / -1;
+}
+
+.rt-metrik__label {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+.rt-metrik__nilai {
+  max-width: 100%;
+  font-size: clamp(1.05rem, 4.8vw, 1.35rem);
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--rt-warna, var(--accent));
+  overflow-wrap: anywhere;
+}
+
+.rt-metrik__banding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 6px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.rt-delta {
+  font-weight: 700;
+}
+
+.rt-delta--baik {
+  color: #10b981;
+}
+
+.rt-delta--buruk {
+  color: #ef4444;
+}
+
+/* Judul tiap bagian: di tengah, dengan keterangan atau pilihan di bawahnya. */
+.rt-bagian__kepala {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.rt-bagian__judul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 1.05rem;
+  text-wrap: balance;
+}
+
+.rt-bagian__ket {
+  max-width: 60ch;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+/* Daftar kategori: nama di kiri, jumlah dan persen di kanan, batang selebar baris di bawahnya. */
+.ringkasan-tahunan-container .kategori-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.ringkasan-tahunan-container .kategori-nama {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ringkasan-tahunan-container .kategori-jumlah {
+  flex: none;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rt-legenda {
+  margin: 0;
+  justify-content: center;
+}
+
+.rt-segmen {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  max-width: 380px;
+  margin: 0;
+  overflow: visible;
+}
+
+.rt-segmen .chip {
+  min-width: 0;
+}
+
 @media (min-width: 640px) {
-  /* Semua bagian berjarak sama (sebelumnya campuran 16, 20, dan 24 px). */
-  .ringkasan-tahunan-container > .card,
-  .ringkasan-tahunan-container > .ringkasan-metrik-grid {
-    margin-bottom: 24px !important;
+  .ringkasan-tahunan-container {
+    gap: 24px;
   }
 
-  /* Kartu judul ditengahkan: ikon, judul, keterangan, pemilih tahun, lalu Kategori Dana dipisah garis. */
   .ringkasan-tahun-header {
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     gap: 16px;
     padding: 24px 24px 20px;
-    text-align: center;
   }
 
   .rt-judul {
-    flex-direction: column;
-    justify-content: center;
     gap: 8px;
   }
 
   .rt-judul__ikon {
     font-size: 2rem;
-    line-height: 1;
   }
 
   .rt-judul__nama {
     font-size: 1.4rem;
-    text-wrap: balance;
   }
 
   .rt-judul__sub {
@@ -6531,53 +6738,37 @@ button {
   }
 
   .rt-pemilih {
-    justify-content: center;
     gap: 10px;
   }
 
   .rt-pemilih__tahun {
     min-width: 168px;
-    text-align: center;
-    text-align-last: center;
   }
 
   .ringkasan-tahun-header .dana-filter-bar {
-    align-self: stretch;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     gap: 12px;
-    margin-bottom: 0;
     padding-top: 18px;
-    padding-bottom: 0;
-    border-bottom: none;
-    border-top: 1px solid var(--border);
   }
 
-  .ringkasan-tahun-header .dana-filter-info {
-    justify-content: center;
-  }
-
-  /* Tiga kartu metrik sejajar dalam satu baris (sebelumnya 2 + 1, kartu Selisih tertinggal sendiri). */
   .ringkasan-metrik-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 16px !important;
-    align-items: stretch;
-    /* --primary tidak didefinisikan di tema mana pun, sehingga garis kiri dan angka kartu Selisih hilang. */
-    --primary: var(--accent);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
   }
 
-  .ringkasan-metrik-grid > .card {
-    margin-bottom: 0 !important;
-    padding: 18px 20px !important;
-    min-width: 0;
+  .rt-metrik--selisih {
+    grid-column: auto;
   }
 
-  /* Nominal panjang tetap muat di kartu sepertiga lebar tablet. */
-  .ringkasan-metrik-grid > .card > div:nth-child(2) {
-    font-size: clamp(1.1rem, 2.1vw, 1.35rem) !important;
-    overflow-wrap: anywhere;
-    line-height: 1.25;
+  .rt-metrik {
+    padding: 18px 16px;
+  }
+
+  .rt-metrik__nilai {
+    font-size: clamp(1.1rem, 2.1vw, 1.35rem);
+  }
+
+  .rt-bagian__judul {
+    font-size: 1.1rem;
   }
 }
 
@@ -7578,11 +7769,17 @@ button {
   color: var(--muted);
 }
 
+/* Tombol utama selebar kartu; tautan "Ubah data" dan "Hapus pantauan" sebaris di bawahnya, di semua ukuran layar. */
 .umur-kartu__tombol {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 8px 14px;
+}
+
+.umur-kartu__tombol [data-aksi="ganti"] {
+  flex: 1 1 100%;
 }
 
 .umur-kartu__tombol .btn-secondary,
@@ -7625,6 +7822,7 @@ button {
   .umur-kartu__pemakaian .btn-secondary {
     min-height: 40px;
   }
+
 }
 
 /* ============================================================
@@ -7716,31 +7914,36 @@ button {
   color: #ef4444;
 }
 
-/* Saringan dan tombol tambah */
+/* Saringan dan tombol tambah: HP bertumpuk (saringan empat kolom sama lebar, tombol selebar baris);
+   tablet dan PC satu baris dengan tombol di kanan. */
 .dep-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 .dep-saringan {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
 }
 
 .dep-saringan button {
-  padding: 7px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 6px 4px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -7753,8 +7956,10 @@ button {
 .dep-tambah {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  width: auto;
+  width: 100%;
+  min-height: 44px;
   padding: 9px 16px;
   font-size: 0.86rem;
 }
@@ -8201,8 +8406,36 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dep-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dep-saringan {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dep-saringan::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dep-saringan button {
+    flex: none;
+    min-height: 40px;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
   .dep-tambah {
-    margin-left: auto;
+    width: auto;
+    min-height: 40px;
+    white-space: nowrap;
   }
 }
 
@@ -8233,11 +8466,6 @@ button {
     flex: 1 1 0;
   }
 
-  .dep-tambah {
-    flex: 1 1 100%;
-    justify-content: center;
-  }
-
   .dep-katalog__baris {
     flex-wrap: wrap;
   }
@@ -8245,4 +8473,525 @@ button {
   .dep-katalog__pantau {
     margin-left: 34px;
   }
+}
+
+/* ============================================================
+   Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan) di formulir Dana Kegiatan.
+   Tablet dan PC seperti semula; di HP tiga tombol sama lebar, judul dan jumlah foto bertumpuk rapi.
+   ============================================================ */
+.foto-pendukung {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.foto-pendukung__kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.foto-pendukung__judul {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.foto-pendukung__jumlah {
+  flex: none;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.foto-pendukung__tombol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.foto-pendukung__pilih {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.foto-pendukung__daftar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 639.98px) {
+  .foto-pendukung {
+    padding: 12px;
+  }
+
+  .foto-pendukung__kepala {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  .foto-pendukung__judul {
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .foto-pendukung__tombol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .foto-pendukung__pilih {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-height: 62px;
+    padding: 8px 4px;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .foto-pendukung__pilih > span:first-child {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .foto-pendukung__daftar {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 80px);
+    justify-content: space-between;
+    gap: 8px;
+  }
+}
+
+/* ============================================================
+   Pilihan Kategori di formulir transaksi: ubin sama ukuran dalam kisi (HP 2 kolom, tablet dan PC 3 kolom).
+   Daftar pilih bawaan tetap ada untuk pembaca layar, tetapi disembunyikan secara visual supaya tidak dobel.
+   ============================================================ */
+.kategori-pilih {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kategori-ubin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.kategori-ubin__ikon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--warna, var(--accent));
+  color: #fff;
+}
+
+.kategori-ubin__nama {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kategori-ubin[aria-pressed="true"] {
+  border-color: var(--warna, var(--accent));
+  box-shadow: inset 0 0 0 1px var(--warna, var(--accent));
+  background: color-mix(in srgb, var(--warna, var(--accent)) 20%, var(--surface));
+  color: var(--warna, var(--accent));
+  font-weight: 700;
+}
+
+.f-kategori {
+  position: relative;
+}
+
+.f-kategori > select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 640px) {
+  .kategori-pilih {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================
+   Scan Struk Belanja (Gemini AI): tampilan dasar seperti semula; di HP judul, dua tombol, dan hasil bacaan tersusun rapi.
+   ============================================================ */
+.struk-scanner-judul {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.struk-scanner-ikon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.struk-scanner-nama {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.struk-scanner-ket {
+  display: block;
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+}
+
+.struk-scanner-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.struk-hasil-rincian {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 639.98px) {
+  .card-struk-scanner {
+    padding: 14px;
+  }
+
+  .struk-scanner-judul {
+    align-items: flex-start;
+  }
+
+  .struk-scanner-nama {
+    font-size: 0.92rem;
+    line-height: 1.3;
+  }
+
+  .struk-scanner-ket {
+    line-height: 1.4;
+  }
+
+  .struk-scanner-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .struk-scanner-actions button {
+    justify-content: center;
+    min-height: 48px;
+    padding: 8px 6px;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .struk-hasil-rincian {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .struk-hasil-pemisah {
+    display: none;
+  }
+}
+
+/* Banner Riwayat: jadwal rutin yang belum dicatat bulan ini, dengan satu tombol konfirmasi. */
+.rutin-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.rutin-banner__ikon {
+  flex: none;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.rutin-banner__isi {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.rutin-banner__daftar {
+  font-size: 0.78rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.rutin-banner__aksi {
+  flex: none;
+  width: auto;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+@media (max-width: 639.98px) {
+  .rutin-banner {
+    flex-wrap: wrap;
+  }
+
+  .rutin-banner__aksi {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+}
+
+/* ============================================================
+   Lampiran Bukti / Nota di formulir transaksi: tampilan dasar seperti semula (tablet dan PC tidak berubah);
+   di HP judul, jumlah berkas, dua tombol, dan daftar berkas tersusun rapi.
+   ============================================================ */
+.lampiran-bukti {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border);
+}
+
+.lampiran-bukti__kepala {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.lampiran-bukti__judul {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lampiran-bukti__ket {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.lampiran-bukti__jumlah {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.lampiran-bukti__tombol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lampiran-bukti__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 639.98px) {
+  .lampiran-bukti__kepala {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  .lampiran-bukti__judul {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .lampiran-bukti__tombol {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .lampiran-bukti__btn {
+    justify-content: center;
+    min-height: 48px;
+    padding: 8px 6px;
+    line-height: 1.25;
+    text-align: center;
+  }
+}
+
+/* Penerimaan Dana: kolom Nama / Judul Kegiatan selebar baris, dengan keterangan status di bawahnya. */
+#form-transaksi > .f-judul-kegiatan {
+  grid-column: 1 / -1;
+}
+
+.f-judul-kegiatan input {
+  width: 100%;
+}
+
+.judul-kegiatan__ket {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.judul-kegiatan__ket--ada {
+  color: var(--masuk, #16a34a);
+  font-weight: 600;
+}
+
+.judul-kegiatan__ket--baru {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ============================================================
+   Kotak centang "Masukkan ke Depresiasi Aset" di formulir pengeluaran.
+   ============================================================ */
+.dep-centang {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.dep-centang--saran {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.dep-centang--aktif {
+  border-color: var(--accent);
+}
+
+.dep-centang__baris {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.dep-centang__baris input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.dep-centang__teks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+
+.dep-centang__teks small {
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.dep-centang__isi {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.dep-centang__ringkas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.dep-centang__ringkas span {
+  color: var(--muted);
+}
+
+.dep-centang__ringkas--kosong {
+  color: var(--keluar, #dc2626);
+}
+
+.dep-centang__atur > summary {
+  padding: 4px 0;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dep-centang__atur[open] > summary {
+  margin-bottom: 10px;
+}
+
+#form-transaksi > .dep-centang {
+  grid-column: 1 / -1;
 }

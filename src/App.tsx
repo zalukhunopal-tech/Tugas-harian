@@ -52,7 +52,7 @@ import {
   muatLaporanKegiatanFile,
 } from "./lib/storage";
 import { adalahPemasukanPerdiemOtomatis, cariPasanganPerdiem } from "./lib/perdiemOtomatis";
-import { apakahJatuhTempo } from "./lib/transaksiBerulang";
+import { apakahJatuhTempo, buatTransaksiDariBerulang, formatTanggalIso, tanggalJadwalSaatIni } from "./lib/transaksiBerulang";
 import { TOKOH_TEMA } from "./lib/tokohTema";
 import { useGesekMenu } from "./lib/useGesekMenu";
 import {
@@ -155,7 +155,8 @@ export default function App() {
     muatTransaksiBerulang()
   );
   const [modalBerulangBuka, setModalBerulangBuka] = useState(false);
-  const jumlahJatuhTempo = daftarBerulang.filter(apakahJatuhTempo).length;
+  // Jadwal rutin yang transaksinya untuk periode ini belum ada: hanya inilah yang diingatkan di Riwayat.
+  const rutinBelumDicatat = daftarBerulang.filter((d) => apakahJatuhTempo(d, transaksi));
   const jumlahPerhatianDepresiasi = itemPerluPeringatan(pengaturan.penyusutan ?? [], hariIni()).length;
 
   const [tema, setTema] = useState<TemaId>(() => (bacaStorage(TEMA_KEY, "jujutsu") as TemaId) || "jujutsu");
@@ -1387,6 +1388,18 @@ export default function App() {
     }
   };
 
+  // Konfirmasi dari banner Riwayat: catat semua jadwal rutin yang transaksinya untuk periode ini belum ada,
+  // dengan tanggal, jumlah, kategori, dan dana sesuai jadwalnya.
+  const handleTerapkanRutin = () => {
+    const jatuhTempo = daftarBerulang.filter((d) => apakahJatuhTempo(d, transaksi));
+    if (jatuhTempo.length === 0) return;
+    handleSimpanTransaksi(jatuhTempo.map((d) => buatTransaksiDariBerulang(d, tanggalJadwalSaatIni(d))));
+    const sekarangIso = formatTanggalIso(new Date());
+    const daftarBaru = daftarBerulang.map((x) => (jatuhTempo.some((j) => j.id === x.id) ? { ...x, terakhirDiterapkan: sekarangIso } : x));
+    setDaftarBerulang(daftarBaru);
+    simpanTransaksiBerulang(daftarBaru);
+  };
+
   const handleHapusTransaksi = (id: string) => {
     const target = transaksi.find((t) => t.id === id);
     const idsToHapus = [id];
@@ -1747,8 +1760,8 @@ export default function App() {
                       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
                     );
                   }}
-                  onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
-                  jumlahJatuhTempo={jumlahJatuhTempo}
+                  rutinBelumDicatat={rutinBelumDicatat}
+                  onTerapkanRutin={handleTerapkanRutin}
                   daftarUtangPiutang={daftarUtangPiutang}
                   onSimpanUtangPiutang={handleSimpanUtangPiutang}
                   onHapusUtangPiutang={handleHapusUtangPiutang}
@@ -1866,12 +1879,13 @@ export default function App() {
               <TambahView
                 editTransaksi={editTransaksi}
                 dialihkanDariPerdiemPribadi={Boolean(editTransaksi) && editDialihkanDariPerdiem}
-                onSimpan={(trx, hapusIds) => {
+                onSimpan={(trx, hapusIds, opsi) => {
                   handleSimpanTransaksi(trx, hapusIds);
                   setTargetTabunganAwalId("");
                   setCurrentView(lastActiveTab);
-                  // Pembelian baru yang tampak tahan lama: tawarkan untuk dihitung depresiasinya (hanya yang disetujui masuk daftar).
-                  if (!editTransaksi && !Array.isArray(trx)) {
+                  // Pembelian baru yang tampak tahan lama: tawarkan untuk dihitung depresiasinya (hanya yang disetujui masuk daftar),
+                  // kecuali pengguna sudah memutuskan lewat kotak centang di formulir.
+                  if (!editTransaksi && !Array.isArray(trx) && !opsi?.sudahMemutuskanDepresiasi) {
                     const tawaran = nilaiTawaranDepresiasi(trx);
                     if (tawaran.tawar) setDialogDepresiasi({ jenis: "tawaran", transaksi: trx, preset: tawaran.preset, alasan: tawaran.alasan });
                   }
@@ -1884,14 +1898,14 @@ export default function App() {
                 }}
                 initialScanMode={initialScanMode}
                 onResetInitialScanMode={() => setInitialScanMode(null)}
-                onBukaTransaksiBerulang={() => setModalBerulangBuka(true)}
-                jumlahJatuhTempo={jumlahJatuhTempo}
-                daftarBerulang={daftarBerulang}
                 daftarTransaksi={transaksi}
                 daftarTargetTabungan={daftarTargetTabungan}
                 targetTabunganAwalId={targetTabunganAwalId}
                 daftarKegiatan={daftarKegiatan}
                 onTambahKegiatan={handleTambahKegiatan}
+                daftarPenyusutan={pengaturan.penyusutan ?? []}
+                onSimpanPenyusutan={handleSimpanPenyusutan}
+                onHapusPenyusutan={handleHapusPenyusutan}
               />
             )}
           </main>
@@ -2036,6 +2050,7 @@ export default function App() {
         isOpen={modalBerulangBuka}
         onClose={() => setModalBerulangBuka(false)}
         daftarBerulang={daftarBerulang}
+        daftarTransaksi={transaksi}
         onSimpanDaftar={(daftar) => {
           setDaftarBerulang(daftar);
           simpanTransaksiBerulang(daftar);

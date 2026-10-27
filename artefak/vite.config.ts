@@ -35,14 +35,18 @@ function entriArtefak(): Plugin {
  * Penyesuaian teks di SayaView supaya tidak menjanjikan "login Google" dan "sesi 3 bulan" yang tidak
  * berlaku di mode konektor. Hanya kosmetik: bila teks sumber berubah, penggantian dilewati dengan peringatan.
  */
-const GANTI_TEKS: Array<{ dari: string; ke: string }> = [
-  { dari: "Masuk dengan Google & Sinkron Drive", ke: "Sambungkan konektor Google Drive" },
+const GANTI_TEKS: Array<{ dari: string[]; ke: string }> = [
+  { dari: ["Masuk dengan Google & Sinkron Drive"], ke: "Sambungkan konektor Google Drive" },
   {
-    dari: '"Akses Google Drive Aktif & Tersambung"',
+    // Teks sumber pernah berganti redaksi; semua varian yang dikenal dicoba supaya penggantian tidak diam-diam gagal.
+    dari: ["`Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`", '"Akses Google Drive Aktif & Tersambung"'],
     ke: '"Konektor Google Drive aktif"',
   },
   {
-    dari: "`Sesi akun Google di perangkat aktif hingga ${statusSesi.tanggalKedaluwarsa} (${statusSesi.sisaHari} hari tersisa). Data otomatis disinkronkan ke folder Keuangan.`",
+    dari: [
+      "`Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`",
+      "`Sesi akun Google di perangkat aktif hingga ${statusSesi.tanggalKedaluwarsa} (${statusSesi.sisaHari} hari tersisa). Data otomatis disinkronkan ke folder Keuangan.`",
+    ],
     ke: '"Sinkronisasi memakai konektor Google Drive dan Google Sheets di akun Claude Anda. Izinnya bisa dicabut dari menu Izin halaman ini."',
   },
 ];
@@ -54,8 +58,9 @@ function teksArtefak(): Plugin {
       if (!id.endsWith("/components/SayaView.tsx")) return null;
       let hasil = kode;
       for (const { dari, ke } of GANTI_TEKS) {
-        if (hasil.includes(dari)) hasil = hasil.split(dari).join(ke);
-        else this.warn(`Teks tidak ditemukan di SayaView.tsx, dilewati: ${dari.slice(0, 50)}…`);
+        const ada = dari.filter((d) => hasil.includes(d));
+        if (ada.length === 0) this.warn(`Teks tidak ditemukan di SayaView.tsx, dilewati: ${dari[0].slice(0, 50)}…`);
+        for (const d of ada) hasil = hasil.split(d).join(ke);
       }
       return { code: hasil, map: null };
     },

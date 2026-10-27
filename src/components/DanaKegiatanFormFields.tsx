@@ -1668,50 +1668,30 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
       {/* 7. Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan) */}
       {tampil("foto") && (
-        <div style={{ background: "var(--surface)", padding: "10px 12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-            <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-              📸 Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan)
-            </label>
-            <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
-              {fotoPendukung.length} foto terlampir
-            </span>
+        <div className="foto-pendukung" data-testid="foto-pendukung">
+          <div className="foto-pendukung__kepala">
+            <span className="foto-pendukung__judul">📸 Foto Pendukung Opsional (Barang, Kendaraan, Kegiatan)</span>
+            <span className="foto-pendukung__jumlah">{fotoPendukung.length} foto terlampir</span>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
-            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-              <span>📦 + Foto Barang</span>
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => void handleTambahFotoPendukung(e, "barang")}
-              />
-            </label>
-
-            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-              <span>🚗 + Foto Kendaraan</span>
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => void handleTambahFotoPendukung(e, "kendaraan")}
-              />
-            </label>
-
-            <label className="btn-secondary" style={{ fontSize: "0.75rem", padding: "4px 8px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-              <span>👥 + Foto Kegiatan</span>
-              <input
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => void handleTambahFotoPendukung(e, "kegiatan")}
-              />
-            </label>
+          <div className="foto-pendukung__tombol">
+            {(
+              [
+                ["barang", "📦", "Barang"],
+                ["kendaraan", "🚗", "Kendaraan"],
+                ["kegiatan", "👥", "Kegiatan"],
+              ] as const
+            ).map(([jenis, ikon, nama]) => (
+              <label className="btn-secondary foto-pendukung__pilih" key={jenis} data-foto={jenis}>
+                <span aria-hidden="true">{ikon}</span>
+                <span>+ Foto {nama}</span>
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => void handleTambahFotoPendukung(e, jenis)} />
+              </label>
+            ))}
           </div>
 
           {fotoPendukung.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            <div className="foto-pendukung__daftar">
               {fotoPendukung.map((foto) => (
                 <div
                   key={foto.id}

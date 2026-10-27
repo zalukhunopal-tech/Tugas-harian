@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { TransaksiBerulang, FrekuensiBerulang, JenisTransaksi, NamaDana, Transaksi } from "../types";
 import { KATEGORI, METODE_BAYAR, formatRupiah, hariIni, labelKategori } from "../lib/constants";
 import { buatId } from "../lib/storage";
-import { apakahJatuhTempo, buatTransaksiDariBerulang, hitungTanggalBerikutnya, formatTanggalIso } from "../lib/transaksiBerulang";
+import { apakahJatuhTempo, buatTransaksiDariBerulang, hitungTanggalBerikutnya, formatTanggalIso, tanggalJadwalSaatIni } from "../lib/transaksiBerulang";
 
 interface TransaksiBerulangModalProps {
   isOpen: boolean;
   onClose: () => void;
   daftarBerulang: TransaksiBerulang[];
   onSimpanDaftar: (daftar: TransaksiBerulang[]) => void;
-  onTambahTransaksi: (t: Transaksi) => void;
+  onTambahTransaksi: (t: Transaksi | Transaksi[]) => void;
+  /** Transaksi yang sudah tercatat: jadwal yang transaksinya untuk periode ini sudah ada tidak dianggap jatuh tempo. */
+  daftarTransaksi?: Transaksi[];
 }
 
 export const TransaksiBerulangModal: React.FC<TransaksiBerulangModalProps> = ({
@@ -18,6 +20,7 @@ export const TransaksiBerulangModal: React.FC<TransaksiBerulangModalProps> = ({
   daftarBerulang,
   onSimpanDaftar,
   onTambahTransaksi,
+  daftarTransaksi,
 }) => {
   const [modeForm, setModeForm] = useState<"daftar" | "tambah" | "edit">("daftar");
   const [editId, setEditId] = useState<string | null>(null);
@@ -163,16 +166,14 @@ export const TransaksiBerulangModal: React.FC<TransaksiBerulangModalProps> = ({
     setTimeout(() => setPesanSukses(""), 3500);
   };
 
-  const itemJatuhTempo = daftarBerulang.filter(apakahJatuhTempo);
+  const itemJatuhTempo = daftarBerulang.filter((x) => apakahJatuhTempo(x, daftarTransaksi));
 
   const handleTerapkanSemuaJatuhTempo = () => {
     if (itemJatuhTempo.length === 0) return;
     const sekarangIso = formatTanggalIso(new Date());
 
-    itemJatuhTempo.forEach((item) => {
-      const trx = buatTransaksiDariBerulang(item);
-      onTambahTransaksi(trx);
-    });
+    // Satu panggilan untuk semuanya: panggilan berturut-turut dalam satu giliran saling menimpa karena memakai daftar yang sama.
+    onTambahTransaksi(itemJatuhTempo.map((item) => buatTransaksiDariBerulang(item, tanggalJadwalSaatIni(item))));
 
     const baru = daftarBerulang.map((x) =>
       itemJatuhTempo.some((j) => j.id === x.id) ? { ...x, terakhirDiterapkan: sekarangIso } : x
@@ -359,7 +360,7 @@ export const TransaksiBerulangModal: React.FC<TransaksiBerulangModalProps> = ({
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {daftarBerulang.map((item) => {
-                  const jatuhTempo = apakahJatuhTempo(item);
+                  const jatuhTempo = apakahJatuhTempo(item, daftarTransaksi);
                   const tglBerikut = hitungTanggalBerikutnya(item);
 
                   return (
