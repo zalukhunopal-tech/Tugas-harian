@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef } from "react";
-import { Transaksi, NamaDana, ItemHutangPiutang, TargetTabunganItem } from "../types";
+import { Transaksi, NamaDana, ItemHutangPiutang, ItemPenyusutan, TargetTabunganItem } from "../types";
+import { BannerUmurBarang, LencanaUmur } from "./UmurBarangUI";
+import { hitungPenyusutan } from "../lib/penyusutan";
 import {
   formatRupiah,
   formatAngka,
@@ -37,6 +39,9 @@ interface RiwayatViewProps {
   daftarTargetTabungan?: TargetTabunganItem[];
   onSimpanTargetTabungan?: (item: TargetTabunganItem) => void;
   onHapusTargetTabungan?: (id: string) => void;
+  /** Pantauan umur barang: banner peringatan di dashboard dan lencana pada transaksi pembeliannya. */
+  daftarPenyusutan?: ItemPenyusutan[];
+  onBukaUmurBarang?: () => void;
   onBukaTambahTabungan?: (targetId: string, targetNama: string) => void;
   subTabAwal?: "transaksi" | "utang_piutang" | "target_tabungan";
   googleToken?: string;
@@ -59,6 +64,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   daftarTargetTabungan = [],
   onSimpanTargetTabungan,
   onHapusTargetTabungan,
+  daftarPenyusutan = [],
+  onBukaUmurBarang,
   onBukaTambahTabungan,
   subTabAwal = "transaksi",
   googleToken,
@@ -350,6 +357,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         />
       ) : (
         <>
+          <BannerUmurBarang daftar={daftarPenyusutan} onBuka={onBukaUmurBarang} />
           {jumlahJatuhTempo > 0 && onBukaTransaksiBerulang && (
         <div
           style={{
@@ -925,6 +933,11 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                           >
                             {[item.dana, item.metode].filter(Boolean).join(" · ")}
                           </span>
+                          {(() => {
+                            const pantauan = daftarPenyusutan.find((x) => x.transaksiId === item.id);
+                            const hasilUmur = pantauan ? hitungPenyusutan(pantauan, hariIni()) : null;
+                            return hasilUmur ? <LencanaUmur hasil={hasilUmur} /> : null;
+                          })()}
                           {item.bukti && item.bukti.length > 0 && (
                             <span
                               style={{

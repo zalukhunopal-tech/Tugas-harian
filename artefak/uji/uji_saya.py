@@ -179,6 +179,8 @@ with sync_playwright() as p:
                 break
             perkecil.click()
         pg.wait_for_timeout(200)
+        ukur_teks = "(() => { const a = document.querySelector('.saya-app'); const nav = document.querySelector('.saya-peluncur'); return { ikon: a.querySelector('.saya-app-ikon').getBoundingClientRect().width, nama: parseFloat(getComputedStyle(a.querySelector('.saya-app-nama')).fontSize), status: parseFloat(getComputedStyle(a.querySelector('.saya-app-status')).fontSize), gap: parseFloat(getComputedStyle(nav).rowGap), pad: parseFloat(getComputedStyle(nav).paddingBottom) }; })()"
+        kecil = pg.evaluate(ukur_teks)
         cek(perkecil.is_disabled() and pg.locator(".saya-peluncur-kolom").inner_text() == "6 kolom", "ukuran terkecil: 6 kolom, tombol perkecil nonaktif")
         cek(pg.evaluate(jumlah_kolom) == 6, "kisi ikon ikut menjadi 6 kolom")
         for _ in range(8):
@@ -187,6 +189,12 @@ with sync_playwright() as p:
             perbesar.click()
         pg.wait_for_timeout(200)
         cek(perbesar.is_disabled() and pg.locator(".saya-peluncur-kolom").inner_text() == "2 kolom", "ukuran terbesar: 2 kolom, tombol perbesar nonaktif")
+        besar = pg.evaluate(ukur_teks)
+        rasio_ikon = besar["ikon"] / kecil["ikon"]
+        cek(abs(besar["nama"] / kecil["nama"] - rasio_ikon) < 0.15 * rasio_ikon, f"{lebar}px: nama aplikasi ikut membesar sebanding ikon (×{besar['nama'] / kecil['nama']:.2f} vs ikon ×{rasio_ikon:.2f})")
+        cek(besar["status"] > kecil["status"] * 1.4, f"{lebar}px: keterangan status ikut membesar ({kecil['status']:.1f} → {besar['status']:.1f} px)")
+        cek(besar["gap"] > kecil["gap"] * 1.5 and besar["pad"] > kecil["pad"] * 1.3, f"{lebar}px: jarak antarpilihan dan bantalan ikut membesar (gap {kecil['gap']:.0f} → {besar['gap']:.0f} px)")
+        cek(not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{lebar}px: ukuran terbesar tanpa luapan horizontal")
         pg.locator(".saya-ukuran-geser").fill("70")
         pg.wait_for_timeout(200)
         cek(pg.locator(".saya-peluncur-kolom").inner_text() == "4 kolom" and pg.evaluate(jumlah_kolom) == 4, "garis geser mengubah ukuran (4 kolom)")

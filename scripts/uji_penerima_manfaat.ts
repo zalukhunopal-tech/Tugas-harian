@@ -12,7 +12,7 @@ import {
   plafonKudapan,
   tambahPenerima,
 } from "../src/lib/penerimaManfaat";
-import { perkirakanHalamanTempel, pilihUkuranKotak, susunKotakTempel, perluKotakTempel, UKURAN_KOTAK } from "../src/lib/lembarTempel";
+import { perkirakanHalamanTempel, pilihUkuranKotak, susunKotakTempel, perluKotakTempel, tinggiBarisLampiran, UKURAN_KOTAK } from "../src/lib/lembarTempel";
 import { aturanHalaman } from "../src/lib/cetak";
 import { labelKategori, normalisasiJenisBukti } from "../src/lib/constants";
 import { normalisasiTransaksi } from "../src/lib/storage";
@@ -123,15 +123,31 @@ async function main() {
   const kotakPenerima = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi"] } })], () => "7");
   cek("kepala kotak memuat Penerima Manfaat", /\| Penerima Manfaat: Nopal, Budi \| Rp/.test(kotakPenerima[0].kepala), kotakPenerima[0].kepala);
 
-  console.log("Perkiraan halaman lembar tempel (A4 potret, area 190 × 277 mm)");
-  const dari = (u: string) => [...u].map((k) => ({ ukuran: UKURAN_KOTAK[k as UkuranKotakTempel] }));
-  cek("4 Tipe A = 1 halaman, 5 = 2 halaman", perkirakanHalamanTempel(dari("AAAA")) === 1 && perkirakanHalamanTempel(dari("AAAAA")) === 2);
-  cek("3 Tipe B = 1 halaman, 4 = 2 halaman", perkirakanHalamanTempel(dari("BBB")) === 1 && perkirakanHalamanTempel(dari("BBBB")) === 2);
-  cek("2 Tipe C = 1 halaman, 3 = 2 halaman", perkirakanHalamanTempel(dari("CC")) === 1 && perkirakanHalamanTempel(dari("CCC")) === 2);
-  cek("A berpasangan lalu C = 1 halaman (132 + 132 + jarak)", perkirakanHalamanTempel(dari("AAC")) === 1);
+  console.log("Perkiraan halaman lampiran bukti (A4 potret, area 190 × 277 mm)");
+  const dari = (u: string, varian: "ringkas" | "terpadu" | "foto" = "ringkas") => [...u].map((k) => ({ ukuran: UKURAN_KOTAK[k as UkuranKotakTempel], varian }));
+  cek("ringkas: 4 Tipe A = 1 halaman, 5 = 2 halaman", perkirakanHalamanTempel(dari("AAAA")) === 1 && perkirakanHalamanTempel(dari("AAAAA")) === 2);
+  cek("ringkas: 3 Tipe B = 1 halaman, 4 = 2 halaman", perkirakanHalamanTempel(dari("BBB")) === 1 && perkirakanHalamanTempel(dari("BBBB")) === 2);
+  cek("ringkas: 2 Tipe C = 1 halaman, 3 = 2 halaman", perkirakanHalamanTempel(dari("CC")) === 1 && perkirakanHalamanTempel(dari("CCC")) === 2);
+  cek("ringkas: A berpasangan lalu C = 1 halaman (132 + 132 + jarak)", perkirakanHalamanTempel(dari("AAC")) === 1);
+  cek("terpadu (foto + tempel): 2 Tipe A per halaman", perkirakanHalamanTempel(dari("AA", "terpadu")) === 1 && perkirakanHalamanTempel(dari("AAA", "terpadu")) === 2);
+  cek("terpadu: Tipe B dan C masing-masing satu halaman", perkirakanHalamanTempel(dari("B", "terpadu")) === 1 && perkirakanHalamanTempel(dari("BB", "terpadu")) === 2 && perkirakanHalamanTempel(dari("CC", "terpadu")) === 2);
+  cek("tinggi kartu terpadu: A 132 mm, B 222 mm, C 246 mm", tinggiBarisLampiran({ ukuran: UKURAN_KOTAK.A, varian: "terpadu" }) === 132 && tinggiBarisLampiran({ ukuran: UKURAN_KOTAK.B, varian: "terpadu" }) === 222 && tinggiBarisLampiran({ ukuran: UKURAN_KOTAK.C, varian: "terpadu" }) === 246);
+  cek("lembar foto saja: satu halaman tiap foto", perkirakanHalamanTempel(dari("AB", "foto")) === 2);
   cek("tanpa kotak = 0 halaman", perkirakanHalamanTempel([]) === 0);
 
-  console.log("Aturan halaman cetak");
+  console.log("Foto digital dan kotak tempel dalam satu lembar");
+  const foto = { id: "f1", nama: "struk.jpg", tipe: "image/jpeg", dataUrl: "data:image/jpeg;base64,AA==" };
+  const bukti = susunKotakTempel(
+    [trx({ id: "a", kategori: "BBM", bukti: [foto] }), trx({ id: "b", kategori: "Akomodasi" }), trx({ id: "p", kategori: "Perdiem", bukti: [foto] }), trx({ id: "n", kategori: "Konsumsi", jenis: "pemasukan", bukti: [foto] })],
+    (id) => id
+  );
+  cek("pengeluaran berfoto → varian terpadu (foto + tempel dalam satu kartu)", bukti[0].varian === "terpadu" && bukti[0].bukti.length === 1);
+  cek("pengeluaran tanpa foto → kotak tempel ringkas", bukti[1].varian === "ringkas" && bukti[1].bukti.length === 0);
+  cek("uang harian dan penerimaan berfoto → lembar foto saja (tanpa kotak tempel)", bukti[2].varian === "foto" && bukti[3].varian === "foto");
+  const tanpaTempel = susunKotakTempel([trx({ id: "a", kategori: "BBM", bukti: [foto] }), trx({ id: "b", kategori: "Akomodasi" })], (id) => id, { sertakanTempel: false });
+  cek("kotak tempel dimatikan: hanya yang berfoto, sebagai lembar foto", tanpaTempel.length === 1 && tanpaTempel[0].varian === "foto");
+
+console.log("Aturan halaman cetak");
   cek("semua: tanpa suntikan (halaman bernama di CSS)", aturanHalaman("semua") === null);
   cek("timesheet: A4 landscape", /size: A4 landscape/.test(aturanHalaman("timesheet") ?? ""));
   cek("klaim: A4 portrait", /size: A4 portrait/.test(aturanHalaman("klaim") ?? ""));

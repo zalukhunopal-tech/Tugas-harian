@@ -1,9 +1,10 @@
-import { Transaksi, UkuranKotakTempel } from "../types";
-import { formatRupiah } from "./constants";
+import { BuktiItem, Transaksi, UkuranKotakTempel } from "../types";
+import { formatRupiah, labelKategori } from "./constants";
 
 /**
- * Lembar Tempel Bukti / Nota Asli (A4 potret, area cetak bersih 190 × 277 mm): kotak kosong tempat struk, kuitansi, atau tiket asli
- * ditempel. Tiga ukuran standar, dipilih otomatis menurut jenis bukti dan kategori, dan bisa diubah per pengeluaran.
+ * Lampiran Bukti (A4 potret, area cetak bersih 190 × 277 mm): untuk tiap pengeluaran, foto bukti digital dan kotak kosong tempat
+ * struk, kuitansi, atau tiket asli ditempel berada di SATU lembar yang sama dan tidak terpisah antarhalaman.
+ * Kotak tempel punya tiga ukuran standar, dipilih otomatis menurut jenis bukti dan kategori, dan bisa diubah per pengeluaran.
  */
 
 export interface UkuranKotak {
@@ -71,12 +72,38 @@ export function perluKotakTempel(t: Pick<Transaksi, "jenis" | "kategori">): bool
   return t.jenis === "pengeluaran" && t.kategori !== "Perdiem" && t.kategori !== "Pindah Dana";
 }
 
+/**
+ * Tiga bentuk lampiran untuk satu pengeluaran:
+ *   ringkas  hanya kotak tempel (tanpa foto digital): Tipe A berpasangan dua per baris, Tipe B dan C satu baris penuh.
+ *   terpadu  foto digital + kotak tempel dalam satu kartu selebar halaman: Tipe A berdampingan kiri-kanan (foto | tempel),
+ *            Tipe B dan C atas-bawah (foto di atas, kotak tempel di bawah).
+ *   foto     hanya foto digital (kotak tempel dimatikan, atau uang harian/penerimaan yang tidak ditempeli nota): satu lembar penuh.
+ */
+export type VarianLampiran = "ringkas" | "terpadu" | "foto";
+
 export interface KotakTempel {
   id: string;
   nomor: string;
   ukuran: UkuranKotak;
+  varian: VarianLampiran;
   /** Satu baris ringkas untuk kepala kotak: No. | Tanggal | Kategori - Uraian | Penerima Manfaat | Rp. */
   kepala: string;
+  /** Foto bukti digital yang menyertai kotak (kosong pada varian ringkas). */
+  bukti: BuktiItem[];
+}
+
+/** Tinggi area foto digital (mm) pada kartu terpadu; area tempel di kartu yang sama setinggi kotak dikurangi kepala 12 mm. */
+export const TINGGI_FOTO_TERPADU: Record<UkuranKotakTempel, number> = { A: 120, B: 130, C: 110 };
+export const TINGGI_KEPALA_KOTAK = 12;
+export const TINGGI_LEMBAR_FOTO = 268;
+const JARAK_ANTAR_PANEL = 2;
+
+/** Tinggi satu baris lampiran dalam mm (Tipe A terpadu berdampingan, jadi tingginya sama dengan kotak biasa). */
+export function tinggiBarisLampiran(k: Pick<KotakTempel, "ukuran" | "varian">): number {
+  if (k.varian === "foto") return TINGGI_LEMBAR_FOTO;
+  if (k.varian === "ringkas" || k.ukuran.kode === "A") return k.ukuran.tinggiMm;
+  const areaTempel = k.ukuran.tinggiMm - TINGGI_KEPALA_KOTAK;
+  return TINGGI_KEPALA_KOTAK + JARAK_ANTAR_PANEL + TINGGI_FOTO_TERPADU[k.ukuran.kode] + JARAK_ANTAR_PANEL + areaTempel;
 }
 
 function tanggalSingkat(iso: string): string {
@@ -90,27 +117,48 @@ export function teksKepalaKotak(t: Transaksi, nomor: string): string {
   const bagian = [
     `No. ${nomor}`,
     tanggalSingkat(t.tanggal),
-    `${t.kategori} - ${t.deskripsi}`,
+    `${labelKategori(t.kategori)} - ${t.deskripsi}`,
   ];
   if (penerima.length > 0) bagian.push(`Penerima Manfaat: ${penerima.join(", ")}`);
   bagian.push(formatRupiah(t.jumlah));
   return bagian.join(" | ");
 }
 
-/** Kotak tempel dalam urutan yang sama dengan laporan (urutan susunan kuitansi fisik harus sama dengan urutan input). */
-export function susunKotakTempel(urut: Transaksi[], nomorDari: (id: string) => string | undefined): KotakTempel[] {
+export interface OpsiLampiran {
+  /** Sertakan kotak tempel untuk bukti fisik asli (pengeluaran Dana Kegiatan). */
+  sertakanTempel: boolean;
+}
+
+/**
+ * Lampiran bukti menurut urutan laporan (urutan susunan kuitansi fisik harus sama dengan urutan input): satu entri untuk tiap
+ * transaksi yang punya foto bukti dan/atau perlu kotak tempel.
+ */
+export function susunKotakTempel(
+  urut: Transaksi[],
+  nomorDari: (id: string) => string | undefined,
+  opsi: OpsiLampiran = { sertakanTempel: true }
+): KotakTempel[] {
   const hasil: KotakTempel[] = [];
   for (const t of urut) {
-    if (!perluKotakTempel(t)) continue;
+    const bukti = t.bukti ?? [];
+    const tempel = opsi.sertakanTempel && perluKotakTempel(t);
+    if (bukti.length === 0 && !tempel) continue;
     const nomor = nomorDari(t.id) ?? "";
-    hasil.push({ id: t.id, nomor, ukuran: UKURAN_KOTAK[pilihUkuranKotak(t)], kepala: teksKepalaKotak(t, nomor) });
+    hasil.push({
+      id: t.id,
+      nomor,
+      ukuran: UKURAN_KOTAK[pilihUkuranKotak(t)],
+      varian: !tempel ? "foto" : bukti.length > 0 ? "terpadu" : "ringkas",
+      kepala: teksKepalaKotak(t, nomor),
+      bukti,
+    });
   }
   return hasil;
 }
 
-/** Ringkasan jumlah kotak per ukuran, mis. "3 Tipe A, 2 Tipe B". */
+/** Ringkasan jumlah kotak per ukuran, mis. "3 Tipe A, 2 Tipe B"; lembar yang hanya berisi foto tidak dihitung. */
 export function ringkasKotak(kotak: KotakTempel[]): string {
-  return DAFTAR_UKURAN_KOTAK.map((u) => ({ u, n: kotak.filter((k) => k.ukuran.kode === u.kode).length }))
+  return DAFTAR_UKURAN_KOTAK.map((u) => ({ u, n: kotak.filter((k) => k.varian !== "foto" && k.ukuran.kode === u.kode).length }))
     .filter((x) => x.n > 0)
     .map((x) => `${x.n} Tipe ${x.u.kode}`)
     .join(", ");
@@ -120,22 +168,23 @@ export function ringkasKotak(kotak: KotakTempel[]): string {
 export const AREA_TEMPEL = { lebarMm: 190, tinggiMm: 277, jarakBarisMm: 4 } as const;
 
 /**
- * Perkiraan jumlah halaman lembar tempel: struk (Tipe A) berpasangan dua per baris, Tipe B dan C satu baris penuh; baris
- * ditumpuk dari atas ke bawah tanpa dipecah, persis seperti tata letak cetaknya (4 Tipe A, 3 Tipe B, atau 2 Tipe C per halaman).
+ * Perkiraan jumlah halaman lampiran bukti. Hanya kotak Tipe A varian ringkas yang berpasangan dua per baris; kartu terpadu,
+ * Tipe B/C, dan lembar foto selalu satu baris penuh. Baris ditumpuk dari atas ke bawah tanpa dipecah, persis seperti tata
+ * letak cetaknya (mis. 4 Tipe A ringkas, 3 Tipe B ringkas, 2 Tipe A terpadu, atau 1 Tipe B terpadu per halaman).
  */
-export function perkirakanHalamanTempel(kotak: Pick<KotakTempel, "ukuran">[]): number {
+export function perkirakanHalamanTempel(kotak: Pick<KotakTempel, "ukuran" | "varian">[]): number {
   const baris: number[] = [];
   let sisaKolom = 0;
   for (const k of kotak) {
-    if (k.ukuran.kode === "A") {
+    if (k.varian === "ringkas" && k.ukuran.kode === "A") {
       if (sisaKolom > 0) sisaKolom--;
       else {
-        baris.push(k.ukuran.tinggiMm);
+        baris.push(tinggiBarisLampiran(k));
         sisaKolom = 1;
       }
     } else {
       sisaKolom = 0;
-      baris.push(k.ukuran.tinggiMm);
+      baris.push(tinggiBarisLampiran(k));
     }
   }
   if (baris.length === 0) return 0;
