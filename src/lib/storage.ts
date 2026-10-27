@@ -255,6 +255,7 @@ export function muatPengaturan(): import("../types").PengaturanKeuangan {
     },
     utangPiutang: Array.isArray(data?.utangPiutang) ? data.utangPiutang : muatUtangPiutang(),
     targetTabungan: Array.isArray(data?.targetTabungan) ? data.targetTabungan : muatTargetTabungan(),
+    penyusutan: Array.isArray(data?.penyusutan) ? data.penyusutan : [],
     appLock: data?.appLock || muatAppLock(),
     terakhirDiubah: data?.terakhirDiubah,
     diubah: data?.diubah,

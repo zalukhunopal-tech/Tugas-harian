@@ -308,25 +308,56 @@ const LembarPerdiemTimesheet: React.FC<{ daftar: DaftarPerdiemDokumen; kunci: st
   </>
 );
 
-/* ---------- lembar tempel bukti / nota asli ---------- */
+/* ---------- lampiran bukti: foto digital + kotak tempel nota asli dalam satu lembar ---------- */
+
+interface LampiranBuktiProps {
+  kotak: KotakTempel[];
+  googleToken?: string;
+  onStatus: (id: string, memuat: boolean) => void;
+}
 
 /**
- * Kotak kosong untuk menempel struk, kuitansi, atau tiket asli, di kertas A4 potret (area cetak bersih 190 × 277 mm).
+ * Lampiran bukti per pengeluaran di kertas A4 potret (area cetak bersih 190 × 277 mm). Foto bukti digital dan kotak kosong
+ * tempat nota/struk/tiket asli ditempel berada di kartu yang sama dan tidak terbelah antarhalaman:
+ *   Tipe A  foto di kiri, area tempel di kanan (dua kartu per halaman);
+ *   Tipe B/C foto di atas, area tempel di bawah (satu kartu per halaman).
+ * Pengeluaran tanpa foto tetap mendapat kotak tempel ringkas (Tipe A berpasangan, B dan C satu baris penuh).
  * Ukuran dalam milimeter lewat --mm: di layar 1 mm = lebar kertas / 210 (pratinjau mengecil bersama kolom), saat cetak 1 mm sebenarnya.
  */
-const LembarTempelBukti: React.FC<{ kotak: KotakTempel[] }> = ({ kotak }) => (
-  <section className="dsc-tempel dsc-bagian-potret" aria-label="Lembar tempel bukti" data-testid="lembar-tempel">
+const LampiranBukti: React.FC<LampiranBuktiProps> = ({ kotak, googleToken, onStatus }) => (
+  <section className="dsc-tempel dsc-bagian-potret" aria-label="Lampiran bukti" data-testid="lembar-tempel">
     <p className="dsc-tempel__ket no-print">
-      <strong>Lembar Tempel Bukti / Nota Asli</strong> · {kotak.length} kotak ({ringkasKotak(kotak)}) · sekitar{" "}
-      {perkirakanHalamanTempel(kotak)} halaman A4 potret. Tempel bukti asli tepat di dalam kotak bergaris putus-putus.
+      <strong>Lampiran Bukti</strong> · {kotak.length} lembar, sekitar {perkirakanHalamanTempel(kotak)} halaman A4 potret. Foto bukti digital
+      dan area tempel nota asli berada di lembar yang sama
+      {ringkasKotak(kotak) ? ` (kotak: ${ringkasKotak(kotak)})` : ""}. Tempel bukti asli tepat di dalam kotak bergaris putus-putus.
     </p>
     <div className="dsc-tempel__kertas">
       <div className="dsc-tempel__kisi">
         {kotak.map((k) => (
-          <div key={k.id} className={`dsc-kotak dsc-kotak--${k.ukuran.kode}`} data-ukuran={k.ukuran.kode} data-nomor={k.nomor}>
+          <div
+            key={k.id}
+            className={`dsc-kotak dsc-kotak--${k.ukuran.kode} dsc-kotak--${k.varian}`}
+            data-ukuran={k.ukuran.kode}
+            data-varian={k.varian}
+            data-nomor={k.nomor}
+          >
             <div className="dsc-kotak__kepala">{k.kepala}</div>
-            <div className="dsc-kotak__area">
-              <span>Area Tempel Bukti / Nota Asli ({k.ukuran.nama})</span>
+            <div className="dsc-kotak__isi">
+              {k.bukti.length > 0 && (
+                <div className="dsc-kotak__foto" data-testid="foto-bukti">
+                  <span className="dsc-kotak__label">Foto bukti digital{k.bukti.length > 1 ? ` (${k.bukti.length})` : ""}</span>
+                  <div className={`dsc-kotak__foto-isi${k.bukti.length > 1 ? " dsc-kotak__foto-isi--banyak" : ""}`}>
+                    {k.bukti.map((b) => (
+                      <GambarLampiran key={b.id} bukti={b} googleToken={googleToken} onStatus={onStatus} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {k.varian !== "foto" && (
+                <div className="dsc-kotak__area">
+                  <span>Area Tempel Bukti / Nota Asli ({k.ukuran.nama})</span>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -376,12 +407,18 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
     [adalahKegiatan, kegiatan, kelompok, kunciPerdiem, profilPelapor]
   );
 
-  // Lembar tempel bukti untuk bukti fisik asli; urutannya sama dengan nomor di laporan.
+  // Lampiran bukti: foto digital dan kotak tempel nota fisik asli dalam satu lembar; urutannya sama dengan nomor di laporan.
   const [sertakanTempel, setSertakanTempel] = useState(true);
-  const kotakTempel = useMemo(
-    () => (adalahKegiatan ? susunKotakTempel(kelompok.flatMap((k) => k.item), (id) => nomorMap.get(id)) : []),
-    [adalahKegiatan, kelompok, nomorMap]
+  const semuaItem = useMemo(() => kelompok.flatMap((k) => k.item), [kelompok]);
+  const lampiran = useMemo(
+    () => susunKotakTempel(semuaItem, (id) => nomorMap.get(id), { sertakanTempel: sertakanTempel && adalahKegiatan }),
+    [semuaItem, nomorMap, sertakanTempel, adalahKegiatan]
   );
+  const kotakTempelAda = useMemo(
+    () => adalahKegiatan && susunKotakTempel(semuaItem, (id) => nomorMap.get(id), { sertakanTempel: true }).some((k) => k.varian !== "foto"),
+    [adalahKegiatan, semuaItem, nomorMap]
+  );
+  const kotakTempel = lampiran.filter((k) => k.varian !== "foto");
 
   const [sedangMemuat, setSedangMemuat] = useState<Set<string>>(new Set());
   const ubahStatusMuat = React.useCallback((id: string, memuat: boolean) => {
@@ -439,10 +476,11 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
             sesuai tombol: <em>Lanskap</em> untuk timesheet, <em>Potret</em> untuk dokumen klaim dan nota.
           </p>
         )}
-        {kotakTempel.length > 0 && (
+        {kotakTempelAda && (
           <label className="dsc-tempel-pilihan">
             <input type="checkbox" checked={sertakanTempel} onChange={(e) => setSertakanTempel(e.target.checked)} />
-            Sertakan Lembar Tempel Bukti / Nota Asli ({kotakTempel.length} kotak, sekitar {perkirakanHalamanTempel(kotakTempel)} halaman)
+            Sertakan kotak tempel bukti fisik asli di lembar yang sama dengan foto bukti ({kotakTempel.length} kotak, lampiran sekitar{" "}
+            {perkirakanHalamanTempel(lampiran)} halaman)
           </label>
         )}
       </div>
@@ -527,21 +565,6 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
               </article>
               )}
 
-              {/* Lembar lampiran: satu kertas kosong per foto bukti, seperti struk yang ditempel di kertas HVS */}
-              {k.item.flatMap((t) =>
-                (t.bukti || []).map((b, i, semua) => (
-                  <article className="dsc-kertas dsc-lampiran dsc-bagian-potret" key={`lampiran-${t.id}-${b.id}`} data-lampiran={t.id}>
-                    <div className="dsc-lampiran__kop">
-                      <strong>Lampiran No. {nomorMap.get(t.id)}</strong>
-                      {semua.length > 1 ? ` (bukti ${i + 1} dari ${semua.length})` : ""} · {tanggalSingkat(t.tanggal)} ·{" "}
-                      {t.deskripsi} · {formatRupiah(t.jumlah)}
-                    </div>
-                    <div className="dsc-lampiran__isi">
-                      <GambarLampiran bukti={b} googleToken={googleToken} onStatus={ubahStatusMuat} />
-                    </div>
-                  </article>
-                ))
-              )}
             </React.Fragment>
           ))}
 
@@ -591,8 +614,8 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
             </div>
           </article>
 
-          {/* Lembar tempel bukti / nota asli di akhir dokumen klaim (potret) */}
-          {sertakanTempel && kotakTempel.length > 0 && <LembarTempelBukti kotak={kotakTempel} />}
+          {/* Lampiran bukti di akhir dokumen klaim (potret): foto digital + kotak tempel nota asli dalam satu lembar */}
+          {lampiran.length > 0 && <LampiranBukti kotak={lampiran} googleToken={googleToken} onStatus={ubahStatusMuat} />}
         </div>
       )}
     </section>

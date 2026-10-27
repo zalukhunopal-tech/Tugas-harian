@@ -78,11 +78,47 @@ export interface AppLockConfig {
 
 export type AnggaranKategoriMap = Record<NamaDana, Record<string, number>>;
 
+/** Penyusutan nilai dan umur pakai barang: lihat lib/penyusutan.ts untuk rumus dan batas peringatan. */
+export type BasisUmur = "waktu" | "pemakaian";
+export type SatuanWaktu = "hari" | "bulan" | "tahun";
+export type SatuanPemakaian = "km" | "jam";
+export type MetodePenyusutan = "garis-lurus" | "saldo-menurun-ganda";
+/** habis-pakai: oli, kampas rem, aki, ban (umur dapat diperkirakan pasti); aset: elektronik, peralatan kerja, kendaraan. */
+export type JenisBarang = "habis-pakai" | "aset";
+
+export interface ItemPenyusutan {
+  id: string;
+  /** Transaksi pembelian asal; item ikut terhapus bila transaksinya dihapus. */
+  transaksiId?: string;
+  nama: string;
+  jenisBarang: JenisBarang;
+  presetId?: string;
+  basis: BasisUmur;
+  metode: MetodePenyusutan;
+  /** C: harga beli atau perolehan. */
+  harga: number;
+  /** S: nilai residu (0 untuk barang habis pakai). */
+  nilaiResidu: number;
+  /** n: total estimasi umur pakai, dalam satuanWaktu atau satuanPemakaian. */
+  umurTotal: number;
+  satuanWaktu?: SatuanWaktu;
+  satuanPemakaian?: SatuanPemakaian;
+  /** Tanggal beli atau terakhir diganti/diservis (YYYY-MM-DD). */
+  tanggalMulai: string;
+  /** Angka kilometer atau jam pakai saat beli/ganti dan saat ini (basis pemakaian). */
+  pemakaianAwal?: number;
+  pemakaianSekarang?: number;
+  pemakaianDiperbarui?: string;
+  dibuat: string;
+  diubah?: string;
+}
+
 export interface PengaturanKeuangan {
   anggaranHarian: number;
   anggaranKategori: AnggaranKategoriMap;
   utangPiutang?: ItemHutangPiutang[];
   targetTabungan?: TargetTabunganItem[];
+  penyusutan?: ItemPenyusutan[];
   appLock?: AppLockConfig;
   terakhirDiubah?: string;
   diubah?: string;

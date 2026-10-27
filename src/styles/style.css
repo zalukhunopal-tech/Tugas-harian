@@ -3795,28 +3795,7 @@ button {
   text-decoration: underline;
 }
 
-/* Lembar lampiran: kertas kosong dengan foto bukti di tengahnya */
-.dsc-lampiran {
-  gap: 0.6em;
-}
-
-.dsc-lampiran__kop {
-  font-size: 0.9em;
-  padding-bottom: 0.5em;
-  border-bottom: 1px solid #cfcfcf;
-  overflow-wrap: anywhere;
-}
-
-.dsc-lampiran__isi {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.8em;
-  align-items: center;
-  justify-content: center;
-}
-
+/* Foto bukti digital di dalam kartu lampiran (lihat .dsc-kotak) */
 .dsc-foto-kotak {
   flex: 1 1 0;
   min-height: 0;
@@ -4266,7 +4245,7 @@ button {
    banyak (mis. perdiem harian) tidak meluap keluar kertas. Lembar lampiran foto tetap setinggi A4. Hanya di
    layar; saat dicetak, aturan @media print yang berlaku. */
 @media screen {
-  .dsc-kertas:not(.dsc-lampiran) {
+  .dsc-kertas {
     aspect-ratio: auto;
     min-height: calc(min(100cqw, 794px) * 297 / 210);
   }
@@ -4312,7 +4291,7 @@ button {
 }
 
 @media screen {
-  .dsc-kertas.dsc-lanskap:not(.dsc-lampiran) {
+  .dsc-kertas.dsc-lanskap {
     aspect-ratio: auto;
     min-height: calc(100cqw * 210 / 297);
   }
@@ -4417,13 +4396,12 @@ button {
     margin-top: 0.9em;
   }
 
-  /* Kategori yang berurutan tanpa lampiran di antaranya mengalir bersambung; kop laporan hanya di awal rangkaian. */
-  .dsc-kertas:not(.dsc-lampiran) {
+  /* Kategori yang berurutan mengalir bersambung; kop laporan hanya di awal rangkaian. */
+  .dsc-kertas {
     break-before: auto;
     margin-top: 6mm;
   }
 
-  .dsc-lampiran + .dsc-kertas,
   .dsc-bagian-timesheet + .dsc-kertas {
     break-before: page;
     margin-top: 0;
@@ -4434,23 +4412,12 @@ button {
     display: none;
   }
 
-  .dsc-kertas:not(.dsc-lampiran):not(.dsc-penutup) + .dsc-kertas:not(.dsc-lampiran):not(.dsc-penutup) .dsc-kop {
+  .dsc-kertas:not(.dsc-penutup) + .dsc-kertas:not(.dsc-penutup) .dsc-kop {
     display: none;
   }
 
   .dsc-judul-kelompok {
     break-after: avoid;
-  }
-
-  /* Foto bukti: satu lembar penuh per foto. */
-  .dsc-kertas.dsc-lampiran {
-    display: flex;
-    height: 268mm;
-    overflow: hidden;
-    margin: 0;
-    break-before: page;
-    break-after: page;
-    break-inside: avoid;
   }
 
   /* Rekapitulasi klaim menyambung di bawah tabel terakhir (tidak menyisakan halaman kosong) dan tidak terbelah. */
@@ -5331,14 +5298,16 @@ button {
   border: 2px solid var(--bg);
 }
 
-/* Tab Saya peluncur: pilihan berpindah posisi saat ukuran diatur dinaik-turunkan */
+/* Tab Saya peluncur: pilihan berpindah posisi saat ukuran diatur dinaik-turunkan.
+   --saya-skala (ukuran ikon / 72 px, 1 = ukuran acuan) menskalakan SEMUANYA sekaligus: ikon, huruf, jarak baris, bantalan, jarak antarpilihan. */
 .saya-peluncur {
+  --saya-skala: 1;
   display: grid;
   grid-template-columns: repeat(var(--saya-kolom, 4), minmax(0, 1fr));
-  gap: var(--saya-gap-y, 24px) var(--saya-gap-x, 6px);
-  padding: 12px 0 28px;
+  gap: calc(var(--saya-gap-y, 24px) * var(--saya-skala)) calc(var(--saya-gap-x, 6px) * var(--saya-skala));
+  padding: calc(12px * var(--saya-skala)) 0 calc(28px * var(--saya-skala));
   justify-items: center;
-  transition: gap 0.2s ease;
+  transition: gap 0.2s ease, padding 0.2s ease;
 }
 
 @media (min-width: 640px) {
@@ -5346,7 +5315,7 @@ button {
   .saya-peluncur {
     max-width: 640px;
     margin: 0 auto;
-    padding-top: 24px;
+    padding-top: calc(24px * var(--saya-skala));
   }
 }
 
@@ -5505,7 +5474,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: calc(7px * var(--saya-skala, 1));
   width: 100%;
   max-width: calc(var(--saya-ukuran, 72px) * 1.55);
   text-align: center;
@@ -5522,7 +5491,7 @@ button {
   place-items: center;
   color: #ffffff;
   background: linear-gradient(145deg, var(--ikon-1), var(--ikon-2));
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  box-shadow: 0 calc(8px * var(--saya-skala, 1)) calc(18px * var(--saya-skala, 1)) rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.28);
   transition: width 0.15s ease, height 0.15s ease, border-radius 0.15s ease, transform 0.12s ease;
 }
 
@@ -5553,12 +5522,12 @@ button {
 
 .saya-app-titik {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 17px;
-  height: 17px;
+  top: calc(-3px * var(--saya-skala, 1));
+  right: calc(-3px * var(--saya-skala, 1));
+  width: calc(17px * var(--saya-skala, 1));
+  height: calc(17px * var(--saya-skala, 1));
   border-radius: 50%;
-  border: 3px solid var(--bg);
+  border: calc(3px * var(--saya-skala, 1)) solid var(--bg);
   background: #22c55e;
   box-sizing: border-box;
 }
@@ -5569,33 +5538,36 @@ button {
 
 .saya-app-angka {
   position: absolute;
-  top: -7px;
-  right: -7px;
-  min-width: 23px;
-  height: 23px;
-  padding: 0 6px;
-  border-radius: 12px;
-  border: 3px solid var(--bg);
+  top: calc(-7px * var(--saya-skala, 1));
+  right: calc(-7px * var(--saya-skala, 1));
+  min-width: calc(23px * var(--saya-skala, 1));
+  height: calc(23px * var(--saya-skala, 1));
+  padding: 0 calc(6px * var(--saya-skala, 1));
+  border-radius: calc(12px * var(--saya-skala, 1));
+  border: calc(3px * var(--saya-skala, 1)) solid var(--bg);
   background: #ef4444;
   color: #ffffff;
-  font-size: 0.72rem;
+  font-size: max(0.56rem, calc(0.72rem * var(--saya-skala, 1)));
   font-weight: 800;
   display: grid;
   place-items: center;
   box-sizing: border-box;
 }
 
+/* Huruf mengikuti ukuran ikon (bukan lagi dibatasi 0,74-0,94 rem): 0,9 rem pada ikon 72 px, naik-turun sebanding. */
 .saya-app-nama {
-  font-size: clamp(0.74rem, calc(var(--saya-ukuran, 72px) * 0.0125rem), 0.94rem);
+  font-size: max(0.62rem, calc(0.9rem * var(--saya-skala, 1)));
   font-weight: 700;
   line-height: 1.2;
   max-width: 100%;
   overflow-wrap: anywhere;
+  transition: font-size 0.15s ease;
 }
 
 .saya-app-status {
-  font-size: clamp(0.64rem, calc(var(--saya-ukuran, 72px) * 0.0105rem), 0.76rem);
+  font-size: max(0.55rem, calc(0.75rem * var(--saya-skala, 1)));
   line-height: 1.25;
+  transition: font-size 0.15s ease;
   color: var(--muted);
   max-width: 100%;
   overflow: hidden;
@@ -6871,6 +6843,7 @@ button {
   page-break-inside: avoid !important;
 }
 
+/* Varian ringkas: hanya kotak tempel. Tipe A berpasangan dua kolom; Tipe B dan C satu baris penuh. */
 .dsc-kotak--A {
   width: calc(92 * var(--mm));
   height: calc(132 * var(--mm));
@@ -6892,6 +6865,32 @@ button {
   height: calc(132 * var(--mm));
 }
 
+/* Varian terpadu dan foto: kartu selebar halaman, foto bukti digital dan area tempel dalam kartu yang sama. */
+.dsc-kotak--terpadu,
+.dsc-kotak--foto {
+  grid-column: span 2;
+  justify-self: center;
+  width: min(calc(190 * var(--mm)), 100%);
+}
+
+.dsc-kotak--terpadu.dsc-kotak--A {
+  height: calc(132 * var(--mm));
+}
+
+/* 12 (kepala) + 2 + 130 (foto) + 2 + 76 (tempel) */
+.dsc-kotak--terpadu.dsc-kotak--B {
+  height: calc(222 * var(--mm));
+}
+
+/* 12 (kepala) + 2 + 110 (foto) + 2 + 120 (tempel) */
+.dsc-kotak--terpadu.dsc-kotak--C {
+  height: calc(246 * var(--mm));
+}
+
+.dsc-kotak--foto {
+  height: calc(268 * var(--mm));
+}
+
 .dsc-kotak__kepala {
   flex: none;
   box-sizing: border-box;
@@ -6910,9 +6909,94 @@ button {
   print-color-adjust: exact;
 }
 
+.dsc-kotak__isi {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tipe A terpadu: foto di kiri, area tempel di kanan, masing-masing selebar kotak A (92 mm). */
+.dsc-kotak--terpadu.dsc-kotak--A .dsc-kotak__isi {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: calc(6 * var(--mm));
+}
+
+.dsc-kotak--terpadu .dsc-kotak__isi {
+  gap: calc(2 * var(--mm));
+}
+
+.dsc-kotak--terpadu.dsc-kotak--A .dsc-kotak__foto,
+.dsc-kotak--terpadu.dsc-kotak--A .dsc-kotak__area {
+  flex: 0 0 calc(92 * var(--mm));
+  width: calc(92 * var(--mm));
+}
+
+/* Tipe B dan C terpadu: foto di atas (tinggi tetap), area tempel di bawah setinggi kotak dikurangi kepala. */
+.dsc-kotak--terpadu.dsc-kotak--B .dsc-kotak__foto {
+  flex: none;
+  height: calc(130 * var(--mm));
+}
+
+.dsc-kotak--terpadu.dsc-kotak--B .dsc-kotak__area {
+  flex: none;
+  height: calc(76 * var(--mm));
+}
+
+.dsc-kotak--terpadu.dsc-kotak--C .dsc-kotak__foto {
+  flex: none;
+  height: calc(110 * var(--mm));
+}
+
+.dsc-kotak--terpadu.dsc-kotak--C .dsc-kotak__area {
+  flex: none;
+  height: calc(120 * var(--mm));
+}
+
+.dsc-kotak__foto {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: calc(1 * var(--mm));
+  padding: calc(1.5 * var(--mm));
+  border: 1px solid #cbd5e1;
+  border-radius: 1px;
+}
+
+.dsc-kotak__label {
+  flex: none;
+  font-size: calc(2.5 * var(--mm));
+  line-height: 1.2;
+  color: #64748b;
+}
+
+.dsc-kotak__foto-isi {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(1.5 * var(--mm));
+}
+
+.dsc-kotak__foto-isi--banyak {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.dsc-kotak__foto .dsc-lampiran-status {
+  font-size: calc(2.8 * var(--mm));
+  padding: calc(2 * var(--mm));
+}
+
 .dsc-kotak__area {
   flex: 1 1 0;
   min-height: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6932,5 +7016,561 @@ button {
     border: none;
     border-radius: 0;
     box-shadow: none;
+  }
+}
+
+/* ============================================================
+   Kartu ringkasan saldo di Laporan (Saldo Awal, Total Penerimaan, Total Pengeluaran, Saldo Akhir)
+   HP: tetap auto-fit seperti semula. Tablet (640 px ke atas): 2 × 2. PC (1024 px ke atas): keempatnya satu baris.
+   Dari 640 px kartu berupa kolom setinggi baris: label menempel di atas, nominal menempel di bawah, sehingga angkanya
+   sejajar walau judulnya satu atau dua baris.
+   ============================================================ */
+.ringkasan-saldo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+  container-type: inline-size;
+}
+
+.ringkasan-saldo__kartu {
+  padding: 14px;
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.ringkasan-saldo__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ringkasan-saldo__nilai {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+  .ringkasan-saldo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .ringkasan-saldo__kartu {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    height: 100%;
+    box-sizing: border-box;
+  }
+
+  .ringkasan-saldo__nilai {
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ringkasan-saldo {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Empat kartu berbagi lebar kolom isi (760 px): nominal mengecil mengikuti lebar kolom dan tetap satu baris, bukan terpotong di tengah angka. */
+  .ringkasan-saldo__nilai {
+    font-size: clamp(0.78rem, 1.9cqw, 1.25rem);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .ringkasan-saldo__kartu {
+    padding: 14px 10px;
+  }
+}
+
+@media print {
+  .ringkasan-saldo {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ringkasan-saldo__nilai {
+    font-size: clamp(0.78rem, 1.9cqw, 1.25rem);
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+}
+
+/* ============================================================
+   Penyusutan dan umur barang (opsional di formulir pembelian) + peringatan ≤ 30%
+   Hijau saat aman; kuning menyala (mendekati batas) dan merah menyala (kritis, melewati umur) pada 30% ke bawah.
+   ============================================================ */
+.penyusutan-kartu {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.penyusutan-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.penyusutan-toggle input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.penyusutan-toggle > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.penyusutan-toggle small {
+  font-weight: 500;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.penyusutan-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.penyusutan-subjudul {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.penyusutan-chips,
+.penyusutan-segmen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.penyusutan-chips button,
+.penyusutan-segmen button {
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.penyusutan-chips button[aria-pressed="true"],
+.penyusutan-segmen button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--teks-tombol, #fff);
+}
+
+.penyusutan-kisi {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.penyusutan-kolom {
+  min-width: 0;
+}
+
+.penyusutan-kolom--penuh {
+  grid-column: 1 / -1;
+}
+
+.penyusutan-kolom > label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.penyusutan-gabung {
+  display: flex;
+  gap: 6px;
+}
+
+.penyusutan-gabung input {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+.penyusutan-gabung select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.penyusutan-catatan {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (max-width: 419.98px) {
+  .penyusutan-kisi {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Bilah kemajuan sisa umur */
+.umur-bilah {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 24%, transparent);
+  overflow: hidden;
+}
+
+.umur-bilah > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #22c55e;
+  transition: width 0.3s ease;
+}
+
+.umur-bilah[data-tingkat="mendekati"] > span,
+.umur-bilah[data-tingkat="kritis"] > span,
+.umur-bilah[data-tingkat="habis"] > span {
+  background: #ef4444;
+}
+
+/* Lencana */
+.umur-lencana {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: #ffffff;
+  background: #ef4444;
+}
+
+.umur-lencana[data-tingkat="mendekati"] {
+  background: #f59e0b;
+  color: #3b2300;
+}
+
+@keyframes umur-nyala {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .umur-lencana[data-tingkat="kritis"],
+  .umur-lencana[data-tingkat="habis"],
+  .umur-lencana[data-tingkat="mendekati"] {
+    animation: umur-nyala 1.6s ease-in-out infinite;
+  }
+
+  .umur-lencana[data-tingkat="mendekati"] {
+    animation-name: umur-nyala-kuning;
+  }
+
+  @keyframes umur-nyala-kuning {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6);
+    }
+    50% {
+      box-shadow: 0 0 0 5px rgba(245, 158, 11, 0);
+    }
+  }
+}
+
+/* Angka hasil hitungan */
+.umur-metrik {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.umur-metrik > div {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.umur-metrik dt {
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.umur-metrik dd {
+  margin: 2px 0 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.umur-metrik__persen {
+  font-weight: 600;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+.umur-pratinjau {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.umur-pratinjau[data-tingkat="mendekati"],
+.umur-pratinjau[data-tingkat="kritis"],
+.umur-pratinjau[data-tingkat="habis"] {
+  border-color: #ef4444;
+}
+
+.umur-bilah-keterangan {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.umur-peringatan {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.7);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Banner di dashboard (Riwayat dan Aset) */
+.umur-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid #f59e0b;
+  border-radius: 12px;
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface));
+}
+
+.umur-banner[data-tingkat="kritis"],
+.umur-banner[data-tingkat="habis"] {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 13%, var(--surface));
+}
+
+.umur-banner__kepala {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.umur-banner__daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.umur-banner__baris {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-bottom: 4px;
+}
+
+.umur-banner__nama {
+  min-width: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.umur-banner__lain,
+.umur-banner__catatan {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+/* Panel daftar barang di tab Aset */
+.umur-panel {
+  margin-top: 16px;
+}
+
+.umur-panel__judul {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.umur-panel__kosong {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.umur-panel__daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.umur-kartu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.umur-kartu[data-tingkat="mendekati"],
+.umur-kartu[data-tingkat="kritis"],
+.umur-kartu[data-tingkat="habis"] {
+  border-color: #ef4444;
+}
+
+.umur-kartu__kepala {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+.umur-kartu__kepala > div {
+  min-width: 0;
+}
+
+.umur-kartu__nama {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.umur-kartu__sub {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.umur-kartu__aksi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.umur-kartu__pemakaian {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.umur-kartu__pemakaian label {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.umur-kartu__pemakaian label > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.umur-kartu__pemakaian small {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.umur-kartu__tombol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.umur-kartu__tombol .btn-secondary,
+.umur-kartu__pemakaian .btn-secondary {
+  font-size: 0.8rem;
+  padding: 7px 12px;
+}
+
+.umur-kartu__tombol .btn-link {
+  min-height: 0;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.umur-kartu__hapus {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+}
+
+@media (max-width: 639.98px) {
+  .umur-kartu__tombol .btn-secondary,
+  .umur-kartu__pemakaian .btn-secondary {
+    min-height: 40px;
   }
 }
