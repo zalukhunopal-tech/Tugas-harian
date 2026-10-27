@@ -362,7 +362,7 @@ export async function perbaruiFileTimesheetKegiatan(
 export async function buatKegiatanDariTimesheet(token: string, berkas: GDriveFileInfo): Promise<DataKegiatan> {
   const isi = await bacaIsiFileTimesheet(token, berkas.id);
   const tanggal = isi.baris.map((b) => b.tanggal).sort();
-  if (tanggal.length === 0) throw new Error(`File "${berkas.name}" belum berisi tanggal perdiem.`);
+  if (tanggal.length === 0) throw new Error(`File "${berkas.name}" belum berisi tanggal uang harian.`);
   const batch = batchDariNama(berkas.name) ?? batchDariJudul(isi.judulKegiatan);
   cacheKeterangan.set(berkas.id, { diubah: berkas.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) });
   return {

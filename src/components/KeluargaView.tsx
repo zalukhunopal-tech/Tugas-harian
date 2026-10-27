@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Eye, ScanLine, ShieldAlert } from "lucide-react";
 import type { User } from "firebase/auth";
 import { Transaksi } from "../types";
-import { formatRupiah } from "../lib/constants";
+import { formatRupiah, labelKategori } from "../lib/constants";
 import type { KeuanganDriveContents } from "../lib/gdriveSync";
 import {
   BerkasDibagikan,
@@ -251,7 +251,7 @@ const DataDibagikan: React.FC<{
                     <span className="keluarga-transaksi-teks">
                       <span>{t.deskripsi || t.kategori}</span>
                       <small>
-                        {t.tanggal} · {t.kategori}
+                        {t.tanggal} · {labelKategori(t.kategori)}
                       </small>
                     </span>
                     <strong className={t.jenis === "pemasukan" ? "masuk" : "keluar"}>

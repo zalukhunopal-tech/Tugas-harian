@@ -42,6 +42,19 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     lain secara baca-saja (ringkasan per bulan dan transaksi terbaru), tidak digabung dengan data sendiri.
   - Peringatan bila folder atau berkas keuangan bertautan publik ("siapa saja yang punya tautan"), karena itu melemahkan
     pilihan dana. Timesheet tidak pernah ikut dibagikan.
+- **Laporan Dana Kegiatan** (tab Saya → Laporan Kegiatan):
+  - **Kudapan Perjalanan**: subkategori Konsumsi dengan plafon sepertiga uang harian Kalimantan (Rp200.000 / 3 = Rp66.667 per
+    orang). Nama staf penerima dicatat sebagai tag; jumlah mengikuti plafon, tetap bisa disesuaikan dengan struk riil.
+  - **Penerima Manfaat** ("numpang klaim") untuk kategori lain (akomodasi, transportasi, konsumsi, perlengkapan, dst.); nama
+    tercantum di bawah uraian pada tabel laporan, Word, dan kepala kotak tempel. Daftar nama staf hanya tersimpan di perangkat.
+  - **Cetak**: timesheet uang harian dicetak A4 **lanskap**, dokumen lain A4 **potret** (halaman bernama CSS). Tersedia tombol
+    *Cetak Semua Dokumen*, *Cetak Khusus Timesheet (Lanskap)*, dan *Cetak Dokumen Klaim & Nota (Potret)* untuk peramban ponsel
+    yang mengabaikan halaman bernama (orientasi di jendela cetak Android tetap perlu dicocokkan). Tabel mengalir penuh halaman:
+    kepala berulang, Total dan tanda tangan hanya di akhir.
+  - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan.
+  - **Lembar Tempel Bukti / Nota Asli** (A4 potret, area 190 × 277 mm): kotak Tipe A struk 92 × 132 mm (4 per halaman), Tipe B
+    kuitansi/tiket 190 × 88 mm (3 per halaman), Tipe C kuitansi besar/faktur 190 × 132 mm (2 per halaman); dipilih otomatis
+    menurut jenis bukti dan kategori, bisa diubah per pengeluaran.
 - **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan

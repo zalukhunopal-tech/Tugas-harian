@@ -107,7 +107,7 @@ export function buatId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-import { petakanKategoriLama, PROFIL_PELAPOR_DEFAULT, PROFIL_PELAPOR_KEY, DAFTAR_KEGIATAN_KEY, LAPORAN_KEGIATAN_KEY } from "./constants";
+import { normalisasiJenisBukti, petakanKategoriLama, PROFIL_PELAPOR_DEFAULT, PROFIL_PELAPOR_KEY, DAFTAR_KEGIATAN_KEY, LAPORAN_KEGIATAN_KEY } from "./constants";
 
 
 export function normalisasiTransaksi(p: Partial<Transaksi>): Transaksi {
@@ -134,8 +134,15 @@ export function normalisasiTransaksi(p: Partial<Transaksi>): Transaksi {
     talanganUntuk: p.talanganUntuk || undefined,
     targetTabunganId: p.targetTabunganId || undefined,
     kegiatanId: p.kegiatanId || undefined,
-    detailKegiatan: p.detailKegiatan || undefined,
+    detailKegiatan: bakukanDetail(p.detailKegiatan),
   };
+}
+
+/** Data lama memakai "Kwitansi"; ejaan baku adalah "Kuitansi". Objek lain tidak disentuh. */
+function bakukanDetail(d: DataKhususKegiatan | undefined): DataKhususKegiatan | undefined {
+  if (!d) return undefined;
+  const jenis = normalisasiJenisBukti(d.jenisBukti);
+  return jenis === d.jenisBukti ? d : { ...d, jenisBukti: jenis };
 }
 
 export function muatTransaksi(): Transaksi[] {

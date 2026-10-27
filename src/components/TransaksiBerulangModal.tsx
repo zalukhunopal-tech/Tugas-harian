@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TransaksiBerulang, FrekuensiBerulang, JenisTransaksi, NamaDana, Transaksi } from "../types";
-import { KATEGORI, METODE_BAYAR, formatRupiah, hariIni } from "../lib/constants";
+import { KATEGORI, METODE_BAYAR, formatRupiah, hariIni, labelKategori } from "../lib/constants";
 import { buatId } from "../lib/storage";
 import { apakahJatuhTempo, buatTransaksiDariBerulang, hitungTanggalBerikutnya, formatTanggalIso } from "../lib/transaksiBerulang";
 
@@ -414,7 +414,7 @@ export const TransaksiBerulangModal: React.FC<TransaksiBerulangModalProps> = ({
                           </div>
 
                           <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "4px" }}>
-                            <span>Kategori: {item.kategori}</span>
+                            <span>Kategori: {labelKategori(item.kategori)}</span>
                             <span style={{ margin: "0 6px" }}>•</span>
                             <span>{item.dana}</span>
                           </div>

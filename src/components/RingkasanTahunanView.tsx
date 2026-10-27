@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Transaksi } from "../types";
-import { formatRupiah, formatAngka, namaBulan, hariIni } from "../lib/constants";
+import { formatRupiah, formatAngka, namaBulan, hariIni, labelKategori } from "../lib/constants";
 import { Nominal, TeksLayar } from "./TeksLayar";
 
 interface RingkasanTahunanViewProps {
@@ -582,7 +582,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
               <div key={k.kategori} className="kategori-item" style={{ padding: "8px 0" }}>
                 <div className="kategori-header" style={{ marginBottom: "6px" }}>
                   <span className="kategori-nama" style={{ fontWeight: 600 }}>
-                    {k.kategori}
+                    {labelKategori(k.kategori)}
                   </span>{" "}
                   <span className="kategori-jumlah" style={{ fontWeight: 700 }}>
                     {formatRupiah(k.jumlah)}
@@ -677,7 +677,7 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
                   return (
                     <tr key={row.kategori} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
                       <td style={{ padding: "9px 6px", fontWeight: 600 }}>
-                        {row.kategori}
+                        {labelKategori(row.kategori)}
                         <span className="tren-di-nama">{lencanaTren}</span>
                       </td>
                       <td data-label={`${tahunSebelumnya} (Rp)`} style={{ padding: "9px 6px", textAlign: "right", color: "var(--text-muted)" }}>

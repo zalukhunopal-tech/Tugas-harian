@@ -34,7 +34,7 @@ export const KartuPenyelesaianDana: React.FC<KartuPenyelesaianDanaProps> = ({
   const baris: Array<{ label: string; nilai: string; tebal?: boolean }> = [
     { label: "Dana awal kegiatan (uang muka dari lembaga)", nilai: formatRupiah(ringkasan.danaAwal) },
     { label: "Realisasi pengeluaran kegiatan", nilai: formatRupiah(ringkasan.realisasiOperasional) },
-    { label: "Total perdiem", nilai: formatRupiah(ringkasan.totalPerdiem) },
+    { label: "Total uang harian", nilai: formatRupiah(ringkasan.totalPerdiem) },
     { label: "Total pengeluaran yang diakui", nilai: formatRupiah(ringkasan.totalDiakui), tebal: true },
   ];
 
@@ -73,8 +73,8 @@ export const KartuPenyelesaianDana: React.FC<KartuPenyelesaianDanaProps> = ({
 
       {!ringkas && (
         <p className="kartu-penyelesaian__catatan">
-          Dihitung dari {ringkasan.jumlahTransaksi} transaksi Dana Kegiatan. Perdiem adalah pengeluaran berkategori
-          &quot;Perdiem&quot;. Kebutuhan pribadi di luar operasional dan perdiem tidak ditanggung lembaga: catat di
+          Dihitung dari {ringkasan.jumlahTransaksi} transaksi Dana Kegiatan. Uang harian adalah pengeluaran berkategori
+          &quot;Uang Harian&quot;. Kebutuhan pribadi di luar operasional dan uang harian tidak ditanggung lembaga: catat di
           Dana Pribadi, bukan di Dana Kegiatan.
         </p>
       )}

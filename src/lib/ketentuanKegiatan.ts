@@ -11,16 +11,16 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
   Umum: {
     kategori: "Umum",
     judul: "Ketentuan Umum Pertanggungjawaban Fisik SPJ",
-    ringkasan: "Kwitansi asli tanpa coretan, kelengkapan administrasi, dan batas waktu 14 hari.",
+    ringkasan: "Kuitansi asli tanpa coretan, kelengkapan administrasi, dan batas waktu 14 hari.",
     butir: [
-      "Kwitansi asli wajib bersih tanpa coretan atau tip-ex.",
+      "Kuitansi asli wajib bersih tanpa coretan atau tip-ex.",
       "Mencantumkan rincian jumlah barang/jasa, harga satuan, tanggal transaksi, stempel basah/resmi, alamat jelas, nama penerima/toko, dan nomor telepon.",
       "Struk thermal yang mudah pudar (seperti Alfamart, Indomaret, SPBU) wajib segera difotokopi dan dilampirkan bersama struk aslinya.",
-      "Invoice atau tagihan resmi wajib tetap disertai tanda terima kwitansi pembayaran.",
-      "Tambahan pembelian di luar nota awal harus dibuatkan kwitansi/nota baru terpisah.",
+      "Invoice atau tagihan resmi wajib tetap disertai tanda terima kuitansi pembayaran.",
+      "Tambahan pembelian di luar nota awal harus dibuatkan kuitansi/nota baru terpisah.",
       "Transaksi mulai Rp5.000.000 wajib dibubuhi materai 10.000 dan melampirkan minimal 3 penawaran harga perbandingan.",
       "Tidak diperbolehkan klaim untuk kebutuhan pribadi (termasuk obat-obatan pribadi kecuali obat P3K kegiatan).",
-      "Urutan susunan kwitansi fisik harus persis sama dengan urutan input sistem/WiMIS.",
+      "Urutan susunan kuitansi fisik harus persis sama dengan urutan input sistem/WiMIS.",
       "Laporan fisik SPJ diserahkan paling lambat 14 hari kalender setelah tanggal kegiatan selesai.",
     ],
   },
@@ -30,17 +30,17 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
     ringkasan: "Tiket asli, kelengkapan travel/ojek, tol/parkir, dan boarding pass pesawat.",
     butir: [
       "Tiket perjalanan fisik asli wajib dilampirkan.",
-      "Untuk sewa travel atau ojek: sertakan struk/kwitansi dengan nomor polisi kendaraan, nama lengkap dan nomor telepon pengemudi, serta fotokopi STNK.",
+      "Untuk sewa travel atau ojek: sertakan struk/kuitansi dengan nomor polisi kendaraan, nama lengkap dan nomor telepon pengemudi, serta fotokopi STNK.",
       "Karcis retribusi jalan tol dan bukti parkir wajib dilampirkan asli.",
-      "Penerbangan pesawat: wajib melampirkan kwitansi agen/travel asli, e-ticket (bila pembelian online), dan seluruh boarding pass fisik asli.",
+      "Penerbangan pesawat: wajib melampirkan kuitansi agen/travel asli, e-ticket (bila pembelian online), dan seluruh boarding pass fisik asli.",
     ],
   },
   "Rental Kendaraan": {
     kategori: "Rental Kendaraan",
     judul: "Ketentuan Rental Kendaraan",
-    ringkasan: "Kwitansi/nota sewa berstempel, fotokopi STNK/SIM/KTP, formulir peminjaman R4, dan timesheet.",
+    ringkasan: "Kuitansi/nota sewa berstempel, fotokopi STNK/SIM/KTP, formulir peminjaman R4, dan timesheet.",
     butir: [
-      "Kwitansi/nota sewa kendaraan lengkap dengan alamat, nomor telepon, dan stempel penyedia sewa.",
+      "Kuitansi/nota sewa kendaraan lengkap dengan alamat, nomor telepon, dan stempel penyedia sewa.",
       "Melampirkan fotokopi STNK kendaraan, SIM pengemudi, dan KTP penerima pembayaran.",
       "Wajib mengisi form peminjaman kendaraan roda 4 dan timesheet harian aktivitas.",
       "Karcis tol dan parkir selama masa sewa dilampirkan.",
@@ -50,20 +50,20 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
   BBM: {
     kategori: "BBM",
     judul: "Ketentuan Pembelian BBM",
-    ringkasan: "Pencatatan KM spidometer, rute perjalanan, dan struk/kwitansi nomor polisi.",
+    ringkasan: "Pencatatan KM spidometer, rute perjalanan, dan struk/kuitansi nomor polisi.",
     butir: [
       "Wajib mencatat angka KM spidometer saat pengisian dan estimasi jarak tempuh perjalanan.",
       "Mencantumkan rute perjalanan (dari - ke).",
-      "Struk/kwitansi asli wajib memuat nama SPBU/penjual, lokasi, rincian liter × harga, nomor telepon, dan nomor polisi kendaraan.",
+      "Struk/kuitansi asli wajib memuat nama SPBU/penjual, lokasi, rincian liter × harga, nomor telepon, dan nomor polisi kendaraan.",
       "Struk SPBU thermal wajib segera difotokopi.",
     ],
   },
   Akomodasi: {
     kategori: "Akomodasi",
     judul: "Ketentuan Akomodasi & Penginapan",
-    ringkasan: "Kwitansi penginapan/pemilik rumah, tanggal check-in/out, tanda tangan, dan KTP pemilik.",
+    ringkasan: "Kuitansi penginapan/pemilik rumah, tanggal check-in/out, tanda tangan, dan KTP pemilik.",
     butir: [
-      "Kwitansi mencantumkan nama lokasi/penginapan, tanggal masuk dan keluar (lama menginap).",
+      "Kuitansi mencantumkan nama lokasi/penginapan, tanggal masuk dan keluar (lama menginap).",
       "Nama jelas dan tanda tangan pemilik/pengelola penginapan atau pemilik rumah singgah.",
       "Nomor telepon aktif pemilik dan lampiran fotokopi KTP pemilik (terutama penginapan lokal/warga).",
     ],
@@ -71,9 +71,9 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
   Konsumsi: {
     kategori: "Konsumsi",
     judul: "Ketentuan Konsumsi Kegiatan",
-    ringkasan: "Kwitansi rincian konsumsi, notulensi rapat, daftar hadir asli, dan dokumentasi foto.",
+    ringkasan: "Kuitansi rincian konsumsi, notulensi rapat, daftar hadir asli, dan dokumentasi foto.",
     butir: [
-      "Kwitansi mencantumkan tanggal, nama penyedia/warung, nomor telepon, rincian (jumlah porsi, harga satuan, total), dan lokasi.",
+      "Kuitansi mencantumkan tanggal, nama penyedia/warung, nomor telepon, rincian (jumlah porsi, harga satuan, total), dan lokasi.",
       "Wajib melampirkan notulensi atau rangkuman hasil pertemuan/rapat.",
       "Melampirkan daftar absensi/hadir asli bertanda tangan (bila porsi konsumsi melebihi daftar hadir, wajib buat surat penjelasan).",
       "Melampirkan foto dokumentasi kegiatan/konsumsi.",
@@ -87,8 +87,8 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
     butir: [
       "Melampirkan surat penunjukan/tugas, kontrak perjanjian kerja, CV/biodata singkat penerima, timesheet kerja, dan bukti laporan/materi.",
       "Melampirkan fotokopi KTP dan kartu NPWP penerima honor.",
-      "Nomor urut absen harus dicantumkan di kwitansi ganti hari kerja.",
-      "Tanda tangan penerima pada daftar absensi/hadir harus identik dengan tanda tangan di kwitansi penerimaan.",
+      "Nomor urut absen harus dicantumkan di kuitansi ganti hari kerja.",
+      "Tanda tangan penerima pada daftar absensi/hadir harus identik dengan tanda tangan di kuitansi penerimaan.",
       "Perhitungan pajak: Bukan PNS > Rp450.000 dikenakan (Total ÷ 2) × 5% (NPWP) atau 6% (tanpa NPWP); PNS dikenakan seluruh honor × 5% atau 6%.",
     ],
   },
@@ -109,15 +109,15 @@ export const KETENTUAN_DANA_KEGIATAN: Record<string, KetentuanKelompok> = {
     butir: [
       "Mencantumkan tanggal transaksi pembelian pulsa, paket data, voucher listrik, atau pengiriman paket.",
       "Melampirkan bukti billing/pemakaian resmi, struk PLN token/tagihan, atau resi pengiriman kurir fisik asli.",
-      "Kwitansi asli dari penyedia jasa.",
+      "Kuitansi asli dari penyedia jasa.",
     ],
   },
   Perdiem: {
     kategori: "Perdiem",
-    judul: "Ketentuan Uang Harian (Perdiem)",
+    judul: "Ketentuan Uang Harian (Per Diem)",
     ringkasan: "Sesuai TOR kegiatan; bila terdapat perubahan wajib dijelaskan di BTOR.",
     butir: [
-      "Perhitungan perdiem harus sesuai dengan plafon dan alokasi hari pada TOR (Term of Reference) yang disetujui.",
+      "Perhitungan uang harian harus sesuai dengan plafon dan alokasi hari pada TOR (Term of Reference) yang disetujui.",
       "Bila terjadi kelebihan hari atau perbedaan nominal, wajib dijelaskan secara terperinci di dalam dokumen BTOR (Back to Office Report).",
     ],
   },
@@ -229,7 +229,7 @@ export function cekKetentuanTransaksi(
   if (jenisBukti === "Tiket pesawat/e-ticket") {
     hasil.push({
       tipe: "info",
-      pesan: "Pertanggungjawaban tiket pesawat wajib melampirkan e-ticket/kwitansi agen DAN seluruh boarding pass fisik asli.",
+      pesan: "Pertanggungjawaban tiket pesawat wajib melampirkan e-ticket/kuitansi agen DAN seluruh boarding pass fisik asli.",
       rekomendasi: "Pastikan boarding pass tidak dibuang setelah mendarat.",
     });
   }
@@ -280,7 +280,7 @@ export function cekKetentuanTransaksi(
     if (!a?.lokasi || !a?.namaPemilik) {
       hasil.push({
         tipe: "peringatan",
-        pesan: "Kwitansi akomodasi/rumah singgah wajib mencantumkan lokasi, tanggal masuk-keluar, nama pemilik & nomor kontak.",
+        pesan: "Kuitansi akomodasi/rumah singgah wajib mencantumkan lokasi, tanggal masuk-keluar, nama pemilik & nomor kontak.",
       });
     }
   }

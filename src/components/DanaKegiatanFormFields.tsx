@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   DataKegiatan,
   JenisBukti,
+  UkuranKotakTempel,
   RincianBarangJasa,
   FotoPendukung,
   DetailTransportasi,
@@ -15,11 +16,14 @@ import {
   DataKhususKegiatan,
   Transaksi,
 } from "../types";
-import { DAFTAR_JENIS_BUKTI, formatRentangTanggal, formatRupiah, hariIni } from "../lib/constants";
+import { DAFTAR_JENIS_BUKTI, formatRentangTanggal, formatRupiah, hariIni, labelKategori } from "../lib/constants";
 import { buatId, muatIndeksTimesheet } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import { PerdiemRentang, hitungRentangPerdiem } from "../lib/perdiemOtomatis";
 import { PerdiemSekaligus, kontrolPilihan } from "./PerdiemSekaligus";
+import { PenerimaManfaatField, PilihKotakTempel } from "./PenerimaManfaatField";
+import { kategoriBolehPenerima, PLAFON_KUDAPAN_PER_ORANG, plafonKudapan } from "../lib/penerimaManfaat";
+import { pilihUkuranKotak } from "../lib/lembarTempel";
 import { PILIHAN_MODA, modaPerluDataSopir, saranJenisBukti } from "../lib/prasyaratDokumen";
 import { batchDariNama, namaFileTimesheet, sarankanBatch, tahunDariNama } from "../lib/timesheet";
 
@@ -30,12 +34,12 @@ import { batchDariNama, namaFileTimesheet, sarankanBatch, tahunDariNama } from "
 export type BagianFormKegiatan = "semua" | "kegiatan" | "rincian" | "keterangan" | "bukti" | "foto";
 
 const KETERANGAN_BUKTI: Record<string, string> = {
-  Kwitansi: "Bertanda tangan, stempel, dan rincian",
+  Kuitansi: "Bertanda tangan, stempel, dan rincian",
   Nota: "Dari toko/warung, berisi rincian",
   "Struk thermal (minimarket/SPBU)": "Minimarket/SPBU, segera difotokopi",
   Tiket: "Kapal, speedboat, bus, travel",
   "Tiket pesawat/e-ticket": "Lampirkan juga boarding pass",
-  "Invoice + kwitansi": "Tagihan resmi dan tanda terima",
+  "Invoice + kuitansi": "Tagihan resmi dan tanda terima",
   "Bukti tidak lengkap": "Wajib surat justifikasi",
 };
 import {
@@ -95,7 +99,13 @@ interface DanaKegiatanFormFieldsProps {
   perdiem: DetailPerdiem;
   onUpdatePerdiem: (p: DetailPerdiem) => void;
 
-  // Perdiem otomatis: isi sekaligus per rentang tanggal dan pemasukan pribadi yang menyertainya
+  /** Staf penerima manfaat pengeluaran ini (numpang klaim) dan ukuran kotak tempel buktinya. */
+  penerimaManfaat: string[];
+  onUpdatePenerimaManfaat: (daftar: string[]) => void;
+  kotakTempel: UkuranKotakTempel | undefined;
+  onUpdateKotakTempel: (u: UkuranKotakTempel | undefined) => void;
+
+  // Uang harian otomatis: isi sekaligus per rentang tanggal dan pemasukan pribadi yang menyertainya
   rentangPerdiem: PerdiemRentang;
   onUpdateRentangPerdiem: (r: PerdiemRentang) => void;
   catatPerdiemPribadi: boolean;
@@ -179,6 +189,10 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   onUpdateHonorarium,
   perdiem,
   onUpdatePerdiem,
+  penerimaManfaat,
+  onUpdatePenerimaManfaat,
+  kotakTempel,
+  onUpdateKotakTempel,
   rentangPerdiem,
   onUpdateRentangPerdiem,
   catatPerdiemPribadi,
@@ -241,6 +255,24 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       onUpdateJumlah(String(subtotalRincian));
     }
   };
+
+  // Kudapan perjalanan: plafon per orang = sepertiga uang harian Kalimantan. Jumlah mengikuti plafon selama masih kosong atau
+  // sama dengan plafon sebelumnya; bila pengguna sudah menyesuaikannya dengan struk, nilainya tidak ditimpa.
+  const kudapan = kategori === "Konsumsi" && Boolean(konsumsi.kudapanPerjalanan);
+  const plafon = plafonKudapan(penerimaManfaat.length);
+  const jumlahSekarang = Number(jumlah) || 0;
+  const plafonTerakhirRef = React.useRef<number>(0);
+  useEffect(() => {
+    if (!kudapan) {
+      plafonTerakhirRef.current = 0;
+      return;
+    }
+    if (plafon > 0 && (jumlahSekarang === 0 || jumlahSekarang === plafonTerakhirRef.current)) onUpdateJumlah(String(plafon));
+    plafonTerakhirRef.current = plafon;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kudapan, plafon]);
+  const ukuranKotakOtomatis = pilihUkuranKotak({ kategori, detailKegiatan: { jenisBukti, transportasi } });
+  const bolehPenerima = kategoriBolehPenerima(kategori) && !kudapan;
 
   // Perdiem: hak uang harian = jumlah hari x tarif per hari. Jumlah transaksi diisi otomatis saat pengguna
   // mengubah hari atau tarif; mengubah jumlah langsung tidak menimpa apa pun.
@@ -420,6 +452,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       konsumsi,
       honorarium,
       perdiem: kategori === "Perdiem" ? perdiem : undefined,
+      penerimaManfaat,
     },
   };
 
@@ -588,13 +621,13 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             style={{ fontSize: "0.78rem", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
             onClick={() => setBukaKetentuanModal(true)}
           >
-            📖 Baca Ketentuan SPJ ({kategori || "Umum"})
+            📖 Baca Ketentuan SPJ ({labelKategori(kategori) || "Umum"})
           </button>
         </div>
       )}
       {(bagian === "rincian" || bagian === "bukti") && (
         <button type="button" className="btn-link bertahap-ketentuan" onClick={() => setBukaKetentuanModal(true)}>
-          📖 Baca ketentuan SPJ {kategori}
+          📖 Baca ketentuan SPJ {labelKategori(kategori)}
         </button>
       )}
 
@@ -706,6 +739,9 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
             />
           </div>
+          {kategori !== "Perdiem" && (
+            <PilihKotakTempel nilai={kotakTempel} otomatis={ukuranKotakOtomatis} onUbah={onUpdateKotakTempel} />
+          )}
         </div>
       )}
       {semua && (
@@ -741,6 +777,11 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               style={{ width: "100%", padding: "8px", fontSize: "0.84rem" }}
             />
           </div>
+          {kategori !== "Perdiem" && (
+            <div className="isi-penuh-kisi">
+              <PilihKotakTempel nilai={kotakTempel} otomatis={ukuranKotakOtomatis} onUbah={onUpdateKotakTempel} />
+            </div>
+          )}
         </div>
       )}
 
@@ -1326,19 +1367,27 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🍽️ Detail Khusus Konsumsi Kegiatan
           </strong>
+          <div className="konsumsi-jenis" role="group" aria-label="Jenis konsumsi">
+            <button type="button" aria-pressed={!kudapan} onClick={() => onUpdateKonsumsi({ ...konsumsi, kudapanPerjalanan: false })}>
+              Konsumsi kegiatan
+            </button>
+            <button type="button" aria-pressed={kudapan} data-testid="pilih-kudapan" onClick={() => onUpdateKonsumsi({ ...konsumsi, kudapanPerjalanan: true })}>
+              Kudapan perjalanan
+            </button>
+          </div>
           <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
             <div className="isi-penuh">
-              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Penyedia / Rumah Makan</label>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>{kudapan ? "Toko / Warung Pembelian" : "Penyedia / Rumah Makan"}</label>
               <input
                 type="text"
-                placeholder="Catering Berkah / RM Selera"
+                placeholder={kudapan ? "Alfamart, Toko Sinar" : "Catering Berkah / RM Selera"}
                 value={konsumsi.penyedia || ""}
                 onChange={(e) => onUpdateKonsumsi({ ...konsumsi, penyedia: e.target.value })}
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
             <div className="isi-penuh">
-              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>No. Telp Penyedia</label>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>{kudapan ? "No. Telp Toko / Warung" : "No. Telp Penyedia"}</label>
               <input
                 type="tel"
                 placeholder="0813xxxx"
@@ -1348,34 +1397,73 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               />
             </div>
             <div className="isi-penuh">
-              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Lokasi Pertemuan/Makan</label>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>{kudapan ? "Rute / Lokasi Perjalanan" : "Lokasi Pertemuan/Makan"}</label>
               <input
                 type="text"
-                placeholder="Balai Desa / Kantor Desa"
+                placeholder={kudapan ? "Pelabuhan - Desa Tujuan" : "Balai Desa / Kantor Desa"}
                 value={konsumsi.lokasi || ""}
                 onChange={(e) => onUpdateKonsumsi({ ...konsumsi, lokasi: e.target.value })}
                 style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
-            <div className="isi-penuh">
-              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Peserta (Orang)</label>
-              <input
-                type="number"
-                min="1"
-                placeholder="15"
-                value={konsumsi.jumlahPeserta || ""}
-                onChange={(e) => onUpdateKonsumsi({ ...konsumsi, jumlahPeserta: Number(e.target.value) })}
-                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
-              />
-            </div>
+            {!kudapan && (
+              <div className="isi-penuh">
+                <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Jumlah Peserta (Orang)</label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="15"
+                  value={konsumsi.jumlahPeserta || ""}
+                  onChange={(e) => onUpdateKonsumsi({ ...konsumsi, jumlahPeserta: Number(e.target.value) })}
+                  style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+                />
+              </div>
+            )}
           </div>
+
+          {kudapan && (
+            <div className="kudapan-blok">
+              <PenerimaManfaatField
+                id="penerima-kudapan"
+                judul="Penerima Manfaat (staf yang menikmati kudapan)"
+                petunjuk="Ketik nama staf lalu Enter. Jumlah mengikuti plafon per orang."
+                nilai={penerimaManfaat}
+                onUbah={onUpdatePenerimaManfaat}
+              />
+              <div className="kudapan-plafon" data-testid="kudapan-plafon">
+                <span>
+                  Plafon: <strong>{formatRupiah(PLAFON_KUDAPAN_PER_ORANG)}</strong> per orang (⅓ uang harian Kalimantan Rp200.000)
+                </span>
+                {plafon > 0 && (
+                  <span>
+                    {penerimaManfaat.length} orang = <strong>{formatRupiah(plafon)}</strong>
+                  </span>
+                )}
+                {plafon > 0 && jumlahSekarang !== plafon && (
+                  <button type="button" className="btn-link" onClick={() => onUpdateJumlah(String(plafon))}>
+                    Pakai plafon {formatRupiah(plafon)}
+                  </button>
+                )}
+              </div>
+              {plafon > 0 && jumlahSekarang > plafon && (
+                <p className="kudapan-peringatan" role="status">
+                  Jumlah melebihi plafon kudapan ({formatRupiah(plafon)}). Sesuaikan dengan struk bila nominal riil lebih kecil.
+                </p>
+              )}
+              {plafon > 0 && jumlahSekarang > 0 && jumlahSekarang < plafon && (
+                <p className="kudapan-info" role="status">
+                  Jumlah lebih kecil dari plafon: dicatat sesuai struk riil.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {tampil("rincian") && kategori === "Perdiem" && (
         <div className="kartu-detail" style={{ background: "var(--surface)", padding: "12px", borderRadius: "10px", border: "1px solid var(--border)", marginBottom: "12px" }}>
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
-            📅 Perdiem (hak uang harian di lapangan)
+            📅 Uang Harian (hak harian di lapangan)
           </strong>
           <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
             {!rentangAktif && (
@@ -1452,13 +1540,13 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               Catat juga sebagai pemasukan di Dana Pribadi
               <span style={{ display: "block", fontWeight: 400, fontSize: "0.75rem", color: "var(--muted)" }}>
                 {sudahTerhubungPribadi
-                  ? "Perdiem ini sudah terhubung dengan pemasukan pribadi. Mengubah atau menghapusnya ikut mengubah atau menghapus pemasukan itu."
-                  : "Perdiem adalah hak uang harian Anda: keluar dari Dana Kegiatan dan masuk sebagai pendapatan pribadi dengan jumlah dan tanggal yang sama."}
+                  ? "Uang harian ini sudah terhubung dengan pemasukan pribadi. Mengubah atau menghapusnya ikut mengubah atau menghapus pemasukan itu."
+                  : "Uang harian adalah hak harian Anda: keluar dari Dana Kegiatan dan masuk sebagai pendapatan pribadi dengan jumlah dan tanggal yang sama."}
               </span>
             </span>
           </label>
           <p style={{ margin: "8px 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
-            Perdiem ikut dihitung sebagai pengeluaran yang diakui pada penyelesaian akhir dana kegiatan.
+            Uang harian ikut dihitung sebagai pengeluaran yang diakui pada penyelesaian akhir dana kegiatan.
           </p>
         </div>
       )}
@@ -1561,6 +1649,18 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               <strong style={{ color: "var(--masuk)" }}>{formatRupiah(pajakHonor.netto)}</strong>
             </div>
           </div>
+        </div>
+      )}
+
+      {tampil("rincian") && bolehPenerima && (
+        <div className="kartu-detail penerima-kartu">
+          <PenerimaManfaatField
+            id="penerima-manfaat"
+            judul="Penerima Manfaat (opsional)"
+            petunjuk="Isi bila staf lain ikut memakai fasilitas ini dan biayanya ditalangi satu orang (numpang klaim), mis. satu kamar atau satu sewa speedboat."
+            nilai={penerimaManfaat}
+            onUbah={onUpdatePenerimaManfaat}
+          />
         </div>
       )}
 
@@ -1814,8 +1914,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 {batchBaru > 0 && tglSelesaiBaru >= tglMulaiBaru && (
                   <span style={{ fontSize: "0.74rem", color: "var(--muted)" }}>
                     {fileBatchAda
-                      ? `File timesheet perdiem sudah ada dan akan dipakai: ${fileBatchAda.nama}.`
-                      : `File timesheet perdiem: ${namaFileTimesheet(batchBaru, tglMulaiBaru, tglSelesaiBaru)}. Bila belum ada di folder Keuangan, dibuat otomatis.`}
+                      ? `File timesheet uang harian sudah ada dan akan dipakai: ${fileBatchAda.nama}.`
+                      : `File timesheet uang harian: ${namaFileTimesheet(batchBaru, tglMulaiBaru, tglSelesaiBaru)}. Bila belum ada di folder Keuangan, dibuat otomatis.`}
                   </span>
                 )}
               </div>
@@ -1880,7 +1980,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
               <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--accent)" }}>
-                📖 Ketentuan Pertanggungjawaban SPJ ({kategori})
+                📖 Ketentuan Pertanggungjawaban SPJ ({labelKategori(kategori)})
               </h3>
               <button
                 type="button"

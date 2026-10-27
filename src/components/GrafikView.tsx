@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Transaksi, NamaDana, AnggaranKategoriMap } from "../types";
-import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI } from "../lib/constants";
+import { formatRupiah, formatAngka, namaBulan, namaBulanPendek, KATEGORI, labelKategori } from "../lib/constants";
 import { RingkasanTahunanView } from "./RingkasanTahunanView";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 import { TeksLayar } from "./TeksLayar";
@@ -481,7 +481,7 @@ export const GrafikView: React.FC<GrafikViewProps> = ({
                     >
                       {React.createElement(dapatkanInfoKategori(kat).ikon, { size: 13, strokeWidth: 2.2 })}
                     </span>
-                    {kat}
+                    {labelKategori(kat)}
                   </span>
                   <div className="anggaran-kat-nilai" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "0.84rem" }}>

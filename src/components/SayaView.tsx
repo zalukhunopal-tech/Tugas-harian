@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Minus, Palette, Plus, Users, type LucideIcon } from "lucide-react";
 import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan } from "../types";
-import { KARAKTER, PROFIL_PELAPOR_DEFAULT } from "../lib/constants";
+import { KARAKTER, PROFIL_PELAPOR_DEFAULT, labelKategori } from "../lib/constants";
 import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
@@ -203,7 +203,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
       t.jenis,
       t.dana,
       `"${(t.deskripsi || "").replace(/"/g, '""')}"`,
-      `"${(t.kategori || "").replace(/"/g, '""')}"`,
+      `"${labelKategori(t.kategori || "").replace(/"/g, '""')}"`,
       t.jumlah,
       `"${(t.metode || "").replace(/"/g, '""')}"`,
       `"${(t.kaitan || "").replace(/"/g, '""')}"`,

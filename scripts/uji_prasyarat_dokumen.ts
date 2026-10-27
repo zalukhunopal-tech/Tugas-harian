@@ -29,7 +29,7 @@ const dasar = (o: Partial<IsianBertahap> = {}): IsianBertahap => ({
   tanggal: "2026-10-20",
   deskripsi: "Biaya administrasi",
   jumlah: 50000,
-  detail: { jenisBukti: "Kwitansi" },
+  detail: { jenisBukti: "Kuitansi" },
   jumlahBukti: 1,
   kategoriFotoPendukung: [],
   perdiemRentang: null,
@@ -50,8 +50,8 @@ cek("nominal: rentang perdiem tidak butuh tanggal tunggal", galatLangkah("nomina
 cek("bukti: tidak lengkap tanpa alasan ditahan", galatLangkah("bukti", dasar({ detail: { jenisBukti: "Bukti tidak lengkap" } })) !== null);
 cek("bukti: tidak lengkap dengan alasan boleh", galatLangkah("bukti", dasar({ detail: { jenisBukti: "Bukti tidak lengkap", alasanJustifikasi: "Di pedalaman" } })) === null);
 cek("rincian: non-perdiem tidak ditahan", galatLangkah("rincian", dasar({ kategori: "BBM" })) === null);
-cek("rincian: perdiem tanpa tarif ditahan", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { jumlahHari: 2 } } })) === "Isi tarif perdiem per hari.");
-cek("rincian: perdiem tanpa hari ditahan", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { tarifPerHari: 200000 } } })) === "Isi jumlah hari perdiem.");
+cek("rincian: perdiem tanpa tarif ditahan", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { jumlahHari: 2 } } })) === "Isi tarif uang harian per hari.");
+cek("rincian: perdiem tanpa hari ditahan", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { tarifPerHari: 200000 } } })) === "Isi jumlah hari uang harian.");
 cek("rincian: perdiem rentang dengan galat ditahan", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { tarifPerHari: 200000 } }, perdiemRentang: { hari: 0, galat: "Tanggal selesai tidak boleh sebelum tanggal mulai." } })) === "Tanggal selesai tidak boleh sebelum tanggal mulai.");
 cek("rincian: perdiem rentang sah", galatLangkah("rincian", dasar({ kategori: "Perdiem", detail: { perdiem: { tarifPerHari: 200000 } }, perdiemRentang: { hari: 39 } })) === null);
 cek("kegiatan dan periksa tidak pernah menahan", galatLangkah("kegiatan", dasar({ kegiatanId: "" })) === null && galatLangkah("periksa", dasar()) === null);
@@ -81,11 +81,11 @@ cek("perdiem rentang dihitung dari rentang", kurangWajib(dasar({ kategori: "Perd
 
 console.log("Saran");
 cek("moda sewaan butuh sopir", modaPerluDataSopir("Travel / Mobil sewa") && modaPerluDataSopir("ojek") && !modaPerluDataSopir("Speedboat / Kapal") && !modaPerluDataSopir(undefined));
-cek("jenis bukti disarankan", saranJenisBukti("BBM", {}) === "Struk thermal (minimarket/SPBU)" && saranJenisBukti("Transportasi", { transportasi: { moda: "Pesawat" } }) === "Tiket pesawat/e-ticket" && saranJenisBukti("Transportasi", { transportasi: { moda: "Speedboat / Kapal" } }) === "Tiket" && saranJenisBukti("Konsumsi", {}) === "Kwitansi");
+cek("jenis bukti disarankan", saranJenisBukti("BBM", {}) === "Struk thermal (minimarket/SPBU)" && saranJenisBukti("Transportasi", { transportasi: { moda: "Pesawat" } }) === "Tiket pesawat/e-ticket" && saranJenisBukti("Transportasi", { transportasi: { moda: "Speedboat / Kapal" } }) === "Tiket" && saranJenisBukti("Konsumsi", {}) === "Kuitansi");
 cek("uraian transportasi", saranUraian("Transportasi", { transportasi: { dari: "Kota Asal", ke: "Tarakan", moda: "Speedboat / Kapal" } }) === "Transportasi Kota Asal – Tarakan (Speedboat / Kapal)");
 cek("uraian konsumsi", saranUraian("Konsumsi", { konsumsi: { lokasi: "Balai Desa", jumlahPeserta: 15 } }) === "Konsumsi Balai Desa (15 orang)");
 cek("uraian rental tanpa merk", saranUraian("Rental Kendaraan", { rentalKendaraan: { noPolisi: "KU 8899 AB" } }) === "Sewa kendaraan KU 8899 AB");
-cek("uraian perdiem", saranUraian("Perdiem", {}) === "Perdiem lapangan" && saranUraian("Perdiem", { perdiem: { keterangan: "Kalimantan" } }) === "Perdiem Kalimantan");
+cek("uraian perdiem", saranUraian("Perdiem", {}) === "Uang harian lapangan" && saranUraian("Perdiem", { perdiem: { keterangan: "Kalimantan" } }) === "Uang harian Kalimantan");
 cek("uraian kategori tanpa saran kosong", saranUraian("Lain-lain", {}) === "");
 cek("dokumen fisik dari ketentuan", dokumenFisik("Rental Kendaraan").length >= 3 && dokumenFisik("Tidak ada").length === 0);
 
