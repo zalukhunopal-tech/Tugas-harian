@@ -3,10 +3,10 @@ import {
   Transaksi,
   JenisTransaksi,
   NamaDana,
-  TransaksiBerulang,
   BuktiItem,
   TargetTabunganItem,
   DataKegiatan,
+  ItemPenyusutan,
   JenisBukti,
   FotoPendukung,
   DetailTransportasi,
@@ -50,6 +50,8 @@ import {
 import { ingatStaf, kategoriBolehPenerima } from "../lib/penerimaManfaat";
 import { normalisasiJenisBukti } from "../lib/constants";
 import { cekKetentuanTransaksi } from "../lib/ketentuanKegiatan";
+import { KotakDepresiasi } from "./KotakDepresiasi";
+import { FORM_PENYUSUTAN_AWAL, FormPenyusutan, formDariItem, galatForm as galatPenyusutan, itemDariForm } from "../lib/penyusutan";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
 import {
   PERDIEM_RENTANG_AWAL,
@@ -67,7 +69,8 @@ import {
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
   /** `hapusIds`: transaksi yang harus ikut dihapus bersama penyimpanan ini (mis. pemasukan pribadi perdiem yang dilepas). */
-  onSimpan: (t: Transaksi | Transaksi[], hapusIds?: string[]) => void;
+  /** `opsi.sudahMemutuskanDepresiasi`: pengguna sudah menyentuh kotak "Masukkan ke Depresiasi Aset", jadi tawaran setelah simpan tidak perlu muncul. */
+  onSimpan: (t: Transaksi | Transaksi[], hapusIds?: string[], opsi?: { sudahMemutuskanDepresiasi?: boolean }) => void;
   onBatalEdit: () => void;
   /** True bila form ini dibuka dari pemasukan pribadi otomatis dan dialihkan ke perdiem Dana Kegiatan-nya. */
   dialihkanDariPerdiemPribadi?: boolean;
@@ -75,14 +78,15 @@ interface TambahViewProps {
   onResetInitialScan?: () => void;
   initialScanMode?: "kamera" | "galeri" | null;
   onResetInitialScanMode?: () => void;
-  onBukaTransaksiBerulang?: () => void;
-  jumlahJatuhTempo?: number;
-  daftarBerulang?: TransaksiBerulang[];
   daftarTransaksi?: Transaksi[];
   daftarTargetTabungan?: TargetTabunganItem[];
   targetTabunganAwalId?: string;
   daftarKegiatan?: DataKegiatan[];
   onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
+  /** Barang yang dipantau Depresiasi Aset: pantauan milik transaksi yang diubah dibuka lagi, dan kotak centang menyimpannya. */
+  daftarPenyusutan?: ItemPenyusutan[];
+  onSimpanPenyusutan?: (item: ItemPenyusutan) => void;
+  onHapusPenyusutan?: (id: string) => void;
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -94,14 +98,14 @@ export const TambahView: React.FC<TambahViewProps> = ({
   onResetInitialScan,
   initialScanMode = null,
   onResetInitialScanMode,
-  onBukaTransaksiBerulang,
-  jumlahJatuhTempo = 0,
-  daftarBerulang = [],
   daftarTransaksi = [],
   daftarTargetTabungan = [],
   targetTabunganAwalId = "",
   daftarKegiatan = [],
   onTambahKegiatan,
+  daftarPenyusutan = [],
+  onSimpanPenyusutan,
+  onHapusPenyusutan,
 }) => {
   const [modeTransaksi, setModeTransaksi] = useState<"pengeluaran" | "pemasukan" | "pindah_dana">("pengeluaran");
   const [danaAsal, setDanaAsal] = useState<NamaDana>("Dana Pribadi");
@@ -123,6 +127,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
   // Dana Kegiatan States
   const [kegiatanId, setKegiatanId] = useState<string>("");
+  // Depresiasi Aset: isian dari kotak centang, dan apakah pengguna sendiri sudah memutuskan (centang atau lepas).
+  const [penyusutan, setPenyusutan] = useState<FormPenyusutan>(FORM_PENYUSUTAN_AWAL);
+  const [penyusutanDisentuh, setPenyusutanDisentuh] = useState(false);
   const [jenisBukti, setJenisBukti] = useState<JenisBukti>("Kuitansi");
   const [namaPenjualPenyedia, setNamaPenjualPenyedia] = useState<string>("");
   const [rincianBanyaknya, setRincianBanyaknya] = useState<string>("");
@@ -211,6 +218,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setStatusTalangan(editTransaksi.statusTalangan || "belum_diganti");
       setTalanganUntuk(editTransaksi.talanganUntuk || "");
       setTargetTabunganId(editTransaksi.targetTabunganId || "");
+      const pantauanLama = daftarPenyusutan.find((x) => x.transaksiId === editTransaksi.id);
+      setPenyusutan(pantauanLama ? formDariItem(pantauanLama) : FORM_PENYUSUTAN_AWAL);
+      setPenyusutanDisentuh(Boolean(pantauanLama));
 
       // Dana Kegiatan Data
       if (editTransaksi.dana === "Dana Kegiatan") {
@@ -273,6 +283,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
       // Reset Dana Kegiatan
       setKegiatanId("");
+      setPenyusutan(FORM_PENYUSUTAN_AWAL);
+      setPenyusutanDisentuh(false);
       setJenisBukti("Kuitansi");
       setNamaPenjualPenyedia("");
       setRincianBanyaknya("");
@@ -321,6 +333,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
     }
   }, [dana, jenis, kategori, editTransaksi]);
 
+  // Penerimaan Dana (pemasukan Dana Kegiatan) hanya mencatat dana yang diterima dan Nama/Judul Kegiatannya;
+  // judul itulah patokan utama laporan kegiatan, jadi kelengkapan SPJ dan rincian belanja tidak ditampilkan.
+  const penerimaanKegiatan = dana === "Dana Kegiatan" && modeTransaksi === "pemasukan";
   const daftarKategoriBaku = KATEGORI[dana]?.[jenis] || [];
   // Kategori tersimpan yang tidak ada di daftar baku (mis. dari spreadsheet atau versi lama) tetap tampil
   // sebagai pilihan selama transaksi itu diubah, supaya tidak hilang diam-diam.
@@ -590,8 +605,45 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
       onSimpan([trxKeluar, trxMasuk]);
     } else {
-      if (!deskripsi.trim()) return;
+      // Penerimaan Dana: judul kegiatan wajib; kegiatan dengan judul sama dipakai ulang, judul baru membuat kegiatan baru.
+      let kaitanSimpan = kaitan.trim();
+      let kegiatanIdSimpan = kegiatanId;
+      let deskripsiSimpan = deskripsi.trim();
+      if (penerimaanKegiatan) {
+        if (kaitanSimpan.length < 3) {
+          setGalatForm("Isi Nama/Judul Kegiatan (minimal 3 huruf), mis. Kegiatan Pemetaan Krayan Batch 4.");
+          return;
+        }
+        const cocok = daftarKegiatan.find((k) => k.nama.trim().toLowerCase() === kaitanSimpan.toLowerCase());
+        if (cocok) {
+          kegiatanIdSimpan = cocok.id;
+          kaitanSimpan = cocok.nama;
+        } else {
+          const baru: DataKegiatan = {
+            id: "kg_" + buatId(),
+            nama: kaitanSimpan,
+            lokasi: "",
+            tanggalMulai: tanggal,
+            tanggalSelesai: tanggal,
+            dibuat: new Date().toISOString(),
+          };
+          onTambahKegiatan?.(baru);
+          kegiatanIdSimpan = baru.id;
+        }
+        if (!editTransaksi || !deskripsiSimpan || deskripsiSimpan.startsWith("Penerimaan Dana")) deskripsiSimpan = `Penerimaan Dana ${kaitanSimpan}`;
+      }
+      if (!deskripsiSimpan) return;
       setGalatForm("");
+
+      // Depresiasi Aset (kotak centang): pengeluaran barang saja, bukan uang harian atau penerimaan dana.
+      const bolehDepresiasi = jenis === "pengeluaran" && !penerimaanKegiatan && kategori !== "Perdiem";
+      if (bolehDepresiasi && penyusutan.aktif) {
+        const galat = galatPenyusutan(penyusutan, jml);
+        if (galat) {
+          setGalatForm(galat.replace(/^Penyusutan: /, "Depresiasi Aset: "));
+          return;
+        }
+      }
 
       const perdiemKegiatan = dana === "Dana Kegiatan" && jenis === "pengeluaran" && kategori === "Perdiem";
 
@@ -607,7 +659,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         denganLampiran: boolean;
       }): Transaksi => {
         let detailKegiatanData: DataKhususKegiatan | undefined = undefined;
-        if (dana === "Dana Kegiatan") {
+        if (dana === "Dana Kegiatan" && !penerimaanKegiatan) {
           const subtotal =
             Number(rincianBanyaknya) > 0 && Number(rincianHargaSatuan) > 0
               ? Number(rincianBanyaknya) * Number(rincianHargaSatuan)
@@ -656,13 +708,13 @@ export const TambahView: React.FC<TambahViewProps> = ({
           kategori: kategori || daftarKategori[0] || "Lain-lain",
           jumlah: o.jumlah,
           metode,
-          kaitan: kaitan.trim(),
+          kaitan: kaitanSimpan,
           catatan: catatan.trim(),
           isTalangan,
           statusTalangan: isTalangan ? statusTalangan : undefined,
           talanganUntuk: isTalangan ? talanganUntuk.trim() : undefined,
           targetTabunganId: kategori === "Tabungan" && targetTabunganId ? targetTabunganId : undefined,
-          kegiatanId: dana === "Dana Kegiatan" && kegiatanId ? kegiatanId : undefined,
+          kegiatanId: dana === "Dana Kegiatan" && kegiatanIdSimpan ? kegiatanIdSimpan : undefined,
           detailKegiatan: detailKegiatanData,
           diubah: new Date().toISOString(),
           bukti: o.denganLampiran ? bukti : [],
@@ -709,18 +761,27 @@ export const TambahView: React.FC<TambahViewProps> = ({
         const trx = bangunTransaksi({
           id: editTransaksi ? editTransaksi.id : buatId(),
           tanggal,
-          deskripsi: deskripsi.trim(),
+          deskripsi: deskripsiSimpan,
           jumlah: jml,
           denganLampiran: true,
         });
         // Pemasukan pribadi otomatis milik perdiem yang sedang diubah (bila ada). Dipertahankan bila perdiem
         // tetap perdiem Dana Kegiatan dan pilihannya masih aktif; selain itu dilepas dan dihapus.
         const pasanganLama = editTransaksi ? cariPasanganPerdiem(editTransaksi, daftarTransaksi) : undefined;
+        // Pantauan Depresiasi Aset disimpan lebih dulu supaya App tahu transaksi ini sudah diputuskan; dilepas bila centang dimatikan.
+        const pantauanLama = daftarPenyusutan.find((x) => x.transaksiId === trx.id);
+        const pantauanBaru =
+          bolehDepresiasi && penyusutan.aktif
+            ? itemDariForm(penyusutan, { id: pantauanLama?.id ?? "pny_" + buatId(), transaksiId: trx.id, harga: trx.jumlah, tanggalTransaksi: trx.tanggal, namaCadangan: trx.deskripsi, lama: pantauanLama })
+            : null;
+        if (pantauanBaru) onSimpanPenyusutan?.(pantauanBaru);
+        else if (pantauanLama) onHapusPenyusutan?.(pantauanLama.id);
+        const opsiSimpan = { sudahMemutuskanDepresiasi: penyusutanDisentuh || Boolean(pantauanBaru) };
         if (perdiemKegiatan && catatPerdiemPribadi) {
           const idPasangan = pasanganLama?.id ?? idPemasukanPribadi(trx.id, muatIdTerhapus());
           onSimpan([trx, buatPemasukanPribadiDariPerdiem(trx, idPasangan)]);
         } else {
-          onSimpan(trx, pasanganLama ? [pasanganLama.id] : undefined);
+          onSimpan(trx, pasanganLama ? [pasanganLama.id] : undefined, opsiSimpan);
         }
       }
     }
@@ -848,17 +909,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
     if (i > 0) pindahKeLangkah(URUTAN_LANGKAH[i - 1].kunci);
   };
 
-  const handlePilihJadwal = (item: TransaksiBerulang) => {
-    setJenis(item.jenis);
-    setDana(item.dana);
-    setDeskripsi(item.nama);
-    setJumlah(String(item.jumlah));
-    setKategori(item.kategori);
-    if (item.metode) setMetode(item.metode);
-    if (item.kaitan) setKaitan(item.kaitan);
-    if (item.catatan) setCatatan(item.catatan);
-  };
-
   // Potongan form. Form lengkap menyusun semuanya dengan urutan tetap; pengisian bertahap memakai sebagian per langkah.
   const renderDanaKegiatan = (bagian: BagianFormKegiatan = "semua", onLanjutBagian?: () => void) => (
     <DanaKegiatanFormFields
@@ -935,7 +985,38 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
-  const blokUraian = (
+  const blokJudulKegiatan = (
+    <div className="field f-judul-kegiatan" data-testid="judul-kegiatan">
+      <label htmlFor="judul-kegiatan">Nama / Judul Kegiatan</label>
+      <input
+        type="text"
+        id="judul-kegiatan"
+        list="daftar-judul-kegiatan"
+        placeholder="Contoh: Kegiatan Pemetaan Krayan Batch 4"
+        maxLength={150}
+        autoComplete="off"
+        value={kaitan}
+        onChange={(e) => setKaitan(e.target.value)}
+        required
+      />
+      <datalist id="daftar-judul-kegiatan">
+        {daftarKegiatan.map((k) => (
+          <option key={k.id} value={k.nama} />
+        ))}
+      </datalist>
+      {(() => {
+        const judul = kaitan.trim().toLowerCase();
+        if (judul.length < 3) return <p className="judul-kegiatan__ket">Judul ini menjadi patokan utama laporan kegiatan: pengeluaran dan dokumen dengan judul yang sama dihimpun dalam satu laporan.</p>;
+        const ada = daftarKegiatan.some((k) => k.nama.trim().toLowerCase() === judul);
+        return ada ? (
+          <p className="judul-kegiatan__ket judul-kegiatan__ket--ada" data-testid="judul-ada">✓ Terhubung ke kegiatan yang sudah ada.</p>
+        ) : (
+          <p className="judul-kegiatan__ket judul-kegiatan__ket--baru" data-testid="judul-baru">Judul baru: kegiatan ini dibuat otomatis saat disimpan.</p>
+        );
+      })()}
+    </div>
+  );
+  const blokUraian = penerimaanKegiatan ? null : (
     <>
       <div className="field f-uraian">
         <label htmlFor="deskripsi">Uraian</label>
@@ -955,19 +1036,24 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
-  const blokKategori = (
+  const tampilDepresiasi = modeTransaksi === "pengeluaran" && kategori !== "Perdiem";
+  const blokDepresiasi = tampilDepresiasi ? (
+    <KotakDepresiasi
+      nilai={penyusutan}
+      onUbah={setPenyusutan}
+      onDisentuh={() => setPenyusutanDisentuh(true)}
+      harga={Number(jumlah) || 0}
+      tanggal={tanggal}
+      uraian={deskripsi}
+      kategori={kategori}
+    />
+  ) : null;
+  const blokKategori = penerimaanKegiatan ? null : (
     <>
       {modeTransaksi !== "pindah_dana" && (
         <div className="field f-kategori">
           <label htmlFor="kategori">Kategori</label>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "6px",
-              marginBottom: "8px",
-            }}
-          >
+          <div className="kategori-pilih" role="group" aria-label="Pilih kategori" data-testid="kategori-pilih">
             {daftarKategori.map((kat) => {
               const info = dapatkanInfoKategori(kat);
               const Ikon = info.ikon;
@@ -976,39 +1062,15 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <button
                   key={kat}
                   type="button"
+                  className="kategori-ubin"
+                  aria-pressed={isSelected}
                   onClick={() => setKategori(kat)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "5px 10px",
-                    borderRadius: "999px",
-                    fontSize: "0.8rem",
-                    fontWeight: isSelected ? 700 : 500,
-                    border: isSelected ? `2px solid ${info.warna}` : "1px solid var(--border)",
-                    background: isSelected
-                      ? `color-mix(in srgb, ${info.warna} 22%, var(--surface))`
-                      : "var(--surface)",
-                    color: isSelected ? info.warna : "var(--text)",
-                    cursor: "pointer",
-                    transition: "all 0.12s ease",
-                  }}
+                  style={{ "--warna": info.warna } as React.CSSProperties}
                 >
-                  <span
-                    style={{
-                      width: "20px",
-                      height: "20px",
-                      borderRadius: "6px",
-                      background: info.warna,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
-                    }}
-                  >
-                    <Ikon size={12} strokeWidth={2.5} />
+                  <span className="kategori-ubin__ikon" aria-hidden="true">
+                    <Ikon size={14} strokeWidth={2.4} />
                   </span>
-                  <span>{labelKategori(kat)}</span>
+                  <span className="kategori-ubin__nama">{labelKategori(kat)}</span>
                 </button>
               );
             })}
@@ -1097,7 +1159,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
-  const blokDanaKegiatanAtauKaitan = (
+  const blokDanaKegiatanAtauKaitan = penerimaanKegiatan ? null : (
     <>
       {dana === "Dana Kegiatan" && modeTransaksi !== "pindah_dana" ? (
         <div className="field wide" style={{ padding: 0 }}>
@@ -1165,7 +1227,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
-  const blokTalangan = (
+  const blokTalangan = penerimaanKegiatan ? null : (
     <>
       {/* Talangan (perlu diganti) (Requirement 2) */}
       <div
@@ -1274,26 +1336,19 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const blokBukti = (
     <>
       {/* Lampirkan Bukti Transaksi (Requirement A1 & A2) */}
-      <div className="field wide" style={{ marginTop: "8px", borderTop: "1px dashed var(--border)", paddingTop: "14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-          <label style={{ margin: 0, fontWeight: 700, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "6px" }}>
+      <div className="field wide lampiran-bukti" data-testid="lampiran-bukti">
+        <div className="lampiran-bukti__kepala">
+          <label className="lampiran-bukti__judul">
             <span>📎 Lampiran Bukti / Nota</span>
-            <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--muted)" }}>
-              (Foto kamera/galeri atau PDF)
-            </span>
+            <span className="lampiran-bukti__ket">(Foto kamera/galeri atau PDF)</span>
           </label>
-          {bukti.length > 0 && (
-            <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>
-              {bukti.length} berkas terlampir
-            </span>
-          )}
+          {bukti.length > 0 && <span className="lampiran-bukti__jumlah">{bukti.length} berkas terlampir</span>}
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        <div className="lampiran-bukti__tombol">
           <button
             type="button"
-            className="btn-secondary"
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "8px 14px" }}
+            className="btn-secondary lampiran-bukti__btn"
             onClick={() => buktiKameraInputRef.current?.click()}
             disabled={memuatBukti}
           >
@@ -1301,8 +1356,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
           <button
             type="button"
-            className="btn-secondary"
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.82rem", padding: "8px 14px" }}
+            className="btn-secondary lampiran-bukti__btn"
             onClick={() => buktiGaleriInputRef.current?.click()}
             disabled={memuatBukti}
           >
@@ -1535,6 +1589,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
             {blokUraian}
             {blokJumlah}
             {blokMetode}
+            {blokDepresiasi}
             {renderDanaKegiatan("keterangan")}
           </>
         )}
@@ -1653,148 +1708,17 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
         </div>
 
-        {/* Tool Transaksi Berulang */}
-        {!editTransaksi && onBukaTransaksiBerulang && (
-        <section
-          className="card-berulang-tool"
-          aria-label="Tool Transaksi Berulang"
-          style={{
-            marginBottom: "14px",
-            padding: "12px 14px",
-            borderRadius: "12px",
-            border: jumlahJatuhTempo > 0 ? "1.5px solid var(--accent)" : "1px solid var(--border)",
-            background:
-              jumlahJatuhTempo > 0
-                ? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
-                : "var(--surface)",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: "10px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "1.4rem" }}>🔁</span>
-              <div>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: "0.95rem",
-                    fontWeight: 700,
-                    color: "var(--accent)",
-                  }}
-                >
-                  Transaksi Berulang (Jadwal Rutin)
-                </h3>
-                <span className="help" style={{ margin: "2px 0 0", fontSize: "0.78rem" }}>
-                  Kelola jadwal gaji, sewa, tagihan listrik, WiFi, atau langganan rutin
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="btn-sync-topbar"
-              onClick={onBukaTransaksiBerulang}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 14px",
-                fontSize: "0.82rem",
-                fontWeight: 700,
-                borderRadius: "999px",
-                borderColor: "var(--accent)",
-              }}
-            >
-              <span>⚙️ Kelola Jadwal</span>
-              {jumlahJatuhTempo > 0 && (
-                <span
-                  style={{
-                    background: "var(--accent)",
-                    color: "#fff",
-                    borderRadius: "10px",
-                    padding: "1px 7px",
-                    fontSize: "0.72rem",
-                    fontWeight: 800,
-                  }}
-                >
-                  {jumlahJatuhTempo} Jatuh Tempo
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* Quick Shortcuts jika ada transaksi berulang aktif */}
-          {daftarBerulang && daftarBerulang.filter((d) => d.aktif).length > 0 && (
-            <div
-              style={{
-                marginTop: "10px",
-                borderTop: "1px dashed var(--border)",
-                paddingTop: "8px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "0.76rem",
-                  color: "var(--text-muted)",
-                  marginBottom: "6px",
-                  fontWeight: 600,
-                }}
-              >
-                ⚡ Isi cepat formulir dari jadwal rutin:
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                {daftarBerulang
-                  .filter((d) => d.aktif)
-                  .map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="chip"
-                      style={{
-                        fontSize: "0.76rem",
-                        padding: "5px 10px",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => handlePilihJadwal(item)}
-                      title={`Klik untuk otomatis mengisi formulir dengan data ${item.nama} (${formatRupiah(item.jumlah)})`}
-                    >
-                      <span>{item.jenis === "pemasukan" ? "📈" : "📉"}</span>
-                      <strong style={{ color: "var(--text)" }}>{item.nama}</strong>
-                      <span style={{ opacity: 0.8, fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                        ({formatRupiah(item.jumlah)})
-                      </span>
-                    </button>
-                  ))}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
       {/* Bagian Scan Struk Belanja dengan Gemini AI */}
       {!editTransaksi && (
         <section className="card-struk-scanner" aria-label="Scan Struk Belanja dengan Gemini AI">
           <div className="struk-scanner-header">
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "1.4rem" }}>🧾</span>
+            <div className="struk-scanner-judul">
+              <span className="struk-scanner-ikon" aria-hidden="true">
+                🧾
+              </span>
               <div>
-                <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "var(--accent)" }}>
-                  Scan Struk Belanja Otomatis (Gemini AI)
-                </h3>
-                <span className="help" style={{ margin: "2px 0 0", fontSize: "0.78rem" }}>
-                  Foto struk kasir atau unggah gambar untuk otomatis mengisi pengeluaran
-                </span>
+                <h3 className="struk-scanner-nama">Scan Struk Belanja Otomatis (Gemini AI)</h3>
+                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi pengeluaran</span>
               </div>
             </div>
           </div>
@@ -1805,32 +1729,16 @@ export const TambahView: React.FC<TambahViewProps> = ({
               className="btn-primary"
               disabled={memuatScan}
               onClick={() => kameraInputRef.current?.click()}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                fontSize: "0.85rem",
-                fontWeight: 700,
-              }}
             >
-              <span>📸</span> Ambil Foto Kamera
+              <span aria-hidden="true">📸</span> Ambil Foto Kamera
             </button>
             <button
               type="button"
               className="btn-secondary"
               disabled={memuatScan}
               onClick={() => galeriInputRef.current?.click()}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-              }}
             >
-              <span>🖼️</span> Pilih dari Galeri
+              <span aria-hidden="true">🖼️</span> Pilih dari Galeri
             </button>
           </div>
 
@@ -1870,17 +1778,17 @@ export const TambahView: React.FC<TambahViewProps> = ({
                   {hasilScan.ringkasan}
                 </p>
               )}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+              <div className="struk-hasil-rincian">
                 <span>🏬 {hasilScan.deskripsi}</span>
-                <span>·</span>
+                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
                 <span style={{ fontWeight: 700, color: "var(--keluar)" }}>
                   💰 {formatRupiah(hasilScan.jumlah || 0)}
                 </span>
-                <span>·</span>
+                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
                 <span>📅 {hasilScan.tanggal}</span>
-                <span>·</span>
+                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
                 <span>🏷️ {labelKategori(hasilScan.kategori)}</span>
-                <span>·</span>
+                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
                 <span>💳 {hasilScan.metode}</span>
               </div>
               <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--accent)" }}>
@@ -2076,10 +1984,12 @@ export const TambahView: React.FC<TambahViewProps> = ({
               )}
               {blokTanggal}
               {blokUraian}
+              {penerimaanKegiatan && blokJudulKegiatan}
               {blokKategori}
               {blokTargetTabungan}
               {blokJumlah}
               {blokMetode}
+              {blokDepresiasi}
               {blokDanaKegiatanAtauKaitan}
               {blokCatatan}
               {blokTalangan}
