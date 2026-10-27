@@ -14,7 +14,6 @@ import {
   DetailBBM,
   DetailAkomodasi,
   DetailKonsumsi,
-  ItemPenyusutan,
   UkuranKotakTempel,
   DetailHonorarium,
   DetailPerdiem,
@@ -49,8 +48,6 @@ import {
   saranUraian,
 } from "../lib/prasyaratDokumen";
 import { ingatStaf, kategoriBolehPenerima } from "../lib/penerimaManfaat";
-import { PenyusutanField } from "./PenyusutanField";
-import { FORM_PENYUSUTAN_AWAL, FormPenyusutan, formDariItem, galatForm as galatPenyusutan, itemDariForm } from "../lib/penyusutan";
 import { normalisasiJenisBukti } from "../lib/constants";
 import { cekKetentuanTransaksi } from "../lib/ketentuanKegiatan";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
@@ -86,10 +83,6 @@ interface TambahViewProps {
   targetTabunganAwalId?: string;
   daftarKegiatan?: DataKegiatan[];
   onTambahKegiatan?: (kegiatan: DataKegiatan) => void;
-  /** Barang yang dipantau penyusutan dan umurnya (opsional pada pengeluaran pembelian barang). */
-  daftarPenyusutan?: ItemPenyusutan[];
-  onSimpanPenyusutan?: (item: ItemPenyusutan) => void;
-  onHapusPenyusutan?: (id: string) => void;
 }
 
 export const TambahView: React.FC<TambahViewProps> = ({
@@ -109,9 +102,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
   targetTabunganAwalId = "",
   daftarKegiatan = [],
   onTambahKegiatan,
-  daftarPenyusutan = [],
-  onSimpanPenyusutan,
-  onHapusPenyusutan,
 }) => {
   const [modeTransaksi, setModeTransaksi] = useState<"pengeluaran" | "pemasukan" | "pindah_dana">("pengeluaran");
   const [danaAsal, setDanaAsal] = useState<NamaDana>("Dana Pribadi");
@@ -159,7 +149,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
     jumlahHari: 1,
   });
   const [perdiem, setPerdiem] = useState<DetailPerdiem>({});
-  const [penyusutan, setPenyusutan] = useState<FormPenyusutan>(FORM_PENYUSUTAN_AWAL);
   const [penerimaManfaat, setPenerimaManfaat] = useState<string[]>([]);
   const [kotakTempel, setKotakTempel] = useState<UkuranKotakTempel | undefined>(undefined);
   // Uang harian otomatis: pengisian sekaligus per rentang tanggal dan pemasukan pribadi yang menyertai perdiem
@@ -222,8 +211,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setStatusTalangan(editTransaksi.statusTalangan || "belum_diganti");
       setTalanganUntuk(editTransaksi.talanganUntuk || "");
       setTargetTabunganId(editTransaksi.targetTabunganId || "");
-      const itemPenyusutanLama = daftarPenyusutan.find((x) => x.transaksiId === editTransaksi.id);
-      setPenyusutan(itemPenyusutanLama ? formDariItem(itemPenyusutanLama) : FORM_PENYUSUTAN_AWAL);
 
       // Dana Kegiatan Data
       if (editTransaksi.dana === "Dana Kegiatan") {
@@ -281,7 +268,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setStatusTalangan("belum_diganti");
       setTalanganUntuk("");
       setTargetTabunganId(targetTabunganAwalId || "");
-      setPenyusutan(FORM_PENYUSUTAN_AWAL);
       const defaultKategori = targetTabunganAwalId ? "Tabungan" : KATEGORI["Dana Pribadi"].pengeluaran[0];
       setKategori(defaultKategori);
 
@@ -606,14 +592,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
     } else {
       if (!deskripsi.trim()) return;
       setGalatForm("");
-      const catatPenyusutan = modeTransaksi === "pengeluaran" && jenis === "pengeluaran" && kategori !== "Perdiem";
-      if (catatPenyusutan) {
-        const galat = galatPenyusutan(penyusutan, jml);
-        if (galat) {
-          setGalatForm(galat);
-          return;
-        }
-      }
 
       const perdiemKegiatan = dana === "Dana Kegiatan" && jenis === "pengeluaran" && kategori === "Perdiem";
 
@@ -744,13 +722,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
         } else {
           onSimpan(trx, pasanganLama ? [pasanganLama.id] : undefined);
         }
-        // Penyusutan dan umur barang (opsional): simpan atau perbarui pantauan, atau lepas bila dimatikan.
-        const itemLama = daftarPenyusutan.find((x) => x.transaksiId === trx.id);
-        const itemBaru = catatPenyusutan && penyusutan.aktif
-          ? itemDariForm(penyusutan, { id: itemLama?.id ?? "pny_" + buatId(), transaksiId: trx.id, harga: trx.jumlah, tanggalTransaksi: trx.tanggal, namaCadangan: trx.deskripsi, lama: itemLama })
-          : null;
-        if (itemBaru) onSimpanPenyusutan?.(itemBaru);
-        else if (itemLama) onHapusPenyusutan?.(itemLama.id);
       }
     }
 
@@ -784,7 +755,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setPenerimaManfaat([]);
       setKotakTempel(undefined);
       setPerdiemRentang(PERDIEM_RENTANG_AWAL);
-      setPenyusutan(FORM_PENYUSUTAN_AWAL);
       setLangkah("kegiatan");
       setLangkahTerjauh(0);
       setKonfirmasiBelumLengkap(false);
@@ -1459,10 +1429,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
-  const tampilPenyusutan = modeTransaksi === "pengeluaran" && kategori !== "Perdiem";
-  const blokPenyusutan = tampilPenyusutan ? (
-    <PenyusutanField nilai={penyusutan} onUbah={setPenyusutan} harga={Number(jumlah) || 0} tanggalTransaksi={tanggal} uraian={deskripsi} />
-  ) : null;
   const blokGalat = (
     <>
       {galatForm && (
@@ -1585,10 +1551,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
             {blokBukti}
             {kategori !== "Perdiem" && renderDanaKegiatan("foto")}
             <details className="bertahap-lainnya">
-              <summary>Lainnya (opsional): catatan, talangan, dan penyusutan barang</summary>
+              <summary>Lainnya (opsional): catatan dan talangan</summary>
               {blokCatatan}
               {blokTalangan}
-              {blokPenyusutan}
             </details>
           </>
         )}
@@ -2116,7 +2081,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
               {blokJumlah}
               {blokMetode}
               {blokDanaKegiatanAtauKaitan}
-              {blokPenyusutan}
               {blokCatatan}
               {blokTalangan}
               {blokBukti}
