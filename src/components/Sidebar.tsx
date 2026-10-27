@@ -8,6 +8,8 @@ interface SidebarProps {
   onSelectView: (view: ViewTab) => void;
   onBukaMenuTambah: () => void;
   karakter: KarakterId;
+  /** Jumlah barang yang sisa nilai atau umurnya ≤ 30% (Depresiasi Aset); tampil sebagai titik merah di menu Saya. */
+  lencanaSaya?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -15,6 +17,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectView,
   onBukaMenuTambah,
   karakter,
+  lencanaSaya = 0,
 }) => {
   const meta = KARAKTER[karakter] || KARAKTER.gojo;
 
@@ -161,6 +164,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
+            {lencanaSaya > 0 && (
+              <span className="nav-lencana" data-testid="lencana-saya" role="status" aria-label={`${lencanaSaya} barang perlu diganti`}>
+                {lencanaSaya}
+              </span>
+            )}
           </span>
           <span className="sidebar-nav-label">Saya</span>
         </button>

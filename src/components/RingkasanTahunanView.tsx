@@ -197,65 +197,31 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
   return (
     <div className="ringkasan-tahunan-container">
       {/* Pengatur Tahun */}
-      <div
-        className="card ringkasan-tahun-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          marginBottom: "16px",
-          padding: "16px 20px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "1.6rem" }}>📅</span>
-          <div>
-            <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800 }}>
-              Ringkasan Keuangan Tahun {tahunPilihan}
-            </h2>
-            <p className="help" style={{ margin: 0, fontSize: "0.85rem" }}>
+      <div className="card ringkasan-tahun-header">
+        <div className="rt-judul">
+          <span className="rt-judul__ikon" aria-hidden="true">
+            📅
+          </span>
+          <div className="rt-judul__teks">
+            <h2 className="rt-judul__nama">Ringkasan Keuangan Tahun {tahunPilihan}</h2>
+            <p className="help rt-judul__sub">
               Analisis 12 bulan &amp; perbandingan dengan tahun {tahunSebelumnya}
             </p>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            type="button"
-            className="btn-ikon"
-            onClick={() => setTahunPilihan((prev) => prev - 1)}
-            title="Tahun Sebelumnya"
-          >
+        <div className="rt-pemilih">
+          <button type="button" className="btn-ikon" onClick={() => setTahunPilihan((prev) => prev - 1)} title="Tahun Sebelumnya" aria-label="Tahun sebelumnya">
             ←
           </button>
-          <select
-            className="input-select"
-            value={tahunPilihan}
-            onChange={(e) => setTahunPilihan(Number(e.target.value))}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "10px",
-              fontWeight: 700,
-              fontSize: "1rem",
-              background: "var(--surface)",
-              color: "var(--text)",
-              border: "1px solid var(--border)",
-            }}
-          >
+          <select className="input-select rt-pemilih__tahun" value={tahunPilihan} onChange={(e) => setTahunPilihan(Number(e.target.value))} aria-label="Pilih tahun">
             {daftarTahunTersedia.map((th) => (
               <option key={th} value={th}>
                 Tahun {th}
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="btn-ikon"
-            onClick={() => setTahunPilihan((prev) => prev + 1)}
-            title="Tahun Berikutnya"
-          >
+          <button type="button" className="btn-ikon" onClick={() => setTahunPilihan((prev) => prev + 1)} title="Tahun Berikutnya" aria-label="Tahun berikutnya">
             →
           </button>
         </div>

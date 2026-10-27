@@ -111,6 +111,9 @@ import { AsetView } from "./components/AsetView";
 import { TambahView } from "./components/TambahView";
 import { GrafikView } from "./components/GrafikView";
 import { SayaView } from "./components/SayaView";
+import { DialogDepresiasi, ModeDialogDepresiasi } from "./components/DialogDepresiasi";
+import { itemPerluPeringatan } from "./lib/penyusutan";
+import { nilaiTawaranDepresiasi } from "./lib/tawaranDepresiasi";
 import { TransaksiBerulangModal } from "./components/TransaksiBerulangModal";
 import { AppLockModal } from "./components/AppLockModal";
 import { hapusTotp } from "./lib/totp";
@@ -151,6 +154,7 @@ export default function App() {
   );
   const [modalBerulangBuka, setModalBerulangBuka] = useState(false);
   const jumlahJatuhTempo = daftarBerulang.filter(apakahJatuhTempo).length;
+  const jumlahPerhatianDepresiasi = itemPerluPeringatan(pengaturan.penyusutan ?? [], hariIni()).length;
 
   const [tema, setTema] = useState<TemaId>(() => (bacaStorage(TEMA_KEY, "jujutsu") as TemaId) || "jujutsu");
   const [karakter, setKarakter] = useState<KarakterId>(
@@ -169,6 +173,9 @@ export default function App() {
   }, [currentView]);
   const [bulanTerpilih, setBulanTerpilih] = useState<string>(() => hariIni().slice(0, 7));
   const [editTransaksi, setEditTransaksi] = useState<Transaksi | null>(null);
+  // Tawaran "hitung depresiasi?" setelah pembelian barang tahan lama dicatat, dan permintaan membuka layar Depresiasi Aset di tab Saya.
+  const [dialogDepresiasi, setDialogDepresiasi] = useState<ModeDialogDepresiasi | null>(null);
+  const [bukaDepresiasiSaya, setBukaDepresiasiSaya] = useState(false);
   // True bila transaksi yang diubah dialihkan dari pemasukan pribadi otomatis ke perdiem Dana Kegiatan-nya.
   const [editDialihkanDariPerdiem, setEditDialihkanDariPerdiem] = useState(false);
 
@@ -1312,6 +1319,14 @@ export default function App() {
     setCurrentView("riwayat");
     jadwalkanAutoSync();
 
+    // Harga barang yang dipantau (Depresiasi Aset) mengikuti pengeluaran asalnya bila jumlahnya diubah.
+    const daftarPantauan = pengaturanRef.current.penyusutan ?? [];
+    const pantauanSelaras = daftarPantauan.map((p) => {
+      const asal = daftarTerupdate.find((x) => x.id === p.transaksiId && x.jenis === "pengeluaran");
+      return asal && asal.jumlah !== p.harga ? { ...p, harga: asal.jumlah, diubah: new Date().toISOString() } : p;
+    });
+    if (pantauanSelaras.some((p, i) => p !== daftarPantauan[i])) simpanDaftarPenyusutan(pantauanSelaras);
+
     const affectedKgIds = cariIdKegiatanTerdampak([...daftarTerupdate, ...dilepas]);
     if (affectedKgIds.length > 0) {
       jadwalkanAutoSyncDocx(affectedKgIds);
@@ -1637,6 +1652,7 @@ export default function App() {
               setCurrentView("tambah");
             }}
             karakter={karakter}
+            lencanaSaya={jumlahPerhatianDepresiasi}
           />
         </aside>
 
@@ -1692,7 +1708,9 @@ export default function App() {
                   daftarPenyusutan={pengaturan.penyusutan ?? []}
                   onBukaUmurBarang={() => {
                     setArahGeser(null);
-                    setCurrentView("aset");
+                    setBukaDepresiasiSaya(true);
+                    setLastActiveTab("saya");
+                    setCurrentView("saya");
                     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
                   }}
                   onBukaTambahTabungan={(targetId, targetNama) => {
@@ -1721,9 +1739,6 @@ export default function App() {
                   onTarikDrive={handleTarikDariDrive}
                   onKirimDrive={handleKirimKeDrive}
                   memuatDrive={memuatDrive}
-                  daftarPenyusutan={pengaturan.penyusutan ?? []}
-                  onSimpanPenyusutan={handleSimpanPenyusutan}
-                  onHapusPenyusutan={handleHapusPenyusutan}
                 />
               </div>
             )}
@@ -1783,6 +1798,11 @@ export default function App() {
                   onTambahKegiatan={handleTambahKegiatan}
                   googleToken={googleAccessToken || undefined}
                   ambilToken={getAccessToken}
+                  daftarPenyusutan={pengaturan.penyusutan ?? []}
+                  onSimpanPenyusutan={handleSimpanPenyusutan}
+                  onHapusPenyusutan={handleHapusPenyusutan}
+                  bukaDepresiasi={bukaDepresiasiSaya}
+                  onDepresiasiDibuka={() => setBukaDepresiasiSaya(false)}
                 />
               </div>
             )}
@@ -1795,6 +1815,11 @@ export default function App() {
                   handleSimpanTransaksi(trx, hapusIds);
                   setTargetTabunganAwalId("");
                   setCurrentView(lastActiveTab);
+                  // Pembelian baru yang tampak tahan lama: tawarkan untuk dihitung depresiasinya (hanya yang disetujui masuk daftar).
+                  if (!editTransaksi && !Array.isArray(trx)) {
+                    const tawaran = nilaiTawaranDepresiasi(trx);
+                    if (tawaran.tawar) setDialogDepresiasi({ jenis: "tawaran", transaksi: trx, preset: tawaran.preset, alasan: tawaran.alasan });
+                  }
                 }}
                 onBatalEdit={() => {
                   setEditTransaksi(null);
@@ -1812,9 +1837,6 @@ export default function App() {
                 targetTabunganAwalId={targetTabunganAwalId}
                 daftarKegiatan={daftarKegiatan}
                 onTambahKegiatan={handleTambahKegiatan}
-                daftarPenyusutan={pengaturan.penyusutan ?? []}
-                onSimpanPenyusutan={handleSimpanPenyusutan}
-                onHapusPenyusutan={handleHapusPenyusutan}
               />
             )}
           </main>
@@ -1832,6 +1854,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
         }}
         onBukaMenuTambah={() => setModalPilihanTambahBuka(true)}
+        lencanaSaya={jumlahPerhatianDepresiasi}
       />
 
       {/* Modal Pilihan Pengisian Struk Belanja / Transaksi saat Ikon Plus Ditekan */}
@@ -1943,6 +1966,16 @@ export default function App() {
 
       {modalGandaBuka && (
         <DataGandaModal kelompok={kelompokGanda} onHapus={hapusDataGanda} onTutup={() => setModalGandaBuka(false)} />
+      )}
+      {dialogDepresiasi && (
+        <DialogDepresiasi
+          mode={dialogDepresiasi}
+          onSimpan={(item) => {
+            handleSimpanPenyusutan(item);
+            setDialogDepresiasi(null);
+          }}
+          onTutup={() => setDialogDepresiasi(null)}
+        />
       )}
       <TransaksiBerulangModal
         isOpen={modalBerulangBuka}

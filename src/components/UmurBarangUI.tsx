@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ItemPenyusutan } from "../types";
 import { formatRupiah, hariIni } from "../lib/constants";
+import { tanggalPendek } from "../lib/perdiemOtomatis";
 import {
   AMBANG_PERINGATAN,
   HasilPenyusutan,
@@ -119,14 +120,14 @@ export const BannerUmurBarang: React.FC<BannerUmurBarangProps> = ({ daftar, onBu
   if (peringatan.length === 0) return null;
   const terparah = peringatan[0].hasil.tingkat;
   return (
-    <section className="umur-banner no-print" role="alert" data-testid="banner-umur" data-tingkat={terparah} aria-label="Peringatan umur barang">
+    <section className="umur-banner no-print" role="alert" data-testid="banner-umur" data-tingkat={terparah} aria-label="Peringatan depresiasi aset">
       <div className="umur-banner__kepala">
         <strong>
           ⚠️ {peringatan.length} barang mendekati batas umur pakai (≤ {AMBANG_PERINGATAN}%)
         </strong>
         {onBuka && (
           <button type="button" className="btn-small" onClick={onBuka}>
-            Lihat semua
+            Buka Depresiasi Aset
           </button>
         )}
       </div>
@@ -142,7 +143,7 @@ export const BannerUmurBarang: React.FC<BannerUmurBarangProps> = ({ daftar, onBu
         ))}
       </ul>
       {peringatan.length > maks && <p className="umur-banner__lain">+{peringatan.length - maks} barang lain</p>}
-      <p className="umur-banner__catatan">Segera ganti atau servis sebelum umur pakainya habis.</p>
+      <p className="umur-banner__catatan">Segera ganti atau servis sebelum umur pakainya habis. Peringatan menyala saat sisa nilai atau umur {AMBANG_PERINGATAN}% ke bawah.</p>
     </section>
   );
 };
@@ -151,9 +152,12 @@ interface KartuUmurProps {
   item: ItemPenyusutan;
   onSimpan: (item: ItemPenyusutan) => void;
   onHapus: (id: string) => void;
+  /** Membuka formulir untuk mengubah data barang. */
+  onUbah?: (item: ItemPenyusutan) => void;
 }
 
-const KartuUmur: React.FC<KartuUmurProps> = ({ item, onSimpan, onHapus }) => {
+/** Kartu satu barang di layar Depresiasi Aset: angka hitungan, bilah sisa, peringatan, dan aksi. */
+export const KartuUmur: React.FC<KartuUmurProps> = ({ item, onSimpan, onHapus, onUbah }) => {
   const hasil = hitungPenyusutan(item, hariIni());
   const [angkaPemakaian, setAngkaPemakaian] = useState(String(item.pemakaianSekarang ?? item.pemakaianAwal ?? 0));
   const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
@@ -164,7 +168,7 @@ const KartuUmur: React.FC<KartuUmurProps> = ({ item, onSimpan, onHapus }) => {
         <div>
           <h4 className="umur-kartu__nama">{item.nama}</h4>
           <span className="umur-kartu__sub">
-            {item.jenisBarang === "habis-pakai" ? "Habis pakai / servis berkala" : "Aset"} · {LABEL_METODE[item.metode]} · umur {teksUmurTotal(item)} · sejak {item.tanggalMulai}
+            {item.jenisBarang === "habis-pakai" ? "Habis pakai / servis berkala" : "Aset"} · {LABEL_METODE[item.metode]} · umur {teksUmurTotal(item)} · sejak {tanggalPendek(item.tanggalMulai)}
           </span>
         </div>
         <LencanaUmur hasil={hasil} />
@@ -201,6 +205,11 @@ const KartuUmur: React.FC<KartuUmurProps> = ({ item, onSimpan, onHapus }) => {
           <button type="button" className="btn-secondary" data-aksi="ganti" onClick={() => onSimpan(mulaiSiklusBaru(item, hariIni()))} title="Mulai hitungan baru dari hari ini (catat pembeliannya lewat Tambah transaksi)">
             Sudah diganti / diservis
           </button>
+          {onUbah && (
+            <button type="button" className="btn-link umur-kartu__ubah" data-aksi="ubah" onClick={() => onUbah(item)}>
+              Ubah data
+            </button>
+          )}
           {konfirmasiHapus ? (
             <>
               <button type="button" className="btn-secondary" onClick={() => onHapus(item.id)} data-aksi="hapus-pasti">
@@ -218,34 +227,5 @@ const KartuUmur: React.FC<KartuUmurProps> = ({ item, onSimpan, onHapus }) => {
         </div>
       </div>
     </article>
-  );
-};
-
-interface PanelUmurBarangProps {
-  daftar: ItemPenyusutan[];
-  onSimpan: (item: ItemPenyusutan) => void;
-  onHapus: (id: string) => void;
-}
-
-/** Daftar barang yang dipantau umur dan penyusutannya (tab Aset), yang paling mendesak di atas. */
-export const PanelUmurBarang: React.FC<PanelUmurBarangProps> = ({ daftar, onSimpan, onHapus }) => {
-  const sekarang = hariIni();
-  const urut = [...daftar].sort((a, b) => (hitungPenyusutan(a, sekarang)?.persenTerendah ?? 101) - (hitungPenyusutan(b, sekarang)?.persenTerendah ?? 101));
-  return (
-    <section className="card umur-panel" aria-label="Umur pakai dan penyusutan barang" data-testid="panel-umur">
-      <h3 className="umur-panel__judul">🧰 Umur Pakai &amp; Penyusutan Barang</h3>
-      {urut.length === 0 ? (
-        <p className="umur-panel__kosong">
-          Belum ada barang yang dipantau. Aktifkan <strong>Hitung Penyusutan &amp; Umur Barang</strong> saat mencatat pembelian oli, aki, ban, atau
-          peralatan; aplikasi memberi peringatan otomatis saat sisanya tinggal {AMBANG_PERINGATAN}%.
-        </p>
-      ) : (
-        <div className="umur-panel__daftar">
-          {urut.map((item) => (
-            <KartuUmur key={item.id} item={item} onSimpan={onSimpan} onHapus={onHapus} />
-          ))}
-        </div>
-      )}
-    </section>
   );
 };

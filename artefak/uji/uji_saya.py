@@ -30,7 +30,7 @@ TRANSAKSI = [
     {"id": "p1", "jenis": "pengeluaran", "dana": "Dana Kegiatan", "tanggal": "2026-09-21", "deskripsi": "Perdiem Kalimantan · 21 Sep 2026", "kategori": "Perdiem",
      "jumlah": 200000, "metode": "Tunai", "kaitan": "", "catatan": ""},
 ]
-APLIKASI = ["drive", "laporan", "keluarga", "tema", "rutin", "kunci"]
+APLIKASI = ["drive", "laporan", "depresiasi", "keluarga", "tema", "rutin", "kunci"]
 
 
 def buka(p, lebar):
@@ -62,9 +62,9 @@ with sync_playwright() as p:
         print(f"== {nama} ({lebar}px)")
         b, pg, galat = buka(p, lebar)
         nav(pg, "Saya")
-        cek(pg.locator(".saya-peluncur .saya-app").count() == 6, "enam aplikasi tampil sebagai ikon (Profil Pelapor menyatu dengan Laporan)")
+        cek(pg.locator(".saya-peluncur .saya-app").count() == 7, "tujuh aplikasi tampil sebagai ikon (Profil Pelapor menyatu dengan Laporan, Depresiasi Aset menyusul)")
         cek(pg.locator("details.folder").count() == 0, "tidak ada lagi baris berbentuk folder")
-        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Keluarga", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
+        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Depresiasi Aset", "Keluarga", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
             "nama aplikasi sesuai konteks kerja")
         kolom = pg.evaluate("new Set([...document.querySelectorAll('.saya-app')].map(e => Math.round(e.getBoundingClientRect().x))).size")
         cek(kolom == 4, f"empat kolom ({kolom})")
@@ -72,7 +72,12 @@ with sync_playwright() as p:
         for app in APLIKASI:
             pg.locator(f"[data-app={app}]").click()
             pg.wait_for_timeout(300)
-            ada = pg.locator(".laporan-container").count() == 1 if app == "laporan" else pg.locator(f"#panel-{app}").count() == 1
+            if app == "laporan":
+                ada = pg.locator(".laporan-container").count() == 1
+            elif app == "depresiasi":
+                ada = pg.locator("[data-testid=layar-depresiasi]").count() == 1
+            else:
+                ada = pg.locator(f"#panel-{app}").count() == 1
             cek(ada and pg.locator(".saya-peluncur").count() == 0, f"{app}: isi terbuka, daftar ikon tersembunyi")
             pg.get_by_role("button", name="Kembali ke daftar aplikasi").click()
             pg.wait_for_timeout(200)
