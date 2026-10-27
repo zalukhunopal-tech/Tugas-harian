@@ -59,13 +59,19 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     (A 92 × 132 mm berpasangan, B 190 × 88 mm, C 190 × 132 mm). Ukuran dipilih otomatis menurut jenis bukti dan kategori, bisa diubah
     per pengeluaran. Dokumen Word memakai tata letaknya sendiri.
   - Kartu ringkasan saldo di Laporan: empat kartu sebaris di PC (≥ 1024 px), 2 × 2 di tablet, label di atas dan nominal di bawah sejajar.
-- **Umur Pakai & Penyusutan Barang** (opsional, di formulir pengeluaran): centang *Hitung Penyusutan & Umur Barang*, pilih preset
-  (oli mesin 2.000 km, oli gardan 8.000 km, kampas rem, aki, ban, baterai, busi, rantai & gir; laptop, ponsel, kendaraan, peralatan,
-  perabot) atau isi manual, dengan basis **waktu kalender** (hari/bulan/tahun) atau **pemakaian** (km/jam). Rumus: garis lurus
-  `D = (C − S) / n`, `BV = C − D × t`, `P_sisa = BV / C × 100%`; saldo menurun ganda `R = 2 / n`, `BV = C × (1 − R)^t` (minimal S);
-  sisa umur `Sisa Hari = Total Umur − (hari ini − tanggal beli)` atau `Sisa KM = Batas − (KM sekarang − KM saat ganti)`. Bila sisa nilai
-  **atau** sisa umur ≤ 30%: lencana kuning/merah menyala, banner di Riwayat dan Aset, bilah merah. Di tab Aset: perbarui KM, tandai
-  "sudah diganti/diservis", atau hapus pantauan. Pantauan disimpan di pengaturan (ikut tersinkron) dan terhapus bersama transaksinya.
+- **Depresiasi Aset** (tab Saya → Depresiasi Aset): setelah pengeluaran barang yang **bukan sekali pakai** dicatat (laptop, ponsel,
+  ban, aki, oli, dan sejenisnya; makan, bensin, pulsa, tiket, sewa, dan servis tidak ditawari), aplikasi menawarkan *Hitung depresiasi?*.
+  Hanya yang disetujui masuk daftar, dengan isian terisi otomatis dari **basis data umur** (`src/lib/basisDataUmur.ts`: 32 barang motor,
+  mobil, elektronik, dan aset, tiap angka memuat rentang dan sumbernya; yang belum bersumber tegas ditandai "perkiraan umum").
+  Barang lama bisa ditambahkan lewat *Tambah aset* atau tombol *Pantau* di daftar umur standar. Metode: garis lurus, saldo menurun
+  ganda, jumlah angka tahun, dan unit produksi (km atau jam); umur bisa dihitung dengan waktu kalender, pemakaian, atau **batas ganda**
+  (mis. oli 2.000 km atau 2 bulan, mana yang lebih dulu). Rumus: `D = (C − S) / n`, `BV = C − D × t`; `R = 2 / n`,
+  `BV = C × (1 − R)^t`; SYD `A = (C − S) × t × (2n − t + 1) / (n(n + 1))`; `Sisa Hari = Total Umur − (hari ini − tanggal beli)` atau
+  `Sisa KM = Batas − (KM sekarang − KM saat ganti)`. Bila sisa nilai **atau** sisa umur ≤ 30%: lencana menyala, banner di Riwayat dan
+  di layar Depresiasi Aset, titik merah berangka di menu Saya, dan bilah merah. Di layar ini: ringkasan nilai buku, saringan, perbarui
+  km, "sudah diganti/diservis", ubah data, hapus pantauan, serta **Pedoman Depresiasi** (rumus, kelompok masa manfaat PMK 72/2023, daftar
+  umur standar, sumber riset). Salinan lengkap pedoman: [`docs/pedoman-depresiasi-aset.md`](docs/pedoman-depresiasi-aset.md).
+  Pantauan disimpan di pengaturan (ikut tersinkron) dan terhapus bersama transaksinya.
 - **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan

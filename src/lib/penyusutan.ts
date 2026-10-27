@@ -1,13 +1,20 @@
 import { BasisUmur, ItemPenyusutan, JenisBarang, MetodePenyusutan, SatuanPemakaian, SatuanWaktu } from "../types";
+import { PresetBarang, cariPreset } from "./basisDataUmur";
+
+export { PRESET_ASET, PRESET_HABIS_PAKAI, SEMUA_PRESET, cariPreset } from "./basisDataUmur";
+export type { PresetBarang } from "./basisDataUmur";
 
 /**
- * Penyusutan nilai dan prediksi umur pakai barang (fitur opsional pada pengeluaran pembelian barang).
+ * Depresiasi aset dan prediksi umur pakai barang (tab Saya > Depresiasi Aset). Data umur standar ada di basisDataUmur.ts.
  *
  * Variabel: C harga beli, S nilai residu, n total estimasi umur pakai, t umur yang sudah berjalan (dalam satuan yang sama dengan n).
- *   Garis lurus (straight-line):  D = (C - S) / n;   BV_t = C - D × t;   P_sisa = BV_t / C × 100%
- *   Saldo menurun ganda (DDB):    R = 2 / n;         BV_t = C × (1 - R)^t, tidak kurang dari S
- *   Sisa umur pakai (RUL), waktu:  Sisa Hari = Total Umur (hari) - (hari ini - tanggal beli/ganti)
- *   Sisa umur pakai (RUL), jarak:  Sisa KM   = Batas Umur KM - (KM saat ini - KM saat ganti)
+ *   Garis lurus (straight-line):     D = (C - S) / n;   BV_t = C - D × t;   P_sisa = BV_t / C × 100%
+ *     Dengan basis pemakaian (km atau jam) ini sama dengan metode unit produksi: beban per km = (C - S) / total km.
+ *   Saldo menurun ganda (DDB):       R = 2 / n;         BV_t = C × (1 - R)^t, tidak kurang dari S
+ *   Jumlah angka tahun (SYD):        A_t = (C - S) × t × (2n - t + 1) / (n × (n + 1));   BV_t = C - A_t
+ *   Sisa umur pakai (RUL), waktu:    Sisa Hari = Total Umur (hari) - (hari ini - tanggal beli/ganti)
+ *   Sisa umur pakai (RUL), jarak:    Sisa KM   = Batas Umur KM - (KM saat ini - KM saat ganti)
+ *   Batas ganda (km ATAU bulan):     P_umur = yang terkecil dari sisa km dan sisa waktu (mana yang tercapai lebih dulu)
  *   P_umur = Sisa Umur / Total Estimasi Umur × 100%
  * Peringatan otomatis bila P_sisa ATAU P_umur menyentuh atau berada di bawah 30%.
  */
@@ -23,48 +30,11 @@ export const LABEL_SATUAN_PEMAKAIAN: Record<SatuanPemakaian, string> = { km: "km
 export const LABEL_METODE: Record<MetodePenyusutan, string> = {
   "garis-lurus": "Garis Lurus",
   "saldo-menurun-ganda": "Saldo Menurun Ganda",
+  "jumlah-angka-tahun": "Jumlah Angka Tahun",
 };
 
-/* ---------- preset barang ---------- */
-
-export interface PresetBarang {
-  id: string;
-  nama: string;
-  jenis: JenisBarang;
-  basis: BasisUmur;
-  umur: number;
-  satuanWaktu?: SatuanWaktu;
-  satuanPemakaian?: SatuanPemakaian;
-  metode: MetodePenyusutan;
-  ikon: string;
-  /** Patokan umum; umur sebenarnya bergantung merek dan pemakaian, jadi selalu bisa diubah. */
-  catatan?: string;
-}
-
-export const PRESET_HABIS_PAKAI: PresetBarang[] = [
-  { id: "oli-mesin-motor", nama: "Oli Mesin Motor", jenis: "habis-pakai", basis: "pemakaian", umur: 2000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "🛢️", catatan: "Ganti tiap ±2.000 km" },
-  { id: "oli-gardan", nama: "Oli Gardan", jenis: "habis-pakai", basis: "pemakaian", umur: 8000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "⚙️", catatan: "Ganti tiap ±8.000 km" },
-  { id: "kampas-rem", nama: "Kampas Rem", jenis: "habis-pakai", basis: "pemakaian", umur: 20000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "🛑", catatan: "Ganti tiap ±20.000 km" },
-  { id: "aki", nama: "Aki (Accu)", jenis: "habis-pakai", basis: "waktu", umur: 24, satuanWaktu: "bulan", metode: "garis-lurus", ikon: "🔋", catatan: "Awet ±2 tahun" },
-  { id: "ban", nama: "Ban", jenis: "habis-pakai", basis: "pemakaian", umur: 20000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "🛞", catatan: "Ganti tiap ±20.000 km" },
-  { id: "baterai", nama: "Baterai", jenis: "habis-pakai", basis: "waktu", umur: 24, satuanWaktu: "bulan", metode: "garis-lurus", ikon: "🪫", catatan: "Awet ±2 tahun" },
-  { id: "busi", nama: "Busi", jenis: "habis-pakai", basis: "pemakaian", umur: 10000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "⚡", catatan: "Ganti tiap ±10.000 km" },
-  { id: "rantai-gir", nama: "Rantai & Gir", jenis: "habis-pakai", basis: "pemakaian", umur: 20000, satuanPemakaian: "km", metode: "garis-lurus", ikon: "⛓️", catatan: "Ganti tiap ±20.000 km" },
-];
-
-export const PRESET_ASET: PresetBarang[] = [
-  { id: "laptop", nama: "Laptop / Komputer", jenis: "aset", basis: "waktu", umur: 4, satuanWaktu: "tahun", metode: "saldo-menurun-ganda", ikon: "💻", catatan: "±4 tahun, susut lebih cepat di awal" },
-  { id: "ponsel", nama: "Ponsel / Tablet", jenis: "aset", basis: "waktu", umur: 3, satuanWaktu: "tahun", metode: "saldo-menurun-ganda", ikon: "📱", catatan: "±3 tahun" },
-  { id: "kendaraan", nama: "Kendaraan Bermotor", jenis: "aset", basis: "waktu", umur: 8, satuanWaktu: "tahun", metode: "saldo-menurun-ganda", ikon: "🏍️", catatan: "±8 tahun" },
-  { id: "peralatan-kerja", nama: "Peralatan Kerja", jenis: "aset", basis: "waktu", umur: 5, satuanWaktu: "tahun", metode: "garis-lurus", ikon: "🧰", catatan: "±5 tahun" },
-  { id: "perabot", nama: "Perabot / Furnitur", jenis: "aset", basis: "waktu", umur: 8, satuanWaktu: "tahun", metode: "garis-lurus", ikon: "🪑", catatan: "±8 tahun" },
-];
-
-export const SEMUA_PRESET: PresetBarang[] = [...PRESET_HABIS_PAKAI, ...PRESET_ASET];
-
-export function cariPreset(id: string | undefined): PresetBarang | undefined {
-  return SEMUA_PRESET.find((p) => p.id === id);
-}
+/** Hari dalam satu bulan rata-rata, untuk batas waktu kedua (bulan) pada barang berbasis pemakaian. */
+const HARI_PER_BULAN = 365.25 / 12;
 
 /* ---------- perhitungan ---------- */
 
@@ -82,6 +52,10 @@ export interface HasilPenyusutan {
   /** Sisa umur dalam hari (basis waktu) atau dalam satuan pemakaian (basis pemakaian). */
   sisaUmurHari?: number;
   sisaPemakaian?: number;
+  /** Basis pemakaian dengan batas waktu kedua: sisa hari menurut batas waktu itu. */
+  sisaWaktuHari?: number;
+  /** Basis pemakaian dengan batas waktu kedua: batas yang lebih dulu tercapai. */
+  penentu?: "pemakaian" | "waktu";
   persenSisaUmur: number;
   /** Yang terkecil dari P_sisa dan P_umur: dasar peringatan dan warna bar. */
   persenTerendah: number;
@@ -118,25 +92,40 @@ export function umurBerjalan(item: ItemPenyusutan, hariIni: string): number {
   return hari / HARI_PER_SATUAN[item.satuanWaktu ?? "hari"];
 }
 
+/** Fraksi nilai buku terpakai menurut metode: akumulasi penyusutan pada umur berjalan t, dalam satuan n. */
+function akumulasiPenyusutan(metode: MetodePenyusutan, C: number, S: number, n: number, t: number): number {
+  if (metode === "saldo-menurun-ganda") {
+    const R = 2 / n;
+    const bv = R >= 1 ? (t > 0 ? S : C) : C * Math.pow(1 - R, t);
+    return C - Math.max(S, bv);
+  }
+  if (metode === "jumlah-angka-tahun") {
+    const tt = Math.min(t, n);
+    return ((C - S) * tt * (2 * n - tt + 1)) / (n * (n + 1));
+  }
+  return Math.min(C - S, ((C - S) / n) * t);
+}
+
 /** Hitung penyusutan dan sisa umur; null bila data belum cukup (umur total atau harga belum diisi). */
 export function hitungPenyusutan(item: ItemPenyusutan, hariIni: string): HasilPenyusutan | null {
   const C = Number(item.harga) || 0;
   const n = Number(item.umurTotal) || 0;
   if (!(n > 0) || !(C > 0)) return null;
   const S = batas(Number(item.nilaiResidu) || 0, 0, C);
-  const t = umurBerjalan(item, hariIni);
+  const tPakai = umurBerjalan(item, hariIni);
 
-  let nilaiBuku: number;
+  // Batas waktu kedua (mis. oli 2.000 km atau 2 bulan): umur terpakai mengikuti batas yang lebih dulu tercapai.
+  const bulanBatas = item.basis === "pemakaian" ? Number(item.batasWaktuBulan) || 0 : 0;
+  const hariBerjalan = Math.max(0, selisihHari(item.tanggalMulai, hariIni));
+  const totalHariBatas = bulanBatas * HARI_PER_BULAN;
+  const fraksiWaktu = bulanBatas > 0 ? Math.min(1, hariBerjalan / totalHariBatas) : 0;
+  const t = bulanBatas > 0 ? Math.max(tPakai, fraksiWaktu * n) : tPakai;
+
   let bebanPerSatuan: number;
-  if (item.metode === "saldo-menurun-ganda") {
-    const R = 2 / n;
-    bebanPerSatuan = C * Math.min(R, 1);
-    nilaiBuku = R >= 1 ? (t > 0 ? S : C) : C * Math.pow(1 - R, t);
-    nilaiBuku = Math.max(S, nilaiBuku);
-  } else {
-    bebanPerSatuan = (C - S) / n;
-    nilaiBuku = Math.max(S, C - bebanPerSatuan * t);
-  }
+  if (item.metode === "saldo-menurun-ganda") bebanPerSatuan = C * Math.min(2 / n, 1);
+  else if (item.metode === "jumlah-angka-tahun") bebanPerSatuan = (2 * (C - S)) / (n + 1);
+  else bebanPerSatuan = (C - S) / n;
+  const nilaiBuku = Math.max(S, C - akumulasiPenyusutan(item.metode, C, S, n, t));
   const persenSisaNilai = batas((nilaiBuku / C) * 100, 0, 100);
 
   const sisaUmur = Math.max(0, n - t);
@@ -156,11 +145,15 @@ export function hitungPenyusutan(item: ItemPenyusutan, hariIni: string): HasilPe
   };
   if (item.basis === "waktu") {
     const totalHari = n * HARI_PER_SATUAN[item.satuanWaktu ?? "hari"];
-    const terpakaiHari = Math.max(0, selisihHari(item.tanggalMulai, hariIni));
-    hasil.sisaUmurHari = Math.max(0, Math.round(totalHari - terpakaiHari));
+    hasil.sisaUmurHari = Math.max(0, Math.round(totalHari - hariBerjalan));
     hasil.tanggalHabis = tambahHari(item.tanggalMulai, totalHari);
   } else {
-    hasil.sisaPemakaian = sisaUmur;
+    hasil.sisaPemakaian = Math.max(0, n - tPakai);
+    if (bulanBatas > 0) {
+      hasil.sisaWaktuHari = Math.max(0, Math.round(totalHariBatas - hariBerjalan));
+      hasil.tanggalHabis = tambahHari(item.tanggalMulai, totalHariBatas);
+      hasil.penentu = tPakai / n >= fraksiWaktu ? "pemakaian" : "waktu";
+    }
   }
   return hasil;
 }
@@ -190,9 +183,14 @@ export function formatBeban(n: number): string {
 /** "3 bulan 12 hari" untuk basis waktu; "1.240 km" untuk basis pemakaian. */
 export function teksSisaUmur(item: ItemPenyusutan, h: HasilPenyusutan): string {
   if (item.basis === "pemakaian") {
-    return `${Math.round(h.sisaUmur).toLocaleString("id-ID")} ${LABEL_SATUAN_PEMAKAIAN[item.satuanPemakaian ?? "km"]}`;
+    const pemakaian = `${Math.round(h.sisaPemakaian ?? h.sisaUmur).toLocaleString("id-ID")} ${LABEL_SATUAN_PEMAKAIAN[item.satuanPemakaian ?? "km"]}`;
+    return h.sisaWaktuHari === undefined ? pemakaian : `${pemakaian} atau ${teksHari(h.sisaWaktuHari)}`;
   }
-  const hari = h.sisaUmurHari ?? 0;
+  return teksHari(h.sisaUmurHari ?? 0);
+}
+
+/** "3 bulan 12 hari", "2 tahun 1 bulan", atau "0 hari". */
+export function teksHari(hari: number): string {
   if (hari <= 0) return "0 hari";
   if (hari < 31) return `${hari} hari`;
   if (hari < 365) {
@@ -205,11 +203,11 @@ export function teksSisaUmur(item: ItemPenyusutan, h: HasilPenyusutan): string {
   return bulan > 0 ? `${tahun} tahun ${bulan} bulan` : `${tahun} tahun`;
 }
 
-export function teksUmurTotal(item: Pick<ItemPenyusutan, "basis" | "umurTotal" | "satuanWaktu" | "satuanPemakaian">): string {
+export function teksUmurTotal(item: Pick<ItemPenyusutan, "basis" | "umurTotal" | "satuanWaktu" | "satuanPemakaian" | "batasWaktuBulan">): string {
   const angka = Number(item.umurTotal).toLocaleString("id-ID");
-  return item.basis === "pemakaian"
-    ? `${angka} ${LABEL_SATUAN_PEMAKAIAN[item.satuanPemakaian ?? "km"]}`
-    : `${angka} ${LABEL_SATUAN_WAKTU[item.satuanWaktu ?? "tahun"]}`;
+  if (item.basis !== "pemakaian") return `${angka} ${LABEL_SATUAN_WAKTU[item.satuanWaktu ?? "tahun"]}`;
+  const pemakaian = `${angka} ${LABEL_SATUAN_PEMAKAIAN[item.satuanPemakaian ?? "km"]}`;
+  return Number(item.batasWaktuBulan) > 0 ? `${pemakaian} atau ${Number(item.batasWaktuBulan)} bulan` : pemakaian;
 }
 
 export function pesanPeringatan(item: ItemPenyusutan, h: HasilPenyusutan): string {
@@ -232,6 +230,8 @@ export interface FormPenyusutan {
   satuanPemakaian: SatuanPemakaian;
   metode: MetodePenyusutan;
   nilaiResidu: string;
+  /** Batas waktu kedua (bulan) untuk basis pemakaian; kosong = hanya km atau jam. */
+  batasWaktuBulan: string;
   /** Kosong = mengikuti tanggal transaksi. */
   tanggalMulai: string;
   pemakaianAwal: string;
@@ -249,6 +249,7 @@ export const FORM_PENYUSUTAN_AWAL: FormPenyusutan = {
   satuanPemakaian: "km",
   metode: "garis-lurus",
   nilaiResidu: "0",
+  batasWaktuBulan: "",
   tanggalMulai: "",
   pemakaianAwal: "",
   pemakaianSekarang: "",
@@ -267,6 +268,7 @@ export function terapkanPreset(form: FormPenyusutan, preset: PresetBarang): Form
     satuanPemakaian: preset.satuanPemakaian ?? form.satuanPemakaian,
     metode: preset.metode,
     nilaiResidu: "0",
+    batasWaktuBulan: preset.batasWaktuBulan ? String(preset.batasWaktuBulan) : "",
   };
 }
 
@@ -282,6 +284,7 @@ export function formDariItem(item: ItemPenyusutan): FormPenyusutan {
     satuanPemakaian: item.satuanPemakaian ?? "km",
     metode: item.metode,
     nilaiResidu: String(item.nilaiResidu ?? 0),
+    batasWaktuBulan: item.batasWaktuBulan ? String(item.batasWaktuBulan) : "",
     tanggalMulai: item.tanggalMulai,
     pemakaianAwal: item.pemakaianAwal === undefined ? "" : String(item.pemakaianAwal),
     pemakaianSekarang: item.pemakaianSekarang === undefined ? "" : String(item.pemakaianSekarang),
@@ -305,6 +308,7 @@ export function galatForm(form: FormPenyusutan, harga: number): string | null {
   if (!(harga > 0)) return "Penyusutan: isi jumlah pembelian lebih dari 0.";
   const residu = Number(form.nilaiResidu) || 0;
   if (residu < 0 || residu > harga) return "Penyusutan: nilai residu tidak boleh negatif atau melebihi harga beli.";
+  if (form.basis === "pemakaian" && form.batasWaktuBulan.trim() !== "" && !(Number(form.batasWaktuBulan) > 0)) return "Penyusutan: batas waktu (bulan) harus lebih dari 0 atau dikosongkan.";
   return null;
 }
 
@@ -320,13 +324,14 @@ export function itemDariForm(form: FormPenyusutan, k: KonteksItem, sekarangIso: 
     jenisBarang: form.jenisBarang,
     presetId: form.presetId || undefined,
     basis: form.basis,
-    // Saldo menurun ganda hanya untuk aset; barang habis pakai selalu garis lurus.
+    // Saldo menurun ganda dan jumlah angka tahun hanya untuk aset; barang habis pakai selalu garis lurus.
     metode: form.jenisBarang === "aset" ? form.metode : "garis-lurus",
     harga: k.harga,
     nilaiResidu: Number(form.nilaiResidu) || 0,
     umurTotal: Number(form.umurTotal),
     satuanWaktu: pakaiPemakaian ? undefined : form.satuanWaktu,
     satuanPemakaian: pakaiPemakaian ? form.satuanPemakaian : undefined,
+    batasWaktuBulan: pakaiPemakaian && Number(form.batasWaktuBulan) > 0 ? Number(form.batasWaktuBulan) : undefined,
     tanggalMulai: form.tanggalMulai || k.tanggalTransaksi,
     pemakaianAwal: pakaiPemakaian ? awal ?? 0 : undefined,
     pemakaianSekarang: pakaiPemakaian ? kini ?? 0 : undefined,

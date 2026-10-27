@@ -5,12 +5,15 @@ interface NavbarProps {
   currentView: ViewTab;
   onSelectView: (view: ViewTab) => void;
   onBukaMenuTambah?: () => void;
+  /** Jumlah barang yang sisa nilai atau umurnya ≤ 30% (Depresiasi Aset); tampil sebagai titik merah di tab Saya. */
+  lencanaSaya?: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onSelectView,
   onBukaMenuTambah,
+  lencanaSaya = 0,
 }) => {
   return (
     <nav className="navbar" aria-label="Navigasi utama">
@@ -148,6 +151,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
             <circle cx="12" cy="7" r="4" />
           </svg>
+          {lencanaSaya > 0 && (
+            <span className="nav-lencana" data-testid="lencana-saya" role="status" aria-label={`${lencanaSaya} barang perlu diganti`}>
+              {lencanaSaya}
+            </span>
+          )}
         </span>
         <span>Saya</span>
       </button>

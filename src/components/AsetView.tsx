@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { AsetItem, DataHarga, ItemPenyusutan, JenisAset, SkemaInvestasi } from "../types";
-import { BannerUmurBarang, PanelUmurBarang } from "./UmurBarangUI";
+import { AsetItem, DataHarga, JenisAset, SkemaInvestasi } from "../types";
 import { DAFTAR_KOIN, formatRupiah, formatPersen } from "../lib/constants";
 import { ringkasAset, JENIS_ASET } from "../lib/aset";
 
@@ -18,10 +17,6 @@ interface AsetViewProps {
   onTarikDrive?: () => void;
   onKirimDrive?: () => void;
   memuatDrive?: boolean;
-  /** Pantauan penyusutan dan umur barang (dari formulir pembelian). */
-  daftarPenyusutan?: ItemPenyusutan[];
-  onSimpanPenyusutan?: (item: ItemPenyusutan) => void;
-  onHapusPenyusutan?: (id: string) => void;
 }
 
 const IKON_ASET: Record<JenisAset, string> = {
@@ -50,9 +45,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
   onTarikDrive,
   onKirimDrive,
   memuatDrive = false,
-  daftarPenyusutan = [],
-  onSimpanPenyusutan,
-  onHapusPenyusutan,
 }) => {
   const [formBuka, setFormBuka] = useState(false);
   const [editAset, setEditAset] = useState<AsetItem | null>(null);
@@ -200,7 +192,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
 
   return (
     <section className="view" id="view-aset" data-view="aset">
-      <BannerUmurBarang daftar={daftarPenyusutan} />
       <div className="card aset-total">
         <div className="aset-total-header">
           <span className="stat-label">Total nilai aset</span>
@@ -353,7 +344,6 @@ export const AsetView: React.FC<AsetViewProps> = ({
         </p>
       )}
 
-      <PanelUmurBarang daftar={daftarPenyusutan} onSimpan={onSimpanPenyusutan || (() => {})} onHapus={onHapusPenyusutan || (() => {})} />
 
       {formBuka && (
         <div
