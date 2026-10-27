@@ -1037,6 +1037,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
             style={{
               "--saya-kolom": infoUkuran.kolom,
               "--saya-ukuran": `${ukuranIkonPx}px`,
+              "--saya-skala": Number((ukuranIkonPx / 72).toFixed(3)),
               "--saya-gap-y": `${infoUkuran.gapY}px`,
               "--saya-gap-x": `${infoUkuran.gapX}px`,
             } as React.CSSProperties}
