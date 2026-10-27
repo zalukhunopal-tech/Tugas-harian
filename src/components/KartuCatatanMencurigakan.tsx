@@ -1,6 +1,6 @@
 import React from "react";
 import { Transaksi } from "../types";
-import { formatRupiah } from "../lib/constants";
+import { formatRupiah, labelKategori } from "../lib/constants";
 
 interface KartuCatatanMencurigakanProps {
   daftar: Transaksi[];
@@ -25,7 +25,7 @@ export const KartuCatatanMencurigakan: React.FC<KartuCatatanMencurigakanProps> =
       <ul>
         {contoh.map((t) => (
           <li key={t.id}>
-            {t.deskripsi || "(tanpa uraian)"} · {t.kategori} · {formatRupiah(t.jumlah)}
+            {t.deskripsi || "(tanpa uraian)"} · {labelKategori(t.kategori)} · {formatRupiah(t.jumlah)}
           </li>
         ))}
         {daftar.length > contoh.length && <li>dan {daftar.length - contoh.length} lainnya</li>}

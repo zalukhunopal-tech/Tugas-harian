@@ -1,4 +1,4 @@
-import { KarakterId, NamaDana } from "../types";
+import { JenisBukti, KarakterId, NamaDana } from "../types";
 
 export const STORAGE_KEY = "pengeluaran-harian";
 export const BUDGET_KEY = "pengeluaran-harian-anggaran";
@@ -77,14 +77,25 @@ export const PROFIL_PELAPOR_DEFAULT = {
 };
 
 export const DAFTAR_JENIS_BUKTI = [
-  "Kwitansi",
+  "Kuitansi",
   "Nota",
   "Struk thermal (minimarket/SPBU)",
   "Tiket",
   "Tiket pesawat/e-ticket",
-  "Invoice + kwitansi",
+  "Invoice + kuitansi",
   "Bukti tidak lengkap",
 ] as const;
+
+/** Penulisan lama ("kwitansi") pada data yang sudah tersimpan atau tertarik dari Drive diubah ke ejaan baku KBBI ("kuitansi"). */
+export function normalisasiJenisBukti(jenis: string | undefined): JenisBukti | undefined {
+  if (!jenis) return undefined;
+  return jenis.replace(/kwitansi/g, "kuitansi").replace(/Kwitansi/g, "Kuitansi") as JenisBukti;
+}
+
+/** Nama kategori untuk tampilan (antarmuka, cetak, Word). Nilai yang tersimpan tetap "Perdiem" supaya data lama dan sinkron Drive tidak berubah. */
+export function labelKategori(kategori: string | undefined): string {
+  return kategori === "Perdiem" ? "Uang Harian" : kategori ?? "";
+}
 
 export const DANA_DEFAULT: NamaDana = "Dana Pribadi";
 

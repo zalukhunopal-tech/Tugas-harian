@@ -65,7 +65,7 @@ Ekstrak data transaksi dengan teliti dan kembalikan HANYA dalam format JSON vali
   "tanggal": "YYYY-MM-DD", // Tanggal transaksi. Jika tahun tidak tercantum, gunakan tahun ${currentYear}. Jika tanggal tidak terbaca, gunakan tanggal hari ini: "${todayIso}"
   "kategori": "Makan & Minum", // Untuk Dana Pribadi, pilih dari: ["Makan & Minum", "Transportasi", "Belanja Harian", "Pulsa & Internet", "Tagihan & Sewa", "Keluarga", "Tabungan", "Hiburan", "Lain-lain"]
   "kategoriDanaKegiatan": "Konsumsi", // Untuk Dana Kegiatan, pilih dari: ["Transportasi", "Rental Kendaraan", "BBM", "Akomodasi", "Konsumsi", "Honorarium & Ganti Hari", "Pengadaan Barang & Perlengkapan", "Komunikasi, Listrik & Kurir", "Perdiem", "Lain-lain"]
-  "jenisBukti": "Struk thermal (minimarket/SPBU)", // Pilih satu dari: ["Kwitansi", "Nota", "Struk thermal (minimarket/SPBU)", "Tiket", "Tiket pesawat/e-ticket", "Invoice + kwitansi", "Bukti tidak lengkap"]
+  "jenisBukti": "Struk thermal (minimarket/SPBU)", // Pilih satu dari: ["Kuitansi", "Nota", "Struk thermal (minimarket/SPBU)", "Tiket", "Tiket pesawat/e-ticket", "Invoice + kuitansi", "Bukti tidak lengkap"]
   "rincian": {
     "banyaknya": 1, // Kuantitas (angka, misal: 15, 1, 3)
     "satuan": "porsi", // Satuan (contoh: "liter", "porsi", "hari", "kg", "lembar", "unit", "orang", "paket")
