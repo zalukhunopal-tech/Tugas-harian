@@ -471,7 +471,9 @@ export const KeluargaView: React.FC<KeluargaViewProps> = ({ googleUser, ambilTok
           <>
             <p className="help">Perlihatkan kode ini kepada pemilik data supaya dipindai. Isinya hanya nama dan email Google Anda.</p>
             <div className="keluarga-kode">
-              <KodeQR teks={kodeSaya} ukuran={220} label={`Kode QR ${namaSaya}`} />
+              <div className="keluarga-qr-wrap">
+                <KodeQR teks={kodeSaya} ukuran={220} label={`Kode QR ${namaSaya}`} />
+              </div>
               <div className="keluarga-identitas">
                 <label htmlFor="keluarga-nama">Nama yang tampil</label>
                 <input
