@@ -151,10 +151,10 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
   return (
     <div className="card no-print kartu-timesheet" data-testid="kartu-timesheet">
       <div className="kartu-timesheet__judul">
-        <h3>🗓️ Timesheet Perdiem</h3>
+        <h3>🗓️ Timesheet Uang Harian</h3>
         <p>
           Keterangan kegiatan lapangan dan lokasi tiap hari diambil dari file timesheet di folder Keuangan, lalu dipakai pada daftar
-          perdiem di dokumen laporan.
+          uang harian di dokumen laporan.
         </p>
       </div>
 
@@ -211,7 +211,7 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
       {barisPerdiem.length > 0 && (
         <div className="kartu-timesheet__ringkas">
           <strong>
-            {sudahIsi} dari {barisPerdiem.length} hari perdiem
+            {sudahIsi} dari {barisPerdiem.length} hari uang harian
           </strong>{" "}
           sudah ada keterangan di timesheet.
           {belumIsi.length > 0 && (
@@ -238,7 +238,7 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
             className="btn-secondary"
             disabled={!siap || sibuk}
             onClick={perbarui}
-            title="Samakan tanggal dan jumlah di file dengan perdiem yang tercatat. Keterangan dan lokasi yang sudah Anda isi tidak diubah."
+            title="Samakan tanggal dan jumlah di file dengan uang harian yang tercatat. Keterangan dan lokasi yang sudah Anda isi tidak diubah."
           >
             {kerja === "perbarui" ? "⏳ Memperbarui…" : "🔄 Perbarui tanggal & jumlah ke file"}
           </button>

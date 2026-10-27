@@ -57,7 +57,7 @@ export function saranJenisBukti(kategori: string, detail: DataKhususKegiatan): s
     if (/pesawat/i.test(moda)) return "Tiket pesawat/e-ticket";
     if (/speedboat|kapal|bus|angkutan/i.test(moda)) return "Tiket";
   }
-  return "Kwitansi";
+  return "Kuitansi";
 }
 
 /* ---------- Isian dan pemeriksaannya ---------- */
@@ -83,14 +83,17 @@ export function galatLangkah(langkah: LangkahBertahap, isian: IsianBertahap): st
     case "jenis":
       return KATEGORI["Dana Kegiatan"].pengeluaran.includes(isian.kategori) ? null : "Pilih jenis pengeluaran.";
     case "rincian": {
+      if (isian.kategori === "Konsumsi" && d.konsumsi?.kudapanPerjalanan && !(d.penerimaManfaat?.length ?? 0)) {
+        return "Catat minimal satu staf penerima manfaat kudapan.";
+      }
       if (isian.kategori !== "Perdiem") return null;
       const tarif = Number(d.perdiem?.tarifPerHari) || 0;
-      if (tarif <= 0) return "Isi tarif perdiem per hari.";
+      if (tarif <= 0) return "Isi tarif uang harian per hari.";
       if (isian.perdiemRentang) {
         if (isian.perdiemRentang.galat) return isian.perdiemRentang.galat;
         return isian.perdiemRentang.hari > 0 ? null : "Tidak ada hari yang dihitung dalam rentang ini.";
       }
-      return Number(d.perdiem?.jumlahHari) > 0 ? null : "Isi jumlah hari perdiem.";
+      return Number(d.perdiem?.jumlahHari) > 0 ? null : "Isi jumlah hari uang harian.";
     }
     case "nominal": {
       const kurang: string[] = [];
@@ -161,7 +164,11 @@ export function daftarPrasyarat(isian: IsianBertahap): Prasyarat[] {
     }
     case "Konsumsi": {
       const k = d.konsumsi || {};
-      tambah("peserta", "Jumlah peserta (sesuai daftar hadir)", terisi(k.jumlahPeserta), "wajib", "rincian");
+      if (k.kudapanPerjalanan) {
+        tambah("penerima-kudapan", "Penerima manfaat kudapan perjalanan (minimal 1 staf)", (d.penerimaManfaat?.length ?? 0) > 0, "wajib", "rincian");
+      } else {
+        tambah("peserta", "Jumlah peserta (sesuai daftar hadir)", terisi(k.jumlahPeserta), "wajib", "rincian");
+      }
       tambah("penyedia", "Penyedia dan lokasi konsumsi", terisi(k.penyedia) && terisi(k.lokasi), "dianjurkan", "rincian");
       break;
     }
@@ -174,7 +181,7 @@ export function daftarPrasyarat(isian: IsianBertahap): Prasyarat[] {
     case "Perdiem": {
       const p = d.perdiem || {};
       const hari = isian.perdiemRentang ? isian.perdiemRentang.hari : Number(p.jumlahHari) || 0;
-      tambah("perdiem", "Tarif per hari dan jumlah hari perdiem", terisi(p.tarifPerHari) && hari > 0, "wajib", "rincian");
+      tambah("perdiem", "Tarif per hari dan jumlah hari uang harian", terisi(p.tarifPerHari) && hari > 0, "wajib", "rincian");
       break;
     }
     case "Pengadaan Barang & Perlengkapan":
@@ -198,7 +205,7 @@ export function daftarPrasyarat(isian: IsianBertahap): Prasyarat[] {
     if (kategori !== "Honorarium & Ganti Hari") {
       tambah("penjual", "Nama penjual / penyedia di bukti", terisi(d.namaPenjualPenyedia), "dianjurkan", "bukti");
     }
-    tambah("foto-bukti", "Foto nota / kwitansi dilampirkan", isian.jumlahBukti > 0, "dianjurkan", "bukti");
+    tambah("foto-bukti", "Foto nota / kuitansi dilampirkan", isian.jumlahBukti > 0, "dianjurkan", "bukti");
     if (kategori === "Konsumsi") tambah("foto-kegiatan", "Foto dokumentasi kegiatan", fotoKategori("kegiatan"), "dianjurkan", "bukti");
     if (kategori === "Pengadaan Barang & Perlengkapan") tambah("foto-barang", "Foto barang", fotoKategori("barang"), "dianjurkan", "bukti");
     if (kategori === "Rental Kendaraan") tambah("foto-kendaraan", "Foto kendaraan", fotoKategori("kendaraan"), "dianjurkan", "bukti");
@@ -234,12 +241,16 @@ export function saranUraian(kategori: string, d: DataKhususKegiatan): string {
       return gabung("Penginapan", d.akomodasi?.lokasi);
     case "Konsumsi": {
       const k = d.konsumsi || {};
+      if (k.kudapanPerjalanan) {
+        const n = d.penerimaManfaat?.length ?? 0;
+        return gabung("Kudapan/Snack Perjalanan", n ? `(${n} orang)` : "");
+      }
       return gabung("Konsumsi", k.lokasi, k.jumlahPeserta ? `(${k.jumlahPeserta} orang)` : "");
     }
     case "Honorarium & Ganti Hari":
       return gabung("Honorarium", d.honorarium?.namaPenerima);
     case "Perdiem":
-      return gabung("Perdiem", d.perdiem?.keterangan || "lapangan");
+      return gabung("Uang harian", d.perdiem?.keterangan || "lapangan");
     default:
       return "";
   }

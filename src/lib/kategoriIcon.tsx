@@ -1,4 +1,5 @@
 import React from "react";
+import { labelKategori } from "./constants";
 import {
   Utensils,
   Bus,
@@ -221,7 +222,7 @@ export const ChipKategori: React.FC<ChipKategoriProps> = ({
       }}
     >
       <Icon size={ukuranIkon} strokeWidth={2.2} color={warna} aria-hidden="true" />
-      <span>{kategori}</span>
+      <span>{labelKategori(kategori)}</span>
     </span>
   );
 };

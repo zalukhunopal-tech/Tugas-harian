@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { BuktiItem, DataKegiatan, ProfilPelapor, Transaksi } from "../types";
-import { formatAngka, formatRupiah, KELOMPOK_DANA_KEGIATAN } from "../lib/constants";
+import { formatAngka, formatRupiah, KELOMPOK_DANA_KEGIATAN, labelKategori } from "../lib/constants";
 import { KotakPratinjauBelumTersedia, muatPratinjauBukti } from "../lib/driveBuktiLoader";
 import { RingkasanPenyelesaian } from "../lib/penyelesaianDana";
 import { KartuPenyelesaianDana } from "./KartuPenyelesaianDana";
 import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "../lib/timesheet";
 import { KATEGORI_PERDIEM } from "../lib/penyelesaianDana";
+import { adalahKudapanPerjalanan, barisPenerimaManfaat } from "../lib/penerimaManfaat";
+import { KotakTempel, perkirakanHalamanTempel, ringkasKotak, susunKotakTempel } from "../lib/lembarTempel";
+import { cetakDokumen, ModeCetak } from "../lib/cetak";
 
 interface DokumenSiapCetakProps {
   /** Transaksi yang sudah disaring dan diurutkan menurut tanggal oleh LaporanView. */
@@ -95,7 +98,7 @@ export function susunKelompokDokumen(
   for (const k of kategoriUrut) {
     hasil.push({
       kunci: `kategori:${k.kategori}`,
-      judul: k.kategori,
+      judul: labelKategori(k.kategori),
       jenis: "pengeluaran",
       item: urutkanDalamKelompok(k.item, urutanManual),
       total: k.total,
@@ -110,14 +113,14 @@ function tanggalSingkat(iso: string): string {
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
-/** Keterangan singkat dari rincian khusus Dana Kegiatan, satu baris per hal. */
+/** Keterangan singkat dari rincian khusus Dana Kegiatan, satu baris per hal (penerima manfaat tampil terpisah). */
 function keteranganRincian(t: Transaksi): string[] {
   const d = t.detailKegiatan;
   if (!d) return [];
   const baris: string[] = [];
   if (d.perdiem?.jumlahHari && d.perdiem?.tarifPerHari) {
     baris.push(
-      `Perdiem ${d.perdiem.jumlahHari} hari × ${formatRupiah(d.perdiem.tarifPerHari)}${d.perdiem.keterangan ? ` (${d.perdiem.keterangan})` : ""}`
+      `Uang harian ${d.perdiem.jumlahHari} hari × ${formatRupiah(d.perdiem.tarifPerHari)}${d.perdiem.keterangan ? ` (${d.perdiem.keterangan})` : ""}`
     );
   }
   if (d.rincian) {
@@ -131,7 +134,7 @@ function keteranganRincian(t: Transaksi): string[] {
   }
   if (d.bbm?.jarakTempuh) baris.push(`BBM ${d.bbm.jarakTempuh} km`);
   if (d.akomodasi?.lokasi) baris.push(`${d.akomodasi.lokasi}, ${d.akomodasi.jumlahMalam || 1} malam`);
-  if (d.konsumsi?.jumlahPeserta) baris.push(`${d.konsumsi.jumlahPeserta} peserta`);
+  if (d.konsumsi?.jumlahPeserta && !adalahKudapanPerjalanan(t.kategori, d)) baris.push(`${d.konsumsi.jumlahPeserta} peserta`);
   if (d.honorarium?.namaPenerima) baris.push(`Honor ${d.honorarium.namaPenerima}`);
   if (d.keteranganLaporan) baris.push(d.keteranganLaporan);
   return baris;
@@ -214,25 +217,26 @@ const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleToken, onS
   return <KotakPratinjauBelumTersedia linkDrive={bukti.driveLink} />;
 };
 
-/* ---------- lembar daftar perdiem berformat timesheet ---------- */
+/* ---------- lembar daftar uang harian berformat timesheet ---------- */
 
 /**
- * Daftar perdiem dengan format yang sama dengan file timesheet: Detail Keuangan / Perdiem Kegiatan Lapangan,
+ * Daftar uang harian dengan format yang sama dengan file timesheet: Detail Keuangan / Uang Harian (Per Diem) Kegiatan Lapangan,
  * Proyek, Judul Kegiatan, Nama, Bulan, tabel No | Tanggal | Keterangan | Lokasi | Jumlah (Rp.), Total, dan kolom tanda tangan.
  * Satu-satunya lembar lanskap (A4 mendatar) supaya kolom Keterangan dan Lokasi tidak berhimpit; lembar lain tetap potret.
+ * Tabelnya tabel sungguhan: kepala tabel berulang di setiap halaman, sedangkan Total dan tanda tangan (tfoot) hanya di akhir.
  * Di layar sempit lembar tidak dikecilkan sampai tak terbaca: ia bisa digeser ke samping di dalam bingkainya.
  */
 const LembarPerdiemTimesheet: React.FC<{ daftar: DaftarPerdiemDokumen; kunci: string }> = ({ daftar, kunci }) => (
   <>
     <p className="dsc-lanskap-petunjuk no-print">
-      Lembar perdiem dicetak lanskap (A4 mendatar)<span className="teks-hp">; geser ke samping untuk melihat seluruhnya</span>.
+      Lembar uang harian dicetak lanskap (A4 mendatar)<span className="teks-hp">; geser ke samping untuk melihat seluruhnya</span>.
     </p>
-    <div className="dsc-lanskap-gulir">
+    <div className="dsc-lanskap-gulir dsc-bagian-timesheet">
       <div className="dsc-lanskap-bingkai">
         <article className="dsc-kertas dsc-timesheet dsc-lanskap" data-kelompok={kunci} data-testid="lembar-timesheet">
           <header className="dsc-ts__kop">
             <div className="dsc-ts__kop-judul">Detail Keuangan</div>
-            <div className="dsc-ts__kop-sub">Perdiem Kegiatan Lapangan</div>
+            <div className="dsc-ts__kop-sub">Uang Harian (Per Diem) Kegiatan Lapangan</div>
           </header>
           <dl className="dsc-ts__info">
             <dt>Proyek</dt>
@@ -244,59 +248,91 @@ const LembarPerdiemTimesheet: React.FC<{ daftar: DaftarPerdiemDokumen; kunci: st
             <dt>Bulan</dt>
             <dd>: {daftar.bulan}</dd>
           </dl>
-          <div className="dsc-ts__tabel" role="table" aria-label="Daftar perdiem kegiatan lapangan">
-            <div className="dsc-ts__baris dsc-ts__baris--kepala" role="row">
-              <span role="columnheader">No</span>
-              <span role="columnheader">Tanggal</span>
-              <span role="columnheader">Keterangan</span>
-              <span role="columnheader">Lokasi</span>
-              <span role="columnheader" className="dsc-jumlah">
-                Jumlah (Rp.)
-              </span>
-            </div>
-            {daftar.baris.map((b) => (
-              <div className="dsc-ts__baris" role="row" key={b.no}>
-                <span role="cell">{b.no}</span>
-                <span role="cell" className="dsc-tgl">
-                  {b.tanggal}
-                </span>
-                <span role="cell" className="dsc-ts__teks">
-                  {b.keterangan}
-                </span>
-                <span role="cell" className="dsc-ts__teks">
-                  {b.lokasi}
-                </span>
-                <span role="cell" className="dsc-jumlah">
-                  {formatAngka(b.jumlah)}
-                </span>
-              </div>
-            ))}
-            <div className="dsc-ts__baris dsc-ts__baris--total" role="row">
-              <span />
-              <span />
-              <span role="cell">Total</span>
-              <span />
-              <span role="cell" className="dsc-jumlah">
-                {formatAngka(daftar.total)}
-              </span>
-            </div>
-          </div>
-          <div className="dsc-ts__ttd">
-            <div>
-              <p>Dilaporkan Oleh :</p>
-              <div className="dsc-ts__ttd-ruang" />
-              <p className="dsc-ts__ttd-nama">{daftar.dilaporkanOleh}</p>
-            </div>
-            <div>
-              <p>Disetujui Oleh :</p>
-              <div className="dsc-ts__ttd-ruang" />
-              <p className="dsc-ts__ttd-nama">{daftar.disetujuiOleh}</p>
-            </div>
-          </div>
+          <table className="dsc-ts__tabel" aria-label="Daftar uang harian kegiatan lapangan">
+            <colgroup>
+              <col className="dsc-ts__k-no" />
+              <col className="dsc-ts__k-tgl" />
+              <col className="dsc-ts__k-ket" />
+              <col />
+              <col className="dsc-ts__k-jml" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Tanggal</th>
+                <th>Keterangan</th>
+                <th>Lokasi</th>
+                <th className="dsc-jumlah">Jumlah (Rp.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {daftar.baris.map((b) => (
+                <tr key={b.no}>
+                  <td>{b.no}</td>
+                  <td className="dsc-tgl">{b.tanggal}</td>
+                  <td className="dsc-ts__teks">{b.keterangan}</td>
+                  <td className="dsc-ts__teks">{b.lokasi}</td>
+                  <td className="dsc-jumlah">{formatAngka(b.jumlah)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="dsc-ts__total">
+                <td />
+                <td />
+                <td>Total</td>
+                <td />
+                <td className="dsc-jumlah">{formatAngka(daftar.total)}</td>
+              </tr>
+              <tr className="dsc-ts__ttd-baris">
+                <td colSpan={5}>
+                  <div className="dsc-ts__ttd">
+                    <div>
+                      <p>Dilaporkan Oleh :</p>
+                      <div className="dsc-ts__ttd-ruang" />
+                      <p className="dsc-ts__ttd-nama">{daftar.dilaporkanOleh}</p>
+                    </div>
+                    <div>
+                      <p>Disetujui Oleh :</p>
+                      <div className="dsc-ts__ttd-ruang" />
+                      <p className="dsc-ts__ttd-nama">{daftar.disetujuiOleh}</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </article>
       </div>
     </div>
   </>
+);
+
+/* ---------- lembar tempel bukti / nota asli ---------- */
+
+/**
+ * Kotak kosong untuk menempel struk, kuitansi, atau tiket asli, di kertas A4 potret (area cetak bersih 190 × 277 mm).
+ * Ukuran dalam milimeter lewat --mm: di layar 1 mm = lebar kertas / 210 (pratinjau mengecil bersama kolom), saat cetak 1 mm sebenarnya.
+ */
+const LembarTempelBukti: React.FC<{ kotak: KotakTempel[] }> = ({ kotak }) => (
+  <section className="dsc-tempel dsc-bagian-potret" aria-label="Lembar tempel bukti" data-testid="lembar-tempel">
+    <p className="dsc-tempel__ket no-print">
+      <strong>Lembar Tempel Bukti / Nota Asli</strong> · {kotak.length} kotak ({ringkasKotak(kotak)}) · sekitar{" "}
+      {perkirakanHalamanTempel(kotak)} halaman A4 potret. Tempel bukti asli tepat di dalam kotak bergaris putus-putus.
+    </p>
+    <div className="dsc-tempel__kertas">
+      <div className="dsc-tempel__kisi">
+        {kotak.map((k) => (
+          <div key={k.id} className={`dsc-kotak dsc-kotak--${k.ukuran.kode}`} data-ukuran={k.ukuran.kode} data-nomor={k.nomor}>
+            <div className="dsc-kotak__kepala">{k.kepala}</div>
+            <div className="dsc-kotak__area">
+              <span>Area Tempel Bukti / Nota Asli ({k.ukuran.nama})</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
 );
 
 /* ---------- komponen utama ---------- */
@@ -340,6 +376,13 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
     [adalahKegiatan, kegiatan, kelompok, kunciPerdiem, profilPelapor]
   );
 
+  // Lembar tempel bukti untuk bukti fisik asli; urutannya sama dengan nomor di laporan.
+  const [sertakanTempel, setSertakanTempel] = useState(true);
+  const kotakTempel = useMemo(
+    () => (adalahKegiatan ? susunKotakTempel(kelompok.flatMap((k) => k.item), (id) => nomorMap.get(id)) : []),
+    [adalahKegiatan, kelompok, nomorMap]
+  );
+
   const [sedangMemuat, setSedangMemuat] = useState<Set<string>>(new Set());
   const ubahStatusMuat = React.useCallback((id: string, memuat: boolean) => {
     setSedangMemuat((prev) => {
@@ -357,27 +400,51 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
   const tanpaBukti = transaksi.filter((t) => t.jenis === "pengeluaran" && t.kategori !== KATEGORI_PINDAH_DANA && !(t.bukti && t.bukti.length > 0)).length;
 
   const tglCetak = new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const cetak = (mode: ModeCetak) => cetakDokumen(mode);
+  const judulTombol = (teks: string) => (sedangMemuat.size > 0 ? "Tunggu sampai semua foto bukti termuat" : teks);
 
   return (
-    <section className="dokumen-siap-cetak" aria-label="Preview dokumen siap cetak">
+    <section className="dokumen-siap-cetak" aria-label="Pratinjau dokumen siap cetak">
       <div className="dsc-toolbar no-print">
         <div>
-          <h3 className="dsc-toolbar__judul">Preview Dokumen Siap Cetak</h3>
+          <h3 className="dsc-toolbar__judul">Pratinjau Dokumen Siap Cetak</h3>
           <p className="dsc-toolbar__ket">
             {kelompok.length} bagian per kategori · {jumlahLampiran} lampiran bukti
             {tanpaBukti > 0 ? ` · ${tanpaBukti} pengeluaran belum punya bukti` : ""}. Foto bukti tampil dengan rasio
             dan ukuran aslinya di atas kertas kosong.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => window.print()}
-          disabled={sedangMemuat.size > 0}
-          title={sedangMemuat.size > 0 ? "Tunggu sampai semua foto bukti termuat" : "Cetak atau simpan sebagai PDF"}
-        >
-          {sedangMemuat.size > 0 ? `Memuat ${sedangMemuat.size} bukti…` : "🖨️ Cetak dokumen"}
-        </button>
+        <div className="dsc-cetak-aksi" role="group" aria-label="Pilihan cetak">
+          {daftarPerdiem ? (
+            <>
+              <button type="button" className="btn-secondary" disabled={sedangMemuat.size > 0} onClick={() => cetak("semua")} title={judulTombol("Cetak semua dokumen: timesheet lanskap, dokumen lain potret")}>
+                {sedangMemuat.size > 0 ? `Memuat ${sedangMemuat.size} bukti…` : "🖨️ Cetak Semua Dokumen"}
+              </button>
+              <button type="button" className="btn-secondary" disabled={sedangMemuat.size > 0} onClick={() => cetak("timesheet")} title={judulTombol("Hanya timesheet, kertas A4 lanskap")}>
+                🖨️ Cetak Khusus Timesheet (Lanskap)
+              </button>
+              <button type="button" className="btn-secondary" disabled={sedangMemuat.size > 0} onClick={() => cetak("klaim")} title={judulTombol("Laporan, rekapitulasi klaim, dan lembar tempel bukti, kertas A4 potret")}>
+                🖨️ Cetak Dokumen Klaim &amp; Nota (Potret)
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn-secondary" disabled={sedangMemuat.size > 0} onClick={() => cetak("klaim")} title={judulTombol("Cetak atau simpan sebagai PDF")}>
+              {sedangMemuat.size > 0 ? `Memuat ${sedangMemuat.size} bukti…` : "🖨️ Cetak Dokumen"}
+            </button>
+          )}
+        </div>
+        {daftarPerdiem && (
+          <p className="dsc-cetak-petunjuk">
+            Di HP (Android): setelah tombol ditekan, buka pilihan lain di jendela cetak (panah ▾) dan atur <strong>Orientasi</strong>{" "}
+            sesuai tombol: <em>Lanskap</em> untuk timesheet, <em>Potret</em> untuk dokumen klaim dan nota.
+          </p>
+        )}
+        {kotakTempel.length > 0 && (
+          <label className="dsc-tempel-pilihan">
+            <input type="checkbox" checked={sertakanTempel} onChange={(e) => setSertakanTempel(e.target.checked)} />
+            Sertakan Lembar Tempel Bukti / Nota Asli ({kotakTempel.length} kotak, sekitar {perkirakanHalamanTempel(kotakTempel)} halaman)
+          </label>
+        )}
       </div>
 
       {kelompok.length === 0 ? (
@@ -390,7 +457,7 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
               {k.kunci === kunciPerdiem && daftarPerdiem ? (
                 <LembarPerdiemTimesheet daftar={daftarPerdiem} kunci={k.kunci} />
               ) : (
-              <article className="dsc-kertas" data-kelompok={k.kunci}>
+              <article className="dsc-kertas dsc-bagian-potret" data-kelompok={k.kunci}>
                 <header className="dsc-kop">
                   <div className="dsc-kop__judul">{judulLaporan}</div>
                   <div className="dsc-kop__sub">
@@ -401,55 +468,69 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
                 <h4 className="dsc-judul-kelompok">
                   {k.huruf}. {k.judul}
                 </h4>
-                <div className="dsc-daftar">
-                  <div className="dsc-baris dsc-baris--kepala" aria-hidden="true">
-                    <span>No</span>
-                    <span>Tanggal</span>
-                    <span>Uraian</span>
-                    <span className="dsc-jumlah">Jumlah (Rp)</span>
-                  </div>
-                  {k.item.map((t) => {
-                    const rincian = keteranganRincian(t);
-                    const nLampiran = t.bukti?.length || 0;
-                    return (
-                      <div className="dsc-baris" key={t.id}>
-                        <span className="dsc-no">{nomorMap.get(t.id)}</span>
-                        <span className="dsc-tgl">{tanggalSingkat(t.tanggal)}</span>
-                        <div className="dsc-uraian">
-                          <div className="dsc-uraian__utama">{t.deskripsi}</div>
-                          {rincian.map((r, i) => (
-                            <div className="dsc-uraian__detail" key={i}>
-                              {r}
+                <table className="dsc-tabel">
+                  <colgroup>
+                    <col className="dsc-tabel__k-no" />
+                    <col className="dsc-tabel__k-tgl" />
+                    <col />
+                    <col className="dsc-tabel__k-jml" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>No</th>
+                      <th>Tanggal</th>
+                      <th>Uraian</th>
+                      <th className="dsc-jumlah">Jumlah (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {k.item.map((t) => {
+                      const rincian = keteranganRincian(t);
+                      const penerima = barisPenerimaManfaat(t);
+                      const nLampiran = t.bukti?.length || 0;
+                      return (
+                        <tr key={t.id}>
+                          <td className="dsc-no">{nomorMap.get(t.id)}</td>
+                          <td className="dsc-tgl">{tanggalSingkat(t.tanggal)}</td>
+                          <td className="dsc-uraian">
+                            <div className="dsc-uraian__utama">{t.deskripsi}</div>
+                            {penerima && <div className="dsc-uraian__penerima">{penerima}</div>}
+                            {rincian.map((r, i) => (
+                              <div className="dsc-uraian__detail" key={i}>
+                                {r}
+                              </div>
+                            ))}
+                            <div className="dsc-uraian__detail">
+                              {t.kaitan ? `${t.kaitan} · ` : ""}
+                              {t.metode || "Tunai"} ·{" "}
+                              {nLampiran > 0
+                                ? `Lampiran ${nLampiran}`
+                                : k.jenis === "pengeluaran"
+                                  ? "Tanpa bukti"
+                                  : "—"}
                             </div>
-                          ))}
-                          <div className="dsc-uraian__detail">
-                            {t.kaitan ? `${t.kaitan} · ` : ""}
-                            {t.metode || "Tunai"} ·{" "}
-                            {nLampiran > 0
-                              ? `Lampiran ${nLampiran}`
-                              : k.jenis === "pengeluaran"
-                                ? "Tanpa bukti"
-                                : "—"}
-                          </div>
-                        </div>
-                        <span className="dsc-jumlah">{formatAngka(t.jumlah)}</span>
-                      </div>
-                    );
-                  })}
-                  <div className="dsc-baris dsc-baris--total">
-                    <span />
-                    <span />
-                    <span className="dsc-uraian__utama">Jumlah {k.judul}</span>
-                    <span className="dsc-jumlah">{formatAngka(k.total)}</span>
-                  </div>
-                </div>
+                          </td>
+                          <td className="dsc-jumlah">{formatAngka(t.jumlah)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="dsc-tabel__total">
+                      <td />
+                      <td />
+                      <td className="dsc-uraian__utama">Jumlah {k.judul}</td>
+                      <td className="dsc-jumlah">{formatAngka(k.total)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </article>
               )}
 
               {/* Lembar lampiran: satu kertas kosong per foto bukti, seperti struk yang ditempel di kertas HVS */}
               {k.item.flatMap((t) =>
                 (t.bukti || []).map((b, i, semua) => (
-                  <article className="dsc-kertas dsc-lampiran" key={`lampiran-${t.id}-${b.id}`} data-lampiran={t.id}>
+                  <article className="dsc-kertas dsc-lampiran dsc-bagian-potret" key={`lampiran-${t.id}-${b.id}`} data-lampiran={t.id}>
                     <div className="dsc-lampiran__kop">
                       <strong>Lampiran No. {nomorMap.get(t.id)}</strong>
                       {semua.length > 1 ? ` (bukti ${i + 1} dari ${semua.length})` : ""} · {tanggalSingkat(t.tanggal)} ·{" "}
@@ -464,8 +545,8 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
             </React.Fragment>
           ))}
 
-          {/* Lembar penutup: total, penyelesaian dana, dan tanda tangan */}
-          <article className="dsc-kertas dsc-penutup">
+          {/* Lembar penutup: rekapitulasi klaim (total, penyelesaian dana, dan tanda tangan) */}
+          <article className="dsc-kertas dsc-penutup dsc-bagian-potret">
             <header className="dsc-kop">
               <div className="dsc-kop__judul">{judulLaporan}</div>
               <div className="dsc-kop__sub">
@@ -473,7 +554,7 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
                 {periodeTeks}
               </div>
             </header>
-            <h4 className="dsc-judul-kelompok">Ringkasan</h4>
+            <h4 className="dsc-judul-kelompok">{adalahKegiatan ? "Rekapitulasi Klaim" : "Rekapitulasi"}</h4>
             <div className="dsc-daftar">
               <div className="dsc-baris dsc-baris--ringkas">
                 <span className="dsc-uraian__utama">Total penerimaan</span>
@@ -509,6 +590,9 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
               </p>
             </div>
           </article>
+
+          {/* Lembar tempel bukti / nota asli di akhir dokumen klaim (potret) */}
+          {sertakanTempel && kotakTempel.length > 0 && <LembarTempelBukti kotak={kotakTempel} />}
         </div>
       )}
     </section>

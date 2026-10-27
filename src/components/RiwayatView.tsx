@@ -9,6 +9,7 @@ import {
   namaHari,
   METODE_BAYAR,
   KATEGORI,
+  labelKategori,
 } from "../lib/constants";
 import { BuktiPreviewModal } from "./BuktiPreviewModal";
 import { UtangPiutangView } from "./UtangPiutangView";
@@ -475,7 +476,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                       {item.deskripsi}
                     </div>
                     <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      <span>📅 {item.tanggal}</span> · <span>🏷️ {item.kategori}</span> ·{" "}
+                      <span>📅 {item.tanggal}</span> · <span>🏷️ {labelKategori(item.kategori)}</span> ·{" "}
                       <span>💼 {item.dana}</span>
                       {item.talanganUntuk && (
                         <span style={{ color: "var(--accent)", marginLeft: "4px" }}>
@@ -650,7 +651,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                 <option value="">Semua Kategori</option>
                 {daftarKategoriTersedia.map((kat) => (
                   <option key={kat} value={kat}>
-                    {kat}
+                    {labelKategori(kat)}
                   </option>
                 ))}
               </select>
@@ -832,7 +833,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
                   {(masukHari > 0 || keluarHari > 0) && (
                     <span
                       className="hari-total-bersih"
-                      title={`Pemasukan ${formatRupiah(masukHari)} − pengeluaran ${formatRupiah(keluarHari)} (perdiem tidak dihitung sebagai pengeluaran)`}
+                      title={`Pemasukan ${formatRupiah(masukHari)} − pengeluaran ${formatRupiah(keluarHari)} (uang harian tidak dihitung sebagai pengeluaran)`}
                       style={{
                         color: bersihHari > 0 ? "var(--masuk)" : bersihHari < 0 ? "var(--keluar)" : "var(--muted)",
                         fontWeight: 700,
@@ -1136,7 +1137,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
               {menuLongPress.deskripsi}
             </h3>
             <p style={{ margin: "0 0 16px", fontSize: "0.85rem", color: "var(--muted)" }}>
-              {menuLongPress.jenis === "pemasukan" ? "+" : "−"}Rp{formatAngka(menuLongPress.jumlah)} · {menuLongPress.kategori}
+              {menuLongPress.jenis === "pemasukan" ? "+" : "−"}Rp{formatAngka(menuLongPress.jumlah)} · {labelKategori(menuLongPress.kategori)}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <button

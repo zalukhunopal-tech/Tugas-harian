@@ -114,7 +114,7 @@ console.log("Rencana: satu transaksi per hari + pemasukan pribadi");
   cek("pribadi tanpa kegiatanId & tanpa lampiran", pribadi.every((p) => !p.kegiatanId && (p.bukti || []).length === 0));
   cek("tanggal pasangan sama", rencana.kegiatan.every((k) => rencana.semua.find((t) => t.id === idPemasukanPribadi(k.id))?.tanggal === k.tanggal));
   cek("pemasukan pribadi dikenali otomatis", pribadi.every(adalahPemasukanPerdiemOtomatis));
-  cek("catatan pribadi menandai otomatis", pribadi.every((p) => p.catatan?.startsWith("Otomatis dari perdiem")));
+  cek("catatan pribadi menandai otomatis", pribadi.every((p) => p.catatan?.startsWith("Otomatis dari uang harian")));
   const ringkas = hitungPenyelesaian(rencana.semua);
   cek("pemasukan pribadi tidak ikut penyelesaian Dana Kegiatan", ringkas.totalPerdiem === 9_750_000 && ringkas.danaAwal === 0 && ringkas.jumlahTransaksi === 39, ringkas);
 }
@@ -197,7 +197,7 @@ console.log("Pasangan dan pesan hapus");
   const pribadiBiasa: Transaksi = { ...p, id: "gaji" };
   cek("pemasukan pribadi biasa bukan otomatis", !adalahPemasukanPerdiemOtomatis(pribadiBiasa));
   const catatanKegiatan = buatPemasukanPribadiDariPerdiem({ ...k, catatan: "Hari lapangan" });
-  cek("catatan kegiatan ikut terbawa", catatanKegiatan.catatan === "Otomatis dari perdiem Dana Kegiatan. Hari lapangan");
+  cek("catatan kegiatan ikut terbawa", catatanKegiatan.catatan === "Otomatis dari uang harian Dana Kegiatan. Hari lapangan");
 }
 
 console.log("Id pasangan dan daftar id terhapus");

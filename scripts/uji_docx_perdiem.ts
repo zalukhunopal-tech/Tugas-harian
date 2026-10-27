@@ -107,7 +107,7 @@ async function main() {
   const kira = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) <= 2;
   cek("bagian lanskap berukuran A4 lanskap (297 x 210 mm)", kira(dengan[1]?.lebar, 16838) && kira(dengan[1]?.tinggi, 11906), dengan[1] && [dengan[1].lebar, dengan[1].tinggi]);
   cek("bagian potret A4 (210 x 297 mm)", kira(dengan[0]?.lebar, 11906) && kira(dengan[0]?.tinggi, 16838), dengan[0] && [dengan[0].lebar, dengan[0].tinggi]);
-  cek("daftar perdiem ada di bagian lanskap", /Perdiem Kegiatan Lapangan/.test(dengan[1]?.teks ?? "") && !/Perdiem Kegiatan Lapangan/.test(dengan[0]?.teks ?? ""));
+  cek("daftar perdiem ada di bagian lanskap", /Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[1]?.teks ?? "") && !/Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[0]?.teks ?? ""));
   cek("kelompok lain (Konsumsi) tetap di bagian potret", /KONSUMSI/.test(dengan[0]?.teks ?? "") && !/KONSUMSI/.test(dengan[1]?.teks ?? ""));
   cek("daftar periksa di bagian potret terakhir", /DAFTAR PERIKSA KELENGKAPAN/.test(dengan[2]?.teks ?? ""));
   cek("bagian baru tidak diawali pemisah halaman tambahan (tanpa halaman kosong)", dengan.slice(1).every((b) => !b.awalPisahHalaman), dengan.map((b) => b.awalPisahHalaman));

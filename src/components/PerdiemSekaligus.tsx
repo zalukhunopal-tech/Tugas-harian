@@ -104,7 +104,7 @@ export const PerdiemSekaligus: React.FC<PerdiemSekaligusProps> = ({
           style={kontrolPilihan}
         />
         <span>
-          Isi perdiem sekaligus untuk rentang tanggal
+          Isi uang harian sekaligus untuk rentang tanggal
           <span style={{ display: "block", fontWeight: 400, fontSize: "0.75rem", color: "var(--muted)" }}>
             Contoh: 20 September sampai 28 Oktober, tidak perlu mengisi satu per satu.
           </span>

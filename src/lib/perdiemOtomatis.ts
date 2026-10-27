@@ -64,7 +64,7 @@ export function buatPemasukanPribadiDariPerdiem(kegiatan: Transaksi, idPasangan?
     jumlah: kegiatan.jumlah,
     metode: kegiatan.metode,
     kaitan: kegiatan.kaitan,
-    catatan: `Otomatis dari perdiem Dana Kegiatan${catatan ? `. ${catatan}` : ""}`,
+    catatan: `Otomatis dari uang harian Dana Kegiatan${catatan ? `. ${catatan}` : ""}`,
     diubah: kegiatan.diubah,
     bukti: [],
   };
@@ -217,7 +217,7 @@ export function rencanakanPerdiemRentang(opsi: {
   const hitung = hitungRentangPerdiem(rentang, tarifPerHari);
   const kosong: RencanaPerdiem = { kegiatan: [], semua: [], dilewati: [], hari: 0, total: 0, galat: hitung.galat };
   if (hitung.galat) return kosong;
-  if (!(tarifPerHari > 0)) return { ...kosong, galat: "Isi tarif perdiem per hari." };
+  if (!(tarifPerHari > 0)) return { ...kosong, galat: "Isi tarif uang harian per hari." };
 
   const tarif = Math.round(tarifPerHari);
   const kecuali = rentang.kecuali.filter((t) => hitung.semua.includes(t)).length;
@@ -242,7 +242,7 @@ export function rencanakanPerdiemRentang(opsi: {
   }
 
   if (kegiatan.length === 0) {
-    return { ...kosong, dilewati, galat: "Tidak ada hari yang bisa dicatat: semua tanggal dikecualikan atau sudah punya perdiem." };
+    return { ...kosong, dilewati, galat: "Tidak ada hari yang bisa dicatat: semua tanggal dikecualikan atau sudah punya uang harian." };
   }
 
   return {
@@ -263,6 +263,6 @@ export function pesanHapusPerdiem(t: Transaksi, daftar: Transaksi[]): string | n
   if (!pasangan) return null;
   const dariKegiatan = adalahPerdiemKegiatan(t);
   return dariKegiatan
-    ? `Perdiem "${t.deskripsi}" tercatat juga sebagai pemasukan di Dana Pribadi. Menghapusnya juga akan menghapus pemasukan pribadi itu. Lanjutkan?`
-    : `Pemasukan "${t.deskripsi}" dibuat otomatis dari perdiem Dana Kegiatan. Menghapusnya juga akan menghapus perdiem di Dana Kegiatan. Lanjutkan?`;
+    ? `Uang harian "${t.deskripsi}" tercatat juga sebagai pemasukan di Dana Pribadi. Menghapusnya juga akan menghapus pemasukan pribadi itu. Lanjutkan?`
+    : `Pemasukan "${t.deskripsi}" dibuat otomatis dari uang harian Dana Kegiatan. Menghapusnya juga akan menghapus uang harian di Dana Kegiatan. Lanjutkan?`;
 }

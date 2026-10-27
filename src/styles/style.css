@@ -3625,6 +3625,61 @@ button {
   color: #444444;
 }
 
+.dsc-uraian__penerima {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Tabel laporan per kategori: kepala berulang di tiap halaman cetak, Total hanya di akhir. */
+.dsc-tabel {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.dsc-tabel th,
+.dsc-tabel td {
+  padding: 0.45em 0.8em 0.45em 0;
+  border-bottom: 1px solid #d4d4d4;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dsc-tabel th {
+  font-weight: 800;
+  border-bottom: 2px solid #111111;
+  padding-top: 0;
+}
+
+.dsc-tabel th.dsc-jumlah,
+.dsc-tabel td.dsc-jumlah {
+  padding-right: 0;
+  text-align: right;
+}
+
+.dsc-tabel tr {
+  break-inside: avoid;
+}
+
+.dsc-tabel__k-no {
+  width: 2.6em;
+}
+
+.dsc-tabel__k-tgl {
+  width: 6.4em;
+}
+
+.dsc-tabel__k-jml {
+  width: 8em;
+}
+
+.dsc-tabel__total td {
+  border-top: 2px solid #111111;
+  border-bottom: none;
+  font-weight: 800;
+}
+
 /* Lembar daftar perdiem berformat file timesheet: Detail Keuangan, kop data, tabel lima kolom, kolom tanda tangan */
 .dsc-ts__kop {
   text-align: center;
@@ -3658,30 +3713,59 @@ button {
 }
 
 .dsc-ts__tabel {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   border-top: 1px solid #111111;
 }
 
-.dsc-ts__baris {
-  display: grid;
-  grid-template-columns: 2.4em 5.6em minmax(0, 1fr) minmax(0, 0.55fr) 6.6em;
-  gap: 0 0.7em;
+.dsc-ts__tabel th,
+.dsc-ts__tabel td {
   padding: 0.35em 0.4em;
   border-bottom: 1px solid #bdbdbd;
-  align-items: start;
-  break-inside: avoid;
+  text-align: left;
+  vertical-align: top;
 }
 
-.dsc-ts__baris--kepala {
+.dsc-ts__tabel th {
   font-weight: 800;
   background: #efefef;
   border-bottom: 1.5px solid #111111;
 }
 
-.dsc-ts__baris--total {
+.dsc-ts__tabel .dsc-jumlah {
+  text-align: right;
+}
+
+.dsc-ts__tabel tr {
+  break-inside: avoid;
+}
+
+.dsc-ts__k-no {
+  width: 2.8em;
+}
+
+.dsc-ts__k-tgl {
+  width: 6.8em;
+}
+
+.dsc-ts__k-ket {
+  width: 48%;
+}
+
+.dsc-ts__k-jml {
+  width: 7.6em;
+}
+
+.dsc-ts__total td {
   font-weight: 800;
   border-bottom: 1.5px solid #111111;
+}
+
+/* Baris tanda tangan ada di tfoot supaya hanya muncul sekali, tepat di bawah baris Total. */
+.dsc-ts__tabel tfoot .dsc-ts__ttd-baris td {
+  border-bottom: none;
+  padding: 12px 0 0;
 }
 
 .dsc-ts__teks {
@@ -3690,12 +3774,12 @@ button {
 }
 
 .dsc-ts__ttd {
-  margin-top: auto;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1em;
   text-align: center;
   break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .dsc-ts__ttd p {
@@ -3790,41 +3874,6 @@ button {
 .dsc-tanda-tangan__jabatan {
   font-size: 0.88em;
   color: #444444;
-}
-
-@media print {
-  @page {
-    size: A4;
-    margin: 12mm;
-  }
-
-  .dsc-daftar-lembar {
-    display: block;
-  }
-
-  .dsc-kertas {
-    max-width: none;
-    width: auto;
-    height: 268mm; /* tinggi area cetak A4 (297 - 24) dikurangi sedikit agar tidak melebar ke halaman kosong */
-    aspect-ratio: auto;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    font-size: 10.5pt;
-    break-before: page;
-    break-inside: avoid;
-    margin: 0;
-    overflow: hidden;
-  }
-
-  /* Rincian kategori yang panjang dan lembar penutup boleh melanjut ke halaman berikutnya. */
-  .dsc-kertas:not(.dsc-lampiran) {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-    break-inside: auto;
-  }
 }
 
 /* Kop laporan (judul, periode, kaitan, tanggal cetak): rapi di layar HP dan di kertas */
@@ -4250,11 +4299,6 @@ button {
   font-size: clamp(9.5px, 1.6cqw, 13px);
 }
 
-.dsc-lanskap .dsc-ts__baris {
-  grid-template-columns: 2.4em 6.2em minmax(0, 1.3fr) minmax(0, 0.8fr) 7em;
-  gap: 0 0.9em;
-}
-
 .dsc-lanskap .dsc-ts__ttd {
   grid-template-columns: repeat(2, minmax(0, 18em));
   justify-content: space-between;
@@ -4274,18 +4318,37 @@ button {
   }
 }
 
+/* ---------- Cetak dokumen klaim ----------
+   Halaman bernama: dokumen potret memakai halaman bawaan (A4 potret), timesheet memakai "timesheet-page" (A4 lanskap),
+   lembar tempel bukti memakai "tempel" (margin 10 mm supaya kotak 190 mm muat). Peramban ponsel yang mengabaikan halaman
+   bernama dibantu mode cetak (lib/cetak.ts): html[data-mode-cetak] menyembunyikan bagian yang bukan miliknya. */
 @media print {
-  @page lanskap {
-    size: A4 landscape;
-    margin: 12mm;
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
   }
 
-  /* Lebar halaman lanskap hanya terpakai penuh bila tidak ada leluhur yang lebarnya terkunci ke halaman pertama (potret):
-     max-width 100vw pada html/body (100vw = lebar halaman pertama saat dicetak), wadah flex/grid, dan wadah ukuran. */
+  @page timesheet-page {
+    size: A4 landscape;
+    margin: 10mm 12mm;
+  }
+
+  @page tempel {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  /* Tanpa tinggi kaku, overflow tersembunyi, atau pembagian halaman buatan: tabel mengalir sampai ujung bawah kertas. */
   html,
-  body {
+  body,
+  .app-container,
+  .print-wrapper {
+    height: auto !important;
+    min-height: 0 !important;
     max-width: none !important;
     overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* Wallpaper tokoh, semburat energi, dan latar gelap tema tidak ikut tercetak walau opsi "grafik latar" menyala. */
@@ -4309,10 +4372,14 @@ button {
   main.container > div > .view,
   .laporan-container {
     display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
-  /* Wadah ukuran (container-type) juga ditata dengan lebar halaman pertama; matikan saat dicetak. */
+  /* Wadah ukuran (container-type) ditata dengan lebar halaman pertama; matikan saat dicetak. */
   .dsc-daftar-lembar {
+    display: block;
     container-type: normal;
   }
 
@@ -4327,12 +4394,153 @@ button {
     container-type: normal;
   }
 
+  /* Lembar dokumen: tinggi mengikuti isi, mengalir antarhalaman. */
+  .dsc-kertas {
+    display: block;
+    max-width: none;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 10.5pt;
+    margin: 0;
+    overflow: visible;
+    break-inside: auto;
+    page: auto;
+  }
+
+  .dsc-kertas > * + * {
+    margin-top: 0.9em;
+  }
+
+  /* Kategori yang berurutan tanpa lampiran di antaranya mengalir bersambung; kop laporan hanya di awal rangkaian. */
+  .dsc-kertas:not(.dsc-lampiran) {
+    break-before: auto;
+    margin-top: 6mm;
+  }
+
+  .dsc-lampiran + .dsc-kertas,
+  .dsc-bagian-timesheet + .dsc-kertas {
+    break-before: page;
+    margin-top: 0;
+  }
+
+  /* Sampul (kop dan ringkasan saldo) sudah memuat judul dan periode, jadi kategori pertama langsung menyambung di bawahnya. */
+  .dsc-daftar-lembar > .dsc-kertas:first-child .dsc-kop {
+    display: none;
+  }
+
+  .dsc-kertas:not(.dsc-lampiran):not(.dsc-penutup) + .dsc-kertas:not(.dsc-lampiran):not(.dsc-penutup) .dsc-kop {
+    display: none;
+  }
+
+  .dsc-judul-kelompok {
+    break-after: avoid;
+  }
+
+  /* Foto bukti: satu lembar penuh per foto. */
+  .dsc-kertas.dsc-lampiran {
+    display: flex;
+    height: 268mm;
+    overflow: hidden;
+    margin: 0;
+    break-before: page;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  /* Rekapitulasi klaim menyambung di bawah tabel terakhir (tidak menyisakan halaman kosong) dan tidak terbelah. */
+  .dsc-kertas.dsc-penutup {
+    margin-top: 8mm;
+    break-inside: avoid;
+  }
+
+  /* Tabel: kepala berulang, Total dan tanda tangan hanya di akhir tabel, baris tidak terbelah. */
+  .dsc-tabel,
+  .dsc-ts__tabel {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  .dsc-tabel thead,
+  .dsc-ts__tabel thead {
+    display: table-header-group !important;
+  }
+
+  .dsc-tabel tfoot,
+  .dsc-ts__tabel tfoot {
+    display: table-row-group !important;
+  }
+
+  .dsc-tabel tr,
+  .dsc-ts__tabel tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .dsc-tabel td,
+  .dsc-tabel th,
+  .dsc-ts__tabel td,
+  .dsc-ts__tabel th {
+    padding: 4px 6px !important;
+    font-size: 9.5pt !important;
+    line-height: 1.25 !important;
+  }
+
+  .dsc-ts__tabel tfoot .dsc-ts__ttd-baris td {
+    padding: 12px 0 0 !important;
+  }
+
+  .dsc-ts__tabel .dsc-ts__total {
+    break-after: avoid;
+  }
+
+  .dsc-ts__ttd {
+    margin-top: 12px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Timesheet: satu-satunya bagian lanskap. */
+  .dsc-bagian-timesheet {
+    page: timesheet-page;
+    page-break-before: always;
+    page-break-after: always;
+    break-before: page;
+    break-after: page;
+  }
+
   .dsc-kertas.dsc-lanskap {
-    page: lanskap;
+    page: timesheet-page;
     font-size: 10.5pt;
     aspect-ratio: auto;
     min-height: 0;
     padding: 0;
+  }
+
+  /* Lembar tempel bukti: halaman bernama "tempel" (A4 potret, margin 10 mm). */
+  .dsc-tempel {
+    page: tempel;
+    break-before: page;
+    margin: 0;
+  }
+
+  /* Mode cetak (lib/cetak.ts): hanya bagian yang dipilih ikut dicetak. */
+  html[data-mode-cetak="timesheet"] .dsc-bagian-potret,
+  html[data-mode-cetak="timesheet"] .printable-report > :not(.dokumen-siap-cetak),
+  html[data-mode-cetak="klaim"] .dsc-bagian-timesheet {
+    display: none !important;
+  }
+
+  /* Timesheet dicetak sendirian: tidak ada halaman potret di depannya yang memaksa pemisah halaman. */
+  html[data-mode-cetak="timesheet"] .dsc-bagian-timesheet {
+    break-before: auto;
+    page-break-before: auto;
   }
 }
 
@@ -6305,5 +6513,424 @@ button {
     font-size: clamp(1.1rem, 2.1vw, 1.35rem) !important;
     overflow-wrap: anywhere;
     line-height: 1.25;
+  }
+}
+
+/* ============================================================
+   Penerima manfaat (numpang klaim), kudapan perjalanan, dan pilihan ukuran kotak tempel bukti.
+   Elemen baru di formulir Dana Kegiatan; memakai warna tema dan lebar wadahnya, jadi sama di HP, tablet, dan PC.
+   ============================================================ */
+.penerima-kartu {
+  background: var(--surface);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.isi-penuh-kisi {
+  grid-column: 1 / -1;
+}
+
+.penerima-manfaat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.penerima-manfaat__judul {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.penerima-manfaat__jumlah {
+  flex: none;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.penerima-manfaat__petunjuk {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.penerima-manfaat__daftar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.penerima-manfaat__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.penerima-manfaat__tag > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.penerima-manfaat__tag button {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.penerima-manfaat__tag button:hover {
+  background: color-mix(in srgb, var(--keluar, #ef4444) 18%, transparent);
+  color: var(--text);
+}
+
+.penerima-manfaat__input {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.penerima-manfaat__input input {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+}
+
+.penerima-manfaat__input .btn-secondary {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.penerima-manfaat__saran {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.penerima-manfaat__saran button {
+  padding: 3px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.penerima-manfaat__saran button:hover {
+  border-color: var(--accent);
+}
+
+/* Konsumsi kegiatan atau kudapan perjalanan */
+.konsumsi-jenis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.konsumsi-jenis button,
+.kotak-tempel-pilih__opsi button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.konsumsi-jenis button[aria-pressed="true"],
+.kotak-tempel-pilih__opsi button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--teks-tombol, #fff);
+}
+
+.kudapan-blok {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.kudapan-plafon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.kudapan-plafon .btn-link {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.kudapan-peringatan,
+.kudapan-info {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.kudapan-peringatan {
+  color: var(--peringatan, #b45309);
+  font-weight: 600;
+}
+
+.kudapan-info {
+  color: var(--muted);
+}
+
+/* Pilihan ukuran kotak tempel */
+.kotak-tempel-pilih {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kotak-tempel-pilih__judul {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.kotak-tempel-pilih__opsi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kotak-tempel-pilih__ket {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.laporan-pra-kegiatan {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.laporan-kop__catatan {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* ---------- Bilah cetak di pratinjau dokumen ---------- */
+.dsc-cetak-aksi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dsc-cetak-aksi .btn-secondary {
+  font-size: 0.82rem;
+  padding: 8px 12px;
+}
+
+.dsc-cetak-petunjuk,
+.dsc-tempel-pilihan {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.dsc-tempel-pilihan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.dsc-tempel-pilihan input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 639.98px) {
+  .dsc-cetak-aksi {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .dsc-cetak-aksi .btn-secondary {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ---------- Lembar Tempel Bukti / Nota Asli (A4 potret, area cetak 190 × 277 mm) ----------
+   Semua ukuran dalam --mm: di layar 1 mm = lebar kertas / 210 (mengecil bersama kolom), saat cetak 1 mm sebenarnya. */
+.dsc-tempel {
+  --mm: 1mm;
+  width: 100%;
+  max-width: 794px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media screen {
+  .dsc-tempel {
+    --mm: calc(min(100cqw, 794px) / 210);
+  }
+}
+
+.dsc-tempel__ket {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.dsc-tempel__kertas {
+  box-sizing: border-box;
+  padding: calc(10 * var(--mm));
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.dsc-tempel__kisi {
+  display: grid;
+  grid-template-columns: repeat(2, calc(92 * var(--mm)));
+  justify-content: space-between;
+  row-gap: calc(4 * var(--mm));
+}
+
+.dsc-kotak {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+
+.dsc-kotak--A {
+  width: calc(92 * var(--mm));
+  height: calc(132 * var(--mm));
+}
+
+.dsc-kotak--B,
+.dsc-kotak--C {
+  grid-column: span 2;
+  justify-self: center;
+  /* Bila margin halaman terpaksa 12 mm (peramban yang mengabaikan halaman bernama), kotak menyempit alih-alih meluap. */
+  width: min(calc(190 * var(--mm)), 100%);
+}
+
+.dsc-kotak--B {
+  height: calc(88 * var(--mm));
+}
+
+.dsc-kotak--C {
+  height: calc(132 * var(--mm));
+}
+
+.dsc-kotak__kepala {
+  flex: none;
+  box-sizing: border-box;
+  max-height: calc(12 * var(--mm));
+  padding: calc(0.8 * var(--mm)) calc(2 * var(--mm));
+  overflow: hidden;
+  background: #f8fafc;
+  border-bottom: 1px solid #cbd5e1;
+  font-size: calc(3 * var(--mm)); /* 8,5 pt */
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.dsc-kotak__area {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(2 * var(--mm));
+  border: 1px dashed #64748b;
+  text-align: center;
+}
+
+.dsc-kotak__area > span {
+  font-size: calc(2.82 * var(--mm)); /* 8 pt */
+  color: #94a3b8;
+}
+
+@media print {
+  .dsc-tempel__kertas {
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
