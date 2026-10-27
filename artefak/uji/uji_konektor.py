@@ -148,6 +148,8 @@ with sync_playwright() as p:
     hubungkan(pg)
     cek(pg.get_by_text("Folder Keuangan di Google Drive").count() > 0, "bagian Folder Keuangan tampil")
     cek("Login Google gagal" not in pg.content(), "tidak ada pesan 'Login Google gagal'")
+    skrip_luar = pg.evaluate("[...document.querySelectorAll('script[src]')].map(e => e.getAttribute('src')).filter(u => /^https?:/.test(u))")
+    cek(skrip_luar == [], f"index.html tidak memuat skrip dari situs lain, mis. Google Identity ({skrip_luar})")
     cek(len(panggilan(pg, "get_values")) >= 2, "sambungan pertama langsung menarik data (tanpa klik Tarik)")
     nav(pg, "Saya")
     pg.get_by_role("button", name="Tarik Data dari Folder Keuangan").click()

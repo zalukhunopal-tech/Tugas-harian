@@ -7,7 +7,8 @@ import { ubahKonfirmasi } from "./ubah-konfirmasi";
 /**
  * Build khusus artefak Claude. Berbeda dari `vite.config.ts` di akar repo (yang dikelola Google AI Studio):
  * - tanpa PWA/service worker (tidak jalan di sandbox artefak);
- * - modul login Google diganti `googleAuth.artefak.ts` (konektor Drive/Sheets, bukan Firebase);
+ * - modul login Google diganti `googleAuth.artefak.ts` (konektor Drive/Sheets, bukan Firebase), dan tag skrip
+ *   `accounts.google.com` (GIS) dibuang dari index.html;
  * - operasi tulis `gdriveSync` diserialkan lewat antrean (`gdriveSync.artefak.ts`);
  * - `window.fetch` ke googleapis.com diterjemahkan ke konektor, `alert` diganti dialog di halaman, dan setiap
  *   `confirm(...)` di `src/` diubah saat build menjadi `await` pada dialog di halaman (ubah-konfirmasi.ts).
@@ -25,7 +26,11 @@ function entriArtefak(): Plugin {
         if (!html.includes('src="/src/main.tsx"')) {
           throw new Error("index.html tidak lagi memuat /src/main.tsx; sesuaikan artefak/vite.config.ts.");
         }
-        return html.replace('src="/src/main.tsx"', 'src="/artefak/entry.ts"');
+        return html
+          .replace('src="/src/main.tsx"', 'src="/artefak/entry.ts"')
+          // Google Identity Services (login Google di situs biasa) diblokir kebijakan keamanan artefak dan tidak dipakai di mode
+          // konektor, jadi tag-nya dibuang supaya penerbitan tidak memperingatkan skrip dari situs lain.
+          .replace(/[ \t]*<script\b[^>]*\bsrc="https:\/\/accounts\.google\.com\/[^"]*"[^>]*>\s*<\/script>\n?/g, "");
       },
     },
   };
