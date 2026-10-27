@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
-import { Transaksi, NamaDana, ItemHutangPiutang, ItemPenyusutan, TargetTabunganItem } from "../types";
+import { Transaksi, NamaDana, ItemHutangPiutang, ItemPenyusutan, TargetTabunganItem, TransaksiBerulang } from "../types";
 import { BannerUmurBarang, LencanaUmur } from "./UmurBarangUI";
 import { hitungPenyusutan } from "../lib/penyusutan";
 import {
@@ -30,8 +30,9 @@ interface RiwayatViewProps {
   onEdit: (t: Transaksi) => void;
   onDelete: (id: string) => void;
   onGeserBulan: (delta: number) => void;
-  onBukaTransaksiBerulang?: () => void;
-  jumlahJatuhTempo?: number;
+  /** Jadwal rutin yang transaksinya untuk periode ini belum ada; dikonfirmasi lewat tombol "Catat sekarang". */
+  rutinBelumDicatat?: TransaksiBerulang[];
+  onTerapkanRutin?: () => void;
   onToggleStatusTalangan?: (id: string) => void;
   daftarUtangPiutang?: ItemHutangPiutang[];
   onSimpanUtangPiutang?: (item: ItemHutangPiutang) => void;
@@ -56,8 +57,8 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onEdit,
   onDelete,
   onGeserBulan,
-  onBukaTransaksiBerulang,
-  jumlahJatuhTempo = 0,
+  rutinBelumDicatat = [],
+  onTerapkanRutin,
   onToggleStatusTalangan,
   daftarUtangPiutang = [],
   onSimpanUtangPiutang,
@@ -360,37 +361,28 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
       ) : (
         <>
           <BannerUmurBarang daftar={daftarPenyusutan} onBuka={onBukaUmurBarang} />
-          {jumlahJatuhTempo > 0 && onBukaTransaksiBerulang && (
-        <div
-          style={{
-            marginBottom: "12px",
-            padding: "10px 14px",
-            borderRadius: "10px",
-            background: "color-mix(in srgb, var(--accent) 15%, var(--surface))",
-            border: "1.5px solid var(--accent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "10px",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.86rem" }}>
-            <span style={{ fontSize: "1.2rem" }}>🔔</span>
-            <span>
-              Ada <strong>{jumlahJatuhTempo} transaksi berulang</strong> jatuh tempo hari ini!
-            </span>
-          </div>
-          <button
-            type="button"
-            className="btn-primary"
-            style={{ padding: "5px 12px", fontSize: "0.8rem", fontWeight: 700 }}
-            onClick={onBukaTransaksiBerulang}
-          >
-            🔁 Kelola &amp; Terapkan
-          </button>
-        </div>
-      )}
+          {rutinBelumDicatat.length > 0 && onTerapkanRutin && (
+            <section className="rutin-banner no-print" role="status" aria-label="Transaksi rutin belum dicatat" data-testid="banner-rutin">
+              <span className="rutin-banner__ikon" aria-hidden="true">
+                🔔
+              </span>
+              <div className="rutin-banner__isi">
+                <strong>
+                  {rutinBelumDicatat.length} transaksi rutin bulan ini belum dicatat
+                </strong>
+                <span className="rutin-banner__daftar">
+                  {rutinBelumDicatat
+                    .slice(0, 3)
+                    .map((r) => `${r.nama} (${formatRupiah(r.jumlah)})`)
+                    .join(", ")}
+                  {rutinBelumDicatat.length > 3 ? `, dan ${rutinBelumDicatat.length - 3} lainnya` : ""}
+                </span>
+              </div>
+              <button type="button" className="btn-primary rutin-banner__aksi" data-aksi="catat-rutin" onClick={onTerapkanRutin}>
+                Catat sekarang
+              </button>
+            </section>
+          )}
 
       {/* Card Ringkasan Saldo per Dana */}
       <section className="balances" aria-label="Saldo per dana">

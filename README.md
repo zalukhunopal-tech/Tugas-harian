@@ -9,6 +9,11 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   - Kategori otomatis sesuai pos anggaran.
   - Perekaman metode bayar (Tunai, Transfer, QRIS, E-wallet, Kartu debit/kredit).
   - Kolom sumber/tujuan dana, kaitan kegiatan, dan catatan.
+  - **Kategori** pengeluaran berupa ubin sama ukuran (2 kolom di HP, 3 kolom di tablet dan PC).
+  - **Penerimaan Dana** (pemasukan Dana Kegiatan) hanya berisi tanggal, **Nama/Judul Kegiatan**, jumlah, metode, dan lampiran bukti.
+    Judul yang sama dengan kegiatan yang sudah ada dipakai ulang, judul baru membuat kegiatan baru otomatis; judul itulah patokan
+    utama laporan kegiatan. Tidak ada lagi bagian Kelengkapan SPJ di form ini.
+  - **Scan Struk Belanja (Gemini AI)** dan lampiran bukti/foto pendukung tersusun rapi di HP (tombol sama lebar sebaris).
 - **Ringkasan & Anggaran Harian**:
   - Saldo kumulatif per dana serta arus kas bulan berjalan.
   - Meter anggaran pengeluaran harian dengan indikator persentase dan peringatan limit.
@@ -30,7 +35,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
 - **Tema & Visual Jujutsu Kaisen**:
   - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
-  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
+  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Depresiasi Aset, Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
   - Pilihan beralih ke Tema Standar.
 - **Keluarga & Komunitas** (tab Saya → Keluarga):
   - Terhubung lewat **kode QR**: anggota menampilkan *Kode saya* (nama dan email Google), pemilik data memindainya dengan
@@ -61,6 +66,8 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   - Kartu ringkasan saldo di Laporan: empat kartu sebaris di PC (≥ 1024 px), 2 × 2 di tablet, label di atas dan nominal di bawah sejajar.
 - **Depresiasi Aset** (tab Saya → Depresiasi Aset): setelah pengeluaran barang yang **bukan sekali pakai** dicatat (laptop, ponsel,
   ban, aki, oli, dan sejenisnya; makan, bensin, pulsa, tiket, sewa, dan servis tidak ditawari), aplikasi menawarkan *Hitung depresiasi?*.
+  Selain lewat tawaran itu, formulir pengeluaran punya kotak centang **Masukkan ke Depresiasi Aset**: dicentang, umur dan metode terisi
+  otomatis dari uraian barang (tanpa input ulang di menu aset); bila sudah dicentang atau dilepas, tawaran setelah simpan tidak muncul lagi.
   Hanya yang disetujui masuk daftar, dengan isian terisi otomatis dari **basis data umur** (`src/lib/basisDataUmur.ts`: 32 barang motor,
   mobil, elektronik, dan aset, tiap angka memuat rentang dan sumbernya; yang belum bersumber tegas ditandai "perkiraan umum").
   Barang lama bisa ditambahkan lewat *Tambah aset* atau tombol *Pantau* di daftar umur standar. Metode: garis lurus, saldo menurun
@@ -72,6 +79,9 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   km, "sudah diganti/diservis", ubah data, hapus pantauan, serta **Pedoman Depresiasi** (rumus, kelompok masa manfaat PMK 72/2023, daftar
   umur standar, sumber riset). Salinan lengkap pedoman: [`docs/pedoman-depresiasi-aset.md`](docs/pedoman-depresiasi-aset.md).
   Pantauan disimpan di pengaturan (ikut tersinkron) dan terhapus bersama transaksinya.
+- **Transaksi Berulang** dikelola hanya di tab Saya → Transaksi Rutin. Di Riwayat, banner pengingat hanya muncul bila transaksi serupa
+  (jenis, dana, kategori, dan uraian sama) untuk periode berjalan belum ada; tombol **Catat sekarang** mengisi transaksi sesuai jadwal
+  (tanggal, jumlah, kategori, dan dana dari jadwal), dan jadwal yang sudah tercatat tidak pernah digandakan.
 - **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan

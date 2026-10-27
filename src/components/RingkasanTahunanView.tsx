@@ -266,33 +266,16 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
       </div>
 
       {/* Tiga Kartu Metrik Utama & Perbandingan dengan Tahun Lalu */}
-      <div
-        className="ringkasan-metrik-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "14px",
-          marginBottom: "20px",
-        }}
-      >
-        {/* Pemasukan */}
-        <div className="card" style={{ padding: "18px 20px", borderLeft: "4px solid #10b981" }}>
-          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-            Total Pemasukan {tahunPilihan}
-          </div>
-          <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#10b981" }}>
-            {formatRupiah(totalMasukTahunIni)}
-          </div>
-          <div style={{ fontSize: "0.8rem", marginTop: "8px", color: "var(--text-muted)" }}>
-            Tahun {tahunSebelumnya}: {formatRupiah(totalMasukTahunLalu)}
+      <div className="ringkasan-metrik-grid">
+        <div className="card rt-metrik rt-metrik--masuk">
+          <div className="rt-metrik__label">Total Pemasukan {tahunPilihan}</div>
+          <div className="rt-metrik__nilai">{formatRupiah(totalMasukTahunIni)}</div>
+          <div className="rt-metrik__banding">
+            <span>
+              Tahun {tahunSebelumnya}: {formatRupiah(totalMasukTahunLalu)}
+            </span>
             {persenDeltaMasuk !== null && (
-              <span
-                style={{
-                  marginLeft: "8px",
-                  fontWeight: 700,
-                  color: deltaMasuk >= 0 ? "#10b981" : "#ef4444",
-                }}
-              >
+              <span className={`rt-delta ${deltaMasuk >= 0 ? "rt-delta--baik" : "rt-delta--buruk"}`}>
                 ({deltaMasuk >= 0 ? "+" : ""}
                 {persenDeltaMasuk}%)
               </span>
@@ -300,24 +283,15 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
           </div>
         </div>
 
-        {/* Pengeluaran */}
-        <div className="card" style={{ padding: "18px 20px", borderLeft: "4px solid #ef4444" }}>
-          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-            Total Pengeluaran {tahunPilihan}
-          </div>
-          <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#ef4444" }}>
-            {formatRupiah(totalKeluarTahunIni)}
-          </div>
-          <div style={{ fontSize: "0.8rem", marginTop: "8px", color: "var(--text-muted)" }}>
-            Tahun {tahunSebelumnya}: {formatRupiah(totalKeluarTahunLalu)}
+        <div className="card rt-metrik rt-metrik--keluar">
+          <div className="rt-metrik__label">Total Pengeluaran {tahunPilihan}</div>
+          <div className="rt-metrik__nilai">{formatRupiah(totalKeluarTahunIni)}</div>
+          <div className="rt-metrik__banding">
+            <span>
+              Tahun {tahunSebelumnya}: {formatRupiah(totalKeluarTahunLalu)}
+            </span>
             {persenDeltaKeluar !== null && (
-              <span
-                style={{
-                  marginLeft: "8px",
-                  fontWeight: 700,
-                  color: deltaKeluar <= 0 ? "#10b981" : "#ef4444",
-                }}
-              >
+              <span className={`rt-delta ${deltaKeluar <= 0 ? "rt-delta--baik" : "rt-delta--buruk"}`}>
                 ({deltaKeluar >= 0 ? "+" : ""}
                 {persenDeltaKeluar}%)
               </span>
@@ -325,40 +299,23 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
           </div>
         </div>
 
-        {/* Arus Kas Bersih */}
-        <div
-          className="card"
-          style={{
-            padding: "18px 20px",
-            borderLeft: `4px solid ${selisihTahunIni >= 0 ? "var(--primary)" : "#f97316"}`,
-          }}
-        >
-          <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-            Selisih / Arus Kas Bersih
-          </div>
-          <div
-            style={{
-              fontSize: "1.35rem",
-              fontWeight: 800,
-              color: selisihTahunIni >= 0 ? "var(--primary)" : "#f97316",
-            }}
-          >
-            {formatRupiah(selisihTahunIni)}
-          </div>
-          <div style={{ fontSize: "0.8rem", marginTop: "8px", color: "var(--text-muted)" }}>
-            Rata-rata/bln: {formatRupiah(Math.round(totalKeluarTahunIni / 12))}
+        <div className={`card rt-metrik rt-metrik--selisih ${selisihTahunIni >= 0 ? "rt-metrik--surplus" : "rt-metrik--defisit"}`}>
+          <div className="rt-metrik__label">Selisih / Arus Kas Bersih</div>
+          <div className="rt-metrik__nilai">{formatRupiah(selisihTahunIni)}</div>
+          <div className="rt-metrik__banding">
+            <span>Rata-rata/bln: {formatRupiah(Math.round(totalKeluarTahunIni / 12))}</span>
           </div>
         </div>
       </div>
 
       {/* Bagian 1: Tabel & Grafik 12 Bulan dalam Tahun yang Dipilih */}
-      <div className="card" style={{ marginBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>📊</span> Rincian 12 Bulan (Tahun {tahunPilihan})
+      <div className="card rt-bagian">
+        <div className="rt-bagian__kepala">
+          <h3 className="rt-bagian__judul">
+            <span aria-hidden="true">📊</span> Rincian 12 Bulan (Tahun {tahunPilihan})
             {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
           </h3>
-          <div className="legenda" style={{ margin: 0 }}>
+          <div className="legenda rt-legenda">
             <span>
               <i className="swatch masuk" /> Masuk
             </span>
@@ -512,27 +469,17 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
       </div>
 
       {/* Bagian 2: Total per Kategori Setahun */}
-      <div className="card" style={{ marginBottom: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>🏷️</span> Total per Kategori Setahun ({tahunPilihan})
+      <div className="card rt-bagian">
+        <div className="rt-bagian__kepala">
+          <h3 className="rt-bagian__judul">
+            <span aria-hidden="true">🏷️</span> Total per Kategori Setahun ({tahunPilihan})
             {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
           </h3>
-          <div className="filter-chips" style={{ margin: 0 }}>
-            <button
-              type="button"
-              className="chip"
-              aria-checked={tabKategori === "pengeluaran"}
-              onClick={() => setTabKategori("pengeluaran")}
-            >
+          <div className="filter-chips chips-dua rt-segmen" role="group" aria-label="Jenis kategori">
+            <button type="button" className="chip" aria-checked={tabKategori === "pengeluaran"} onClick={() => setTabKategori("pengeluaran")}>
               Pengeluaran
             </button>
-            <button
-              type="button"
-              className="chip"
-              aria-checked={tabKategori === "pemasukan"}
-              onClick={() => setTabKategori("pemasukan")}
-            >
+            <button type="button" className="chip" aria-checked={tabKategori === "pemasukan"} onClick={() => setTabKategori("pemasukan")}>
               Pemasukan
             </button>
           </div>
@@ -575,14 +522,16 @@ export const RingkasanTahunanView: React.FC<RingkasanTahunanViewProps> = ({
       </div>
 
       {/* Bagian 3: Perbandingan Belanja per Kategori dengan Tahun Sebelumnya */}
-      <div className="card">
-        <h3 className="judul-perbandingan" style={{ margin: "0 0 8px", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>⚖️</span> Perbandingan Pengeluaran vs Tahun {tahunSebelumnya}
-          {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
-        </h3>
-        <p className="help" style={{ margin: "0 0 14px", fontSize: "0.85rem" }}>
-          Perbandingan perubahan nominal dan persentase belanja per kategori antara tahun {tahunSebelumnya} dan {tahunPilihan}.
-        </p>
+      <div className="card rt-bagian">
+        <div className="rt-bagian__kepala">
+          <h3 className="rt-bagian__judul judul-perbandingan">
+            <span aria-hidden="true">⚖️</span> Perbandingan Pengeluaran vs Tahun {tahunSebelumnya}
+            {filterDana !== "Semua" && <span className="dana-badge-aktif">{filterDana}</span>}
+          </h3>
+          <p className="help rt-bagian__ket">
+            Perbandingan perubahan nominal dan persentase belanja per kategori antara tahun {tahunSebelumnya} dan {tahunPilihan}.
+          </p>
+        </div>
 
         {perbandinganKategori.length === 0 ? (
           <p className="kosong" style={{ padding: "20px" }}>

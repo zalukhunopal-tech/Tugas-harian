@@ -58,9 +58,15 @@ untuk laporan pajak. Bangunan (tidak dibahas di aplikasi): permanen 20 tahun, ti
 - Elektronik dan kendaraan: **saldo menurun ganda** (nilainya jatuh cepat di awal).
 - Perabot dan peralatan kerja: **garis lurus**.
 
-## 4. Kapan aplikasi menawarkan depresiasi
+## 4. Cara barang masuk daftar
 
-Setelah pengeluaran baru disimpan (bukan saat mengubah), aplikasi menawarkan *Hitung depresiasi?* bila uraiannya cocok dengan satu
+**Kotak centang di formulir pengeluaran.** *Masukkan ke Depresiasi Aset* tersedia di formulir pengeluaran (bukan untuk uang harian dan
+penerimaan dana). Begitu dicentang, umur, satuan, dan metode terisi otomatis dari basis data menurut uraian barang; tombol *Atur detail*
+membuka isian lengkap, dan bila barang tidak dikenali isiannya terbuka agar umur dipilih dari daftar umur standar. Saat transaksi disimpan,
+barang masuk daftar tanpa input ulang di tab Saya. Mengubah transaksi membuka lagi pantauannya; melepas centang melepas pantauan.
+
+**Tawaran setelah simpan.** Bila pengguna tidak menyentuh kotak centang sama sekali, setelah pengeluaran baru disimpan (bukan saat mengubah)
+aplikasi menawarkan *Hitung depresiasi?* bila uraiannya cocok dengan satu
 barang di database (kata utuh, mis. "ban" tidak cocok dengan "bangun"), atau kategorinya Pengadaan Barang dan jumlahnya ≥ Rp500.000.
 
 Tidak ditawarkan: pemasukan; kategori Perdiem, Honorarium & Ganti Hari, Tabungan, Tagihan & Sewa, Rental Kendaraan, Akomodasi,
