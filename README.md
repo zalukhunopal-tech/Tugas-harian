@@ -37,6 +37,12 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
   - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Depresiasi Aset, Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
   - Pilihan beralih ke Tema Standar.
+- **Drive Keuangan** (tab Saya → Drive Keuangan): tampilan utamanya hanya judul **Sinkronisasi Data**, lingkaran berlogo Google Drive,
+  dan nama akun. **Tekan dan tahan lingkaran 3 detik**: cincin terisi searah jarum jam (lepas sebelum penuh = batal), lalu aplikasi
+  otomatis memastikan akses, menyiapkan folder Keuangan bila belum ada, menarik dan menggabungkan isi Drive, lalu mengirim hasilnya
+  (kirim hanya berjalan bila tarik lengkap, jadi isi Drive tidak tertimpa). Bisa juga dengan keyboard: tahan Spasi atau Enter.
+  Pengaturan lain tetap ada, dilipat di **Opsi lanjutan**: tarik saja, kirim saja, periksa folder, perbarui akses, unduh CSV, isi
+  folder, ganti atau tambah akun, dan rincian sesi.
 - **Keluarga & Komunitas** (tab Saya → Keluarga):
   - Terhubung lewat **kode QR**: anggota menampilkan *Kode saya* (nama dan email Google), pemilik data memindainya dengan
     kamera, foto kode, atau menempel teks kodenya.

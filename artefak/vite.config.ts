@@ -37,8 +37,8 @@ function entriArtefak(): Plugin {
 }
 
 /**
- * Penyesuaian teks di SayaView supaya tidak menjanjikan "login Google" dan "sesi 3 bulan" yang tidak
- * berlaku di mode konektor. Hanya kosmetik: bila teks sumber berubah, penggantian dilewati dengan peringatan.
+ * Penyesuaian teks di panel Drive Keuangan (components/PanelDrive.tsx) supaya tidak menjanjikan "login Google" dan "sesi 3 bulan"
+ * yang tidak berlaku di mode konektor. Hanya kosmetik: bila teks sumber berubah, penggantian dilewati dengan peringatan.
  */
 const GANTI_TEKS: Array<{ dari: string[]; ke: string }> = [
   { dari: ["Masuk dengan Google & Sinkron Drive"], ke: "Sambungkan konektor Google Drive" },
@@ -60,11 +60,11 @@ function teksArtefak(): Plugin {
   return {
     name: "teks-artefak",
     transform(kode, id) {
-      if (!id.endsWith("/components/SayaView.tsx")) return null;
+      if (!id.endsWith("/components/PanelDrive.tsx")) return null;
       let hasil = kode;
       for (const { dari, ke } of GANTI_TEKS) {
         const ada = dari.filter((d) => hasil.includes(d));
-        if (ada.length === 0) this.warn(`Teks tidak ditemukan di SayaView.tsx, dilewati: ${dari[0].slice(0, 50)}…`);
+        if (ada.length === 0) this.warn(`Teks tidak ditemukan di PanelDrive.tsx, dilewati: ${dari[0].slice(0, 50)}…`);
         for (const d of ada) hasil = hasil.split(d).join(ke);
       }
       return { code: hasil, map: null };

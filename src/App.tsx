@@ -261,12 +261,16 @@ export default function App() {
 
 
   // Persist transactions and assets
+  // Ref ikut diperbarui seketika (bukan menunggu render berikutnya), supaya langkah kirim yang menyusul tarik data
+  // dalam satu rangkaian sinkronisasi selalu memakai hasil gabungan terbaru.
   const perbaruiTransaksi = useCallback((baru: Transaksi[]) => {
+    transaksiRef.current = baru;
     setTransaksi(baru);
     simpanTransaksi(baru);
   }, []);
 
   const perbaruiAset = useCallback((baru: AsetItem[]) => {
+    asetRef.current = baru;
     setAset(baru);
     simpanAset(baru);
   }, []);
@@ -1241,11 +1245,12 @@ export default function App() {
     window.location.reload();
   };
 
-  const handleKirimKeDrive = async () => {
+  /** Kirim data lokal ke Drive. `tanpaKonfirmasi`: dipakai sinkronisasi tahan-3-detik, yang sendiri sudah merupakan konfirmasi. Mengembalikan true bila berhasil. */
+  const handleKirimKeDrive = async (opsi?: { tanpaKonfirmasi?: boolean }): Promise<boolean> => {
     let token = await getAccessToken({ interactive: true });
     if (!token) {
       token = await handlePerbaruiAksesDrive();
-      if (!token) return;
+      if (!token) return false;
     }
 
     // Setelah pasang ulang data lokal bisa kosong: tarik dulu, jangan kirim sebelum isi Drive terbaca lengkap.
@@ -1259,14 +1264,16 @@ export default function App() {
         );
         setSyncStatus({ pesan: "Kirim ditahan: tarik data dulu", status: "gagal" });
       }
-      return;
+      return false;
     }
 
     // Konfirmasi eksplisit untuk tombol manual
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksi.length} transaksi ke spreadsheet per tahun\n- ${aset.length} aset ke file Aset.json\n- Anggaran & pengaturan ke file Pengaturan.json\n- Data kegiatan & pelapor ke file Laporan Kegiatan.json\n\nLanjutkan pembaruan?`
-    );
-    if (!confirmed) return;
+    if (!opsi?.tanpaKonfirmasi) {
+      const confirmed = window.confirm(
+        `Apakah Anda yakin ingin menyinkronkan data lokal ke folder 'Keuangan' di Google Drive?\n\nTindakan ini akan memperbarui:\n- ${transaksiRef.current.length} transaksi ke spreadsheet per tahun\n- ${asetRef.current.length} aset ke file Aset.json\n- Anggaran & pengaturan ke file Pengaturan.json\n- Data kegiatan & pelapor ke file Laporan Kegiatan.json\n\nLanjutkan pembaruan?`
+      );
+      if (!confirmed) return false;
+    }
 
     setMemuatDrive(true);
     setSyncStatus({ pesan: "Menulis data ke folder Keuangan di Google Drive…", status: "kerja" });
@@ -1277,15 +1284,15 @@ export default function App() {
         const buat = window.confirm(
           "Folder 'Keuangan' belum ada di Google Drive Anda. Buat folder baru 'Keuangan' sekarang?"
         );
-        if (!buat) return;
+        if (!buat) return false;
         folder = (await pastikanFolderKeuangan(token)).folder;
       }
 
       const res = await kirimSemuaKeDrive(
         token,
-        transaksi,
-        aset,
-        pengaturan,
+        transaksiRef.current,
+        asetRef.current,
+        pengaturanRef.current,
         muatLaporanKegiatanFile()
       );
       syncPendingRef.current = false;
@@ -1298,12 +1305,31 @@ export default function App() {
       );
       setSyncStatus({ pesan: "Data tersimpan di Google Drive", status: "sukses" });
       setTimeout(() => setSyncStatus({ pesan: "", status: "idle" }), 4000);
+      return true;
     } catch (err: any) {
       setSyncPesan(`Gagal menyimpan ke Google Drive: ${err.message}`);
       setSyncStatus({ pesan: `Simpan ke Drive gagal: ${err.message}`, status: "gagal" });
+      return false;
     } finally {
       setMemuatDrive(false);
     }
+  };
+
+  /**
+   * Sinkronisasi satu langkah (tombol lingkaran di tab Saya): pastikan akses Drive, siapkan folder Keuangan bila belum ada,
+   * tarik dan gabungkan isi Drive, lalu kirim hasilnya. Kirim hanya berjalan bila tarik lengkap, jadi isi Drive tidak tertimpa.
+   * Mengembalikan true bila seluruh rangkaian berhasil.
+   */
+  const handleSinkronkanData = async (): Promise<boolean> => {
+    let token = await getAccessToken({ interactive: true });
+    if (!token) {
+      token = await handlePerbaruiAksesDrive();
+      if (!token) return false;
+    }
+    if (!driveContents) await periksaDriveOtomatis(token);
+    await handleTarikDariDrive(false);
+    if (!sudahTarikLengkap()) return false;
+    return handleKirimKeDrive({ tanpaKonfirmasi: true });
   };
 
   const handleSimpanProfilPelapor = useCallback((p: ProfilPelapor) => {
@@ -1803,7 +1829,7 @@ export default function App() {
                   memuatHarga={memuatHarga}
                   googleUser={googleUser}
                   onTarikDrive={handleTarikDariDrive}
-                  onKirimDrive={handleKirimKeDrive}
+                  onKirimDrive={() => void handleKirimKeDrive()}
                   memuatDrive={memuatDrive}
                 />
               </div>
@@ -1850,7 +1876,10 @@ export default function App() {
                     else alert("Silakan masuk dengan Google terlebih dahulu.");
                   }}
                   onTarikDariDrive={handleTarikDariDrive}
-                  onKirimKeDrive={handleKirimKeDrive}
+                  onKirimKeDrive={async () => {
+                    await handleKirimKeDrive();
+                  }}
+                  onSinkronkan={handleSinkronkanData}
                   onPerbaruiAksesDrive={handlePerbaruiAksesDrive}
                   transaksi={transaksi}
                   aset={aset}
