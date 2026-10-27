@@ -48,14 +48,58 @@ function pilihFolderKeuangan(files: Array<GDriveFolder & { ownedByMe?: boolean }
   return (files ?? []).find((f) => f.ownedByMe !== false) ?? null;
 }
 
+let onTokenExpiredRefresher: (() => Promise<string | null>) | null = null;
+
+/**
+ * Daftarkan pemanggil pembaruan token saat API Google menerima status 401 Unauthorized
+ */
+export function daftarkanTokenRefresher(refresher: () => Promise<string | null>) {
+  onTokenExpiredRefresher = refresher;
+}
+
+/**
+ * Pemanggil fetch API Google terpusat dengan penanganan otomatis perpanjangan token jika menerima status 401.
+ */
+export async function panggilApiGoogle(
+  url: string,
+  init: RequestInit,
+  tokenSaatIni: string
+): Promise<{ res: Response; tokenAktif: string }> {
+  let token = tokenSaatIni;
+  const headers = new Headers(init.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+
+  let res = await fetch(url, {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401 && onTokenExpiredRefresher) {
+    try {
+      console.warn("Menerima 401 dari Google API. Mencoba pembaruan token otomatis...");
+      const tokenBaru = await onTokenExpiredRefresher();
+      if (tokenBaru && tokenBaru !== token) {
+        token = tokenBaru;
+        headers.set("Authorization", `Bearer ${token}`);
+        res = await fetch(url, {
+          ...init,
+          headers,
+        });
+      }
+    } catch (e) {
+      console.warn("Gagal auto-refresh token saat 401:", e);
+    }
+  }
+
+  return { res, tokenAktif: token };
+}
+
 export async function cariFolderKeuangan(token: string): Promise<GDriveFolder | null> {
   const lapangan = "fields=files(id,name,webViewLink,ownedByMe)&orderBy=createdTime";
   // 1. Cari folder bernama "Keuangan"
   const urlCariNama = `https://www.googleapis.com/drive/v3/files?q=name%3D'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&${lapangan}`;
   try {
-    const res = await fetch(urlCariNama, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const { res } = await panggilApiGoogle(urlCariNama, {}, token);
     if (res.ok) {
       const folder = pilihFolderKeuangan((await res.json()).files);
       if (folder) return folder;
@@ -67,9 +111,7 @@ export async function cariFolderKeuangan(token: string): Promise<GDriveFolder | 
   // 2. Cari folder yang namanya mengandung "Keuangan"
   try {
     const urlCariContains = `https://www.googleapis.com/drive/v3/files?q=name+contains+'Keuangan'+and+mimeType%3D'application%2Fvnd.google-apps.folder'+and+trashed%3Dfalse&${lapangan}`;
-    const res = await fetch(urlCariContains, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const { res } = await panggilApiGoogle(urlCariContains, {}, token);
     if (res.ok) {
       const folder = pilihFolderKeuangan((await res.json()).files);
       if (folder) return folder;
@@ -88,10 +130,17 @@ export type KeberadaanFolder = { status: "ada"; folder: GDriveFolder } | { statu
 /** Cari folder dengan kueri Drive. Hasil berupa teks = pesan galat, supaya gangguan tidak disangka "folder tidak ada". */
 export async function cariFolderDrive(token: string, q: string): Promise<GDriveFolder[] | string> {
   try {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink,ownedByMe)&orderBy=createdTime`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) return `Pencarian folder gagal (${res.status})`;
+    const { res } = await panggilApiGoogle(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,webViewLink,ownedByMe)&orderBy=createdTime`,
+      {},
+      token
+    );
+    if (!res.ok) {
+      if (res.status === 401) {
+        return "Sesi akses Google Drive telah kedaluwarsa (401). Silakan perbarui akses Drive.";
+      }
+      return `Pencarian folder gagal (${res.status})`;
+    }
     const data = await res.json();
     // Folder milik orang lain yang kebetulan bernama sama tidak dianggap folder saya.
     return ((data.files || []) as Array<GDriveFolder & { ownedByMe?: boolean }>).filter((f) => f.ownedByMe !== false);
@@ -944,6 +993,34 @@ export function gabungTransaksi(
   return Array.from(map.values()).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 }
 
+/**
+ * Menggabungkan daftar aset lokal dengan aset dari Google Drive (Aset.json).
+ * Menghindari data aset lokal terhapus atau tertimpa array kosong dari cloud.
+ */
+export function gabungAset(lokal: AsetItem[], remote: AsetItem[]): AsetItem[] {
+  if (!Array.isArray(remote) || remote.length === 0) {
+    return Array.isArray(lokal) ? lokal : [];
+  }
+  if (!Array.isArray(lokal) || lokal.length === 0) {
+    return remote;
+  }
+  const map = new Map<string, AsetItem>();
+  for (const r of remote) {
+    if (r && r.id) map.set(r.id, r);
+  }
+  for (const l of lokal) {
+    if (l && l.id) {
+      if (!map.has(l.id)) {
+        map.set(l.id, l);
+      } else {
+        const r = map.get(l.id)!;
+        map.set(l.id, { ...r, ...l });
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 export async function bacaAsetDariDrive(token: string, fileId: string): Promise<AsetItem[]> {
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -1624,14 +1701,14 @@ export async function tarikSemuaDariDrive(
   // 3. Gabungkan transaksi lokal dan remote berdasarkan `diubah` terbaru
   const hasilGabungTrx = gabungTransaksi(transaksiLokal, remoteTrx, idTerhapusLokal);
 
-  // 4. Tarik Aset.json jika ada
+  // 4. Tarik Aset.json jika ada dan satukan secara aman dengan aset lokal
   let asetBaru = asetLokal;
   let totalAsetDitarik = 0;
   if (contents.fileAset) {
     try {
       const asetDrive = await bacaAsetDariDrive(token, contents.fileAset.id);
       if (Array.isArray(asetDrive)) {
-        asetBaru = asetDrive;
+        asetBaru = gabungAset(asetLokal, asetDrive);
         totalAsetDitarik = asetDrive.length;
       }
     } catch (e: any) {

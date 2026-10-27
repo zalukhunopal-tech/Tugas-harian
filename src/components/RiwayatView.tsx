@@ -45,6 +45,7 @@ interface RiwayatViewProps {
   onBukaTambahTabungan?: (targetId: string, targetNama: string) => void;
   subTabAwal?: "transaksi" | "utang_piutang" | "target_tabungan";
   googleToken?: string;
+  onPerbaruiAksesDrive?: () => void | Promise<void>;
 }
 
 export const RiwayatView: React.FC<RiwayatViewProps> = ({
@@ -69,6 +70,7 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
   onBukaTambahTabungan,
   subTabAwal = "transaksi",
   googleToken,
+  onPerbaruiAksesDrive,
 }) => {
   const [subTab, setSubTab] = useState<"transaksi" | "utang_piutang" | "target_tabungan">(subTabAwal);
   const [transaksiDetail, setTransaksiDetail] = useState<Transaksi | null>(null);
@@ -524,13 +526,45 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
       )}
 
       {syncStatus && syncStatus.status !== "idle" && (
-        <p
-          className="sync-pill"
-          data-keadaan={syncStatus.status === "sukses" ? "ok" : syncStatus.status}
-          id="sync-status"
-        >
-          {syncStatus.pesan}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+          <p
+            className="sync-pill"
+            data-keadaan={syncStatus.status === "sukses" ? "ok" : syncStatus.status}
+            id="sync-status"
+            style={{
+              margin: 0,
+              cursor: syncStatus.status === "gagal" && onPerbaruiAksesDrive ? "pointer" : "default",
+            }}
+            onClick={() => {
+              if (syncStatus.status === "gagal" && onPerbaruiAksesDrive) {
+                void onPerbaruiAksesDrive();
+              }
+            }}
+            title={syncStatus.status === "gagal" && onPerbaruiAksesDrive ? "Ketuk untuk memperbarui akses Drive" : undefined}
+          >
+            {syncStatus.pesan}
+          </p>
+          {syncStatus.status === "gagal" && onPerbaruiAksesDrive && (
+            <button
+              type="button"
+              className="btn-small btn-primary"
+              style={{
+                fontSize: "0.75rem",
+                padding: "3px 10px",
+                borderRadius: "999px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "color-mix(in srgb, var(--accent) 25%, var(--surface))",
+                borderColor: "var(--accent)",
+                color: "var(--accent)",
+              }}
+              onClick={() => void onPerbaruiAksesDrive()}
+            >
+              <span>🔄</span> Perbarui Akses
+            </button>
+          )}
+        </div>
       )}
 
       {/* Saringan Cepat Dana */}
@@ -633,6 +667,23 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
             <span>⚙️ Filter</span>
             <span style={{ fontSize: "0.72rem" }}>{panelSaringBuka ? "▲" : "▼"}</span>
           </button>
+          {saringanAktif && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={resetSemuaSaringan}
+              style={{
+                padding: "8px 12px",
+                fontSize: "0.84rem",
+                fontWeight: 700,
+                color: "var(--keluar)",
+                borderColor: "var(--border)",
+              }}
+              title="Reset Semua Saringan"
+            >
+              ✕ Reset
+            </button>
+          )}
         </div>
 
         {/* Panel Filter Terperinci: Kategori, Metode Bayar, Rentang Tanggal, Talangan */}
@@ -724,53 +775,6 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
             </div>
           </div>
         )}
-
-        {/* Bar Ringkasan Hasil Saringan (Requirement 1: Tampilkan total pemasukan/pengeluaran) */}
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "8px 12px",
-            background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
-            borderRadius: "10px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "8px",
-            fontSize: "0.83rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span>
-              <strong>{transaksiDifilter.length}</strong> transaksi ditemukan
-            </span>
-            <span>·</span>
-            <span style={{ color: "var(--masuk)", fontWeight: 700 }}>
-              Masuk: +{formatRupiah(totalSaringMasuk)}
-            </span>
-            <span>·</span>
-            <span style={{ color: "var(--keluar)", fontWeight: 700 }}>
-              Keluar: -{formatRupiah(totalSaringKeluar)}
-            </span>
-          </div>
-
-          {saringanAktif && (
-            <button
-              type="button"
-              className="btn-small"
-              onClick={resetSemuaSaringan}
-              style={{
-                fontSize: "0.75rem",
-                padding: "3px 8px",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                cursor: "pointer",
-              }}
-            >
-              ✕ Reset Saringan
-            </button>
-          )}
-        </div>
       </section>
 
       {/* Anggaran Harian Meter */}

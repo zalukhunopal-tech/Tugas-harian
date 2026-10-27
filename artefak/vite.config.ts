@@ -38,11 +38,11 @@ function entriArtefak(): Plugin {
 const GANTI_TEKS: Array<{ dari: string; ke: string }> = [
   { dari: "Masuk dengan Google & Sinkron Drive", ke: "Sambungkan konektor Google Drive" },
   {
-    dari: "`Sesi Sinkronisasi 3 Bulan Aktif (${statusSesi.sisaHari} Hari Tersisa)`",
+    dari: '"Akses Google Drive Aktif & Tersambung"',
     ke: '"Konektor Google Drive aktif"',
   },
   {
-    dari: "`Sesi login & sinkronisasi Drive disimpan otomatis hingga ${statusSesi.tanggalKedaluwarsa}. Aplikasi tetap tersambung tanpa perlu login ulang.`",
+    dari: "`Sesi akun Google di perangkat aktif hingga ${statusSesi.tanggalKedaluwarsa} (${statusSesi.sisaHari} hari tersisa). Data otomatis disinkronkan ke folder Keuangan.`",
     ke: '"Sinkronisasi memakai konektor Google Drive dan Google Sheets di akun Claude Anda. Izinnya bisa dicabut dari menu Izin halaman ini."',
   },
 ];
