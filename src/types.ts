@@ -82,7 +82,7 @@ export type AnggaranKategoriMap = Record<NamaDana, Record<string, number>>;
 export type BasisUmur = "waktu" | "pemakaian";
 export type SatuanWaktu = "hari" | "bulan" | "tahun";
 export type SatuanPemakaian = "km" | "jam";
-export type MetodePenyusutan = "garis-lurus" | "saldo-menurun-ganda";
+export type MetodePenyusutan = "garis-lurus" | "saldo-menurun-ganda" | "jumlah-angka-tahun";
 /** habis-pakai: oli, kampas rem, aki, ban (umur dapat diperkirakan pasti); aset: elektronik, peralatan kerja, kendaraan. */
 export type JenisBarang = "habis-pakai" | "aset";
 
@@ -103,6 +103,8 @@ export interface ItemPenyusutan {
   umurTotal: number;
   satuanWaktu?: SatuanWaktu;
   satuanPemakaian?: SatuanPemakaian;
+  /** Batas waktu kedua (bulan) untuk barang berbasis pemakaian: mana yang tercapai lebih dulu, km atau bulan (mis. oli 2.000 km atau 2 bulan). */
+  batasWaktuBulan?: number;
   /** Tanggal beli atau terakhir diganti/diservis (YYYY-MM-DD). */
   tanggalMulai: string;
   /** Angka kilometer atau jam pakai saat beli/ganti dan saat ini (basis pemakaian). */

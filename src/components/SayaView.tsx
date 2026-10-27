@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Minus, Palette, Plus, Users, type LucideIcon } from "lucide-react";
-import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan } from "../types";
-import { KARAKTER, PROFIL_PELAPOR_DEFAULT, labelKategori } from "../lib/constants";
+import React, { useEffect, useState } from "react";
+import { ArrowLeft, CalendarClock, Cloud, FileText, Fingerprint, IdCard, Minus, Palette, Plus, TrendingDown, Users, type LucideIcon } from "lucide-react";
+import { KarakterId, TemaId, Transaksi, AsetItem, AppLockConfig, ProfilPelapor, DataKegiatan, ItemPenyusutan } from "../types";
+import { KARAKTER, PROFIL_PELAPOR_DEFAULT, hariIni, labelKategori } from "../lib/constants";
 import { TOKOH_TEMA, rgbTriplet } from "../lib/tokohTema";
 import { KarakterAnimasi } from "./KarakterAnimasi";
 import { User } from "firebase/auth";
@@ -11,6 +11,8 @@ import { AppLockKelolaModal } from "./AppLockKelolaModal";
 import { TotpKelolaModal } from "./TotpKelolaModal";
 import { LABEL_INTERVAL, muatTotp } from "../lib/totp";
 import { LaporanView } from "./LaporanView";
+import { DepresiasiAsetView } from "./DepresiasiAsetView";
+import { itemPerluPeringatan } from "../lib/penyusutan";
 import { KeluargaView } from "./KeluargaView";
 import { HasilKirim, KeluarDriveModal } from "./KeluarDriveModal";
 import { adaDataDiPerangkat } from "../lib/bersihkanPerangkat";
@@ -61,10 +63,18 @@ interface SayaViewProps {
   googleToken?: string;
   /** Token Google saat ini; dipakai Keluarga & Komunitas untuk membagikan dan membaca berkas di Drive. */
   ambilToken?: () => Promise<string | null>;
+
+  // Depresiasi Aset
+  daftarPenyusutan?: ItemPenyusutan[];
+  onSimpanPenyusutan?: (item: ItemPenyusutan) => void;
+  onHapusPenyusutan?: (id: string) => void;
+  /** True bila layar Depresiasi Aset diminta terbuka dari luar (mis. banner di Riwayat); dibalas lewat onDepresiasiDibuka. */
+  bukaDepresiasi?: boolean;
+  onDepresiasiDibuka?: () => void;
 }
 
 /** Aplikasi-aplikasi di tab Saya: tiap pilihan tampil sebagai ikon di layar utama, lalu membuka isinya satu per satu. */
-type IdAplikasi = "drive" | "laporan" | "keluarga" | "tema" | "rutin" | "kunci";
+type IdAplikasi = "drive" | "laporan" | "depresiasi" | "keluarga" | "tema" | "rutin" | "kunci";
 
 interface AplikasiSaya {
   id: IdAplikasi;
@@ -114,8 +124,19 @@ export const SayaView: React.FC<SayaViewProps> = ({
   onBeralihAkun,
   onTambahAkun,
   onHapusAkun,
+  daftarPenyusutan = [],
+  onSimpanPenyusutan,
+  onHapusPenyusutan,
+  bukaDepresiasi = false,
+  onDepresiasiDibuka,
 }) => {
   const [appAktif, setAppAktif] = useState<IdAplikasi | null>(null);
+  useEffect(() => {
+    if (!bukaDepresiasi) return;
+    setAppAktif("depresiasi");
+    window.scrollTo({ top: 0 });
+    onDepresiasiDibuka?.();
+  }, [bukaDepresiasi, onDepresiasiDibuka]);
   const [modalAppLockBuka, setModalAppLockBuka] = useState(false);
   const [modalTotpBuka, setModalTotpBuka] = useState(false);
   const [modalKeluarBuka, setModalKeluarBuka] = useState(false);
@@ -921,6 +942,8 @@ export const SayaView: React.FC<SayaViewProps> = ({
     </>
   );
 
+  const jumlahPerhatian = itemPerluPeringatan(daftarPenyusutan, hariIni()).length;
+
   const aplikasi: AplikasiSaya[] = [
     {
       id: "drive",
@@ -941,6 +964,20 @@ export const SayaView: React.FC<SayaViewProps> = ({
       ikon: FileText,
       warna: ["#f59e0b", "#f97316"],
       titik: profilForm.nama ? undefined : "perhatian",
+    },
+    {
+      id: "depresiasi",
+      nama: "Depresiasi Aset",
+      status:
+        jumlahPerhatian > 0
+          ? `${jumlahPerhatian} perlu perhatian`
+          : daftarPenyusutan.length > 0
+            ? `${daftarPenyusutan.length} barang dipantau`
+            : "nilai & umur barang",
+      ikon: TrendingDown,
+      warna: ["#8b5cf6", "#6366f1"],
+      titik: jumlahPerhatian > 0 ? "perhatian" : undefined,
+      angka: jumlahPerhatian > 0 ? jumlahPerhatian : undefined,
     },
     {
       id: "keluarga",
@@ -1122,6 +1159,13 @@ export const SayaView: React.FC<SayaViewProps> = ({
                 isLoggedInGoogle={Boolean(googleUser)}
               />
             </>
+          ) : aplikasiAktif.id === "depresiasi" ? (
+            <DepresiasiAsetView
+              daftar={daftarPenyusutan}
+              transaksi={transaksi}
+              onSimpan={onSimpanPenyusutan ?? (() => {})}
+              onHapus={onHapusPenyusutan ?? (() => {})}
+            />
           ) : (
             <div className="folder saya-panel" id={`panel-${aplikasiAktif.id}`}>
               <div className="folder-body">
