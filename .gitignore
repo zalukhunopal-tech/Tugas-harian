@@ -14,3 +14,7 @@ dist-artefak/
 
 # Arsip Android dibuat ulang dengan: python3 scripts/buat_zip_android.py (membawa salinan aplikasi, jadi jangan dilacak)
 public/*.zip
+
+# Berkas kerja Google AI Studio (tangkapan layar dan media sementara). Bisa berisi data pribadi, jadi jangan dilacak di repo publik.
+.aistudio/
+public/assets/aistudio/
