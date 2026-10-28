@@ -489,7 +489,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
   const aplikasi: AplikasiSaya[] = [
     {
       id: "drive",
-      nama: "Drive Keuangan",
+      nama: "Sinkron",
       status: googleUser ? "terhubung" : "belum masuk",
       ikon: Cloud,
       warna: ["#3b82f6", "#06b6d4"],
@@ -497,7 +497,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
     },
     {
       id: "laporan",
-      nama: "Laporan Kegiatan",
+      nama: "Laporan",
       status: !profilForm.nama
         ? "profil pelapor belum diisi"
         : daftarKegiatan.length > 0
@@ -509,7 +509,7 @@ export const SayaView: React.FC<SayaViewProps> = ({
     },
     {
       id: "depresiasi",
-      nama: "Depresiasi Aset",
+      nama: "Depresiasi",
       status:
         jumlahPerhatian > 0
           ? `${jumlahPerhatian} perlu perhatian`
@@ -530,22 +530,22 @@ export const SayaView: React.FC<SayaViewProps> = ({
     },
     {
       id: "tema",
-      nama: "Tema & Karakter",
+      nama: "Tampilan",
       status: tema === "jujutsu" ? KARAKTER[karakter].nama : "Standar",
       ikon: Palette,
       warna: tema === "jujutsu" ? [TOKOH_TEMA[karakter].warna, TOKOH_TEMA[karakter].warnaKedua] : ["#ec4899", "#f97316"],
     },
     {
       id: "rutin",
-      nama: "Transaksi Rutin",
-      status: jumlahTransaksiBerulang > 0 ? `${jumlahTransaksiBerulang} jadwal aktif` : "jadwal rutin",
+      nama: "Rutin",
+      status: jumlahTransaksiBerulang > 0 ? `${jumlahTransaksiBerulang} jadwal aktif` : "transaksi berulang",
       ikon: CalendarClock,
       warna: ["#10b981", "#14b8a6"],
       angka: jumlahTransaksiBerulang > 0 ? jumlahTransaksiBerulang : undefined,
     },
     {
       id: "kunci",
-      nama: "Kunci Aplikasi",
+      nama: "Keamanan",
       status: appLockConfig.enabled ? "aktif" : "nonaktif",
       ikon: Fingerprint,
       warna: ["#64748b", "#334155"],

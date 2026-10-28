@@ -298,7 +298,7 @@ export const TotpKelolaModal: React.FC<TotpKelolaModalProps> = ({ isOpen, onClos
                     aria-label="Email Google tertaut"
                   />
                   <span className="help" style={{ fontSize: "0.75rem" }}>
-                    {googleUser ? "Email belum terbaca otomatis; isi email akun Google Drive Anda." : "Masuk dengan Google di Drive Keuangan agar email terisi otomatis, atau isi sendiri."}
+                    {googleUser ? "Email belum terbaca otomatis; isi email akun Google Drive Anda." : "Masuk dengan Google di menu Sinkron agar email terisi otomatis, atau isi sendiri."}
                   </span>
                 </>
               )}
