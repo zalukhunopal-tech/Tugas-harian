@@ -8995,3 +8995,568 @@ button {
 #form-transaksi > .dep-centang {
   grid-column: 1 / -1;
 }
+
+/* ============================================================
+   Drive Keuangan (tab Saya): Sinkronisasi Data. Lingkaran berlogo Google Drive yang ditahan 3 detik, nama akun, dan
+   "Opsi lanjutan" untuk pengaturan lain. Pola: cincin terisi saat ditahan, tombol mengecil, cahaya menguat, lalu centang.
+   ============================================================ */
+.sinkron {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.sinkron > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sinkron-kepala {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sinkron-judul {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.sinkron-sub {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+/* Lingkaran sinkronisasi */
+.sinkron-wadah {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 0 6px;
+}
+
+.sinkron-tombol {
+  position: relative;
+  width: 176px;
+  height: 176px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.2s ease;
+}
+
+.sinkron-tombol[data-menahan="ya"] {
+  transform: scale(0.93);
+}
+
+.sinkron-tombol:disabled {
+  cursor: default;
+}
+
+.sinkron-wadah[data-tersambung="tidak"] .sinkron-tombol {
+  opacity: 0.5;
+  filter: grayscale(0.85);
+}
+
+.sinkron-tombol:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 8px;
+}
+
+/* Gelombang cahaya yang memikat mata saat siap ditekan */
+.sinkron-denyut {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  pointer-events: none;
+  animation: sinkron-denyut 2.6s ease-out infinite;
+}
+
+.sinkron-denyut--kedua {
+  animation-delay: 1.3s;
+}
+
+.sinkron-wadah[data-tersambung="tidak"] .sinkron-denyut,
+.sinkron-tombol[data-menahan="ya"] .sinkron-denyut,
+.sinkron-tombol[data-status="proses"] .sinkron-denyut,
+.sinkron-tombol[data-status="berhasil"] .sinkron-denyut {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes sinkron-denyut {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Cakram putih berisi logo: warna Drive tetap tajam di tema gelap maupun terang */
+.sinkron-cakram {
+  position: absolute;
+  inset: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, #ffffff 0%, #f4f7fb 58%, #dde7f5 100%);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 14px 32px color-mix(in srgb, var(--accent) 40%, rgba(0, 0, 0, 0.35)),
+    inset 0 -6px 14px rgba(15, 23, 42, 0.08);
+  transition: box-shadow 0.25s ease;
+}
+
+.sinkron-tombol[data-menahan="ya"] .sinkron-cakram {
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, #4285f4 30%, transparent),
+    0 0 38px 8px color-mix(in srgb, #34a853 55%, transparent),
+    inset 0 -6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.sinkron-tombol[data-status="berhasil"] .sinkron-cakram {
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, #22c55e 28%, transparent),
+    0 0 36px 6px color-mix(in srgb, #22c55e 45%, transparent),
+    inset 0 -6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.sinkron-tombol[data-status="gagal"] .sinkron-cakram {
+  box-shadow:
+    0 0 0 8px color-mix(in srgb, #ef4444 26%, transparent),
+    0 0 30px 4px color-mix(in srgb, #ef4444 40%, transparent),
+    inset 0 -6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.sinkron-cakram svg {
+  display: block;
+  filter: drop-shadow(0 2px 3px rgba(15, 23, 42, 0.18));
+}
+
+.sinkron-centang path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: sinkron-gambar-centang 0.5s ease-out 0.05s forwards;
+}
+
+@keyframes sinkron-gambar-centang {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Cincin kemajuan: terisi searah jarum jam selama ditahan, kembali cepat bila dilepas */
+.sinkron-cincin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.sinkron-jalur {
+  stroke: color-mix(in srgb, var(--muted) 38%, transparent);
+}
+
+.sinkron-isi {
+  stroke: url(#sinkron-gradasi);
+  filter: drop-shadow(0 0 5px rgba(66, 133, 244, 0.65));
+  transition: stroke-dashoffset 0.35s ease-out;
+}
+
+.sinkron-tombol[data-menahan="ya"] .sinkron-isi {
+  transition: stroke-dashoffset var(--sinkron-durasi, 3000ms) linear;
+}
+
+.sinkron-tombol[data-status="berhasil"] .sinkron-isi {
+  stroke: #22c55e;
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.7));
+  transition: stroke 0.3s ease;
+}
+
+.sinkron-tombol[data-status="gagal"] .sinkron-isi {
+  stroke: #ef4444;
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+}
+
+.sinkron-tombol[data-status="proses"] .sinkron-cincin {
+  animation: sinkron-putar 1.1s linear infinite;
+}
+
+.sinkron-tombol[data-status="proses"] .sinkron-isi {
+  stroke-dasharray: 90 249;
+  stroke-dashoffset: 0;
+  transition: none;
+}
+
+@keyframes sinkron-putar {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+.sinkron-petunjuk {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.sinkron-wadah[data-status="berhasil"] .sinkron-petunjuk {
+  color: #16a34a;
+}
+
+.sinkron-wadah[data-status="gagal"] .sinkron-petunjuk {
+  color: var(--keluar, #dc2626);
+}
+
+.sinkron-wadah[data-tersambung="tidak"] .sinkron-petunjuk {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sinkron-denyut {
+    animation: none;
+    opacity: 0;
+  }
+
+  .sinkron-tombol[data-status="proses"] .sinkron-cincin {
+    animation-duration: 3s;
+  }
+
+  .sinkron-centang path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Kartu akun */
+.sinkron-akun {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.sinkron-avatar {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sinkron-avatar--huruf {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  color: #fff;
+  font-weight: 800;
+}
+
+.sinkron-akun-teks {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sinkron-akun-nama {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  font-size: 0.95rem;
+}
+
+.sinkron-akun-nama strong,
+.sinkron-akun-email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sinkron-akun-email {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.sinkron-aktif {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #16a34a;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.sinkron-akun > .btn-small {
+  flex: none;
+}
+
+.sinkron-sesi {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.sinkron-sesi[data-kedaluwarsa="ya"] {
+  color: var(--keluar, #dc2626);
+}
+
+.sinkron-pesan {
+  max-width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.sinkron-peringatan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 1.5px solid #f59e0b;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  text-align: left;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.sinkron-peringatan > strong {
+  color: #f59e0b;
+}
+
+.sinkron-peringatan > span {
+  color: var(--muted);
+}
+
+.sinkron-peringatan .btn-primary {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #000;
+  font-weight: 700;
+}
+
+/* Belum masuk */
+.sinkron-masuk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.sinkron-tersimpan {
+  width: 100%;
+  text-align: left;
+}
+
+.sinkron-subjudul {
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sinkron-akun-daftar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sinkron-akun-baris {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.sinkron-akun-baris .sinkron-akun-teks strong {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.sinkron-akun-baris .sinkron-akun-teks span {
+  font-size: 0.74rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.sinkron-akun-aksi {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+
+.sinkron-hapus {
+  margin: 0;
+}
+
+/* Opsi lanjutan */
+.sinkron-lanjut {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.sinkron-lanjut > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.sinkron-lanjut > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sinkron-lanjut > summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.sinkron-lanjut[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
+.sinkron-lanjut[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.sinkron-lanjut-isi {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+}
+
+.sinkron-bagian {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sinkron-folder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 0.86rem;
+}
+
+.sinkron-folder .btn-link {
+  font-size: 0.8rem;
+}
+
+.sinkron-tombol-lanjut {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sinkron-tombol-lanjut button,
+.sinkron-tambah-akun {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.sinkron-rincian-sesi {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (min-width: 640px) {
+  .sinkron {
+    gap: 16px;
+  }
+
+  .sinkron-judul {
+    font-size: 1.45rem;
+  }
+
+  .sinkron-tombol {
+    width: 192px;
+    height: 192px;
+  }
+
+  .sinkron-tombol-lanjut {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639.98px) {
+  .sinkron-akun-baris {
+    flex-wrap: wrap;
+  }
+
+  .sinkron-akun-baris .sinkron-akun-aksi {
+    margin-left: 42px;
+  }
+}

@@ -26,6 +26,19 @@ def cek(kondisi, pesan):
         gagal.append(pesan)
 
 
+def buka_opsi(pg):
+    """Pengaturan Drive selain lingkaran sinkronisasi dilipat di 'Opsi lanjutan': buka bila masih tertutup."""
+    d = pg.locator("#opsi-lanjutan-drive")
+    if d.count() and not d.evaluate("e => e.open"):
+        d.locator("summary").click()
+        pg.wait_for_timeout(150)
+
+
+def klik_opsi(pg, nama):
+    buka_opsi(pg)
+    pg.get_by_role("button", name=nama).click()
+
+
 PREFERENSI = ["keuangan-tema", "keuangan-karakter", "keuangan-isi-bertahap", "app-layout"]
 # Potret isi Drive palsu direkam hanya selama `window.__rekam` menyala (sesudah muat ulang bendera itu hilang), jadi potret
 # terakhir adalah keadaan Drive tepat sebelum halaman dimuat ulang.
@@ -242,7 +255,7 @@ with sync_playwright() as p:
     cek("Uji gaji" not in teks and "Uji makan siang" in teks, "baris yang pernah dihapus tidak hidup lagi, yang lain tampil")
     buka_app_saya(pg, "drive")
     n0 = len(pg.evaluate("window.__drive.calls"))
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     dlg = pg.locator(".dlg-artefak")
     dlg.wait_for(state="visible", timeout=5000)
     pg.locator(".dlg-artefak button.utama").click()

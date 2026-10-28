@@ -28,6 +28,19 @@ def cek(kondisi, pesan):
         gagal.append(pesan)
 
 
+def buka_opsi(pg):
+    """Pengaturan Drive selain lingkaran sinkronisasi dilipat di 'Opsi lanjutan': buka bila masih tertutup."""
+    d = pg.locator("#opsi-lanjutan-drive")
+    if d.count() and not d.evaluate("e => e.open"):
+        d.locator("summary").click()
+        pg.wait_for_timeout(150)
+
+
+def klik_opsi(pg, nama):
+    buka_opsi(pg)
+    pg.get_by_role("button", name=nama).click()
+
+
 def buka(p, **opsi):
     b = p.chromium.launch(executable_path=CHROMIUM) if CHROMIUM else p.chromium.launch()
     ctx = b.new_context(viewport={"width": 420, "height": 900}, has_touch=bool(opsi.get("sentuh")))
@@ -152,7 +165,7 @@ with sync_playwright() as p:
     cek(skrip_luar == [], f"index.html tidak memuat skrip dari situs lain, mis. Google Identity ({skrip_luar})")
     cek(len(panggilan(pg, "get_values")) >= 2, "sambungan pertama langsung menarik data (tanpa klik Tarik)")
     nav(pg, "Saya")
-    pg.get_by_role("button", name="Tarik Data dari Folder Keuangan").click()
+    klik_opsi(pg, "Tarik Data dari Folder Keuangan")
     pg.wait_for_timeout(2500)
     nav(pg, "Riwayat")
     teks = pg.inner_text("body")
@@ -210,7 +223,7 @@ with sync_playwright() as p:
     print("3. Kirim manual: sheet ditulis ulang, file keadaan dibuat")
     nav(pg, "Saya")
     n0 = len(panggilan(pg))
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     setujui_dialog(pg)
     tunggu_sinkron(pg, n0)
     cek(pg.get_by_text("Berhasil disimpan ke Google Drive").count() > 0, "pesan sukses tampil")
@@ -231,7 +244,7 @@ with sync_playwright() as p:
     print("4. Kirim lagi tanpa perubahan: file keadaan tidak diganti")
     sebelum = len(panggilan(pg, "create_file"))
     n0 = len(panggilan(pg))
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     setujui_dialog(pg)
     tunggu_sinkron(pg, n0)
     cek(len(panggilan(pg, "create_file")) == sebelum, "tidak ada create_file baru")
@@ -298,7 +311,7 @@ with sync_playwright() as p:
     nav(pg, "Saya")
     for _ in range(2):
         n0 = len(panggilan(pg))
-        pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+        klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
         setujui_dialog(pg)
         tunggu_sinkron(pg, n0)
     for nama in ["Aset.json", "Sinkron.json", "Pengaturan.json", "Laporan Kegiatan.json"]:
@@ -311,7 +324,7 @@ with sync_playwright() as p:
     hubungkan(pg)
     nav(pg, "Saya")
     n0 = len(panggilan(pg))
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     setujui_dialog(pg)
     tunggu_sinkron(pg, n0)
     cek(pg.get_by_text("Berhasil disimpan ke Google Drive").count() > 0, "kirim tetap berhasil")
@@ -323,7 +336,7 @@ with sync_playwright() as p:
     pg.evaluate("window.__drive.gagal.get_values = {code: 'upstream_error', message: 'Google sedang bermasalah'}")
     hubungkan(pg)
     nav(pg, "Saya")
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     # Tarik belum lengkap: aplikasi menarik dulu dan menahan kirim, jadi tidak ada dialog konfirmasi.
     pg.get_by_text("Tarik data dari folder Keuangan dulu").first.wait_for(timeout=10000)
     cek(pg.locator(".dlg-artefak").count() == 0, "kirim ditahan sebelum dialog konfirmasi")
@@ -331,10 +344,10 @@ with sync_playwright() as p:
     tulis = [c["tool"] for c in panggilan(pg) if c["tool"] in ("create_file", "update_values", "batch_clear_values", "trash_file")]
     cek(tulis == [], f"tidak ada panggilan tulis saat ditolak ({tulis})")
     pg.evaluate("window.__drive.gagal = {}")
-    pg.get_by_role("button", name="Tarik Data dari Folder Keuangan").click()
+    klik_opsi(pg, "Tarik Data dari Folder Keuangan")
     pg.wait_for_timeout(3000)
     n0 = len(panggilan(pg))
-    pg.get_by_role("button", name="Kirim Data Lokal ke Folder Keuangan").click()
+    klik_opsi(pg, "Kirim Data Lokal ke Folder Keuangan")
     setujui_dialog(pg)
     tunggu_sinkron(pg, n0)
     cek(len(panggilan(pg, "batch_clear_values")) > 0, "setelah tarik utuh, kirim berjalan")
