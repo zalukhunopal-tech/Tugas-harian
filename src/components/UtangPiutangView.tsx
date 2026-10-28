@@ -14,7 +14,6 @@ export const UtangPiutangView: React.FC<UtangPiutangViewProps> = ({
   onSimpan,
   onHapus,
 }) => {
-  const [filterJenis, setFilterJenis] = useState<string>("semua"); // semua | utang | piutang | jatuh_tempo | belum_lunas
   const [cariTeks, setCariTeks] = useState<string>("");
 
   const [modalFormBuka, setModalFormBuka] = useState<boolean>(false);
@@ -68,16 +67,9 @@ export const UtangPiutangView: React.FC<UtangPiutangViewProps> = ({
     return { totalUtangSisa, totalPiutangSisa, jumlahJatuhTempo };
   }, [daftar, today]);
 
-  // Filter daftar
+  // Filter daftar berdasarkan teks pencarian
   const daftarTersaring = useMemo(() => {
     return daftar.filter((item) => {
-      const { isLunas, isJatuhTempo } = hitungItem(item);
-
-      if (filterJenis === "utang" && item.jenis !== "utang") return false;
-      if (filterJenis === "piutang" && item.jenis !== "piutang") return false;
-      if (filterJenis === "jatuh_tempo" && !isJatuhTempo) return false;
-      if (filterJenis === "belum_lunas" && isLunas) return false;
-
       if (cariTeks.trim()) {
         const q = cariTeks.toLowerCase();
         const namaCocok = item.namaOrang.toLowerCase().includes(q);
@@ -87,7 +79,7 @@ export const UtangPiutangView: React.FC<UtangPiutangViewProps> = ({
 
       return true;
     });
-  }, [daftar, filterJenis, cariTeks, today]);
+  }, [daftar, cariTeks]);
 
   const handleBukaTambah = () => {
     setEditItem(null);
@@ -275,97 +267,129 @@ export const UtangPiutangView: React.FC<UtangPiutangViewProps> = ({
         </div>
       </div>
 
-      {/* Baris Tindakan: Pencarian & Tambah Baru */}
-      <div
-        className="card"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
-          marginBottom: "16px",
-          padding: "14px 18px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "220px" }}>
-          <input
-            type="search"
-            value={cariTeks}
-            onChange={(e) => setCariTeks(e.target.value)}
-            placeholder="Cari nama orang atau catatan…"
-            className="input-text"
-            style={{ width: "100%", padding: "8px 14px", borderRadius: "10px" }}
-          />
-        </div>
 
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleBukaTambah}
-          style={{ display: "flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap" }}
-        >
-          <span>➕</span> Catat Utang / Piutang
-        </button>
-      </div>
-
-      {/* Filter Chips */}
-      <div className="filter-chips" style={{ marginBottom: "16px" }}>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={filterJenis === "semua"}
-          onClick={() => setFilterJenis("semua")}
-        >
-          Semua ({daftar.length})
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={filterJenis === "utang"}
-          onClick={() => setFilterJenis("utang")}
-        >
-          Utang Saya
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={filterJenis === "piutang"}
-          onClick={() => setFilterJenis("piutang")}
-        >
-          Piutang Saya
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={filterJenis === "jatuh_tempo"}
-          onClick={() => setFilterJenis("jatuh_tempo")}
-          style={ringkasan.jumlahJatuhTempo > 0 ? { borderColor: "#ef4444", color: "#f87171" } : {}}
-        >
-          ⚠️ Jatuh Tempo ({ringkasan.jumlahJatuhTempo})
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-checked={filterJenis === "belum_lunas"}
-          onClick={() => setFilterJenis("belum_lunas")}
-        >
-          Belum Lunas
-        </button>
-      </div>
 
       {/* Daftar Item Utang & Piutang */}
       {daftarTersaring.length === 0 ? (
-        <div className="card" style={{ padding: "36px 20px", textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "8px" }}>💳</div>
-          <h3 style={{ margin: "0 0 6px" }}>Belum Ada Catatan Utang / Piutang</h3>
-          <p className="help" style={{ margin: "0 0 16px" }}>
-            Catat pinjaman uang, jatuh tempo, serta pembayaran bertahap (cicilan) dengan rapi.
-          </p>
-          <button type="button" className="btn-primary" onClick={handleBukaTambah} style={{ margin: "0 auto" }}>
-            + Buat Catatan Pertama
-          </button>
-        </div>
+        daftar.length === 0 ? (
+          <div className="card" style={{ padding: "36px 20px", textAlign: "center" }}>
+            {/* Gambar Pencari di Kotak Belum Ada Catatan Utang/Piutang */}
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: "rgba(6, 182, 212, 0.12)",
+                border: "1px solid rgba(6, 182, 212, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 14px",
+                fontSize: "1.75rem",
+              }}
+            >
+              🔍
+            </div>
+            <h3 style={{ margin: "0 0 6px" }}>Belum Ada Catatan Utang / Piutang</h3>
+            <p className="help" style={{ margin: "0 auto 16px", maxWidth: "420px" }}>
+              Catat pinjaman uang, jatuh tempo, serta pembayaran bertahap (cicilan) dengan rapi.
+            </p>
+
+            {/* Fitur pencarian terpadu di dalam kotak */}
+            <div
+              style={{
+                maxWidth: "340px",
+                margin: "0 auto 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                padding: "4px 12px",
+              }}
+            >
+              <span style={{ opacity: 0.7 }}>🔍</span>
+              <input
+                type="search"
+                value={cariTeks}
+                onChange={(e) => setCariTeks(e.target.value)}
+                placeholder="Cari nama orang atau catatan…"
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  padding: "8px 0",
+                  fontSize: "0.85rem",
+                  color: "inherit",
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleBukaTambah}
+              style={{
+                margin: "0 auto",
+                padding: "10px 24px",
+                borderRadius: "12px",
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span>➕</span> Buat Catatan Pertama
+            </button>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: "36px 20px", textAlign: "center" }}>
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                background: "rgba(6, 182, 212, 0.12)",
+                border: "1px solid rgba(6, 182, 212, 0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 14px",
+                fontSize: "1.75rem",
+              }}
+            >
+              🔍
+            </div>
+            <h3 style={{ margin: "0 0 6px" }}>Catatan Tidak Ditemukan</h3>
+            <p className="help" style={{ margin: "0 auto 18px", maxWidth: "420px" }}>
+              {cariTeks
+                ? `Tidak ada catatan yang cocok dengan kata kunci "${cariTeks}".`
+                : "Tidak ada catatan pada filter yang sedang aktif."}
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap" }}>
+              {cariTeks && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setCariTeks("")}
+                  style={{ padding: "8px 18px", borderRadius: "10px" }}
+                >
+                  Reset Pencarian
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleBukaTambah}
+                style={{ padding: "8px 20px", borderRadius: "10px", fontWeight: 700 }}
+              >
+                ➕ Tambah Catatan
+              </button>
+            </div>
+          </div>
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {daftarTersaring.map((item) => {
@@ -616,6 +640,40 @@ export const UtangPiutangView: React.FC<UtangPiutangViewProps> = ({
               </div>
             );
           })}
+
+          {/* Tombol Tambah Catatan di Bagian Bawah setelah catatan ada */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: "20px",
+              marginBottom: "24px",
+              padding: "0 8px",
+            }}
+          >
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleBukaTambah}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "12px 28px",
+                borderRadius: "14px",
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                width: "100%",
+                maxWidth: "340px",
+                boxShadow: "0 4px 16px rgba(6, 182, 212, 0.3)",
+                cursor: "pointer",
+              }}
+            >
+              <span>➕</span> Tambah Catatan
+            </button>
+          </div>
         </div>
       )}
 
