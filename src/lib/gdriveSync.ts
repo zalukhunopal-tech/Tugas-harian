@@ -1,6 +1,7 @@
 import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan, LaporanKegiatanFileContent } from "../types";
 import { adalahFileTimesheet } from "./timesheet";
-import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile } from "./storage";
+import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile, muatProfilPelapor } from "./storage";
+import { lindungiProfil, profilKosong } from "./profilPelapor";
 
 export interface GDriveFolder {
   id: string;
@@ -1177,12 +1178,30 @@ export async function bacaLaporanKegiatanDariDrive(
   }
 }
 
+/**
+ * Profil Pelapor kosong (perangkat atau artefak yang baru dibuka) tidak boleh menimpa profil yang sudah terisi di Drive.
+ * Bila berkas sudah ada dan profil yang akan ditulis kosong, profil di Drive dipertahankan; bila isi Drive tidak bisa
+ * diperiksa, penulisan dibatalkan (pengiriman berikutnya mencoba lagi, atau langsung jalan begitu profil lokal terisi).
+ */
+async function pertahankanProfilDrive(
+  token: string,
+  fileId: string | null,
+  data: LaporanKegiatanFileContent
+): Promise<LaporanKegiatanFileContent> {
+  if (!fileId || !profilKosong(data.profilPelapor)) return data;
+  const ada = await bacaLaporanKegiatanDariDrive(token, fileId);
+  if (!ada) throw new Error("Profil Pelapor di Drive tidak bisa diperiksa, jadi Laporan Kegiatan.json tidak ditulis agar profil tidak tertimpa kosong");
+  const profil = lindungiProfil(data.profilPelapor, ada.profilPelapor);
+  return profil && profil !== data.profilPelapor ? { ...data, profilPelapor: profil } : data;
+}
+
 export async function simpanLaporanKegiatanKeDrive(
   token: string,
   folderId: string,
   fileId: string | null,
-  data: LaporanKegiatanFileContent
+  dataAwal: LaporanKegiatanFileContent
 ): Promise<string> {
+  const data = await pertahankanProfilDrive(token, fileId, dataAwal);
   const konten = JSON.stringify(data, null, 2);
 
   if (fileId) {
@@ -1750,6 +1769,9 @@ export async function tarikSemuaDariDrive(
     try {
       const lDrive = await bacaLaporanKegiatanDariDrive(token, contents.fileLaporanKegiatan.id);
       if (lDrive) {
+        // Profil kosong di Drive tidak boleh menghapus profil yang sudah terisi di perangkat ini; pengiriman berikutnya memulihkan Drive.
+        const profil = lindungiProfil(lDrive.profilPelapor, muatProfilPelapor());
+        if (profil) lDrive.profilPelapor = profil;
         laporanKegiatanBaru = lDrive;
         simpanLaporanKegiatanFile(lDrive);
       }

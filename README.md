@@ -54,6 +54,9 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   - Peringatan bila folder atau berkas keuangan bertautan publik ("siapa saja yang punya tautan"), karena itu melemahkan
     pilihan dana. Timesheet tidak pernah ikut dibagikan.
 - **Laporan Dana Kegiatan** (tab Saya → Laporan):
+  - **Profil Pelapor tidak tertimpa kosong**: saat sinkron, profil yang sama sekali kosong (perangkat atau artefak yang baru dibuka,
+    atau berkas di Drive yang kosong) tidak pernah menggantikan profil yang sudah terisi, baik waktu menarik maupun mengirim.
+    Mengubah atau mengosongkan sebagian isian secara sengaja tetap berjalan. Diuji di `scripts/uji_profil_pelapor.ts`.
   - **Kudapan Perjalanan**: subkategori Konsumsi dengan plafon sepertiga uang harian Kalimantan (Rp200.000 / 3 = Rp66.667 per
     orang). Nama staf penerima dicatat sebagai tag; jumlah mengikuti plafon, tetap bisa disesuaikan dengan struk riil.
   - **Penerima Manfaat** ("numpang klaim") untuk kategori lain (akomodasi, transportasi, konsumsi, perlengkapan, dst.); nama
