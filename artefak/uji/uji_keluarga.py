@@ -31,6 +31,19 @@ def cek(kondisi, pesan):
         gagal.append(pesan)
 
 
+def buka_opsi(pg):
+    """Pengaturan Drive selain lingkaran sinkronisasi dilipat di 'Opsi lanjutan': buka bila masih tertutup."""
+    d = pg.locator("#opsi-lanjutan-drive")
+    if d.count() and not d.evaluate("e => e.open"):
+        d.locator("summary").click()
+        pg.wait_for_timeout(150)
+
+
+def klik_opsi(pg, nama):
+    buka_opsi(pg)
+    pg.get_by_role("button", name=nama).click()
+
+
 def buka(p, akun=None, awal="", args=None, lebar=420):
     opsi = {"args": args or []}
     if CHROMIUM:
@@ -284,6 +297,7 @@ with sync_playwright() as p:
     cek("dibuat otomatis" in pesan, f"pesan memberi tahu folder dibuat otomatis ({pesan[:120]})")
     cek("Belum bisa" in pesan, "spreadsheet yang tak bisa dibuat di mode artefak dilaporkan, bukan dilewati diam-diam")
     sebelum = len(judul)
+    buka_opsi(pgD)
     pgD.get_by_role("button", name="Periksa & siapkan folder Keuangan").count() and pgD.get_by_role("button", name="Periksa & siapkan folder Keuangan").click()
     pgD.wait_for_timeout(2500)
     judul2 = pgD.evaluate("window.__drive.calls.filter(c => c.tool === 'create_file').map(c => c.input.title)")
