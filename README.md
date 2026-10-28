@@ -35,9 +35,9 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
 - **Tema & Visual Jujutsu Kaisen**:
   - Pilihan karakter: **Gojo Satoru**, **Ryomen Sukuna**, **Jogo**, dan **Nanami Kento**.
   - Palet warna dinamis, lambang hanko (無, 宿, 火, 七), dan partikel energi kutukan.
-  - Tab **Saya** berupa layar aplikasi: Drive Keuangan, Laporan Kegiatan (termasuk Profil Pelapor), Depresiasi Aset, Keluarga, Tema & Karakter, Transaksi Rutin, dan Kunci Aplikasi tampil sebagai ikon; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
+  - Tab **Saya** berupa layar aplikasi: Sinkron (Drive Keuangan), Laporan (Laporan Kegiatan, termasuk Profil Pelapor), Depresiasi (Depresiasi Aset), Keluarga, Tampilan (tema dan karakter), Rutin (transaksi berulang), dan Keamanan (Kunci Aplikasi dan Authenticator) tampil sebagai ikon dengan judul satu kata; ketuk untuk membuka isinya. Pengatur ukuran ikon mengubah gambar, huruf, jarak baris, bantalan, dan jarak antarpilihan secara sebanding.
   - Pilihan beralih ke Tema Standar.
-- **Drive Keuangan** (tab Saya → Drive Keuangan): tampilan utamanya hanya judul **Sinkronisasi Data**, lingkaran berlogo Google Drive,
+- **Drive Keuangan** (tab Saya → Sinkron): tampilan utamanya hanya judul **Sinkronisasi Data**, lingkaran berlogo Google Drive,
   dan nama akun. **Tekan dan tahan lingkaran 3 detik**: cincin terisi searah jarum jam (lepas sebelum penuh = batal), lalu aplikasi
   otomatis memastikan akses, menyiapkan folder Keuangan bila belum ada, menarik dan menggabungkan isi Drive, lalu mengirim hasilnya
   (kirim hanya berjalan bila tarik lengkap, jadi isi Drive tidak tertimpa). Bisa juga dengan keyboard: tahan Spasi atau Enter.
@@ -53,7 +53,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     lain secara baca-saja (ringkasan per bulan dan transaksi terbaru), tidak digabung dengan data sendiri.
   - Peringatan bila folder atau berkas keuangan bertautan publik ("siapa saja yang punya tautan"), karena itu melemahkan
     pilihan dana. Timesheet tidak pernah ikut dibagikan.
-- **Laporan Dana Kegiatan** (tab Saya → Laporan Kegiatan):
+- **Laporan Dana Kegiatan** (tab Saya → Laporan):
   - **Kudapan Perjalanan**: subkategori Konsumsi dengan plafon sepertiga uang harian Kalimantan (Rp200.000 / 3 = Rp66.667 per
     orang). Nama staf penerima dicatat sebagai tag; jumlah mengikuti plafon, tetap bisa disesuaikan dengan struk riil.
   - **Penerima Manfaat** ("numpang klaim") untuk kategori lain (akomodasi, transportasi, konsumsi, perlengkapan, dst.); nama
@@ -70,7 +70,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     (A 92 × 132 mm berpasangan, B 190 × 88 mm, C 190 × 132 mm). Ukuran dipilih otomatis menurut jenis bukti dan kategori, bisa diubah
     per pengeluaran. Dokumen Word memakai tata letaknya sendiri.
   - Kartu ringkasan saldo di Laporan: empat kartu sebaris di PC (≥ 1024 px), 2 × 2 di tablet, label di atas dan nominal di bawah sejajar.
-- **Depresiasi Aset** (tab Saya → Depresiasi Aset): setelah pengeluaran barang yang **bukan sekali pakai** dicatat (laptop, ponsel,
+- **Depresiasi Aset** (tab Saya → Depresiasi): setelah pengeluaran barang yang **bukan sekali pakai** dicatat (laptop, ponsel,
   ban, aki, oli, dan sejenisnya; makan, bensin, pulsa, tiket, sewa, dan servis tidak ditawari), aplikasi menawarkan *Hitung depresiasi?*.
   Selain lewat tawaran itu, formulir pengeluaran punya kotak centang **Masukkan ke Depresiasi Aset**: dicentang, umur dan metode terisi
   otomatis dari uraian barang (tanpa input ulang di menu aset); bila sudah dicentang atau dilepas, tawaran setelah simpan tidak muncul lagi.
@@ -85,14 +85,14 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
   km, "sudah diganti/diservis", ubah data, hapus pantauan, serta **Pedoman Depresiasi** (rumus, kelompok masa manfaat PMK 72/2023, daftar
   umur standar, sumber riset). Salinan lengkap pedoman: [`docs/pedoman-depresiasi-aset.md`](docs/pedoman-depresiasi-aset.md).
   Pantauan disimpan di pengaturan (ikut tersinkron) dan terhapus bersama transaksinya.
-- **Transaksi Berulang** dikelola hanya di tab Saya → Transaksi Rutin. Di Riwayat, banner pengingat hanya muncul bila transaksi serupa
+- **Transaksi Berulang** dikelola hanya di tab Saya → Rutin. Di Riwayat, banner pengingat hanya muncul bila transaksi serupa
   (jenis, dana, kategori, dan uraian sama) untuk periode berjalan belum ada; tombol **Catat sekarang** mengisi transaksi sesuai jadwal
   (tanggal, jumlah, kategori, dan dana dari jadwal), dan jadwal yang sudah tercatat tidak pernah digandakan.
 - **Folder Keuangan Otomatis**: begitu aplikasi dipasang (atau saat masuk Google pertama kali) dan folder `Keuangan` belum
   ada, aplikasi membuatnya beserta `Bukti Transaksi/Pribadi`, `Bukti Transaksi/Kegiatan`, `Laporan Kegiatan`, dan
   spreadsheet Keuangan Pribadi/Kegiatan tahun berjalan. Aman diulang: yang sudah ada dipakai, tidak dibuat kembar, dan
   gangguan jaringan sesaat tidak pernah membuat folder kedua.
-- **Kunci Aplikasi + Google Authenticator** (tab Saya → Kunci Aplikasi): PIN dan sidik jari, ditambah langkah kedua
+- **Kunci Aplikasi + Google Authenticator** (tab Saya → Keamanan): PIN dan sidik jari, ditambah langkah kedua
   berupa kode 6 angka dari Google Authenticator (TOTP standar RFC 6238). Entri di Authenticator diberi nama akun email
   Google Drive yang tertaut. Rahasianya hanya di perangkat (tidak ke Drive), kode tidak bisa dipakai ulang, salah berulang
   memberi jeda, dan menonaktifkannya butuh kode yang sah. Kode diminta tiap kunci dibuka, atau sekali per 8/24 jam.

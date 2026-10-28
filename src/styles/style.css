@@ -5590,14 +5590,26 @@ button {
   box-sizing: border-box;
 }
 
-/* Huruf mengikuti ukuran ikon (bukan lagi dibatasi 0,74-0,94 rem): 0,9 rem pada ikon 72 px, naik-turun sebanding. */
+/* Huruf mengikuti ukuran ikon (bukan lagi dibatasi 0,74-0,94 rem): 0,9 rem pada ikon 72 px, naik-turun sebanding.
+   Judul menu satu kata, jadi tidak boleh patah di tengah kata (nowrap). */
 .saya-app-nama {
   font-size: max(0.62rem, calc(0.9rem * var(--saya-skala, 1)));
   font-weight: 700;
   line-height: 1.2;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   transition: font-size 0.15s ease;
+}
+
+/* HP: bila ikon dikecilkan hingga sel kolom lebih sempit dari kata terpanjang ("Depresiasi", "Keamanan": ±5,1 em), huruf mengecil
+   secukupnya. Lebar sel dihitung dari lebar layar (dikurangi bantalan halaman), jumlah kolom, dan jarak antarkolom. */
+@media (max-width: 639px) {
+  .saya-app-nama {
+    font-size: min(
+      max(0.62rem, calc(0.9rem * var(--saya-skala, 1))),
+      max(0.5rem, calc((100vw - 26px - (var(--saya-kolom, 4) - 1) * var(--saya-gap-x, 6px) * var(--saya-skala, 1)) / var(--saya-kolom, 4) / 5.3))
+    );
+  }
 }
 
 .saya-app-status {

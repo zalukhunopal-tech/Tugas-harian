@@ -296,7 +296,7 @@ export const KeluargaView: React.FC<KeluargaViewProps> = ({ googleUser, ambilTok
     try {
       const token = await ambilToken();
       if (!token) {
-        setGalatBerkas("Masuk dengan Google dulu di aplikasi Drive Keuangan.");
+        setGalatBerkas("Masuk dengan Google dulu di menu Sinkron.");
         return;
       }
       try {
@@ -420,7 +420,7 @@ export const KeluargaView: React.FC<KeluargaViewProps> = ({ googleUser, ambilTok
   if (!googleUser) {
     return (
       <p className="help" id="keluarga-belum-masuk">
-        Masuk dengan Google di aplikasi <strong>Drive Keuangan</strong> lebih dulu. Berbagi data memakai Google Drive Anda sendiri, tanpa server lain.
+        Masuk dengan Google di menu <strong>Sinkron</strong> lebih dulu. Berbagi data memakai Google Drive Anda sendiri, tanpa server lain.
       </p>
     );
   }

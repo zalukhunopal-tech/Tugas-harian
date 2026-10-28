@@ -42,7 +42,7 @@ menyentuh folder `Keuangan`, tetapi jika akses Google Anda bocor, yang terbuka a
 Repo ini publik, jadi **tidak boleh** memuat data pribadi pemakainya:
 
 - Nama, jabatan, lembaga, dan proyek di Profil Pelapor kosong secara bawaan; tiap pemakai mengisinya sendiri
-  (tab Saya → Laporan Kegiatan, bagian Profil Pelapor). Isinya hanya ada di perangkat dan di Drive pemakai.
+  (tab Saya → Laporan, bagian Profil Pelapor). Isinya hanya ada di perangkat dan di Drive pemakai.
 - Tidak ada ID folder atau berkas Google Drive di kode. Aplikasi mencari folder `Keuangan` lewat nama di Drive akun yang
   sedang masuk, dan mengabaikan folder bernama sama milik orang lain. `public/apps-script/Code.gs` juga mencari lewat nama
   (isi `FOLDER_ID` hanya bila perlu).
@@ -72,7 +72,7 @@ pemakainya, bukan bagian aplikasi:
 - **Kode dan hasil build tidak memuat data siapa pun.** Bawaan Profil Pelapor kosong, tidak ada transaksi, ID folder, atau
   email yang ditanam (dijaga `scripts/periksa_data_pribadi.sh` di CI). Orang yang memasang aplikasi mulai dari kosong dan
   hanya melihat isi Drive miliknya sendiri.
-- **Keluar dari sinkron membersihkan perangkat.** Tombol *Keluar* di Drive Keuangan menawarkan "Hapus data dari perangkat ini"
+- **Keluar dari sinkron membersihkan perangkat.** Tombol *Keluar* di menu Sinkron menawarkan "Hapus data dari perangkat ini"
   (pilihan bawaan): data dikirim ke Drive dulu, lalu transaksi, aset, profil, kunci aplikasi, Authenticator, antrean bukti
   offline, dan token dihapus dari browser. Hanya tema dan karakter yang tinggal. Bila pengiriman gagal, penghapusan butuh
   persetujuan eksplisit karena yang belum terkirim akan hilang. Data yang sudah ada di perangkat tanpa sambungan bisa dihapus

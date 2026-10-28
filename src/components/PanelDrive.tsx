@@ -57,7 +57,7 @@ function unduhCSV(transaksi: Transaksi[]) {
 }
 
 /**
- * Isi aplikasi "Drive Keuangan" di tab Saya. Yang tampil hanya yang dipakai sehari-hari: judul Sinkronisasi Data, lingkaran berlogo
+ * Isi menu "Sinkron" (Drive Keuangan) di tab Saya. Yang tampil hanya yang dipakai sehari-hari: judul Sinkronisasi Data, lingkaran berlogo
  * Google Drive yang ditahan 3 detik, dan nama akun. Pengaturan lain (tarik saja, kirim saja, periksa folder, unduh CSV, ganti atau
  * tambah akun, isi folder, rincian sesi) tetap ada, dilipat di "Opsi lanjutan".
  */

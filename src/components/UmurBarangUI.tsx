@@ -127,7 +127,7 @@ export const BannerUmurBarang: React.FC<BannerUmurBarangProps> = ({ daftar, onBu
         </strong>
         {onBuka && (
           <button type="button" className="btn-small" onClick={onBuka}>
-            Buka Depresiasi Aset
+            Buka Depresiasi
           </button>
         )}
       </div>

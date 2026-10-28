@@ -125,7 +125,7 @@ export const DialogDepresiasi: React.FC<DialogDepresiasiProps> = ({ mode, daftar
                 )}
               </div>
               <p className="help">
-                Bila dihitung, barang masuk daftar <strong>Depresiasi Aset</strong> di tab Saya. Nilai buku dan sisa umurnya dipantau, dan Anda
+                Bila dihitung, barang masuk daftar <strong>Depresiasi</strong> di tab Saya. Nilai buku dan sisa umurnya dipantau, dan Anda
                 diingatkan otomatis saat sisanya tinggal 30% atau kurang.
               </p>
             </div>

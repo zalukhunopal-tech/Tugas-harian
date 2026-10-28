@@ -62,10 +62,32 @@ with sync_playwright() as p:
         print(f"== {nama} ({lebar}px)")
         b, pg, galat = buka(p, lebar)
         nav(pg, "Saya")
-        cek(pg.locator(".saya-peluncur .saya-app").count() == 7, "tujuh aplikasi tampil sebagai ikon (Profil Pelapor menyatu dengan Laporan, Depresiasi Aset menyusul)")
+        cek(pg.locator(".saya-peluncur .saya-app").count() == 7, "tujuh aplikasi tampil sebagai ikon (Profil Pelapor menyatu dengan Laporan, Depresiasi menyusul)")
         cek(pg.locator("details.folder").count() == 0, "tidak ada lagi baris berbentuk folder")
-        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Drive Keuangan", "Laporan Kegiatan", "Depresiasi Aset", "Keluarga", "Tema & Karakter", "Transaksi Rutin", "Kunci Aplikasi"],
+        cek(pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)") == ["Sinkron", "Laporan", "Depresiasi", "Keluarga", "Tampilan", "Rutin", "Keamanan"],
             "nama aplikasi sesuai konteks kerja")
+        nama_menu = pg.evaluate("[...document.querySelectorAll('.saya-app-nama')].map(e => e.innerText)")
+        cek(all(len(n.split()) == 1 and len(n) <= 10 for n in nama_menu), f"judul menu satu kata dan muat di ikon terkecil ({nama_menu})")
+        judul_sama = []
+        for app_id, nama in zip(["drive", "laporan", "depresiasi", "keluarga", "tema", "rutin", "kunci"], nama_menu):
+            pg.locator(f"[data-app={app_id}]").click()
+            pg.wait_for_timeout(200)
+            judul_sama.append(pg.locator(".saya-appbar-judul").inner_text() == nama)
+            pg.locator(".saya-kembali").click()
+            pg.wait_for_timeout(120)
+        cek(all(judul_sama), f"judul panel yang dibuka sama dengan judul menunya ({judul_sama})")
+        geser = pg.locator(".saya-ukuran-geser")
+        ukuran_awal = geser.input_value()
+        for nilai in (geser.get_attribute("min"), geser.get_attribute("max")):
+            geser.fill(nilai)
+            pg.wait_for_timeout(300)
+            patah = pg.evaluate("""[...document.querySelectorAll('.saya-app-nama')].filter(e => {
+                const sel = e.closest('.saya-app').getBoundingClientRect().width;
+                return Math.round(e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight)) !== 1 || e.scrollWidth > sel + 0.5;
+            }).map(e => e.innerText)""")
+            cek(patah == [], f"ikon {nilai}px: setiap judul menu satu baris, utuh, dan tidak melebihi selnya ({patah})")
+        geser.fill(ukuran_awal)
+        pg.wait_for_timeout(300)
         kolom = pg.evaluate("new Set([...document.querySelectorAll('.saya-app')].map(e => Math.round(e.getBoundingClientRect().x))).size")
         cek(kolom == 4, f"empat kolom ({kolom})")
         cek(not pg.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), "tanpa luapan horizontal")
