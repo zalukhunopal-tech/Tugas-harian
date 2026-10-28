@@ -45,7 +45,7 @@ jobs:
       - name: Cari data pribadi yang tidak boleh masuk repo publik
         run: bash scripts/periksa_data_pribadi.sh
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
