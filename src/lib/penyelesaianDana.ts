@@ -83,12 +83,35 @@ function praKegiatanMilik(tanggal: string, kegiatan: RentangKegiatan, semuaKegia
   return terdekat === kegiatan.tanggalMulai;
 }
 
+/** Hari kepulangan: pengeluaran tanpa kaitan sampai sekian hari sesudah kegiatan selesai masih milik kegiatan itu. */
+export const BATAS_PASCA_KEGIATAN_HARI = 2;
+
+function geserHariIso(tanggal: string, hari: number): string {
+  const d = new Date(`${tanggal}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + hari);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
- * Transaksi Dana Kegiatan milik satu kegiatan: semua yang terhubung ke kegiatan itu (tanpa batas tanggal), ditambah
- * dua jenis yang belum dikaitkan ke kegiatan mana pun supaya terisi otomatis walau dicatat tanpa memilih kegiatan
- * (kolom kegiatan tidak ikut tersimpan di Google Sheets):
+ * Uang harian dan biaya hari kepulangan sering bertanggal sehari sesudah hari terakhir timesheet. Pengeluaran tanpa kaitan
+ * yang jatuh paling lama BATAS_PASCA_KEGIATAN_HARI hari sesudah kegiatan ini selesai, tidak berada di rentang kegiatan lain,
+ * dan tidak ada kegiatan lain yang selesai lebih dekat sebelum tanggal itu, menjadi milik kegiatan ini.
+ */
+function pascaKegiatanMilik(tanggal: string, kegiatan: RentangKegiatan, semuaKegiatan: RentangKegiatan[]): boolean {
+  if (tanggal <= kegiatan.tanggalSelesai || tanggal > geserHariIso(kegiatan.tanggalSelesai, BATAS_PASCA_KEGIATAN_HARI)) return false;
+  if (semuaKegiatan.some((k) => dalamRentang(tanggal, k))) return false;
+  const sebelumnya = semuaKegiatan.filter((k) => k.tanggalSelesai < tanggal);
+  const terdekat = sebelumnya.reduce((maks, k) => (k.tanggalSelesai > maks ? k.tanggalSelesai : maks), kegiatan.tanggalSelesai);
+  return terdekat === kegiatan.tanggalSelesai;
+}
+
+/**
+ * Transaksi Dana Kegiatan milik satu kegiatan: semua yang terhubung ke kegiatan itu (tanpa batas tanggal), ditambah transaksi
+ * yang belum dikaitkan ke kegiatan mana pun (kaitannya kosong atau teks bebas yang bukan judul kegiatan) supaya terisi
+ * otomatis walau dicatat tanpa memilih kegiatan (kolom kegiatan tidak ikut tersimpan di Google Sheets):
  *   - penerimaan dana (dana awal): dalam rentang kegiatan, atau pra-kegiatan (lihat praKegiatanMilik);
- *   - perdiem, selama tanggalnya hanya jatuh di rentang satu kegiatan (bila dua kegiatan beririsan, tidak ditebak).
+ *   - pengeluaran (uang harian maupun lainnya): selama tanggalnya hanya jatuh di rentang satu kegiatan (bila dua kegiatan
+ *     beririsan, tidak ditebak), atau pada hari kepulangan sesudah kegiatan selesai (lihat pascaKegiatanMilik).
  */
 export function transaksiKegiatan(
   transaksi: Transaksi[],
@@ -102,11 +125,9 @@ export function transaksiKegiatan(
     if (t.jenis === "pemasukan" && t.kategori !== KATEGORI_PINDAH_DANA) {
       return dalamRentang(t.tanggal, kegiatan) || praKegiatanMilik(t.tanggal, kegiatan, semuaKegiatan);
     }
-    if (!dalamRentang(t.tanggal, kegiatan)) return false;
-    if (t.jenis === "pengeluaran" && t.kategori === KATEGORI_PERDIEM && !t.kegiatanId) {
-      return semuaKegiatan.filter((k) => dalamRentang(t.tanggal, k)).length <= 1;
-    }
-    return false;
+    if (t.jenis !== "pengeluaran" || t.kategori === KATEGORI_PINDAH_DANA) return false;
+    if (dalamRentang(t.tanggal, kegiatan)) return semuaKegiatan.filter((k) => dalamRentang(t.tanggal, k)).length <= 1;
+    return pascaKegiatanMilik(t.tanggal, kegiatan, semuaKegiatan);
   });
 }
 

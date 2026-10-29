@@ -1,9 +1,11 @@
 /**
  * Uji dokumen Word laporan kegiatan: daftar perdiem berformat timesheet berada di bagian (section) lanskap paling depan, bagian
  * lain tetap potret, perpindahan bagian tidak menyisakan halaman kosong, dan urutannya: timesheet, identitas, penerimaan dana,
- * tiap kategori (tabel lalu bukti), rekapitulasi penyelesaian dana, daftar periksa. Jalankan: npx tsx scripts/uji_docx_perdiem.ts
+ * tiap kategori (tabel lalu bukti), rekapitulasi penyelesaian dana, daftar periksa. Semua foto bukti sebuah pengeluaran tersisip
+ * (bukan hanya foto pertama) dan ringkasan penyelesaian berupa kartu bertabel. Jalankan: npx tsx scripts/uji_docx_perdiem.ts
  */
 import JSZip from "jszip";
+import { deflateSync } from "node:zlib";
 import { buatDokumenLaporanKegiatanDocx } from "../src/lib/docxGenerator";
 import type { DataKegiatan, ProfilPelapor, Transaksi } from "../src/types";
 
@@ -52,6 +54,36 @@ const trx = (o: Partial<Transaksi>): Transaksi => ({
 });
 const perdiem = (tanggal: string, o: Partial<Transaksi> = {}) =>
   trx({ kategori: "Perdiem", deskripsi: `Perdiem Contoh · ${tanggal}`, tanggal, jumlah: 200000, ...o });
+
+/** PNG polos w × h (tanpa pustaka gambar) sebagai data URL, untuk foto bukti contoh. */
+function pngDataUrl(w: number, h: number, warna: [number, number, number]): string {
+  const crcTabel = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (b: Buffer) => {
+    let c = 0xffffffff;
+    for (const x of b) c = crcTabel[(c ^ x) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const potong = (jenis: string, data: Buffer) => {
+    const isi = Buffer.concat([Buffer.from(jenis), data]);
+    const panjang = Buffer.alloc(4);
+    panjang.writeUInt32BE(data.length);
+    const cek = Buffer.alloc(4);
+    cek.writeUInt32BE(crc(isi));
+    return Buffer.concat([panjang, isi, cek]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8);
+  const baris = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) baris.set(warna, y * (w * 3 + 1) + 1 + x * 3);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), potong("IHDR", ihdr), potong("IDAT", deflateSync(baris)), potong("IEND", Buffer.alloc(0))]);
+  return `data:image/png;base64,${png.toString("base64")}`;
+}
 
 interface Bagian {
   lanskap: boolean;
@@ -135,6 +167,34 @@ async function main() {
   );
   cek("daftar perdiem lanskap di depan, halaman bukti sesudahnya potret", berbukti.map((b) => (b.lanskap ? "L" : "P")).join("") === "LP", berbukti.map((b) => [b.lebar, b.tinggi]));
   cek("tanpa pemisah halaman tambahan", berbukti.slice(1).every((b) => !b.awalPisahHalaman));
+
+  console.log("Semua foto bukti tersisip dan ringkasan penyelesaian bertabel");
+  const fotoBukti = (i: number, warna: [number, number, number]) => ({ id: `fb${i}`, nama: `tiket${i}.png`, tipe: "image/png", dataUrl: pngDataUrl(120, 80, warna) });
+  const blobFoto = await buatDokumenLaporanKegiatanDocx({
+    transaksi: [
+      trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", deskripsi: "Penerimaan Dana Kegiatan", jumlah: 3000000, tanggal: "2026-09-20" }),
+      // Tiga orang ikut klaim tiket speedboat: tiga foto tiket
+      trx({
+        deskripsi: "Tiket speedboat",
+        kategori: "Transportasi",
+        jumlah: 900000,
+        bukti: [fotoBukti(1, [200, 120, 100]), fotoBukti(2, [100, 160, 200]), fotoBukti(3, [120, 190, 120])],
+        detailKegiatan: { jenisBukti: "Tiket", transportasi: { moda: "Speedboat / Kapal" }, penerimaManfaat: ["Andi", "Rina"] },
+      }),
+      // Struk snack perjalanan: foto pertama di sebelah kotak struk, foto kedua di bawahnya
+      trx({ deskripsi: "Snack perjalanan", jumlah: 120000, bukti: [fotoBukti(4, [210, 190, 120]), fotoBukti(5, [160, 130, 200])], detailKegiatan: { jenisBukti: "Struk thermal (minimarket/SPBU)" } }),
+    ],
+    kegiatan,
+    profilPelapor: profil,
+    sertakanDaftarPeriksa: false,
+  });
+  const zipFoto = await JSZip.loadAsync(await blobFoto.arrayBuffer());
+  const media = Object.keys(zipFoto.files).filter((n) => n.startsWith("word/media/") && !zipFoto.files[n].dir);
+  cek("kelima foto bukti tersisip (tiga tiket dan dua foto struk)", media.length === 5, media);
+  const teksFoto = (await zipFoto.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, "");
+  cek("judul kisi foto menyebut jumlah foto", /FOTO BUKTI DIGITAL \(3 FOTO\)/.test(teksFoto) && /Foto bukti 3 dari 3/.test(teksFoto) && /Foto bukti 2 dari 2/.test(teksFoto));
+  cek("ringkasan penyelesaian: pita judul, total diakui, status, dan rumus", /RINGKASAN PENYELESAIAN DANA KEGIATAN/.test(teksFoto) && /Total pengeluaran yang diakui/.test(teksFoto) && /SISA DANA YANG HARUS DIKEMBALIKAN/i.test(teksFoto) && /Dana awal Rp\s?3\.000\.000 − total pengeluaran yang diakui/.test(teksFoto));
+  cek("ringkasan tanpa garis titik-titik", !/\.{6,}/.test(teksFoto));
 
   console.log("Laporan tanpa perdiem");
   const tanpa = await bacaBagian(

@@ -1365,7 +1365,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         <div className="lampiran-bukti__kepala">
           <label className="lampiran-bukti__judul">
             <span>📎 Lampiran Bukti / Nota</span>
-            <span className="lampiran-bukti__ket">(Foto kamera/galeri atau PDF)</span>
+            <span className="lampiran-bukti__ket">(Foto kamera/galeri atau PDF, bisa lebih dari satu)</span>
           </label>
           {bukti.length > 0 && <span className="lampiran-bukti__jumlah">{bukti.length} berkas terlampir</span>}
         </div>
@@ -1376,8 +1376,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
             className="btn-secondary lampiran-bukti__btn"
             onClick={() => buktiKameraInputRef.current?.click()}
             disabled={memuatBukti}
+            data-testid="tombol-foto-bukti"
           >
-            📷 Ambil Foto (Kamera)
+            {bukti.length > 0 ? "📷 Tambah Foto Lagi" : "📷 Ambil Foto (Kamera)"}
           </button>
           <button
             type="button"
@@ -1405,6 +1406,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
             onChange={(e) => handleLampirkanFileBukti(e.target.files)}
           />
         </div>
+
+        <p className="lampiran-bukti__petunjuk" data-testid="petunjuk-banyak-foto">
+          Satu pengeluaran boleh punya beberapa foto bukti, mis. tiket pesawat atau speedboat tiap orang yang ikut diklaim, atau
+          beberapa struk snack perjalanan. Semua foto ikut tercetak di laporan dan dokumen Word.
+        </p>
 
         {memuatBukti && (
           <div style={{ marginTop: "6px", fontSize: "0.8rem", color: "var(--muted)" }}>
@@ -1437,6 +1443,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
                     flexDirection: "column",
                   }}
                 >
+                  <span className="lampiran-bukti__urut" aria-label={`Bukti ${idx + 1} dari ${bukti.length}`}>
+                    {idx + 1}
+                  </span>
                   {isPdf ? (
                     <div
                       style={{

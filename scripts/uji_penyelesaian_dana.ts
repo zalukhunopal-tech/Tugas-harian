@@ -59,13 +59,19 @@ cek("perdiem dengan kaitan nama kegiatan lain: tidak ikut", !transaksiKegiatan([
 const C: RentangKegiatan = { id: "kC", nama: "Kegiatan Beririsan", tanggalMulai: "2026-10-10", tanggalSelesai: "2026-10-30" };
 cek("tanggal perdiem di rentang dua kegiatan: tidak ditebak", !transaksiKegiatan([perdiemBebas("2026-10-12")], A, [A, C]).length && !transaksiKegiatan([perdiemBebas("2026-10-12")], C, [A, C]).length);
 cek("tanggal perdiem hanya di rentang satu dari dua kegiatan beririsan: ikut kegiatan itu", transaksiKegiatan([perdiemBebas("2026-10-05")], A, [A, C]).length === 1);
-cek("pengeluaran bukan perdiem tanpa kaitan: tetap tidak ikut", !transaksiKegiatan([trx({ tanggal: "2026-10-01" })], A, semua).length);
+cek("pengeluaran bukan perdiem tanpa kaitan dalam rentang satu kegiatan: ikut", transaksiKegiatan([trx({ tanggal: "2026-10-01" })], A, semua).length === 1);
+cek("uang harian hari kepulangan (sehari sesudah selesai) tanpa kaitan: ikut", transaksiKegiatan([perdiemBebas("2026-10-25")], A, semua).length === 1);
+cek("hari kepulangan juga untuk biaya lain tanpa kaitan (2 hari sesudah selesai)", transaksiKegiatan([trx({ tanggal: "2026-10-26" })], A, semua).length === 1);
+cek("lebih dari 2 hari sesudah selesai: tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-27")], A, semua).length);
+cek("hari kepulangan tidak masuk kegiatan berikutnya", !transaksiKegiatan([perdiemBebas("2026-10-25")], B, semua).length);
 cek("perdiem Dana Pribadi (pemasukan pribadi otomatis): tidak ikut", !transaksiKegiatan([perdiemBebas("2026-10-01", { dana: "Dana Pribadi", jenis: "pemasukan" })], A, semua).length);
 
 cek("terhubung ke kegiatan ini: ikut walau di luar rentang", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-08-01", kegiatanId: "kA" })], A, semua).length === 1);
 cek("Pindah Dana tidak dihitung sebagai dana awal", !transaksiKegiatan([trx({ jenis: "pemasukan", kategori: "Pindah Dana", tanggal: "2026-10-01" })], A, semua).length);
 cek("Dana Pribadi tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", dana: "Dana Pribadi", tanggal: "2026-10-01" })], A, semua).length);
-cek("pengeluaran tanpa kaitan tidak ikut (hanya penerimaan yang diisi otomatis)", !transaksiKegiatan([trx({ tanggal: "2026-10-01" })], A, semua).length);
+cek("pengeluaran dengan kaitan teks bebas (bukan judul kegiatan) dalam rentang: ikut", transaksiKegiatan([trx({ tanggal: "2026-09-20", kaitan: "Perjalanan Kota A - Kota B (20 Sep 2026)" })], A, semua).length === 1);
+cek("pengeluaran tanpa kaitan di rentang dua kegiatan beririsan: tidak ditebak", !transaksiKegiatan([trx({ tanggal: "2026-10-12" })], A, [A, C]).length);
+cek("Pindah Dana keluar tidak dihitung sebagai pengeluaran kegiatan", !transaksiKegiatan([trx({ tanggal: "2026-10-01", kategori: "Pindah Dana" })], A, semua).length);
 cek("kaitan kosong tidak cocok dengan nama kegiatan kosong", !transaksiKegiatan([trx({ tanggal: "2027-01-01", kaitan: "" })], { ...A, nama: "" }, semua).length);
 
 console.log("Penerimaan dana pra-kegiatan (sebelum tanggal mulai timesheet)");

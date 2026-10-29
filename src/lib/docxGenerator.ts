@@ -19,25 +19,22 @@ import {
   ShadingType,
   PageOrientation,
 } from "docx";
+import { Transaksi, ProfilPelapor, DataKegiatan } from "../types";
+import { formatRupiah, formatAngka } from "./constants";
+import { RingkasanPenyelesaian } from "./penyelesaianDana";
+import { DaftarPerdiemDokumen } from "./timesheet";
+import { ambilByteBukti, GambarDokumen, pasDalamKotak, siapkanGambarDokumen, SumberGambar } from "./gambarDokumen";
 import {
-  Transaksi,
-  ProfilPelapor,
-  DataKegiatan,
-  DataKhususKegiatan,
-  BuktiItem,
-  FotoPendukung,
-} from "../types";
-import {
-  KELOMPOK_DANA_KEGIATAN,
-  formatRupiah,
-  formatAngka,
-  hariIni, labelKategori } from "./constants";
-import { KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
-import { hitungPenyelesaian, KATEGORI_PERDIEM, transaksiKegiatan } from "./penyelesaianDana";
-import { adalahKudapanPerjalanan, barisPenerimaManfaat } from "./penerimaManfaat";
-import { barisDiklaimUntuk, barisRincianLengkap, uraianTampil } from "./kelengkapanKategori";
-import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
-import { ambilSemuaBuktiOffline } from "./buktiStorage";
+  BarisKeterangan,
+  BarisTabelLaporan,
+  KALIMAT_PENUTUP_JUSTIFIKASI,
+  rincianPenyelesaian,
+  rumusPenyelesaian,
+  susunLaporanKegiatan,
+  SusunanLaporan,
+  susunNarasiSuratJustifikasi,
+  warnaPenyelesaian,
+} from "./susunanLaporan";
 
 export interface OpsiLaporanDocx {
   transaksi: Transaksi[];
@@ -50,123 +47,140 @@ export interface OpsiLaporanDocx {
   googleToken?: string;
 }
 
-/**
- * Format tanggal Indonesia: "15 Agustus 2026"
- */
-function formatTanggalIndo(tglStr?: string): string {
-  if (!tglStr) return "-";
-  try {
-    const d = new Date(tglStr);
-    if (isNaN(d.getTime())) return tglStr;
-    return d.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return tglStr;
-  }
+/** Foto bukti atau foto pendukung siap disisipkan (format dan ukuran asli dikenali), atau null bila tidak bisa dimuat. */
+async function muatGambar(item: SumberGambar, token?: string): Promise<GambarDokumen | null> {
+  const data = await ambilByteBukti(item, token);
+  return data ? siapkanGambarDokumen(data) : null;
 }
 
-/**
- * Mengubah dataUrl base64 menjadi Uint8Array untuk ImageRun docx
- */
-function dataUrlToUint8Array(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.includes(";base64,") ? dataUrl.split(";base64,")[1] : dataUrl;
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
+/** Paragraf berisi satu gambar yang muat di kotak maksLebar × maksTinggi piksel (96 dpi), rasio asli terjaga. */
+function paragrafGambar(g: GambarDokumen, maksLebar: number, maksTinggi: number, rata: (typeof AlignmentType)[keyof typeof AlignmentType] = AlignmentType.CENTER): Paragraph {
+  const ukuran = pasDalamKotak(g.lebar, g.tinggi, maksLebar, maksTinggi);
+  return new Paragraph({
+    alignment: rata,
+    children: [new ImageRun({ data: g.data, type: g.jenis, transformation: { width: ukuran.lebar, height: ukuran.tinggi } })],
+  });
 }
 
-/**
- * Mengambil byte gambar dari dataUrl, Google Drive, atau IndexedDB offline
- */
-async function ambilByteGambar(
-  item: { dataUrl?: string; driveId?: string; id?: string },
-  token?: string
-): Promise<Uint8Array | null> {
-  // 1. Data URL lokal
-  if (item.dataUrl && item.dataUrl.startsWith("data:image")) {
-    try {
-      return dataUrlToUint8Array(item.dataUrl);
-    } catch (e) {
-      console.warn("Gagal mengurai dataUrl gambar:", e);
-    }
-  }
+const teksKecilMiring = (teks: string) =>
+  new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 40, after: 60 },
+    children: [new TextRun({ text: teks, italics: true, font: "Arial", size: 17, color: "555555" })],
+  });
 
-  // 2. Google Drive
-  if (item.driveId && token) {
-    try {
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${item.driveId}?alt=media`, {
-        headers: { Authorization: `Bearer ${token}` },
+/**
+ * Foto bukti digital sebuah pengeluaran: satu foto di tengah (lebar maks. 12 cm), dua foto atau lebih ditata dua per baris
+ * (mis. tiket pesawat atau speedboat tiap orang yang ikut klaim). Tiap foto diberi keterangan urutannya.
+ */
+function buatGridFoto(daftar: Array<{ gambar: GambarDokumen; keterangan: string }>, judul: string): (Paragraph | Table)[] {
+  if (daftar.length === 0) return [];
+  const kepala = new Paragraph({
+    spacing: { before: 120, after: 60 },
+    children: [new TextRun({ text: judul, bold: true, font: "Arial", size: 18, color: "555555" })],
+  });
+  if (daftar.length === 1) return [kepala, paragrafGambar(daftar[0].gambar, 453, 340), teksKecilMiring(daftar[0].keterangan)];
+  const tanpaGaris = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const garisTipis = { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD" };
+  const baris: TableRow[] = [];
+  for (let i = 0; i < daftar.length; i += 2) {
+    const sel = (item?: { gambar: GambarDokumen; keterangan: string }) =>
+      new TableCell({
+        width: { size: 50, type: WidthType.PERCENTAGE },
+        verticalAlign: VerticalAlign.TOP,
+        borders: item ? { top: garisTipis, bottom: garisTipis, left: garisTipis, right: garisTipis } : { top: tanpaGaris, bottom: tanpaGaris, left: tanpaGaris, right: tanpaGaris },
+        margins: { top: 80, bottom: 40, left: 80, right: 80 },
+        children: item ? [paragrafGambar(item.gambar, 290, 300), teksKecilMiring(item.keterangan)] : [new Paragraph({ children: [] })],
       });
-      if (res.ok) {
-        const buf = await res.arrayBuffer();
-        return new Uint8Array(buf);
-      }
-    } catch (e) {
-      console.warn("Gagal mengunduh gambar dari Drive:", e);
-    }
+    baris.push(new TableRow({ cantSplit: true, children: [sel(daftar[i]), sel(daftar[i + 1])] }));
   }
+  return [kepala, new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: baris })];
+}
 
-  // 3. IndexedDB offline antrean
-  if (item.id) {
-    try {
-      const offlineList = await ambilSemuaBuktiOffline();
-      const match = offlineList.find((b) => b.id === item.id);
-      if (match && match.blob) {
-        const buf = await match.blob.arrayBuffer();
-        return new Uint8Array(buf);
-      }
-    } catch (e) {
-      console.warn("Gagal membaca gambar dari IndexedDB offline:", e);
-    }
-  }
-
-  return null;
+/** Satu baris keterangan (segmen tebal/miring/berwarna) dari susunan laporan menjadi paragraf Word. */
+function paragrafKeterangan(baris: BarisKeterangan, sebelum = 0): Paragraph {
+  return new Paragraph({
+    spacing: { before: sebelum, after: 30 },
+    children: baris.map(
+      (s) =>
+        new TextRun({
+          text: s.teks,
+          bold: s.tebal,
+          italics: s.miring,
+          font: "Arial",
+          size: s.kecil ? 19 : 20,
+          color: s.warna === "merah" ? "B00020" : s.warna === "abu" ? "555555" : undefined,
+        })
+    ),
+  });
 }
 
 /**
- * Meminta narasi surat justifikasi dari server Gemini AI atau fallback baku
+ * Ringkasan penyelesaian dana sebagai kartu bertabel: pita judul gelap, rincian dana awal, realisasi, dan uang harian, baris
+ * total yang diakui, lalu pita status berwarna dengan nominal besar (sisa dikembalikan atau kelebihan diganti), dan rumusnya.
  */
-async function susunNarasiSuratJustifikasi(params: {
-  alasanSingkat?: string;
-  jenisBukti?: string;
-  uraian: string;
-  jumlah: number;
-  tanggal: string;
-  namaKegiatan: string;
-  lokasiKegiatan: string;
-  namaPelapor: string;
-  jabatanPelapor: string;
-  lembagaProyek: string;
-}): Promise<string[]> {
-  try {
-    const res = await fetch("/api/gemini/susun-surat-justifikasi", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
+function buatRingkasanPenyelesaian(p: RingkasanPenyelesaian): Table {
+  const w = warnaPenyelesaian(p.status);
+  const garis = { style: BorderStyle.SINGLE, size: 4, color: "CBD5E1" };
+  const garisTebal = { style: BorderStyle.SINGLE, size: 12, color: "1F2937" };
+  const tanpa = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const sel = (anak: Paragraph[], lebar: number, opsi: { isi?: string; span?: number; atas?: typeof garis; kiri?: typeof garis } = {}) =>
+    new TableCell({
+      width: { size: lebar, type: WidthType.PERCENTAGE },
+      columnSpan: opsi.span,
+      verticalAlign: VerticalAlign.CENTER,
+      shading: opsi.isi ? { type: ShadingType.CLEAR, fill: opsi.isi } : undefined,
+      margins: { top: 90, bottom: 90, left: 160, right: 160 },
+      borders: { top: opsi.atas ?? garis, bottom: garis, left: opsi.kiri ?? garis, right: garis },
+      children: anak,
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.paragraf) && data.paragraf.length > 0) {
-        return data.paragraf;
-      }
-    }
-  } catch (e) {
-    console.warn("Fetch narasi justifikasi AI gagal, memakai template baku:", e);
-  }
-
-  // Fallback standar 3 paragraf baku
-  const nominalFmt = formatRupiah(params.jumlah);
-  const p1 = `Sehubungan dengan pelaksanaan kegiatan ${params.namaKegiatan || "lapangan"} yang berlokasi di ${params.lokasiKegiatan || "lapangan"}, bersama ini saya menerangkan bahwa pada tanggal ${formatTanggalIndo(params.tanggal)} telah dilakukan transaksi pengeluaran riil sebesar ${nominalFmt} untuk keperluan ${params.uraian || "kegiatan operasional"}.`;
-  const p2 = `Adapun mengenai dokumen pertanggungjawaban transaksi tersebut, dokumen yang dapat dilampirkan berstatus ${params.jenisBukti || "bukti tidak lengkap"} dikarenakan ${params.alasanSingkat || "keterbatasan fasilitas administrasi penyedia jasa/penjual di lokasi kegiatan lapangan serta kondisi geografis yang berada di wilayah terpencil"}.`;
-  const p3 = `Dengan ini saya menyatakan dengan sesungguhnya bahwa transaksi tersebut di atas adalah benar-benar terlaksana dan mutlak dipergunakan untuk mendukung kelancaran operasional kegiatan kedinasan, tanpa adanya unsur manipulasi atau kepentingan pribadi, serta saya bersedia bertanggung jawab sepenuhnya atas kebenaran keterangan ini.`;
-  return [p1, p2, p3];
+  const teks = (isi: string, o: { tebal?: boolean; ukuran?: number; warna?: string; rata?: (typeof AlignmentType)[keyof typeof AlignmentType]; spasi?: number } = {}) =>
+    new Paragraph({
+      alignment: o.rata,
+      children: [new TextRun({ text: isi, bold: o.tebal, font: "Arial", size: o.ukuran ?? 20, color: o.warna, characterSpacing: o.spasi })],
+    });
+  const rincian = rincianPenyelesaian(p);
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [sel([teks("RINGKASAN PENYELESAIAN DANA KEGIATAN", { tebal: true, warna: "FFFFFF", ukuran: 21, spasi: 20 })], 100, { isi: "1F2937", span: 2 })],
+      }),
+      ...rincian.map(
+        ([label, nilai], i) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              sel([teks(label, { warna: "334155" })], 65, { isi: i % 2 ? "F8FAFC" : "FFFFFF" }),
+              sel([teks(formatRupiah(nilai), { rata: AlignmentType.RIGHT, warna: "111111" })], 35, { isi: i % 2 ? "F8FAFC" : "FFFFFF" }),
+            ],
+          })
+      ),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          sel([teks("Total pengeluaran yang diakui", { tebal: true, ukuran: 21 })], 65, { isi: "EEF2F7", atas: garisTebal }),
+          sel([teks(formatRupiah(p.totalDiakui), { tebal: true, ukuran: 21, rata: AlignmentType.RIGHT })], 35, { isi: "EEF2F7", atas: garisTebal }),
+        ],
+      }),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          sel(
+            [
+              teks(p.labelStatus.toUpperCase(), { tebal: true, warna: w.teks, ukuran: 19, spasi: 10 }),
+              teks(formatRupiah(p.jumlahStatus), { tebal: true, warna: w.teks, ukuran: 34 }),
+              teks(rumusPenyelesaian(p), { warna: "475569", ukuran: 17 }),
+            ],
+            100,
+            { isi: w.latar, span: 2, kiri: { style: BorderStyle.SINGLE, size: 36, color: w.garis } }
+          ),
+        ],
+      }),
+    ],
+    borders: { top: tanpa, bottom: tanpa, left: tanpa, right: tanpa, insideHorizontal: tanpa, insideVertical: tanpa },
+  });
 }
 
 /**
@@ -245,7 +259,8 @@ function buatKotakTempel(
 function buatKotakStrukThermal(
   teksUtama: string,
   subTeks: string,
-  fotoByte?: Uint8Array | null
+  foto?: GambarDokumen | null,
+  judulFoto = "FOTOKOPI / ARSIP STRUK"
 ): Table {
   const tinggiTwip = convertMillimetersToTwip(120);
   const dashedBorder = {
@@ -316,7 +331,7 @@ function buatKotakStrukThermal(
       spacing: { before: 60, after: 60 },
       children: [
         new TextRun({
-          text: "FOTOKOPI / ARSIP STRUK",
+          text: judulFoto,
           bold: true,
           font: "Arial",
           size: 18,
@@ -326,23 +341,9 @@ function buatKotakStrukThermal(
     }),
   ];
 
-  if (fotoByte) {
+  if (foto) {
     try {
-      selKananChildren.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [
-            new ImageRun({
-              data: fotoByte,
-              transformation: {
-                width: 250,
-                height: 340,
-              },
-              type: "jpg",
-            }),
-          ],
-        })
-      );
+      selKananChildren.push(paragrafGambar(foto, 290, 380));
     } catch {
       selKananChildren.push(
         new Paragraph({
@@ -366,7 +367,7 @@ function buatKotakStrukThermal(
         spacing: { before: 200, after: 200 },
         children: [
           new TextRun({
-            text: "TEMPEL FOTOKOPI STRUK DI SINI\n(Wajib untuk struk thermal yang cepat pudar)",
+            text: "Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).",
             italics: true,
             font: "Arial",
             size: 18,
@@ -559,55 +560,24 @@ export async function buatDokumenLaporanKegiatanDocx(
     transaksi,
     kegiatan,
     daftarKegiatan = [kegiatan],
-    profilPelapor,
+    profilPelapor: profilAsli,
     urutanTransaksiIds = [],
     sertakanDaftarPeriksa = true,
     googleToken,
   } = opsi;
 
-  // 1. Saring transaksi kegiatan ini
-  // (termasuk penerimaan dana pada rentang kegiatan yang belum dikaitkan, supaya dana awal terisi otomatis)
-  const trxKegiatan = transaksiKegiatan(transaksi, kegiatan, daftarKegiatan);
-
-  const pengeluaranRaw = trxKegiatan.filter((t) => t.jenis === "pengeluaran");
-
-  // 2. Tentukan urutan transaksi pengeluaran (Berdasarkan manual urutanTransaksiIds jika ada, atau default kelompok lalu tanggal)
-  const mapKelompokUrutan = new Map<string, number>();
-  KELOMPOK_DANA_KEGIATAN.forEach((k, idx) => mapKelompokUrutan.set(k, idx));
-
-  let daftarPengeluaran = [...pengeluaranRaw];
-
-  if (urutanTransaksiIds && urutanTransaksiIds.length > 0) {
-    const idIndexMap = new Map<string, number>();
-    urutanTransaksiIds.forEach((id, idx) => idIndexMap.set(id, idx));
-
-    daftarPengeluaran.sort((a, b) => {
-      const idxA = idIndexMap.has(a.id) ? idIndexMap.get(a.id)! : 999999;
-      const idxB = idIndexMap.has(b.id) ? idIndexMap.get(b.id)! : 999999;
-      if (idxA !== idxB) return idxA - idxB;
-      const orderA = mapKelompokUrutan.get(a.kategori) ?? 99;
-      const orderB = mapKelompokUrutan.get(b.kategori) ?? 99;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.tanggal.localeCompare(b.tanggal);
-    });
-  } else {
-    daftarPengeluaran.sort((a, b) => {
-      const orderA = mapKelompokUrutan.get(a.kategori) ?? 99;
-      const orderB = mapKelompokUrutan.get(b.kategori) ?? 99;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.tanggal.localeCompare(b.tanggal);
-    });
-  }
-
-  // Berikan nomor urut global 1..N yang konsisten di seluruh dokumen
-  const mapNomorUrut = new Map<string, number>();
-  daftarPengeluaran.forEach((t, i) => mapNomorUrut.set(t.id, i + 1));
-
-  const totalPengeluaran = daftarPengeluaran.reduce((s, t) => s + t.jumlah, 0);
-  // Penyelesaian akhir dana kegiatan (dana awal vs realisasi + perdiem), aturan di lib/penyelesaianDana.ts
-  const penyelesaian = hitungPenyelesaian(trxKegiatan);
-
-  const periodeFmt = `${formatTanggalIndo(kegiatan.tanggalMulai)} s.d. ${formatTanggalIndo(kegiatan.tanggalSelesai)}`;
+  // 1. Isi dan urutan dokumen dari susunan laporan, sama dengan dokumen siap cetak di aplikasi (lib/susunanLaporan.ts).
+  const susunan: SusunanLaporan = susunLaporanKegiatan({
+    transaksi,
+    kegiatan,
+    daftarKegiatan,
+    profilPelapor: profilAsli,
+    urutanTransaksiIds,
+    sertakanDaftarPeriksa,
+  });
+  // Profil untuk dokumen: isian kosong dilengkapi dari kop file timesheet (Profil Pelapor sendiri tidak diubah).
+  const profilPelapor = susunan.profil;
+  const penyelesaian = susunan.penyelesaian;
 
   // Border standar tabel
   const thinBorder = {
@@ -641,8 +611,7 @@ export async function buatDokumenLaporanKegiatanDocx(
   // tidak berhimpit, bagian lain tetap potret. `childrenSections` selalu menunjuk isi bagian yang sedang diisi.
   // Urutan dokumen: timesheet uang harian (lanskap) paling depan, lalu identitas, penerimaan dana, dan tiap kategori (tabel lalu
   // bukti dan kotak tempelnya, potret), ditutup rekapitulasi penyelesaian dana.
-  const trxPerdiem = daftarPengeluaran.filter((t) => t.kategori === KATEGORI_PERDIEM);
-  const daftarPerdiemUtama = trxPerdiem.length > 0 ? susunDaftarPerdiem(trxPerdiem, kegiatan, profilPelapor) : null;
+  const daftarPerdiemUtama = susunan.daftarPerdiem;
   const bagianWord: { lanskap: boolean; isi: (Paragraph | Table)[] }[] = daftarPerdiemUtama
     ? [
         { lanskap: true, isi: buatBagianPerdiemTimesheet(daftarPerdiemUtama) },
@@ -692,13 +661,7 @@ export async function buatDokumenLaporanKegiatanDocx(
   );
 
   // Tabel Identitas Tanpa Garis
-  const barisIdentitasData = [
-    { label: "Nama Pelapor", nilai: profilPelapor.nama || "-" },
-    { label: "Jabatan", nilai: profilPelapor.jabatan || "-" },
-    { label: "Lembaga / Proyek", nilai: `${profilPelapor.lembaga || "-"} / ${profilPelapor.proyek || "-"}` },
-    { label: "Lokasi Kegiatan", nilai: kegiatan.lokasi || "-" },
-    { label: "Periode Kegiatan", nilai: periodeFmt },
-  ];
+  const barisIdentitasData = susunan.identitas;
 
   const tabelIdentitas = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -759,284 +722,68 @@ export async function buatDokumenLaporanKegiatanDocx(
   childrenSections.push(tabelIdentitas);
 
   // ==========================================
-  // BAGIAN 3B: "Rekapitulasi Penggunaan Dana" (dipasang di akhir dokumen, sesudah semua kategori dan lampirannya)
+  // BAGIAN 3B: "Rekapitulasi Penggunaan Dana" dan ringkasan penyelesaian (dipasang di akhir dokumen, sesudah semua kategori
+  // dan lampirannya)
   // ==========================================
-  const isiRekap: (Paragraph | Table)[] = [];
-  const isiSebelumRekap = childrenSections;
-  childrenSections = isiRekap;
-  childrenSections.push(
+  const selRekap = (isi: string, lebar: number, o: { tebal?: boolean; kepala?: boolean; rata?: (typeof AlignmentType)[keyof typeof AlignmentType]; span?: number; total?: boolean } = {}) =>
+    new TableCell({
+      width: { size: lebar, type: WidthType.PERCENTAGE },
+      columnSpan: o.span,
+      shading: o.kepala ? { type: ShadingType.CLEAR, fill: "F0F0F0" } : o.total ? { type: ShadingType.CLEAR, fill: "F8F8F8" } : undefined,
+      borders: tableBordersStandard,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [new Paragraph({ alignment: o.rata, children: [new TextRun({ text: isi, bold: o.tebal || o.kepala || o.total, font: "Arial", size: 20 })] })],
+    });
+  const isiRekap: (Paragraph | Table)[] = [
     new Paragraph({
       pageBreakBefore: true,
       spacing: { before: 80, after: 100 },
-      children: [
-        new TextRun({
-          text: "Rekapitulasi Penggunaan Dana",
-          bold: true,
-          font: "Arial",
-          size: 23, // 11.5pt
-          color: "111111",
-        }),
-      ],
-    })
-  );
-
-  // Buat ringkasan per kelompok
-  const barisRingkasanKelompok: TableRow[] = [
-    // Header tabel ringkasan
-    new TableRow({
-      cantSplit: true,
-      children: [
-        new TableCell({
-          width: { size: 8, type: WidthType.PERCENTAGE },
-          shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-          borders: tableBordersStandard,
-          verticalAlign: VerticalAlign.CENTER,
+      children: [new TextRun({ text: "Rekapitulasi Penggunaan Dana", bold: true, font: "Arial", size: 23, color: "111111" })],
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: tableBordersStandard,
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          tableHeader: true,
           children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: "No", bold: true, font: "Arial", size: 20 })],
-            }),
+            selRekap("No", 8, { kepala: true, rata: AlignmentType.CENTER }),
+            selRekap("Kelompok Penggunaan Anggaran", 52, { kepala: true }),
+            selRekap("Jumlah Bukti", 16, { kepala: true, rata: AlignmentType.CENTER }),
+            selRekap("Jumlah (Rp)", 24, { kepala: true, rata: AlignmentType.RIGHT }),
           ],
         }),
-        new TableCell({
-          width: { size: 52, type: WidthType.PERCENTAGE },
-          shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-          borders: tableBordersStandard,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
+        ...susunan.rekap.map(
+          (r) =>
+            new TableRow({
+              cantSplit: true,
               children: [
-                new TextRun({
-                  text: "Kelompok Penggunaan Anggaran",
-                  bold: true,
-                  font: "Arial",
-                  size: 20,
-                }),
+                selRekap(String(r.nomor), 8, { rata: AlignmentType.CENTER }),
+                selRekap(r.label, 52),
+                selRekap(`${r.jumlahBukti} bukti`, 16, { rata: AlignmentType.CENTER }),
+                selRekap(formatAngka(r.jumlah), 24, { rata: AlignmentType.RIGHT }),
               ],
-            }),
-          ],
-        }),
-        new TableCell({
-          width: { size: 16, type: WidthType.PERCENTAGE },
-          shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-          borders: tableBordersStandard,
-          verticalAlign: VerticalAlign.CENTER,
+            })
+        ),
+        new TableRow({
+          cantSplit: true,
           children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [
-                new TextRun({ text: "Jumlah Bukti", bold: true, font: "Arial", size: 20 }),
-              ],
-            }),
-          ],
-        }),
-        new TableCell({
-          width: { size: 24, type: WidthType.PERCENTAGE },
-          shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-          borders: tableBordersStandard,
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.RIGHT,
-              children: [
-                new TextRun({ text: "Jumlah (Rp)", bold: true, font: "Arial", size: 20 }),
-              ],
-            }),
+            selRekap("Total Pengeluaran", 60, { total: true, span: 2, rata: AlignmentType.RIGHT }),
+            selRekap(`${susunan.totalBukti} bukti`, 16, { total: true, rata: AlignmentType.CENTER }),
+            selRekap(formatAngka(susunan.totalPengeluaran), 24, { total: true, rata: AlignmentType.RIGHT }),
           ],
         }),
       ],
     }),
+    new Paragraph({ spacing: { before: 240, after: 0 }, children: [] }),
+    buatRingkasanPenyelesaian(penyelesaian),
   ];
-
-  KELOMPOK_DANA_KEGIATAN.forEach((kategori, idx) => {
-    const listKat = daftarPengeluaran.filter((t) => t.kategori === kategori);
-    const subtotal = listKat.reduce((s, t) => s + t.jumlah, 0);
-
-    barisRingkasanKelompok.push(
-      new TableRow({
-        cantSplit: true,
-        children: [
-          new TableCell({
-            borders: tableBordersStandard,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: String(idx + 1), font: "Arial", size: 20 })],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: tableBordersStandard,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: kategori, font: "Arial", size: 20 })],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: tableBordersStandard,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({
-                    text: `${listKat.length} bukti`,
-                    font: "Arial",
-                    size: 20,
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            borders: tableBordersStandard,
-            verticalAlign: VerticalAlign.CENTER,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({
-                    text: formatAngka(subtotal),
-                    font: "Arial",
-                    size: 20,
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      })
-    );
-  });
-
-  // Baris Total Ringkasan
-  barisRingkasanKelompok.push(
-    new TableRow({
-      cantSplit: true,
-      children: [
-        new TableCell({
-          borders: tableBordersStandard,
-          columnSpan: 2,
-          shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.RIGHT,
-              children: [
-                new TextRun({
-                  text: "Total Pengeluaran",
-                  bold: true,
-                  font: "Arial",
-                  size: 20,
-                }),
-              ],
-            }),
-          ],
-        }),
-        new TableCell({
-          borders: tableBordersStandard,
-          shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [
-                new TextRun({
-                  text: `${daftarPengeluaran.length} bukti`,
-                  bold: true,
-                  font: "Arial",
-                  size: 20,
-                }),
-              ],
-            }),
-          ],
-        }),
-        new TableCell({
-          borders: tableBordersStandard,
-          shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
-          verticalAlign: VerticalAlign.CENTER,
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.RIGHT,
-              children: [
-                new TextRun({
-                  text: formatAngka(totalPengeluaran),
-                  bold: true,
-                  font: "Arial",
-                  size: 20,
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    })
-  );
-
-  childrenSections.push(
-    new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      borders: tableBordersStandard,
-      rows: barisRingkasanKelompok,
-    })
-  );
-
-  // Baris bertitik rata kanan di bawah ringkasan: penyelesaian akhir dana kegiatan
-  const barisPenyelesaian = (
-    label: string,
-    nilai: number,
-    opsi: { tebal?: boolean; warna?: string; setelah?: number } = {}
-  ) =>
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      spacing: { after: opsi.setelah ?? 30 },
-      children: [
-        new TextRun({
-          text: `${label} ........................................ ${formatRupiah(nilai)}`,
-          bold: opsi.tebal,
-          font: "Arial",
-          size: opsi.tebal ? 21 : 20,
-          color: opsi.warna,
-        }),
-      ],
-    });
-
-  childrenSections.push(
-    new Paragraph({ spacing: { before: 120, after: 0 }, children: [] }),
-    barisPenyelesaian("Dana awal kegiatan (uang muka dari lembaga)", penyelesaian.danaAwal),
-    barisPenyelesaian("Realisasi pengeluaran kegiatan", penyelesaian.realisasiOperasional),
-    barisPenyelesaian("Total uang harian", penyelesaian.totalPerdiem),
-    barisPenyelesaian("Total pengeluaran yang diakui", penyelesaian.totalDiakui, { tebal: true })
-  );
-
-  // Status penyelesaian akhir: sisa dana dikembalikan, atau kelebihan biaya diganti lembaga
-  childrenSections.push(
-    penyelesaian.status === "nihil"
-      ? new Paragraph({
-          alignment: AlignmentType.RIGHT,
-          spacing: { after: 200 },
-          children: [new TextRun({ text: penyelesaian.labelStatus, bold: true, font: "Arial", size: 21, color: "1D4ED8" })],
-        })
-      : barisPenyelesaian(penyelesaian.labelStatus, penyelesaian.jumlahStatus, {
-          tebal: true,
-          warna: penyelesaian.status === "reimbursement" ? "B00020" : "0D652D",
-          setelah: 200,
-        })
-  );
-
-  childrenSections = isiSebelumRekap;
 
   // ==========================================
   // TABEL PER KELOMPOK: No | Tanggal | Uraian | Jumlah. Uraian memuat "Diklaim untuk", kelengkapan menurut ketentuan SPJ
   // kategori, dan metode pembayaran. Judul kegiatan tidak diulang (sudah ada di judul dokumen).
   // ==========================================
-  const tanggalSingkatWord = (iso: string) => {
-    const [y, m, d] = iso.split("-");
-    return y && m && d ? `${d}/${m}/${y}` : iso;
-  };
   const selTabel = (anak: Paragraph[], lebar: number, opsi: { isi?: string; span?: number } = {}) =>
     new TableCell({
       width: { size: lebar, type: WidthType.PERCENTAGE },
@@ -1051,7 +798,7 @@ export async function buatDokumenLaporanKegiatanDocx(
       alignment: opsi.rata,
       children: [new TextRun({ text: isi, bold: opsi.tebal, font: "Arial", size: opsi.ukuran ?? 19, color: opsi.warna })],
     });
-  const buatTabelKelompok = (daftar: Transaksi[], labelTotal: string, nomorDari: (t: Transaksi) => string): Table => {
+  const buatTabelKelompok = (daftar: BarisTabelLaporan[], labelTotal: string): Table => {
     const kepalaTabel = new TableRow({
       cantSplit: true,
       tableHeader: true,
@@ -1062,30 +809,26 @@ export async function buatDokumenLaporanKegiatanDocx(
         selTabel([teksTabel("Jumlah (Rp)", { tebal: true, rata: AlignmentType.RIGHT })], 20, { isi: "F0F0F0" }),
       ],
     });
-    const barisTabel = daftar.map((t) => {
-      const rincian = barisRincianLengkap(t, profilPelapor.nama);
-      const nLampiran = t.bukti?.length || 0;
-      return new TableRow({
-        cantSplit: true,
-        children: [
-          selTabel([teksTabel(nomorDari(t), { rata: AlignmentType.CENTER })], 7),
-          selTabel([teksTabel(tanggalSingkatWord(t.tanggal), { rata: AlignmentType.CENTER })], 15),
-          selTabel(
-            [
-              teksTabel(uraianTampil(t, kegiatan.nama), { tebal: true }),
-              ...rincian.map((r) => teksTabel(r, { ukuran: 17, tebal: r.startsWith("Diklaim untuk:"), warna: "333333" })),
-              teksTabel(`Metode: ${t.metode || "Tunai"} · ${nLampiran > 0 ? `Lampiran ${nLampiran}` : t.jenis === "pengeluaran" ? "Tanpa bukti" : "—"}`, {
-                ukuran: 17,
-                warna: "555555",
-              }),
-            ],
-            58
-          ),
-          selTabel([teksTabel(formatAngka(t.jumlah), { rata: AlignmentType.RIGHT })], 20),
-        ],
-      });
-    });
-    const jumlah = daftar.reduce((x, t) => x + t.jumlah, 0);
+    const barisTabel = daftar.map(
+      (b) =>
+        new TableRow({
+          cantSplit: true,
+          children: [
+            selTabel([teksTabel(b.nomor, { rata: AlignmentType.CENTER })], 7),
+            selTabel([teksTabel(b.tanggal, { rata: AlignmentType.CENTER })], 15),
+            selTabel(
+              [
+                teksTabel(b.uraian, { tebal: true }),
+                ...b.rincian.map((r) => teksTabel(r, { ukuran: 17, tebal: r.startsWith("Diklaim untuk:"), warna: "333333" })),
+                teksTabel(b.metode, { ukuran: 17, warna: "555555" }),
+              ],
+              58
+            ),
+            selTabel([teksTabel(formatAngka(b.jumlah), { rata: AlignmentType.RIGHT })], 20),
+          ],
+        })
+    );
+    const jumlah = daftar.reduce((x, b) => x + b.jumlah, 0);
     const barisJumlah = new TableRow({
       cantSplit: true,
       children: [
@@ -1097,68 +840,34 @@ export async function buatDokumenLaporanKegiatanDocx(
   };
 
   // Penerimaan Dana (dana awal): tabel pertama sesudah identitas, tanpa mengulang judul kegiatan.
-  const penerimaanDana = trxKegiatan
-    .filter((t) => t.jenis === "pemasukan" && t.kategori !== "Pindah Dana")
-    .sort((a, b) => a.tanggal.localeCompare(b.tanggal) || a.id.localeCompare(b.id));
-  if (penerimaanDana.length > 0) {
-    const nomorPenerimaan = new Map(penerimaanDana.map((t, i) => [t.id, `P${i + 1}`] as const));
+  if (susunan.penerimaan.length > 0) {
     childrenSections.push(
       new Paragraph({
         spacing: { before: 280, after: 100 },
         children: [new TextRun({ text: "Penerimaan Dana (Dana Awal Kegiatan)", bold: true, font: "Arial", size: 23, color: "111111" })],
       }),
-      buatTabelKelompok(penerimaanDana, "Jumlah Penerimaan Dana", (t) => nomorPenerimaan.get(t.id) ?? "")
+      buatTabelKelompok(susunan.penerimaan, "Jumlah Penerimaan Dana")
     );
   }
 
   // =========================================================
-  // BAGIAN 3D: SATU BAGIAN PER KELOMPOK (HALAMAN BARU)
-  // KOTAK TEMPEL, KETERANGAN, LAMPIRAN TAMBAHAN & FOTO
+  // BAGIAN 3D: SATU BAGIAN PER KELOMPOK (HALAMAN BARU): judul, tabel, lalu blok tiap pengeluaran: kotak tempel bukti asli,
+  // foto bukti digital (semua foto, dua per baris), keterangan, kotak tambahan, dan foto pendukung
   // =========================================================
-  let kelompokAktifIndex = 1;
-  const ketDiklaim = (t: Transaksi) => {
-    const baris = barisDiklaimUntuk(t, profilPelapor.nama);
-    return baris ? ` · ${baris}` : "";
-  };
-
-  for (const namaKelompok of KELOMPOK_DANA_KEGIATAN) {
-    const trxDalamKelompok = daftarPengeluaran.filter((t) => t.kategori === namaKelompok);
-    if (trxDalamKelompok.length === 0) continue;
-
-    const subtotalKelompok = trxDalamKelompok.reduce((s, t) => s + t.jumlah, 0);
-
-    // Perdiem dengan daftar berformat timesheet sudah dicetak lanskap di depan dokumen. Di sini hanya perdiem yang punya foto atau
-    // bukti yang masih mendapat halamannya (potret). Bagian potret baru sudah mulai di halaman baru, jadi judulnya tidak diberi
-    // pemisah halaman lagi (menghindari halaman kosong).
-    const daftarPerdiem = namaKelompok === KATEGORI_PERDIEM ? daftarPerdiemUtama : null;
-    if (daftarPerdiem) {
-      const punyaBukti = trxDalamKelompok.some(
-        (t) => (t.bukti && t.bukti.length > 0) || (t.detailKegiatan?.fotoPendukung && t.detailKegiatan.fotoPendukung.length > 0)
-      );
-      if (!punyaBukti) continue;
-    }
+  for (const kel of susunan.kelompok) {
+    // Bagian potret baru sudah mulai di halaman baru, jadi judulnya tidak diberi pemisah halaman lagi (tanpa halaman kosong).
     const bagianBaruKelompok = pindahOrientasi(false);
-
-    // Judul Kelompok dimulai di halaman baru
     childrenSections.push(
       new Paragraph({
         pageBreakBefore: !bagianBaruKelompok,
         spacing: { before: 80, after: 40 },
-        children: [
-          new TextRun({
-            text: `${kelompokAktifIndex}. ${labelKategori(namaKelompok).toUpperCase()}`,
-            bold: true,
-            font: "Arial",
-            size: 26, // 13pt
-            color: "000000",
-          }),
-        ],
+        children: [new TextRun({ text: `${kel.nomor}. ${kel.judul.toUpperCase()}`, bold: true, font: "Arial", size: 26, color: "000000" })],
       }),
       new Paragraph({
         spacing: { after: 60 },
         children: [
           new TextRun({
-            text: `${trxDalamKelompok.length} bukti pengeluaran · Subtotal ${formatRupiah(subtotalKelompok)}`,
+            text: `${kel.transaksi.length} bukti pengeluaran · Subtotal ${formatRupiah(kel.subtotal)}`,
             italics: true,
             font: "Arial",
             size: 19,
@@ -1166,1090 +875,236 @@ export async function buatDokumenLaporanKegiatanDocx(
           }),
         ],
       }),
-      new Paragraph({
-        spacing: { after: 140 },
-        border: {
-          bottom: { style: BorderStyle.SINGLE, size: 8, color: "444444" },
-        },
-        children: [],
-      })
+      new Paragraph({ spacing: { after: 140 }, border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: "444444" } }, children: [] })
     );
-
-    kelompokAktifIndex++;
-
-    // Tabel kelompok (No, Tanggal, Uraian dengan kelengkapan, Jumlah), lalu bukti dan kotak tempel tiap pengeluaran di bawahnya.
-    // Perdiem berdaftar timesheet tidak diulang sebagai tabel; hanya yang punya foto atau bukti yang mendapat halaman buktinya.
-    let trxUntukKotak = trxDalamKelompok;
-    if (daftarPerdiem) {
-      trxUntukKotak = trxDalamKelompok.filter(
-        (t) => (t.bukti && t.bukti.length > 0) || (t.detailKegiatan?.fotoPendukung && t.detailKegiatan.fotoPendukung.length > 0)
-      );
-    } else {
-      childrenSections.push(
-        buatTabelKelompok(trxDalamKelompok, `Jumlah ${labelKategori(namaKelompok)}`, (t) => String(mapNomorUrut.get(t.id) ?? "")),
-        new Paragraph({ spacing: { after: 60 }, children: [] })
-      );
+    if (kel.tabel) {
+      childrenSections.push(buatTabelKelompok(kel.tabel, `Jumlah ${kel.judul}`), new Paragraph({ spacing: { after: 60 }, children: [] }));
     }
 
-    // Hitung posisi transaksi dalam halaman (maksimal 2 transaksi sederhana per halaman)
-    let transaksiDiHalamanIni = 0;
-
-    for (const trx of trxUntukKotak) {
-      const noGlobal = mapNomorUrut.get(trx.id) || 1;
-      const detail = trx.detailKegiatan || {};
-      const jenisBukti = detail.jenisBukti || "Kuitansi";
-      const isThermal = jenisBukti === "Struk thermal (minimarket/SPBU)";
-
-      // Cek apakah transaksi ini kompleks (memiliki beberapa kotak atau foto)
-      const isPesawat = detail.transportasi?.moda?.toLowerCase().includes("pesawat") || jenisBukti.toLowerCase().includes("pesawat");
-      const isTravel = detail.transportasi?.moda?.toLowerCase().includes("travel") || detail.transportasi?.moda?.toLowerCase().includes("ojek") || detail.transportasi?.namaSopir;
-      const isRental = namaKelompok === "Rental Kendaraan";
-      const isAkomodasi = namaKelompok === "Akomodasi";
-      const isHonor = namaKelompok === "Honorarium & Ganti Hari";
-      const punyaFoto = (detail.fotoPendukung && detail.fotoPendukung.length > 0) || (trx.bukti && trx.bukti.length > 0);
-
-      const isKompleks = isThermal || isRental || isHonor || isPesawat || isTravel || isAkomodasi || punyaFoto;
-
-      // Aturan halaman:
-      // - Jika transaksi kompleks: mulai di halaman baru (kecuali jika tepat di awal kelompok)
-      // - Jika sudah ada 2 transaksi sederhana di halaman ini: mulai di halaman baru
-      let butuhHalamanBaru = false;
-      if (transaksiDiHalamanIni >= 2) {
-        butuhHalamanBaru = true;
-      } else if (transaksiDiHalamanIni > 0 && isKompleks) {
-        butuhHalamanBaru = true;
-      }
-
-      // Baris Judul Transaksi: "No. <n>  <uraian>" dengan jumlah rata kanan, bergaris bawah
-      const headerTrxChildren: (Paragraph | Table)[] = [];
-
-      headerTrxChildren.push(
-        new Paragraph({
-          pageBreakBefore: butuhHalamanBaru,
-          spacing: { before: butuhHalamanBaru ? 80 : 180, after: 60 },
-          children: [
-            new TextRun({
-              text: `No. ${noGlobal}   ${trx.deskripsi}`,
-              bold: true,
-              underline: {},
-              font: "Arial",
-              size: 22,
-              color: "111111",
-            }),
-            new TextRun({
-              text: `\t${formatRupiah(trx.jumlah)}`,
-              bold: true,
-              underline: {},
-              font: "Arial",
-              size: 22,
-              color: "111111",
-            }),
-          ],
-          tabStops: [
-            {
-              type: AlignmentType.RIGHT,
-              position: convertMillimetersToTwip(170), // rata kanan margin A4 (210 - 20 - 20 = 170mm)
-            },
-          ],
-        })
-      );
-
-      childrenSections.push(...headerTrxChildren);
-
-      // Reset hitungan halaman jika berganti halaman
-      if (butuhHalamanBaru) {
-        transaksiDiHalamanIni = 0;
-      }
-      transaksiDiHalamanIni += isKompleks ? 2 : 1;
-
-      // 1. Kotak Tempel Utama
-      if (isThermal) {
-        // Ambil foto bukti struk
-        let fotoByte: Uint8Array | null = null;
-        if (trx.bukti && trx.bukti.length > 0) {
-          fotoByte = await ambilByteGambar(trx.bukti[0], googleToken);
-        }
-        childrenSections.push(
-          buatKotakStrukThermal(
-            "TEMPEL STRUK ASLI DI SINI",
-            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}${ketDiklaim(trx)}`,
-            fotoByte
-          )
-        );
-      } else {
-        const tinggiMm = jenisBukti.toLowerCase().includes("tiket") || jenisBukti.toLowerCase().includes("kuitansi") ? 65 : 65;
-        childrenSections.push(
-          buatKotakTempel(
-            `TEMPEL ${jenisBukti.toUpperCase()} ASLI DI SINI`,
-            `No. ${noGlobal} · ${trx.deskripsi} · ${formatRupiah(trx.jumlah)}${ketDiklaim(trx)}`,
-            tinggiMm
-          )
-        );
-      }
-
-      // 2. Keterangan Langsung di Bawah Kotak
-      const paragrafKeterangan: Paragraph[] = [];
-
-      // Baris Pelapor (Tebal) & Tanggal
-      paragrafKeterangan.push(
-        new Paragraph({
-          spacing: { before: 80, after: 30 },
-          children: [
-            new TextRun({
-              text: `Pelapor: ${profilPelapor.nama}`,
-              bold: true,
-              font: "Arial",
-              size: 20,
-            }),
-            new TextRun({
-              text: `  |  Tanggal: ${formatTanggalIndo(trx.tanggal)}`,
-              font: "Arial",
-              size: 20,
-              color: "555555",
-            }),
-            ...(detail.namaPenjualPenyedia
-              ? [
-                  new TextRun({
-                    text: `  |  Penyedia/Toko: ${detail.namaPenjualPenyedia}`,
-                    font: "Arial",
-                    size: 20,
-                    color: "555555",
-                  }),
-                ]
-              : []),
-          ],
-        })
-      );
-
-      // Keterangan untuk laporan
-      if (detail.keteranganLaporan || trx.catatan) {
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: "Keterangan: ",
-                bold: true,
-                font: "Arial",
-                size: 20,
-              }),
-              new TextRun({
-                text: detail.keteranganLaporan || trx.catatan || "-",
-                font: "Arial",
-                size: 20,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Rincian banyaknya × satuan × harga satuan
-      if (detail.rincian && detail.rincian.banyaknya > 0 && detail.rincian.hargaSatuan > 0) {
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: "Rincian: ",
-                bold: true,
-                font: "Arial",
-                size: 20,
-              }),
-              new TextRun({
-                text: `${formatAngka(detail.rincian.banyaknya)} ${detail.rincian.satuan || "unit"} × ${formatRupiah(detail.rincian.hargaSatuan)} = ${formatRupiah(detail.rincian.total || trx.jumlah)}`,
-                font: "Arial",
-                size: 20,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus Rental Kendaraan (gross-up pajak)
-      if (namaKelompok === "Rental Kendaraan" && detail.rentalKendaraan) {
-        const rk = detail.rentalKendaraan;
-        const persen = rk.persenGrossUpPajak ?? 2;
-        const grossUpNominal = persen > 0 ? Math.round(trx.jumlah / (1 - persen / 100)) : trx.jumlah;
-        const pajakPph23 = grossUpNominal - trx.jumlah;
-
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Kendaraan: ${rk.jenisMerk || "Mobil/Motor"} (${rk.tahun || "-"}) · Plat: ${rk.noPolisi || "-"} · Pemilik: ${rk.namaPemilik || "-"}`,
-                font: "Arial",
-                size: 19,
-                color: "444444",
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Durasi Sewa: ${rk.jumlahHari || 1} hari (${formatTanggalIndo(rk.tanggalMulai)} s.d. ${formatTanggalIndo(rk.tanggalSelesai)}) @ ${formatRupiah(rk.tarifPerHari || 0)}/hari`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Nilai gross-up pajak ${persen}%: `,
-                bold: true,
-                font: "Arial",
-                size: 20,
-              }),
-              new TextRun({
-                text: `${formatRupiah(grossUpNominal)} (Pajak PPh 23: ${formatRupiah(pajakPph23)}, Netto dibayarkan: ${formatRupiah(trx.jumlah)})`,
-                font: "Arial",
-                size: 20,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus Honorarium & Ganti Hari (potongan pajak)
-      if (namaKelompok === "Honorarium & Ganti Hari" && detail.honorarium) {
-        const hon = detail.honorarium;
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Penerima: ${hon.namaPenerima || "-"} (${hon.isPNS ? "PNS" : "Bukan PNS"}, ${hon.hasNPWP ? "Memiliki NPWP" : "Tanpa NPWP"})`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Alokasi: ${hon.jumlahOrang || 1} orang × ${hon.jumlahHari || 1} hari | No. Absen: ${hon.nomorAbsen || "-"}`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: "Potongan Pajak PPh 21: ",
-                bold: true,
-                font: "Arial",
-                size: 20,
-              }),
-              new TextRun({
-                text: `Bruto ${formatRupiah(hon.honorBruto || trx.jumlah)} · Tarif ${hon.tarifPajakPersen || 5}% · Potongan ${formatRupiah(hon.pajakDipotong || 0)} · Diterima Bersih (Netto) ${formatRupiah(hon.honorNetto || trx.jumlah)}`,
-                font: "Arial",
-                size: 20,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus BBM
-      if (namaKelompok === "BBM" && detail.bbm) {
-        const b = detail.bbm;
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Rute BBM: ${b.dari || "-"} → ${b.ke || "-"} | Plat: ${b.noPolisi || "-"} | KM Isi: ${b.kmSaatIsi || "-"} | Jarak Tempuh: ${b.jarakTempuh ? `${b.jarakTempuh} km` : "-"}`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus Transportasi (Sopir / Plat)
-      if (namaKelompok === "Transportasi" && detail.transportasi) {
-        const tr = detail.transportasi;
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Rute: ${tr.dari || "-"} → ${tr.ke || "-"} | Moda: ${tr.moda || "-"}`,
-                font: "Arial",
-                size: 19,
-              }),
-              ...(tr.namaSopir || tr.noTelpSopir || tr.noPolisi
-                ? [
-                    new TextRun({
-                      text: ` | Sopir/Pengemudi: ${tr.namaSopir || "-"} (Telp: ${tr.noTelpSopir || "-"}, Plat: ${tr.noPolisi || "-"})`,
-                      font: "Arial",
-                      size: 19,
-                    }),
-                  ]
-                : []),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus Akomodasi
-      if (namaKelompok === "Akomodasi" && detail.akomodasi) {
-        const ak = detail.akomodasi;
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: `Penginapan: ${ak.lokasi || "-"} | Check-in: ${formatTanggalIndo(ak.tanggalMasuk)} | Check-out: ${formatTanggalIndo(ak.tanggalKeluar)} (${ak.jumlahMalam || 1} malam) | Pemilik: ${ak.namaPemilik || "-"} (Telp: ${ak.noTelp || "-"})`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Isian khusus Konsumsi
-      if (namaKelompok === "Konsumsi" && detail.konsumsi) {
-        const kon = detail.konsumsi;
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: adalahKudapanPerjalanan(namaKelompok, detail)
-                  ? `Toko/Warung Pembelian: ${kon.penyedia || "-"} (Telp: ${kon.noTelp || "-"}) | Rute/Lokasi: ${kon.lokasi || "-"}`
-                  : `Penyedia Konsumsi: ${kon.penyedia || "-"} (Telp: ${kon.noTelp || "-"}) | Lokasi: ${kon.lokasi || "-"} | Jumlah Peserta: ${kon.jumlahPeserta || "-"} orang`,
-                font: "Arial",
-                size: 19,
-              }),
-            ],
-          })
-        );
-      }
-
-      // Daftar nama yang diklaim: pelapor lebih dulu, lalu rekan yang ikut klaim (penerima manfaat), semua kategori berpenerima.
-      // Kudapan perjalanan memakai baris tersendiri: jumlah orang, nama, dan plafon per orang.
-      const teksKudapan = adalahKudapanPerjalanan(trx.kategori, detail) ? barisPenerimaManfaat(trx) : null;
-      if (teksKudapan) {
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [new TextRun({ text: teksKudapan, bold: true, font: "Arial", size: 19 })],
-          })
-        );
-      }
-      const teksDiklaim = barisDiklaimUntuk(trx, profilPelapor.nama);
-      if (teksDiklaim) {
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [new TextRun({ text: teksDiklaim, bold: true, font: "Arial", size: 19 })],
-          })
-        );
-      }
-
-      // Keterangan jika ada Surat Justifikasi
-      if (detail.perluSuratJustifikasi) {
-        paragrafKeterangan.push(
-          new Paragraph({
-            spacing: { after: 30 },
-            children: [
-              new TextRun({
-                text: "Surat Justifikasi: ",
-                bold: true,
-                font: "Arial",
-                size: 20,
-                color: "B00020",
-              }),
-              new TextRun({
-                text: `Dilampirkan di bagian Dokumen Pendukung (${detail.alasanJustifikasi || "Kuitansi asli tidak lengkap"})`,
-                font: "Arial",
-                size: 20,
-                italics: true,
-              }),
-            ],
-          })
-        );
-      }
-
-      childrenSections.push(...paragrafKeterangan);
-
-      // 3. Kotak Tempel Tambahan Sesuai Kelompok
-      if (isPesawat) {
-        childrenSections.push(
-          new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }),
-          buatKotakTempel(
-            "TEMPEL BOARDING PASS ASLI / TIKET TRAVEL ASLI DI SINI",
-            `No. ${noGlobal} · Boarding Pass / Tiket Pesawat Asli · ${profilPelapor.nama}`,
-            55
-          )
-        );
-      }
-
-      if (isTravel) {
-        childrenSections.push(
-          new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }),
-          buatKotakTempel(
-            "TEMPEL FOTOKOPI STNK KENDARAAN TRAVEL / OJEK DI SINI",
-            `No. ${noGlobal} · STNK ${detail.transportasi?.noPolisi || "Kendaraan"} · Sopir: ${detail.transportasi?.namaSopir || "-"}`,
-            50
-          )
-        );
-      }
-
-      if (isRental) {
-        childrenSections.push(
-          new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }),
-          buatKotakTempel(
-            "TEMPEL FOTOKOPI STNK, KTP PEMILIK/PENERIMA UANG, DAN SIM PENYEWA DI SINI",
-            `No. ${noGlobal} · Dokumen Legalitas Rental: STNK Plat ${detail.rentalKendaraan?.noPolisi || "-"} · KTP Pemilik: ${detail.rentalKendaraan?.namaPemilik || "-"} · SIM Pengemudi`,
-            60
-          )
-        );
-      }
-
-      if (isAkomodasi) {
-        childrenSections.push(
-          new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }),
-          buatKotakTempel(
-            "TEMPEL FOTOKOPI KTP PEMILIK PENGINAPAN DI SINI",
-            `No. ${noGlobal} · KTP Pemilik Penginapan: ${detail.akomodasi?.namaPemilik || "-"}`,
-            50
-          )
-        );
-      }
-
-      if (isHonor) {
-        childrenSections.push(
-          new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }),
-          buatKotakTempel(
-            "TEMPEL FOTOKOPI KTP DAN NPWP PENERIMA HONOR / GANTI HARI DI SINI",
-            `No. ${noGlobal} · Dokumen Pajak Penerima Honor: ${detail.honorarium?.namaPenerima || "-"}`,
-            60
-          )
-        );
-      }
-
-      // 4. Foto Pendukung Transaksi (Lebar maks. 12 cm dengan keterangan miring)
-      const listFoto: FotoPendukung[] = detail.fotoPendukung || [];
-      if (listFoto.length > 0) {
-        for (const foto of listFoto) {
-          const fotoBytes = await ambilByteGambar(foto, googleToken);
-          if (fotoBytes) {
-            try {
-              childrenSections.push(
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 100, after: 40 },
-                  children: [
-                    new ImageRun({
-                      data: fotoBytes,
-                      transformation: {
-                        width: 420, // ~11 cm
-                        height: 280,
-                      },
-                      type: "jpg",
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { after: 120 },
-                  children: [
-                    new TextRun({
-                      text: `Foto Pendukung: ${foto.nama || foto.keterangan || "Dokumentasi kegiatan lapangan"}`,
-                      italics: true,
-                      font: "Arial",
-                      size: 18,
-                      color: "555555",
-                    }),
-                  ],
-                })
-              );
-            } catch (errFoto) {
-              console.warn("Gagal merender ImageRun foto pendukung:", errFoto);
-            }
-          }
-        }
-      }
-
-      // Garis pemisah antar transaksi
+    for (const blok of kel.blok) {
+      const trx = blok.transaksi;
       childrenSections.push(
         new Paragraph({
-          spacing: { before: 120, after: 120 },
-          border: {
-            bottom: { style: BorderStyle.SINGLE, size: 4, color: "E0E0E0" },
-          },
-          children: [],
+          pageBreakBefore: blok.halamanBaru,
+          spacing: { before: blok.halamanBaru ? 80 : 180, after: 60 },
+          tabStops: [{ type: AlignmentType.RIGHT, position: convertMillimetersToTwip(170) }],
+          children: [
+            new TextRun({ text: `No. ${blok.nomor}   ${trx.deskripsi}`, bold: true, underline: {}, font: "Arial", size: 22, color: "111111" }),
+            new TextRun({ text: `\t${formatRupiah(trx.jumlah)}`, bold: true, underline: {}, font: "Arial", size: 22, color: "111111" }),
+          ],
         })
+      );
+
+      // 1. Kotak tempel bukti asli (struk: berdampingan dengan foto pertamanya)
+      const k = blok.kotakUtama;
+      if (k.bentuk === "struk") {
+        const foto = blok.fotoDiKotak ? await muatGambar(blok.fotoDiKotak, googleToken) : null;
+        childrenSections.push(buatKotakStrukThermal(k.judul, k.keterangan, foto, "FOTO BUKTI DIGITAL"));
+      } else {
+        childrenSections.push(buatKotakTempel(k.judul, k.keterangan, k.tinggiMm));
+      }
+
+      // 2. Foto bukti digital (semua foto; mis. tiket tiap orang yang ikut klaim)
+      const totalFoto = blok.fotoBukti.length + (blok.fotoDiKotak ? 1 : 0);
+      const fotoSiap: Array<{ gambar: GambarDokumen; keterangan: string }> = [];
+      const gagalMuat: string[] = [];
+      for (const [i, b] of blok.fotoBukti.entries()) {
+        const gambar = await muatGambar(b, googleToken);
+        const urutan = i + 1 + (blok.fotoDiKotak ? 1 : 0);
+        if (gambar) fotoSiap.push({ gambar, keterangan: `Foto bukti ${urutan} dari ${totalFoto}` });
+        else gagalMuat.push(b.driveLink || b.nama || `Foto bukti ${urutan}`);
+      }
+      childrenSections.push(...buatGridFoto(fotoSiap, `FOTO BUKTI DIGITAL${totalFoto > 1 ? ` (${totalFoto} FOTO)` : ""}`));
+      for (const tautan of [...gagalMuat, ...blok.lampiranPdf.map((b) => b.driveLink || b.nama)]) {
+        childrenSections.push(
+          new Paragraph({
+            spacing: { after: 30 },
+            children: [new TextRun({ text: `Lampiran bukti (lihat berkas asli): ${tautan}`, italics: true, font: "Arial", size: 17, color: "555555" })],
+          })
+        );
+      }
+
+      // 3. Keterangan langsung di bawah kotak
+      blok.keterangan.forEach((b, i) => childrenSections.push(paragrafKeterangan(b, i === 0 ? 80 : 0)));
+
+      // 4. Kotak tempel tambahan sesuai kelompok (boarding pass, STNK, KTP, NPWP)
+      for (const tambahan of blok.kotakTambahan) {
+        childrenSections.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }), buatKotakTempel(tambahan.judul, tambahan.keterangan, tambahan.tinggiMm));
+      }
+
+      // 5. Foto pendukung transaksi (lebar maks. 12 cm, keterangan miring)
+      for (const foto of blok.fotoPendukung) {
+        const gambar = await muatGambar(foto, googleToken);
+        if (!gambar) continue;
+        childrenSections.push(
+          new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }),
+          paragrafGambar(gambar, 453, 340),
+          teksKecilMiring(`Foto Pendukung: ${foto.nama || foto.keterangan || "Dokumentasi kegiatan lapangan"}`)
+        );
+      }
+
+      // Garis pemisah antarpengeluaran
+      childrenSections.push(
+        new Paragraph({ spacing: { before: 120, after: 120 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "E0E0E0" } }, children: [] })
       );
     }
   }
 
   // =========================================================
-  // BAGIAN 3E: "DOKUMEN PENDUKUNG" (HALAMAN BARU)
-  // TIMESHEET RENTAL & SURAT JUSTIFIKASI
-  // ==========================================
-  const rentalDenganTimesheet = daftarPengeluaran.filter(
-    (t) =>
-      t.kategori === "Rental Kendaraan" &&
-      t.detailKegiatan?.rentalKendaraan?.timesheet &&
-      t.detailKegiatan.rentalKendaraan.timesheet.length > 0
-  );
+  // BAGIAN 3E: "DOKUMEN PENDUKUNG" (HALAMAN BARU): timesheet rental kendaraan dan surat justifikasi
+  // =========================================================
+  const teksArial = (isi: string, o: { tebal?: boolean; ukuran?: number; warna?: string; garisBawah?: boolean } = {}) =>
+    new TextRun({ text: isi, bold: o.tebal, underline: o.garisBawah ? {} : undefined, font: "Arial", size: o.ukuran ?? 21, color: o.warna });
+  const selTs = (isi: string, lebar: number | undefined, o: { kepala?: boolean; total?: boolean; rata?: (typeof AlignmentType)[keyof typeof AlignmentType]; span?: number } = {}) =>
+    new TableCell({
+      width: lebar ? { size: lebar, type: WidthType.PERCENTAGE } : undefined,
+      columnSpan: o.span,
+      shading: o.kepala ? { type: ShadingType.CLEAR, fill: "F0F0F0" } : o.total ? { type: ShadingType.CLEAR, fill: "F8F8F8" } : undefined,
+      borders: tableBordersStandard,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [new Paragraph({ alignment: o.rata, children: [teksArial(isi, { tebal: o.kepala || o.total, ukuran: o.total ? 20 : 19 })] })],
+    });
 
-  const transaksiPerluJustifikasi = daftarPengeluaran.filter(
-    (t) => t.detailKegiatan?.perluSuratJustifikasi
-  );
-
-  const adaDokumenPendukung = rentalDenganTimesheet.length > 0 || transaksiPerluJustifikasi.length > 0;
-
-  if (adaDokumenPendukung) {
-    // 1. Timesheet Rental Kendaraan
-    for (const trxRental of rentalDenganTimesheet) {
-      const rk = trxRental.detailKegiatan!.rentalKendaraan!;
-      const timesheetList = rk.timesheet || [];
-      const totalKm = timesheetList.reduce((s, row) => s + (row.jarakKm || 0), 0);
-      const isMotor = (rk.jenisMerk || "").toLowerCase().includes("motor");
-      const judulTimesheet = isMotor ? "TIMESHEET RENTAL MOTOR" : "TIMESHEET RENTAL MOBIL";
-
-      childrenSections.push(
-        new Paragraph({
-          pageBreakBefore: true,
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 80, after: 60 },
-          children: [
-            new TextRun({
-              text: judulTimesheet,
-              bold: true,
-              font: "Arial",
-              size: 26,
-            }),
-          ],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 160 },
-          children: [
-            new TextRun({
-              text: `Kendaraan: ${rk.jenisMerk || "-"} · No. Polisi: ${rk.noPolisi || "-"} · Lokasi: ${kegiatan.lokasi} · Periode: ${formatTanggalIndo(rk.tanggalMulai)} s.d. ${formatTanggalIndo(rk.tanggalSelesai)}`,
-              font: "Arial",
-              size: 20,
-              color: "444444",
-            }),
-          ],
-        })
-      );
-
-      // Tabel Timesheet
-      const barisTimesheet: TableRow[] = [
-        new TableRow({
-          cantSplit: true,
-          children: [
-            new TableCell({
-              width: { size: 6, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-              borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: "No", bold: true, font: "Arial", size: 19 })],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: 18, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-              borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({ text: "Tanggal", bold: true, font: "Arial", size: 19 })],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: 30, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-              borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "Lokasi Basecamp / Rute",
-                      bold: true,
-                      font: "Arial",
-                      size: 19,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: 32, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-              borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "Cakupan Aktivitas",
-                      bold: true,
-                      font: "Arial",
-                      size: 19,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: 14, type: WidthType.PERCENTAGE },
-              shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
-              borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  children: [
-                    new TextRun({ text: "Jarak (km)", bold: true, font: "Arial", size: 19 }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ];
-
-      timesheetList.forEach((row, rIdx) => {
-        barisTimesheet.push(
+  for (const r of susunan.rental) {
+    childrenSections.push(
+      new Paragraph({ pageBreakBefore: true, alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 }, children: [teksArial(r.judul, { tebal: true, ukuran: 26 })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: [teksArial(r.info, { ukuran: 20, warna: "444444" })] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: tableBordersStandard,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            tableHeader: true,
+            children: [
+              selTs("No", 6, { kepala: true, rata: AlignmentType.CENTER }),
+              selTs("Tanggal", 18, { kepala: true, rata: AlignmentType.CENTER }),
+              selTs("Lokasi Basecamp / Rute", 30, { kepala: true }),
+              selTs("Cakupan Aktivitas", 32, { kepala: true }),
+              selTs("Jarak (km)", 14, { kepala: true, rata: AlignmentType.RIGHT }),
+            ],
+          }),
+          ...r.baris.map(
+            (b) =>
+              new TableRow({
+                cantSplit: true,
+                children: [
+                  selTs(String(b.no), undefined, { rata: AlignmentType.CENTER }),
+                  selTs(b.tanggal, undefined, { rata: AlignmentType.CENTER }),
+                  selTs(b.lokasi, undefined),
+                  selTs(b.aktivitas, undefined),
+                  selTs(`${formatAngka(b.jarakKm)} km`, undefined, { rata: AlignmentType.RIGHT }),
+                ],
+              })
+          ),
+          new TableRow({
+            cantSplit: true,
+            children: [
+              selTs(`Total Hari & Jarak Tempuh (${r.baris.length} hari):`, undefined, { total: true, span: 4, rata: AlignmentType.RIGHT }),
+              selTs(`${formatAngka(r.totalKm)} km`, undefined, { total: true, rata: AlignmentType.RIGHT }),
+            ],
+          }),
+        ],
+      }),
+      // Tanda tangan timesheet: pengemudi dan pelapor (tanpa blok Mengetahui)
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: tableBordersNone,
+        rows: [
           new TableRow({
             cantSplit: true,
             children: [
               new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
                 children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: String(rIdx + 1), font: "Arial", size: 19 })],
-                  }),
+                  new Paragraph({ spacing: { before: 200, after: 30 }, children: [teksArial("Pengemudi / Pemilik Kendaraan,", { ukuran: 20 })] }),
+                  new Paragraph({ spacing: { before: 400, after: 20 }, children: [teksArial(`( ${r.namaPemilik} )`, { tebal: true, ukuran: 20 })] }),
                 ],
               }),
               new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
                 children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: row.tanggal, font: "Arial", size: 19 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: row.lokasiBasecampRute || "-", font: "Arial", size: 19 }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({ text: row.cakupanAktivitas || "-", font: "Arial", size: 19 }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: `${formatAngka(row.jarakKm || 0)} km`,
-                        font: "Arial",
-                        size: 19,
-                      }),
-                    ],
-                  }),
+                  new Paragraph({ spacing: { before: 200, after: 30 }, alignment: AlignmentType.RIGHT, children: [teksArial(r.tanggalTtd, { ukuran: 20 })] }),
+                  new Paragraph({ spacing: { after: 30 }, alignment: AlignmentType.RIGHT, children: [teksArial("Surveyor / Pelapor,", { ukuran: 20 })] }),
+                  new Paragraph({ spacing: { before: 400, after: 20 }, alignment: AlignmentType.RIGHT, children: [teksArial(`( ${profilPelapor.nama} )`, { tebal: true, ukuran: 20 })] }),
                 ],
               }),
             ],
-          })
-        );
-      });
+          }),
+        ],
+      })
+    );
+  }
 
-      // Baris Total Timesheet
-      barisTimesheet.push(
-        new TableRow({
-          cantSplit: true,
-          children: [
-            new TableCell({
-              borders: tableBordersStandard,
-              columnSpan: 4,
-              shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  children: [
-                    new TextRun({
-                      text: `Total Hari & Jarak Tempuh (${timesheetList.length} hari):`,
-                      bold: true,
-                      font: "Arial",
-                      size: 20,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              borders: tableBordersStandard,
-              shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
-              verticalAlign: VerticalAlign.CENTER,
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  children: [
-                    new TextRun({
-                      text: `${formatAngka(totalKm)} km`,
-                      bold: true,
-                      font: "Arial",
-                      size: 20,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        })
-      );
-
-      childrenSections.push(
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          borders: tableBordersStandard,
-          rows: barisTimesheet,
-        }),
-        // Tanda Tangan Timesheet (Pengemudi & Pelapor - TANPA blok Mengetahui)
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          borders: tableBordersNone,
-          rows: [
+  for (const j of susunan.justifikasi) {
+    const paragrafNarasi = await susunNarasiSuratJustifikasi(j.paramNarasi);
+    childrenSections.push(
+      new Paragraph({ pageBreakBefore: true, alignment: AlignmentType.CENTER, spacing: { before: 80, after: 40 }, children: [teksArial("SURAT JUSTIFIKASI", { tebal: true, ukuran: 26 })] }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 180 },
+        children: [teksArial(`KETIDAKLENGKAPAN DOKUMEN ${j.jenisBukti}`, { tebal: true, ukuran: 22, warna: "333333" })],
+      }),
+      new Paragraph({ spacing: { after: 80 }, children: [teksArial("Yang bertanda tangan di bawah ini:")] }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: tableBordersNone,
+        rows: j.identitas.map(
+          (row) =>
             new TableRow({
               cantSplit: true,
               children: [
-                new TableCell({
-                  width: { size: 50, type: WidthType.PERCENTAGE },
-                  borders: tableBordersNone,
-                  children: [
-                    new Paragraph({
-                      spacing: { before: 200, after: 30 },
-                      children: [new TextRun({ text: "Pengemudi / Pemilik Kendaraan,", font: "Arial", size: 20 })],
-                    }),
-                    new Paragraph({
-                      spacing: { before: 400, after: 20 },
-                      children: [
-                        new TextRun({
-                          text: `( ${rk.namaPemilik || "Pengemudi"} )`,
-                          bold: true,
-                          font: "Arial",
-                          size: 20,
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-                new TableCell({
-                  width: { size: 50, type: WidthType.PERCENTAGE },
-                  borders: tableBordersNone,
-                  children: [
-                    new Paragraph({
-                      spacing: { before: 200, after: 30 },
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: `${kegiatan.lokasi || "Lokasi"}, ${formatTanggalIndo(rk.tanggalSelesai || hariIni())}`,
-                          font: "Arial",
-                          size: 20,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      spacing: { after: 30 },
-                      alignment: AlignmentType.RIGHT,
-                      children: [new TextRun({ text: "Surveyor / Pelapor,", font: "Arial", size: 20 })],
-                    }),
-                    new Paragraph({
-                      spacing: { before: 400, after: 20 },
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: `( ${profilPelapor.nama} )`,
-                          bold: true,
-                          font: "Arial",
-                          size: 20,
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
+                new TableCell({ width: { size: 32, type: WidthType.PERCENTAGE }, borders: tableBordersNone, children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(row.label, { tebal: true })] })] }),
+                new TableCell({ width: { size: 4, type: WidthType.PERCENTAGE }, borders: tableBordersNone, children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(":")] })] }),
+                new TableCell({ width: { size: 64, type: WidthType.PERCENTAGE }, borders: tableBordersNone, children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(row.nilai || "-")] })] }),
               ],
-            }),
-          ],
-        })
-      );
-    }
-
-    // 2. Surat Justifikasi untuk Setiap Transaksi yang Ditandai
-    for (const trxJustifikasi of transaksiPerluJustifikasi) {
-      const detail = trxJustifikasi.detailKegiatan || {};
-      const noGlobal = mapNomorUrut.get(trxJustifikasi.id) || 1;
-      const jenisBuktiUpper = (detail.jenisBukti || "Bukti Pengeluaran").toUpperCase();
-
-      // Dapatkan 2-3 paragraf narasi dari Gemini AI
-      const paragrafNarasi = await susunNarasiSuratJustifikasi({
-        alasanSingkat: detail.alasanJustifikasi,
-        jenisBukti: detail.jenisBukti,
-        uraian: trxJustifikasi.deskripsi,
-        jumlah: trxJustifikasi.jumlah,
-        tanggal: trxJustifikasi.tanggal,
-        namaKegiatan: kegiatan.nama,
-        lokasiKegiatan: kegiatan.lokasi,
-        namaPelapor: profilPelapor.nama,
-        jabatanPelapor: profilPelapor.jabatan,
-        lembagaProyek: `${profilPelapor.lembaga} - ${profilPelapor.proyek}`,
-      });
-
-      childrenSections.push(
-        new Paragraph({
-          pageBreakBefore: true,
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 80, after: 40 },
-          children: [
-            new TextRun({
-              text: "SURAT JUSTIFIKASI",
-              bold: true,
-              font: "Arial",
-              size: 26,
-            }),
-          ],
-        }),
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 180 },
-          children: [
-            new TextRun({
-              text: `KETIDAKLENGKAPAN DOKUMEN ${jenisBuktiUpper}`,
-              bold: true,
-              font: "Arial",
-              size: 22,
-              color: "333333",
-            }),
-          ],
-        }),
-        new Paragraph({
-          spacing: { after: 80 },
-          children: [
-            new TextRun({
-              text: "Yang bertanda tangan di bawah ini:",
-              font: "Arial",
-              size: 21,
-            }),
-          ],
-        }),
-        // Identitas pelapor di surat justifikasi
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          borders: tableBordersNone,
-          rows: [
-            { label: "Nama", val: profilPelapor.nama },
-            { label: "Jabatan", val: profilPelapor.jabatan },
-            { label: "Lembaga / Proyek", val: `${profilPelapor.lembaga} / ${profilPelapor.proyek}` },
-            { label: "Nama Kegiatan", val: kegiatan.nama },
-            { label: "Nomor Bukti Pengeluaran", val: `No. ${noGlobal} (${trxJustifikasi.deskripsi})` },
-          ].map(
-            (row) =>
-              new TableRow({
-                cantSplit: true,
-                children: [
-                  new TableCell({
-                    width: { size: 32, type: WidthType.PERCENTAGE },
-                    borders: tableBordersNone,
-                    children: [
-                      new Paragraph({
-                        spacing: { before: 20, after: 20 },
-                        children: [new TextRun({ text: row.label, bold: true, font: "Arial", size: 21 })],
-                      }),
-                    ],
-                  }),
-                  new TableCell({
-                    width: { size: 4, type: WidthType.PERCENTAGE },
-                    borders: tableBordersNone,
-                    children: [
-                      new Paragraph({
-                        spacing: { before: 20, after: 20 },
-                        children: [new TextRun({ text: ":", font: "Arial", size: 21 })],
-                      }),
-                    ],
-                  }),
-                  new TableCell({
-                    width: { size: 64, type: WidthType.PERCENTAGE },
-                    borders: tableBordersNone,
-                    children: [
-                      new Paragraph({
-                        spacing: { before: 20, after: 20 },
-                        children: [new TextRun({ text: row.val || "-", font: "Arial", size: 21 })],
-                      }),
-                    ],
-                  }),
-                ],
-              })
-          ),
-        }),
-        new Paragraph({
-          spacing: { before: 140, after: 80 },
-          children: [
-            new TextRun({
-              text: "Dengan ini saya menerangkan sebagai berikut:",
-              font: "Arial",
-              size: 21,
-            }),
-          ],
-        })
-      );
-
-      // 2-3 paragraf narasi justifikasi rata kiri-kanan
-      paragrafNarasi.forEach((p) => {
-        childrenSections.push(
-          new Paragraph({
-            alignment: AlignmentType.JUSTIFIED,
-            spacing: { before: 40, after: 80 },
+            })
+        ),
+      }),
+      new Paragraph({ spacing: { before: 140, after: 80 }, children: [teksArial("Dengan ini saya menerangkan sebagai berikut:")] }),
+      ...paragrafNarasi.map((p) => new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { before: 40, after: 80 }, children: [teksArial(p)] })),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 60, after: 180 },
+        children: [teksArial(KALIMAT_PENUTUP_JUSTIFIKASI)],
+      }),
+      // Tanda tangan pelapor saja (tanpa blok persetujuan / Mengetahui)
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: tableBordersNone,
+        rows: [
+          new TableRow({
+            cantSplit: true,
             children: [
-              new TextRun({
-                text: p,
-                font: "Arial",
-                size: 21,
+              new TableCell({ width: { size: 45, type: WidthType.PERCENTAGE }, borders: tableBordersNone, children: [] }),
+              new TableCell({
+                width: { size: 55, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [
+                  new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [teksArial(j.tempatTanggal)] }),
+                  new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 400 }, children: [teksArial("Yang membuat pernyataan,")] }),
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [teksArial(profilPelapor.nama, { tebal: true, garisBawah: true })] }),
+                  new Paragraph({ alignment: AlignmentType.RIGHT, children: [teksArial(profilPelapor.jabatan, { ukuran: 19, warna: "444444" })] }),
+                ],
               }),
             ],
-          })
-        );
-      });
-
-      // Kalimat penutup
-      childrenSections.push(
-        new Paragraph({
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { before: 60, after: 180 },
-          children: [
-            new TextRun({
-              text: "Demikian surat justifikasi ini dibuat dengan sebenarnya dengan penuh tanggung jawab untuk dipergunakan sebagaimana mestinya.",
-              font: "Arial",
-              size: 21,
-            }),
-          ],
-        }),
-        // Tanda tangan pelapor (JANGAN buat blok tanda tangan persetujuan / Mengetahui!)
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          borders: tableBordersNone,
-          rows: [
-            new TableRow({
-              cantSplit: true,
-              children: [
-                new TableCell({
-                  width: { size: 45, type: WidthType.PERCENTAGE },
-                  borders: tableBordersNone,
-                  children: [],
-                }),
-                new TableCell({
-                  width: { size: 55, type: WidthType.PERCENTAGE },
-                  borders: tableBordersNone,
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      spacing: { after: 30 },
-                      children: [
-                        new TextRun({
-                          text: `${kegiatan.lokasi || "Lokasi"}, ${formatTanggalIndo(trxJustifikasi.tanggal || hariIni())}`,
-                          font: "Arial",
-                          size: 21,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      spacing: { after: 400 },
-                      children: [
-                        new TextRun({
-                          text: "Yang membuat pernyataan,",
-                          font: "Arial",
-                          size: 21,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: profilPelapor.nama,
-                          bold: true,
-                          underline: {},
-                          font: "Arial",
-                          size: 21,
-                        }),
-                      ],
-                    }),
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: profilPelapor.jabatan,
-                          font: "Arial",
-                          size: 19,
-                          color: "444444",
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        })
-      );
-    }
+          }),
+        ],
+      })
+    );
   }
 
   // Penutup dokumen (potret): rekapitulasi penggunaan dan penyelesaian dana, lalu daftar periksa.
-  const bagianBaruPenutup = pindahOrientasi(false);
+  pindahOrientasi(false);
   childrenSections.push(...isiRekap);
 
   // =========================================================
   // BAGIAN 3F: "DAFTAR PERIKSA KELENGKAPAN" (HALAMAN TERAKHIR)
   // BISA DIMATIKAN
   // =========================================================
-  if (sertakanDaftarPeriksa) {
+  if (susunan.daftarPeriksa) {
     childrenSections.push(
       new Paragraph({
         pageBreakBefore: true,
@@ -2279,31 +1134,7 @@ export async function buatDokumenLaporanKegiatanDocx(
       })
     );
 
-    // Kumpulkan ketentuan umum dan ketentuan kelompok yang dipakai
-    const kelompokYangDigunakan = new Set(daftarPengeluaran.map((t) => t.kategori));
-
-    const daftarKetentuanItems: { kelompok: string; butir: string[] }[] = [];
-
-    // Ketentuan Umum
-    if (KETENTUAN_DANA_KEGIATAN["Umum"]?.butir) {
-      daftarKetentuanItems.push({
-        kelompok: "Ketentuan Umum SPJ",
-        butir: KETENTUAN_DANA_KEGIATAN["Umum"].butir,
-      });
-    }
-
-    // Ketentuan per kelompok yang ada transaksinya
-    for (const kat of KELOMPOK_DANA_KEGIATAN) {
-      if (kelompokYangDigunakan.has(kat)) {
-        const itemKelompok = KETENTUAN_DANA_KEGIATAN[kat];
-        if (itemKelompok && itemKelompok.butir && itemKelompok.butir.length > 0) {
-          daftarKetentuanItems.push({
-            kelompok: `Ketentuan Khusus: ${kat}`,
-            butir: itemKelompok.butir,
-          });
-        }
-      }
-    }
+    const daftarKetentuanItems = (susunan.daftarPeriksa ?? []).map((g) => ({ kelompok: g.judul, butir: g.butir }));
 
     const barisChecklist: TableRow[] = [
       new TableRow({
@@ -2469,7 +1300,7 @@ export async function buatDokumenLaporanKegiatanDocx(
                 spacing: { after: 120 },
                 children: [
                   new TextRun({
-                    text: `Laporan Keuangan Kegiatan · ${profilPelapor.nama} · ${periodeFmt}`,
+                    text: susunan.kepalaHalaman,
                     font: "Arial",
                     size: 18, // 9pt
                     color: "777777",

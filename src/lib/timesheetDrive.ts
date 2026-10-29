@@ -49,6 +49,15 @@ export function tautanTimesheet(id: string): string {
   return `https://docs.google.com/spreadsheets/d/${id}/edit`;
 }
 
+/** Isian kop file timesheet (Proyek, Nama, Disetujui Oleh) yang terisi saja; dipakai bila Profil Pelapor masih kosong. */
+function kopDariIsi(isi: IsiTimesheet): NonNullable<DataKegiatan["timesheetKop"]> {
+  const kop: NonNullable<DataKegiatan["timesheetKop"]> = {};
+  if (isi.proyek.trim()) kop.proyek = isi.proyek.trim();
+  if (isi.nama.trim()) kop.nama = isi.nama.trim();
+  if (isi.disetujuiOleh.trim()) kop.penyetuju = isi.disetujuiOleh.trim();
+  return kop;
+}
+
 function berkasDariDrive(f: GDriveFileInfo): BerkasTimesheet {
   return { id: f.id, nama: f.name, modifiedTime: f.modifiedTime };
 }
@@ -137,8 +146,13 @@ export async function tarikTimesheetKegiatan(
   // Tanggal di timesheet menjadi sumber kebenaran: rentang kegiatan ikut melebar bila timesheet memuat hari di luarnya.
   const rentang = rentangMengikutiTimesheet(k, isi.baris);
   const rentangBerubah = rentang.tanggalMulai !== k.tanggalMulai || rentang.tanggalSelesai !== k.tanggalSelesai;
+  const kop = kopDariIsi(isi);
   const berubah =
-    k.timesheetId !== berkas.id || k.timesheetNama !== berkas.nama || !samaBaris(k.timesheetBaris, baris) || rentangBerubah;
+    k.timesheetId !== berkas.id ||
+    k.timesheetNama !== berkas.nama ||
+    !samaBaris(k.timesheetBaris, baris) ||
+    rentangBerubah ||
+    JSON.stringify(k.timesheetKop ?? {}) !== JSON.stringify(kop);
   const kegiatan: DataKegiatan = {
     ...k,
     ...rentang,
@@ -146,6 +160,7 @@ export async function tarikTimesheetKegiatan(
     timesheetId: berkas.id,
     timesheetNama: berkas.nama,
     timesheetBaris: baris,
+    timesheetKop: kop,
     timesheetSinkron: new Date().toISOString(),
     timesheetDibuatApp: k.timesheetId === berkas.id ? k.timesheetDibuatApp : undefined,
   };

@@ -83,7 +83,7 @@ with sync_playwright() as p:
     cek(pg.get_by_text("Jumlah Peserta (Orang)").count() == 0, "kudapan: isian Jumlah Peserta diganti penerima manfaat")
     plafon = pg.locator("[data-testid=kudapan-plafon]").inner_text()
     cek("66.667" in plafon and "200.000" in plafon, f"plafon per orang Rp66.667 (⅓ uang harian Rp200.000) tampil ({plafon[:70]!r})")
-    tambah_nama(pg, "#penerima-kudapan", "Nopal", "Budi")
+    tambah_nama(pg, "#penerima-kudapan", "Rudi", "Budi")
     pg.fill("#penerima-kudapan", "Andi,")
     pg.wait_for_timeout(120)
     cek(jumlah_tag(pg) == 3, f"tiga nama menjadi tiga tag ({jumlah_tag(pg)})")
@@ -113,10 +113,10 @@ with sync_playwright() as p:
     cek(len(t) == 1, "kudapan tersimpan (tanggal 19 Sep, sebelum kegiatan dimulai)")
     if t:
         d = t[0]["detailKegiatan"]
-        cek(d["konsumsi"].get("kudapanPerjalanan") is True and d["penerimaManfaat"] == ["Nopal", "Budi", "Andi"], f"data tersimpan: kudapan + penerima ({d.get('penerimaManfaat')})")
+        cek(d["konsumsi"].get("kudapanPerjalanan") is True and d["penerimaManfaat"] == ["Rudi", "Budi", "Andi"], f"data tersimpan: kudapan + penerima ({d.get('penerimaManfaat')})")
         cek(t[0]["jumlah"] == 200000 and t[0]["kategori"] == "Konsumsi", "jumlah 200000, kategori Konsumsi")
     staf = json.loads(pg.evaluate("localStorage.getItem('keuangan-daftar-staf') || '[]'"))
-    cek(staf[:3] == ["Nopal", "Budi", "Andi"], f"nama staf diingat sebagai saran ({staf})")
+    cek(staf[:3] == ["Rudi", "Budi", "Andi"], f"nama staf diingat sebagai saran ({staf})")
     cek(not galat, f"tanpa galat JS ({galat})")
     ctx.close()
 
@@ -128,7 +128,7 @@ with sync_playwright() as p:
     pg.locator(".f-kategori button", has_text="Akomodasi").first.click()
     pg.wait_for_timeout(300)
     cek(pg.locator("#penerima-manfaat").count() == 1, "Akomodasi: kolom Penerima Manfaat tersedia")
-    tambah_nama(pg, "#penerima-manfaat", "Nopal", "Budi")
+    tambah_nama(pg, "#penerima-manfaat", "Rudi", "Budi")
     cek(jumlah_tag(pg) == 2, "dua penerima manfaat tercatat")
     cek("Tipe B" in pg.locator(".kotak-tempel-pilih__ket").inner_text(), "Akomodasi dengan kuitansi otomatis memakai kotak Tipe B")
     pg.locator(".kotak-tempel-pilih__opsi button", has_text="Tipe C").click()
@@ -139,7 +139,7 @@ with sync_playwright() as p:
     pg.locator("#btn-simpan").click()
     pg.wait_for_timeout(500)
     t = [x for x in transaksi_tersimpan(pg) if x["deskripsi"] == "Penginapan bersama"]
-    cek(len(t) == 1 and t[0]["detailKegiatan"].get("penerimaManfaat") == ["Nopal", "Budi"] and t[0]["detailKegiatan"].get("kotakTempel") == "C", f"tersimpan dengan penerima dan kotak C ({t[0]['detailKegiatan'] if t else None})")
+    cek(len(t) == 1 and t[0]["detailKegiatan"].get("penerimaManfaat") == ["Rudi", "Budi"] and t[0]["detailKegiatan"].get("kotakTempel") == "C", f"tersimpan dengan penerima dan kotak C ({t[0]['detailKegiatan'] if t else None})")
     cek(not galat, f"tanpa galat JS ({galat})")
     ctx.close()
     ctx, pg, galat = buka_form(b, 1280)
@@ -168,7 +168,7 @@ with sync_playwright() as p:
         pg.locator("#btn-lanjut-langkah").click()
         pg.wait_for_timeout(200)
         cek("penerima manfaat" in pg.locator("#view-tambah, .bertahap").first.inner_text().lower(), "kudapan tanpa penerima: tidak bisa lanjut, ada pesan")
-        tambah_nama(pg, "#penerima-kudapan", "Nopal", "Budi", "Andi")
+        tambah_nama(pg, "#penerima-kudapan", "Rudi", "Budi", "Andi")
         cek(pg.input_value("#jumlah") == "200000" if pg.locator("#jumlah").count() else True, "jumlah mengikuti plafon")
         cek(tanpa_luapan(pg), "tanpa luapan horizontal")
         kartu = pg.locator(".kartu-detail").first.bounding_box()

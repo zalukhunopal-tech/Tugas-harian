@@ -93,6 +93,11 @@ async function simpanBlobKeIndexedDB(fileId: string, blob: Blob, mimeType: strin
   }
 }
 
+/** Berkas bukti yang pernah diunduh untuk pratinjau (cache perangkat), dipakai ulang oleh dokumen Word tanpa mengunduh lagi. */
+export async function ambilBlobBuktiTersimpan(fileId: string): Promise<{ blob: Blob; mimeType: string } | null> {
+  return ambilBlobDariIndexedDB(fileId);
+}
+
 async function ambilBlobDariIndexedDB(fileId: string): Promise<{ blob: Blob; mimeType: string } | null> {
   try {
     const db = await bukaDbCache();

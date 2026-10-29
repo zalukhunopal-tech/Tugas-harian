@@ -1092,6 +1092,8 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
           namaKegiatanPenyelesaian={namaCakupan}
           rentangKegiatanPenyelesaian={rentangCakupan}
           saldo={{ awal: saldoAwal, akhir: saldoAkhir }}
+          semuaTransaksi={transaksi}
+          daftarKegiatan={daftarKegiatan}
           aksiWord={
             dana === "Dana Kegiatan" && kegiatanTerpilih
               ? { onUnduh: handleUnduhDocx, sedang: sedangProsesDocx, pesan: pesanStatusDocx }

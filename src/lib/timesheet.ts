@@ -32,6 +32,14 @@ export function adalahFileTimesheet(nama: string): boolean {
   return /timesheet/i.test(nama);
 }
 
+/**
+ * Salinan cadangan atau berkas unggahan yang bukan sumber timesheet: nama memuat "backup", "cadangan", "salinan", "copy",
+ * atau berkas Excel (.xlsx, tidak terbaca lewat Google Sheets). Dipakai hanya bila tidak ada file timesheet utama.
+ */
+export function adalahTimesheetCadangan(nama: string): boolean {
+  return /\b(back[\s_-]?up|cadangan|salinan|copy(\s+of)?|duplikat)\b|_backup|\.xlsx$/i.test(nama);
+}
+
 export const BARIS_DATA_AWAL = 11;
 /** Jumlah baris data yang sudah berformat (bergaris) di file pengguna: baris 11-44. */
 export const KAPASITAS_BARIS_TEMPLATE = 34;
@@ -196,18 +204,27 @@ export function cocokkanFileTimesheet(
   berkas: BerkasTimesheet[]
 ): BerkasTimesheet | undefined {
   const files = berkas.filter((f) => adalahFileTimesheet(f.nama));
-  if (k.timesheetId) {
-    const ada = files.find((f) => f.id === k.timesheetId);
-    if (ada) return ada;
-  }
   const batch = batchKegiatan(k);
   const tahun = tahunKegiatan(k);
+  // File utama didahulukan; salinan cadangan atau .xlsx hanya dipakai bila tidak ada file utama yang cocok.
+  const utamaDulu = (daftar: BerkasTimesheet[]) => {
+    const utama = daftar.filter((f) => !adalahTimesheetCadangan(f.nama));
+    return utama.length > 0 ? utama : daftar;
+  };
+  const cocokBatch = batch ? files.filter((f) => batchDariNama(f.nama) === batch && (tahunDariNama(f.nama) ?? tahun) === tahun) : [];
+  if (k.timesheetId) {
+    const ada = files.find((f) => f.id === k.timesheetId);
+    // File yang dihubungkan kemudian diganti nama menjadi cadangan (mis. "..._backup") dan file utama baru dibuat: pakai yang baru.
+    const pengganti = ada && adalahTimesheetCadangan(ada.nama) ? urutkanTerbaru(cocokBatch.filter((f) => !adalahTimesheetCadangan(f.nama)))[0] : undefined;
+    if (pengganti) return pengganti;
+    if (ada) return ada;
+  }
   if (batch) {
-    const cocok = files.filter((f) => batchDariNama(f.nama) === batch && (tahunDariNama(f.nama) ?? tahun) === tahun);
+    const cocok = utamaDulu(cocokBatch);
     if (cocok.length >= 1) return urutkanTerbaru(cocok)[0];
     return undefined;
   }
-  const beririsan = files.filter((f) => namaFileBeririsan(f.nama, k.tanggalMulai, k.tanggalSelesai));
+  const beririsan = utamaDulu(files.filter((f) => namaFileBeririsan(f.nama, k.tanggalMulai, k.tanggalSelesai)));
   return beririsan.length === 1 ? beririsan[0] : undefined;
 }
 
@@ -284,11 +301,12 @@ export function uraikanIsiTimesheet(
     }
     const tanggal = uraikanTanggalTimesheet(sel(baris, 1), rentang);
     if (!tanggal) continue;
+    const [keterangan, lokasi, jumlah] = rapikanSelTerpecah(baris.slice(2).map((v) => String(v ?? "").trim()));
     isi.baris.push({
       tanggal,
-      keterangan: sel(baris, 2),
-      lokasi: sel(baris, 3),
-      jumlah: uraikanJumlahTimesheet(sel(baris, 4)),
+      keterangan,
+      lokasi,
+      jumlah: uraikanJumlahTimesheet(jumlah),
     });
   }
 
@@ -307,6 +325,34 @@ export function uraikanIsiTimesheet(
     }
   }
   return isi;
+}
+
+/**
+ * Keterangan, Lokasi, dan Jumlah satu baris. Alat lain kadang menulis baris lewat CSV tanpa tanda kutip, sehingga keterangan
+ * yang memuat koma terpecah ke beberapa kolom dengan garis miring terbalik di akhir sel ("pesawat\\", "mobil\\", "dan speedboat")
+ * dan lokasi bergabung dengan jumlah ("Tanjung Selor+200.000"). Sel seperti itu disatukan kembali; baris normal tidak berubah.
+ */
+export function rapikanSelTerpecah(sel: string[]): [string, string, string] {
+  const hasil: string[] = [];
+  let tampung = "";
+  for (const isi of sel) {
+    if (/\\$/.test(isi)) {
+      tampung += (tampung ? ", " : "") + isi.replace(/\\+$/, "").trim();
+      continue;
+    }
+    if (tampung) {
+      hasil.push(`${tampung}, ${isi}`.replace(/,\s*$/, ""));
+      tampung = "";
+    } else hasil.push(isi);
+  }
+  if (tampung) hasil.push(tampung);
+  let [keterangan = "", lokasi = "", jumlah = ""] = hasil;
+  const gabung = /^(.*?)\s*\+\s*((?:Rp\.?\s*)?[\d.,]+)$/.exec(lokasi);
+  if (gabung && !uraikanJumlahTimesheet(jumlah)) {
+    lokasi = gabung[1].trim();
+    jumlah = gabung[2];
+  }
+  return [keterangan, lokasi, jumlah];
 }
 
 /** Salinan ringan untuk disimpan di DataKegiatan: hanya yang dipakai dokumen, tanpa baris kosong. */
