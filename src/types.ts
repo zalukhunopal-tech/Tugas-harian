@@ -287,6 +287,7 @@ export interface DataKegiatan {
   timesheetBaris?: BarisTimesheet[]; // salinan Tanggal/Keterangan/Lokasi dari file timesheet, dipakai dokumen perdiem
   timesheetSinkron?: string; // waktu ISO terakhir isi timesheet ditarik
   timesheetDibuatApp?: boolean; // file dibuat aplikasi (salinan), jadi tanggal dan jumlahnya boleh diperbarui aplikasi
+  timesheetKop?: { proyek?: string; nama?: string; penyetuju?: string }; // isian kop file timesheet, cadangan bila Profil Pelapor kosong
   dibuat?: string;
   diubah?: string;
 }

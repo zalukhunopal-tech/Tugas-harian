@@ -21,3 +21,22 @@ export function lindungiProfil(
   if (profilKosong(kandidat) && !profilKosong(pegangan)) return pegangan as ProfilPelapor;
   return kandidat ?? undefined;
 }
+
+/**
+ * Profil untuk dokumen kegiatan: isian Profil Pelapor, dengan isian yang masih kosong dilengkapi dari kop file timesheet kegiatan
+ * itu (Nama, Proyek, Disetujui Oleh). Profil Pelapor sendiri tidak diubah; ini hanya supaya dokumen tidak bernama kosong.
+ */
+export function profilUntukDokumen(
+  profil: ProfilPelapor,
+  kegiatan?: { timesheetKop?: { proyek?: string; nama?: string; penyetuju?: string } }
+): ProfilPelapor {
+  const kop = kegiatan?.timesheetKop;
+  if (!kop) return profil;
+  const isi = (nilai: string | undefined, cadangan: string | undefined) => (nilai && nilai.trim() ? nilai : cadangan ?? nilai ?? "");
+  return {
+    ...profil,
+    nama: isi(profil.nama, kop.nama),
+    proyek: isi(profil.proyek, kop.proyek),
+    penyetuju: isi(profil.penyetuju, kop.penyetuju),
+  };
+}

@@ -12,7 +12,9 @@ import {
   batchDariNama,
   cariCatatanMencurigakan,
   cariTransaksiNyasarTimesheet,
+  adalahTimesheetCadangan,
   cocokkanFileTimesheet,
+  rapikanSelTerpecah,
   formatTanggalTimesheet,
   judulUntukTimesheet,
   labelBulan,
@@ -86,6 +88,33 @@ cek("kegiatan lintas tahun cocok lewat batch dan tahun mulai", cocokkanFileTimes
 cek("lintas tahun tanpa batch: cocok lewat irisan periode", cocokkanFileTimesheet({ ...kLintas, batch: undefined, nama: "Tanpa batch" }, lintasTahun)?.id === "z");
 cek("periode lain tidak beririsan", cocokkanFileTimesheet({ ...kLintas, batch: undefined, nama: "Tanpa batch", tanggalMulai: "2027-03-01", tanggalSelesai: "2027-03-10" }, lintasTahun) === undefined);
 cek("sheet keuangan tidak pernah dipilih", cocokkanFileTimesheet({ ...k4, batch: undefined, nama: "x", tanggalMulai: "2026-01-01", tanggalSelesai: "2026-01-05" }, [berkas[3]]) === undefined);
+
+console.log("File cadangan dan unggahan Excel");
+const NAMA_UTAMA = NAMA_BATCH4;
+const dgnCadangan = [
+  { id: "lama", nama: `${NAMA_UTAMA}_backup`, modifiedTime: "2026-10-29T01:35:27Z" },
+  { id: "baru", nama: NAMA_UTAMA, modifiedTime: "2026-10-29T01:34:40Z" },
+  { id: "xl", nama: `${NAMA_UTAMA}.xlsx`, modifiedTime: "2026-10-29T02:00:00Z" },
+];
+cek("nama cadangan dikenali", adalahTimesheetCadangan(`${NAMA_UTAMA}_backup`) && adalahTimesheetCadangan("Salinan dari FORM TIMESHEET") && adalahTimesheetCadangan("Copy of FORM TIMESHEET") && adalahTimesheetCadangan("x.xlsx") && !adalahTimesheetCadangan(NAMA_UTAMA));
+cek("file utama didahulukan walau cadangan lebih baru diubah", cocokkanFileTimesheet(k4, dgnCadangan)?.id === "baru");
+cek("file yang dihubungkan lalu diganti nama menjadi _backup: pindah ke file utama baru", cocokkanFileTimesheet({ ...k4, timesheetId: "lama" }, dgnCadangan)?.id === "baru");
+cek("hanya ada cadangan: tetap dipakai", cocokkanFileTimesheet(k4, [dgnCadangan[0]])?.id === "lama" && cocokkanFileTimesheet({ ...k4, timesheetId: "lama" }, [dgnCadangan[0]])?.id === "lama");
+cek("tanpa batch: cadangan tidak membuat irisan periode jadi ganda", cocokkanFileTimesheet({ ...k4, batch: undefined, nama: "Kegiatan tanpa batch" }, dgnCadangan)?.id === "baru");
+
+console.log("Baris yang terpecah koma (ditulis alat lain lewat CSV)");
+const pecah = rapikanSelTerpecah(["Perjalanan pulang menggunakan pesawat udara perintis\\", "mobil\\", "dan speedboat", "Tanjung Selor+200.000"]);
+cek("keterangan disatukan kembali", pecah[0] === "Perjalanan pulang menggunakan pesawat udara perintis, mobil, dan speedboat", pecah);
+cek("lokasi dan jumlah dipisah kembali", pecah[1] === "Tanjung Selor" && pecah[2] === "200.000", pecah);
+cek("baris normal tidak berubah", rapikanSelTerpecah(["Survei batas", "Desa Contoh", "200.000", ""]).join("|") === "Survei batas|Desa Contoh|200.000");
+cek("lokasi bertanda + tanpa angka tidak dipotong", rapikanSelTerpecah(["Rapat", "Desa A + Desa B", "200.000"]).join("|") === "Rapat|Desa A + Desa B|200.000");
+const isiPecah = uraikanIsiTimesheet([
+  ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"],
+  ["37", "10/26/2026", "Pengolahan data", "Desa Contoh", "200.000"],
+  ["38", "10/27/2026", "Perjalanan kepulangan pesawat\\", "mobil\\", "dan speedboat", "Kota Contoh+200.000"],
+  ["", "", "Total", "", "400.000"],
+]);
+cek("baris tanggal 27 yang terpecah tetap terbaca utuh", isiPecah.baris.length === 2 && isiPecah.baris[1].tanggal === "2026-10-27" && isiPecah.baris[1].keterangan === "Perjalanan kepulangan pesawat, mobil, dan speedboat" && isiPecah.baris[1].lokasi === "Kota Contoh" && isiPecah.baris[1].jumlah === 200000, isiPecah.baris[1]);
 
 console.log("Tanggal dan jumlah");
 cek("M/D/YYYY", uraikanTanggalTimesheet("9/20/2026") === "2026-09-20");

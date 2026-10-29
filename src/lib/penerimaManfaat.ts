@@ -85,7 +85,7 @@ const rupiahRapat = (n: number) => formatRupiah(n).replace(/\s/g, "");
 /**
  * Baris penerima manfaat untuk tabel laporan, atau null bila tidak ada yang perlu dicantumkan.
  *   Kudapan/Snack Perjalanan — Penerima Manfaat: 3 orang (Nama A, Nama B, Nama C @ Rp66.667)
- *   Transportasi Speedboat — Penerima Manfaat: Nopal, Budi, Andi (di kolom uraian; di sini hanya bagian nama)
+ *   Transportasi Speedboat — Penerima Manfaat: Rudi, Budi, Andi (di kolom uraian; di sini hanya bagian nama)
  */
 export function barisPenerimaManfaat(t: Pick<Transaksi, "kategori" | "jumlah" | "detailKegiatan">): string | null {
   const nama = (t.detailKegiatan?.penerimaManfaat ?? []).map(rapikanNama).filter(Boolean);

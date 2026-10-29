@@ -75,19 +75,19 @@ async function main() {
   cek("0 orang = 0", plafonKudapan(0) === 0 && plafonKudapan(-1) === 0);
 
   console.log("Daftar penerima manfaat");
-  let d = tambahPenerima([], "Nopal");
-  d = tambahPenerima(d, "  budi   santoso , ANDI;Nopal\nSiti ");
-  cek("koma, titik koma, dan baris baru memisahkan nama", d.join("|") === "Nopal|budi santoso|ANDI|Siti", d);
-  cek("nama kembar (beda huruf besar) tidak ditambah", tambahPenerima(d, "NOPAL").length === d.length);
-  cek("hapus nama tanpa peduli huruf besar", hapusPenerima(d, "andi").join("|") === "Nopal|budi santoso|Siti");
+  let d = tambahPenerima([], "Rudi");
+  d = tambahPenerima(d, "  budi   santoso , ANDI;Rudi\nSiti ");
+  cek("koma, titik koma, dan baris baru memisahkan nama", d.join("|") === "Rudi|budi santoso|ANDI|Siti", d);
+  cek("nama kembar (beda huruf besar) tidak ditambah", tambahPenerima(d, "RUDI").length === d.length);
+  cek("hapus nama tanpa peduli huruf besar", hapusPenerima(d, "andi").join("|") === "Rudi|budi santoso|Siti");
   cek("uang harian dan honorarium tidak memakai penerima manfaat", !kategoriBolehPenerima("Perdiem") && !kategoriBolehPenerima("Honorarium & Ganti Hari"));
   cek("akomodasi, transportasi, konsumsi memakainya", ["Akomodasi", "Transportasi", "Konsumsi", "Pengadaan Barang & Perlengkapan"].every(kategoriBolehPenerima));
 
   console.log("Baris penerima manfaat di laporan");
-  const kudapan = trx({ jumlah: 200000, detailKegiatan: { konsumsi: { kudapanPerjalanan: true }, penerimaManfaat: ["Nopal", "Budi", "Andi"] } });
+  const kudapan = trx({ jumlah: 200000, detailKegiatan: { konsumsi: { kudapanPerjalanan: true }, penerimaManfaat: ["Rudi", "Budi", "Andi"] } });
   cek(
     "kudapan: 3 orang (nama @ Rp66.667)",
-    barisPenerimaManfaat(kudapan) === "Kudapan/Snack Perjalanan — Penerima Manfaat: 3 orang (Nopal, Budi, Andi @ Rp66.667)",
+    barisPenerimaManfaat(kudapan) === "Kudapan/Snack Perjalanan — Penerima Manfaat: 3 orang (Rudi, Budi, Andi @ Rp66.667)",
     barisPenerimaManfaat(kudapan)
   );
   const lebihKecil = trx({ jumlah: 150000, detailKegiatan: { konsumsi: { kudapanPerjalanan: true }, penerimaManfaat: ["A", "B", "C"] } });
@@ -95,7 +95,7 @@ async function main() {
   cek("kudapan tanpa penerima: tertulis belum dicatat", /belum dicatat/.test(barisPenerimaManfaat(trx({ detailKegiatan: { konsumsi: { kudapanPerjalanan: true } } })) ?? ""));
   cek(
     "kategori lain: Penerima Manfaat: nama, nama",
-    barisPenerimaManfaat(trx({ kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi", "Andi"] } })) === "Penerima Manfaat: Nopal, Budi, Andi"
+    barisPenerimaManfaat(trx({ kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Rudi", "Budi", "Andi"] } })) === "Penerima Manfaat: Rudi, Budi, Andi"
   );
   cek("tanpa penerima: tidak ada baris", barisPenerimaManfaat(trx({ kategori: "Transportasi" })) === null);
 
@@ -119,10 +119,10 @@ async function main() {
   const kotak = susunKotakTempel(semua, (id) => ({ a: "1", b: "2" } as Record<string, string>)[id]);
   cek("uang harian dan pemasukan tidak dapat kotak", kotak.map((k) => k.id).join("") === "ab" && !perluKotakTempel(semua[1]) && !perluKotakTempel(semua[2]));
   cek("kepala kotak: No. | Tanggal | Kategori - Uraian | Rp", /^No\. 1 \| 21\/09\/2026 \| BBM - Pengeluaran contoh \| Rp/.test(kotak[0].kepala), kotak[0].kepala);
-  const kotakPenerima = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi"] } })], () => "7");
+  const kotakPenerima = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Rudi", "Budi"] } })], () => "7");
   cek("kepala kotak satu baris tanpa daftar nama: No | Tanggal | Kategori - Uraian | Rp", !/Penerima Manfaat|Diklaim/.test(kotakPenerima[0].kepala) && /\| Rp/.test(kotakPenerima[0].kepala), kotakPenerima[0].kepala);
-  const kotakDiklaim = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi"] } })], () => "7", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
-  cek("baris di bawah kepala: Diklaim untuk pelapor lalu rekan", kotakDiklaim[0].rincian[0] === "Diklaim untuk: Pelapor Contoh, Nopal, Budi", kotakDiklaim[0].rincian);
+  const kotakDiklaim = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Rudi", "Budi"] } })], () => "7", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
+  cek("baris di bawah kepala: Diklaim untuk pelapor lalu rekan", kotakDiklaim[0].rincian[0] === "Diklaim untuk: Pelapor Contoh, Rudi, Budi", kotakDiklaim[0].rincian);
   const kotakSendiri = susunKotakTempel([trx({ id: "z", kategori: "Transportasi" })], () => "7", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
   cek("tanpa rekan: Diklaim untuk pelapor saja", kotakSendiri[0].rincian[0] === "Diklaim untuk: Pelapor Contoh", kotakSendiri[0].rincian);
   const kotakPerdiem = susunKotakTempel([trx({ id: "z", kategori: "Perdiem", bukti: [{ id: "f", nama: "f.jpg", tipe: "image/jpeg", dataUrl: "data:image/jpeg;base64,AA==" }] })], () => "1", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
@@ -169,14 +169,14 @@ async function main() {
         kategori: "Transportasi",
         deskripsi: "Tiket pesawat keberangkatan",
         jumlah: 1850000,
-        detailKegiatan: { jenisBukti: "Tiket pesawat/e-ticket", transportasi: { dari: "Jakarta", ke: "Tarakan", moda: "Pesawat" }, penerimaManfaat: ["Nopal", "Budi"] },
+        detailKegiatan: { jenisBukti: "Tiket pesawat/e-ticket", transportasi: { dari: "Jakarta", ke: "Tarakan", moda: "Pesawat" }, penerimaManfaat: ["Rudi", "Budi"] },
       }),
       trx({
         id: "kud",
         tanggal: "2026-09-19",
         deskripsi: "Kudapan perjalanan keberangkatan",
         jumlah: 200000,
-        detailKegiatan: { jenisBukti: "Struk thermal (minimarket/SPBU)", konsumsi: { kudapanPerjalanan: true, penyedia: "Toko Contoh" }, penerimaManfaat: ["Nopal", "Budi", "Andi"] },
+        detailKegiatan: { jenisBukti: "Struk thermal (minimarket/SPBU)", konsumsi: { kudapanPerjalanan: true, penyedia: "Toko Contoh" }, penerimaManfaat: ["Rudi", "Budi", "Andi"] },
       }),
       trx({ id: "pd", tanggal: "2026-09-21", kategori: "Perdiem", deskripsi: "Perdiem Contoh · 2026-09-21", jumlah: 200000 }),
     ],
@@ -185,10 +185,10 @@ async function main() {
   });
   const { teks, xml } = await teksWord(blob);
   cek("pengeluaran pra-kegiatan (17 Sep, sebelum 20 Sep) ikut dilaporkan", /Tiket pesawat keberangkatan/.test(teks));
-  cek("daftar nama yang diklaim tampil di dokumen Word: pelapor lalu rekan", new RegExp(`Diklaim untuk: ${profil.nama}, Nopal, Budi`).test(teks), teks.match(/Diklaim untuk[^|]{0,80}/)?.[0]);
+  cek("daftar nama yang diklaim tampil di dokumen Word: pelapor lalu rekan", new RegExp(`Diklaim untuk: ${profil.nama}, Rudi, Budi`).test(teks), teks.match(/Diklaim untuk[^|]{0,80}/)?.[0]);
   cek(
     "kudapan: rincian penerima dan plafon per orang",
-    /Kudapan\/Snack Perjalanan — Penerima Manfaat: 3 orang \(Nopal, Budi, Andi @ Rp66\.667\)/.test(teks),
+    /Kudapan\/Snack Perjalanan — Penerima Manfaat: 3 orang \(Rudi, Budi, Andi @ Rp66\.667\)/.test(teks),
     teks.match(/Kudapan[^|]{0,120}/)?.[0]
   );
   cek("kudapan memakai label toko/warung, bukan penyedia konsumsi", /Toko\/Warung Pembelian: Toko Contoh/.test(teks));

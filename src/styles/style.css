@@ -4321,6 +4321,7 @@ button {
 }
 
 .dsc-kertas.dsc-lanskap {
+  position: relative;
   max-width: none;
   aspect-ratio: 297 / 210;
   padding: clamp(14px, 3.6cqw, 40px);
@@ -4356,9 +4357,11 @@ button {
     margin: 10mm 12mm;
   }
 
+  /* Timesheet uang harian (lanskap) bermargin 2 cm seperti di dokumen Word; kepala dan nomor halaman dicetak di marginnya
+     (lihat DokumenLaporanKegiatan). */
   @page timesheet-page {
     size: A4 landscape;
-    margin: 10mm 12mm;
+    margin: 20mm;
   }
 
   @page tempel {
@@ -4441,7 +4444,7 @@ button {
     page: auto;
   }
 
-  .dsc-kertas > * + * {
+  .dsc-kertas:not(.dlk-lembar) > * + * {
     margin-top: 0.9em;
   }
 
@@ -4537,9 +4540,9 @@ button {
   }
 
   /* Tinggi tabel berlaku sebagai tinggi minimum: sedikit hari berarti baris yang lapang sampai tanda tangan menyentuh dasar
-     halaman; banyak hari mengalir ke halaman berikutnya seperti biasa. 138 mm = area cetak 190 mm dikurangi kop dan data. */
+     halaman; banyak hari mengalir ke halaman berikutnya seperti biasa. 116 mm = area cetak 170 mm dikurangi kop dan data. */
   .dsc-lanskap .dsc-ts__tabel {
-    height: 138mm;
+    height: 116mm;
   }
 
   .dsc-lanskap .dsc-ts__tabel td,
@@ -4558,6 +4561,631 @@ button {
     page: tempel;
     break-before: page;
     margin: 0;
+  }
+}
+
+/* ==========================================================================
+   Dokumen laporan Dana Kegiatan (components/DokumenLaporanKegiatan.tsx): sama dengan dokumen Word unduhan.
+   Lembar A4 potret bermargin 20 mm, huruf Arial dengan ukuran poin yang sama dengan Word. Ukuran memakai --mm dan --pt:
+   di layar 1 mm = lebar kertas / 210 (pratinjau mengecil bersama kolom), saat dicetak 1 mm dan 1 pt sebenarnya.
+   ========================================================================== */
+.dsc-kertas.dlk-lembar {
+  --mm: calc(min(100cqw, 794px) / 210);
+  --pt: calc(var(--mm) * 0.3528);
+  position: relative;
+  display: block;
+  padding: calc(20 * var(--mm));
+  font-size: calc(10.5 * var(--pt));
+  line-height: 1.25;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.dlk-lembar h2,
+.dlk-lembar h3,
+.dlk-lembar p,
+.dlk-lembar figure {
+  margin: 0;
+}
+
+/* Judul di dalam kertas memakai huruf dokumen (Arial), bukan huruf judul aplikasi. */
+.dlk-lembar h2,
+.dlk-lembar h3 {
+  font-family: inherit;
+  letter-spacing: normal;
+  line-height: 1.25;
+}
+
+/* Kepala halaman di margin atas, seperti header Word (saat dicetak diganti kotak margin @page). */
+.dlk-kepala-layar {
+  position: absolute;
+  top: calc(9 * var(--mm));
+  left: calc(20 * var(--mm));
+  right: calc(20 * var(--mm));
+  text-align: right;
+  font-size: calc(9 * var(--pt));
+  line-height: 1.2;
+  color: #777777;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dlk-kepala-layar--lanskap {
+  --mm: calc(100cqw / 297);
+  --pt: calc(var(--mm) * 0.3528);
+  top: calc(3.5 * var(--mm));
+  font-size: max(8px, calc(9 * var(--pt)));
+}
+
+.dlk-tengah {
+  text-align: center;
+}
+
+.dlk-kanan {
+  text-align: right;
+}
+
+.dlk-lembar .dlk-judul {
+  text-align: center;
+  font-size: calc(14 * var(--pt));
+  font-weight: 700;
+  color: #111111;
+  margin-bottom: calc(3 * var(--pt));
+}
+
+.dlk-lembar .dlk-subjudul {
+  text-align: center;
+  font-size: calc(12 * var(--pt));
+  font-weight: 700;
+  color: #333333;
+  text-wrap: balance;
+  margin-bottom: calc(10 * var(--pt));
+}
+
+.dlk-lembar .dlk-subjudul--kecil {
+  font-size: calc(11 * var(--pt));
+  margin-bottom: calc(9 * var(--pt));
+}
+
+.dlk-lembar .dlk-judul-tengah {
+  text-align: center;
+  font-size: calc(13 * var(--pt));
+  font-weight: 700;
+  color: #111111;
+  margin: calc(4 * var(--pt)) 0 calc(3 * var(--pt));
+}
+
+.dlk-lembar .dlk-info-tengah {
+  text-align: center;
+  font-size: calc(10 * var(--pt));
+  color: #444444;
+  margin-bottom: calc(8 * var(--pt));
+}
+
+.dlk-lembar .dlk-catatan-tengah {
+  text-align: center;
+  font-style: italic;
+  font-size: calc(9.5 * var(--pt));
+  color: #777777;
+  margin-bottom: calc(8 * var(--pt));
+}
+
+.dlk-lembar .dlk-judul-bagian {
+  font-size: calc(11.5 * var(--pt));
+  font-weight: 700;
+  color: #111111;
+  margin: calc(14 * var(--pt)) 0 calc(5 * var(--pt));
+}
+
+.dlk-lembar .dlk-judul-bagian--awal {
+  margin-top: calc(4 * var(--pt));
+}
+
+.dlk-lembar .dlk-judul-kelompok {
+  font-size: calc(13 * var(--pt));
+  font-weight: 700;
+  color: #000000;
+  margin: calc(4 * var(--pt)) 0 calc(2 * var(--pt));
+}
+
+.dlk-lembar .dlk-sub-kelompok {
+  font-style: italic;
+  font-size: calc(9.5 * var(--pt));
+  color: #555555;
+  padding-bottom: calc(3 * var(--pt));
+  border-bottom: max(1px, calc(1 * var(--pt))) solid #444444;
+  margin-bottom: calc(7 * var(--pt));
+}
+
+/* Identitas tanpa garis: label tebal, titik dua, isi */
+.dlk-identitas {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(10.5 * var(--pt));
+}
+
+.dlk-identitas td {
+  padding: calc(1 * var(--pt)) 0;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.dlk-identitas td:first-child {
+  width: 34%;
+  font-weight: 700;
+}
+
+.dlk-identitas td:nth-child(2) {
+  width: 4%;
+}
+
+.dlk-identitas--surat td:first-child {
+  width: 32%;
+}
+
+/* Tabel bergaris tipis abu-abu dengan kepala berlatar, seperti tabel Word */
+.dlk-tabel {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: calc(9.5 * var(--pt));
+}
+
+.dlk-tabel th,
+.dlk-tabel td {
+  border: 1px solid #d0d0d0;
+  padding: calc(2 * var(--pt)) calc(5 * var(--pt));
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.dlk-tabel th.dlk-tengah,
+.dlk-tabel td.dlk-tengah {
+  text-align: center;
+}
+
+.dlk-tabel th.dlk-kanan,
+.dlk-tabel td.dlk-kanan {
+  text-align: right;
+}
+
+.dlk-tabel thead th {
+  background: #f0f0f0;
+  font-weight: 700;
+}
+
+.dlk-tabel tfoot td {
+  background: #f8f8f8;
+  font-weight: 700;
+  font-size: calc(10 * var(--pt));
+}
+
+.dlk-tabel tr {
+  break-inside: avoid;
+}
+
+.dlk-tabel--rekap {
+  font-size: calc(10 * var(--pt));
+}
+
+.dlk-tabel__uraian {
+  font-weight: 700;
+}
+
+.dlk-tabel__rincian {
+  font-size: calc(8.5 * var(--pt));
+  color: #333333;
+}
+
+.dlk-tabel__rincian--diklaim {
+  font-weight: 700;
+}
+
+.dlk-tabel__metode {
+  font-size: calc(8.5 * var(--pt));
+  color: #555555;
+}
+
+.dlk-periksa__grup td {
+  background: #f8f8f8;
+  font-weight: 700;
+  font-size: calc(10 * var(--pt));
+  color: #222222;
+  padding-top: calc(3 * var(--pt));
+  padding-bottom: calc(3 * var(--pt));
+}
+
+.dlk-tabel td.dlk-periksa__cek {
+  text-align: center;
+  font-size: calc(12 * var(--pt));
+  color: #555555;
+}
+
+/* Blok tiap pengeluaran: kepala bergaris bawah, kotak tempel, foto, keterangan, kotak tambahan, foto pendukung */
+.dlk-blok {
+  margin-top: calc(9 * var(--pt));
+}
+
+.dlk-blok:first-of-type {
+  margin-top: calc(4 * var(--pt));
+}
+
+.dlk-blok__kepala {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1em;
+  font-size: calc(11 * var(--pt));
+  font-weight: 700;
+  color: #111111;
+  padding-bottom: calc(1 * var(--pt));
+  border-bottom: 1px solid #111111;
+  margin-bottom: calc(3 * var(--pt));
+  break-after: avoid;
+}
+
+.dlk-blok__kepala > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Kotak tempel bukti asli: garis putus-putus, latar abu sangat muda, tinggi minimum dalam mm seperti di Word */
+.dlk-kotak {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--pt));
+  min-height: calc(var(--tinggi, 65) * var(--mm));
+  padding: calc(4 * var(--pt)) calc(8 * var(--pt));
+  border: max(1px, calc(0.75 * var(--pt))) dashed #888888;
+  background: #fafafa;
+  text-align: center;
+  break-inside: avoid;
+}
+
+.dlk-kotak__judul {
+  font-size: calc(10 * var(--pt));
+  font-weight: 700;
+  color: #777777;
+}
+
+.dlk-kotak__ket {
+  font-size: calc(9 * var(--pt));
+  color: #999999;
+  overflow-wrap: anywhere;
+}
+
+.dlk-kotak__catatan {
+  font-size: calc(8 * var(--pt));
+  font-style: italic;
+  color: #aaaaaa;
+}
+
+.dlk-kotak-tambahan {
+  margin-top: calc(6 * var(--pt));
+}
+
+/* Struk: kotak tempel di kiri, foto bukti digital di kanan, setinggi 120 mm */
+.dlk-struk {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: calc(120 * var(--mm));
+  break-inside: avoid;
+}
+
+.dlk-struk > .dlk-kotak {
+  min-height: 0;
+}
+
+.dlk-struk__foto {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(3 * var(--pt));
+  border: 1px solid #cccccc;
+  border-left: 0;
+  text-align: center;
+  min-width: 0;
+}
+
+.dlk-struk__judul-foto {
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  color: #666666;
+}
+
+.dlk-struk__kosong {
+  font-size: calc(9 * var(--pt));
+  font-style: italic;
+  color: #888888;
+  padding: calc(10 * var(--pt)) calc(4 * var(--pt));
+}
+
+/* Foto bukti digital: satu foto maks. 120 × 90 mm di tengah, dua foto atau lebih dua per baris (maks. 77 × 79 mm). */
+.dlk-foto-judul {
+  font-size: calc(9 * var(--pt));
+  font-weight: 700;
+  color: #555555;
+  margin: calc(6 * var(--pt)) 0 calc(3 * var(--pt));
+  break-after: avoid;
+}
+
+.dlk-foto-kisi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: calc(2 * var(--pt));
+}
+
+.dlk-foto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  break-inside: avoid;
+}
+
+.dlk-foto-kisi .dlk-foto {
+  padding: calc(4 * var(--pt)) calc(4 * var(--pt)) calc(2 * var(--pt));
+  border: 1px solid #dddddd;
+}
+
+.dlk-foto .dsc-foto-kotak {
+  flex: none;
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.dlk-foto .dsc-foto {
+  max-width: 100%;
+  max-height: calc(90 * var(--mm));
+  box-shadow: none;
+}
+
+.dlk-foto-tunggal .dsc-foto,
+.dlk-foto--pendukung .dsc-foto {
+  max-width: min(100%, calc(120 * var(--mm)));
+}
+
+.dlk-foto-kisi .dsc-foto {
+  max-height: calc(79 * var(--mm));
+}
+
+.dlk-foto--struk .dsc-foto {
+  max-height: calc(100 * var(--mm));
+}
+
+.dlk-lembar .dlk-foto--pendukung {
+  margin-top: calc(5 * var(--pt));
+}
+
+.dlk-foto figcaption {
+  margin-top: calc(2 * var(--pt));
+  font-size: calc(8.5 * var(--pt));
+  font-style: italic;
+  color: #555555;
+  text-align: center;
+}
+
+.dlk-foto .dsc-lampiran-status {
+  padding: calc(4 * var(--pt));
+}
+
+.dlk-tautan {
+  font-size: calc(8.5 * var(--pt));
+  font-style: italic;
+  color: #555555;
+  overflow-wrap: anywhere;
+}
+
+.dlk-keterangan {
+  margin-top: calc(4 * var(--pt));
+  font-size: calc(10 * var(--pt));
+}
+
+.dlk-keterangan p {
+  margin-bottom: calc(1.5 * var(--pt));
+  overflow-wrap: anywhere;
+}
+
+.dlk-seg--tebal {
+  font-weight: 700;
+}
+
+.dlk-seg--miring {
+  font-style: italic;
+}
+
+.dlk-seg--abu {
+  color: #555555;
+}
+
+.dlk-seg--merah {
+  color: #b00020;
+}
+
+.dlk-seg--kecil {
+  font-size: 0.95em;
+}
+
+.dlk-pemisah {
+  border: 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin: calc(6 * var(--pt)) 0;
+}
+
+/* Tanda tangan dokumen pendukung */
+.dlk-ttd-dua {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1em;
+  margin-top: calc(10 * var(--pt));
+  break-inside: avoid;
+}
+
+.dlk-ttd-dua p,
+.dlk-ttd-kanan p {
+  margin-bottom: calc(1.5 * var(--pt));
+}
+
+.dlk-ttd-ruang {
+  height: calc(20 * var(--pt));
+}
+
+.dlk-ttd-kanan {
+  width: 55%;
+  margin-left: auto;
+  text-align: right;
+  break-inside: avoid;
+}
+
+.dlk-ttd-nama {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.dlk-ttd-jabatan {
+  font-size: calc(9.5 * var(--pt));
+  color: #444444;
+}
+
+.dlk-lembar .dlk-surat__pembuka {
+  margin: calc(7 * var(--pt)) 0 calc(4 * var(--pt));
+}
+
+.dlk-lembar .dlk-surat__narasi {
+  text-align: justify;
+  margin: calc(2 * var(--pt)) 0 calc(4 * var(--pt));
+}
+
+.dlk-lembar .dlk-surat__penutup {
+  margin-bottom: calc(9 * var(--pt));
+}
+
+/* Ringkasan penyelesaian dana: kartu bertabel dengan pita status berwarna (sama dengan dokumen Word) */
+.dlk-ringkasan {
+  width: 100%;
+  margin-top: calc(12 * var(--pt));
+  border-collapse: collapse;
+  font-size: calc(10 * var(--pt));
+  break-inside: avoid;
+}
+
+.dlk-ringkasan th,
+.dlk-ringkasan td {
+  padding: calc(4.5 * var(--pt)) calc(8 * var(--pt));
+  border: 1px solid #cbd5e1;
+  vertical-align: middle;
+}
+
+.dlk-ringkasan thead th {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #ffffff;
+  text-align: left;
+  font-size: calc(10.5 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.dlk-ringkasan tbody td:first-child {
+  color: #334155;
+}
+
+.dlk-ringkasan tbody td.dsc-jumlah {
+  color: #111111;
+}
+
+.dlk-ringkasan tbody tr:nth-child(2) td {
+  background: #f8fafc;
+}
+
+.dlk-ringkasan tbody .dlk-ringkasan__total td {
+  background: #eef2f7;
+  border-top: 2px solid #1f2937;
+  font-size: calc(10.5 * var(--pt));
+  font-weight: 700;
+  color: #111111;
+}
+
+/* Aksen kiri pita status berupa bayangan dalam, supaya garis tepi tabel tetap lurus (garis tebal pada tabel collapse melebar keluar). */
+.dlk-ringkasan tbody .dlk-ringkasan__status td {
+  background: var(--rs-latar);
+  border-left-color: var(--rs-garis);
+  box-shadow: inset calc(4.5 * var(--pt)) 0 0 var(--rs-garis);
+  padding-left: calc(12 * var(--pt));
+  padding-top: calc(6 * var(--pt));
+  padding-bottom: calc(6 * var(--pt));
+}
+
+.dlk-ringkasan__label {
+  font-size: calc(9.5 * var(--pt));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--rs-teks);
+}
+
+.dlk-ringkasan__nominal {
+  font-size: calc(17 * var(--pt));
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--rs-teks);
+  font-variant-numeric: tabular-nums;
+}
+
+.dlk-ringkasan__rumus {
+  margin-top: calc(1 * var(--pt));
+  font-size: calc(8.5 * var(--pt));
+  color: #475569;
+}
+
+/* Cetak: tiap lembar mulai di halaman baru bernama "laporan-kegiatan" (A4 potret, margin 20 mm); kepala dan nomor halaman
+   ada di kotak margin @page (lihat GayaHalamanCetak). Isi lembar yang panjang mengalir ke halaman berikutnya. */
+@media print {
+  @page laporan-kegiatan {
+    size: A4 portrait;
+    margin: 20mm;
+  }
+
+  .dsc-kertas.dlk-lembar {
+    --mm: 1mm;
+    --pt: 1pt;
+    page: laporan-kegiatan;
+    padding: 0;
+    margin: 0;
+    font-size: 10.5pt;
+    line-height: 1.25;
+  }
+
+  .dlk-lembar + .dlk-lembar {
+    break-before: page;
+  }
+
+  .dlk-kepala-layar {
+    display: none;
+  }
+
+  .dlk-tabel thead {
+    display: table-header-group;
+  }
+
+  .dlk-tabel tfoot {
+    display: table-row-group;
+  }
+
+  .dlk-judul-kelompok,
+  .dlk-sub-kelompok,
+  .dlk-judul-bagian,
+  .dlk-foto-judul,
+  .dlk-blok__kepala {
+    break-after: avoid;
   }
 }
 
@@ -8941,6 +9569,33 @@ button {
   gap: 6px;
   padding: 8px 14px;
   font-size: 0.82rem;
+}
+
+.lampiran-bukti__petunjuk {
+  margin: 8px 0 0;
+  max-width: 62ch;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Nomor urut foto bukti (sama dengan "Foto bukti n dari N" di dokumen cetak) */
+.lampiran-bukti__urut {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
 }
 
 @media (max-width: 639.98px) {

@@ -245,7 +245,7 @@ with sync_playwright() as p:
     cek("dsc-lanskap" in (lembar.get_attribute("class") or ""), "lembar daftar perdiem berformat lanskap")
     pg.emulate_media(media="print")
     cek(pg.evaluate("getComputedStyle(document.querySelector('[data-testid=lembar-timesheet]')).page") == "timesheet-page", "saat dicetak lembar uang harian memakai halaman bernama timesheet-page (A4 lanskap)")
-    cek(pg.evaluate("getComputedStyle(document.querySelector('.dsc-kertas:not(.dsc-lanskap)')).page") in ("auto", ""), "lembar lain tetap potret")
+    cek(pg.evaluate("getComputedStyle(document.querySelector('.dsc-kertas:not(.dsc-lanskap)')).page") == "laporan-kegiatan", "lembar lain tetap potret (halaman bernama laporan-kegiatan: A4 potret, margin 20 mm seperti Word)")
     pg.emulate_media(media="screen")
 
     print("3. Word memakai format yang sama")

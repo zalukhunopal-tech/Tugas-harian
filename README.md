@@ -68,18 +68,34 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     malam, pemilik dan telepon, KTP pemilik), Konsumsi (penyedia, telepon, lokasi, peserta atau daftar nama dan plafon kudapan),
     Honorarium (nama, PNS/NPWP, orang × hari, nomor absen, bruto/PPh 21/netto), dan Pengadaan/Lain-lain (jumlah × harga, penjual,
     surat justifikasi). Tiap baris tabel juga menyebut metode pembayaran; judul kegiatan tidak diulang di tiap kategori atau baris.
-  - **Satu dokumen terpadu** (cetak, PDF, dan Word memakai susunan yang sama): **timesheet uang harian** (A4 **lanskap**, paling
-    depan), lalu tabel Penerimaan Dana, lalu tiap kategori pengeluaran **diikuti foto nota dan kotak tempel buktinya** (A4 **potret**),
-    ditutup **rekapitulasi dan penyelesaian dana**. Satu tombol *Cetak / Simpan PDF* dan satu tombol *Unduh Laporan Word* di bilah
-    dokumen; orientasi berganti otomatis lewat halaman bernama CSS (`@page timesheet-page`). Peramban ponsel yang mengabaikan halaman
-    bernama tetap bisa memakai Word, yang orientasinya per bagian selalu benar. Kop (judul laporan, kegiatan, periode) hanya sekali.
+  - **Cetak = Word**: bila satu kegiatan dipilih, pratinjau di aplikasi, *Cetak / Simpan PDF*, dan *Unduh Laporan Word* dibentuk dari
+    satu susunan (`src/lib/susunanLaporan.ts`, diuji `scripts/uji_susunan_laporan.ts`), jadi isi dan tata letaknya sama: **timesheet uang
+    harian** (A4 **lanskap**, paling depan), judul dan identitas dengan tabel Penerimaan Dana, lalu tiap kelompok pengeluaran di **halaman
+    baru** (judul bernomor, tabel, lalu tiap pengeluaran: kotak tempel bukti asli bergaris putus-putus, foto bukti digital, keterangan,
+    kotak tambahan seperti boarding pass/STNK/KTP, foto pendukung), dokumen pendukung (timesheet rental, surat justifikasi), rekapitulasi
+    penggunaan dana dengan **kartu ringkasan penyelesaian**, dan daftar periksa SPJ. Semua halaman A4 bermargin 2 cm, Arial; saat dicetak
+    kepala halaman (*Laporan Keuangan Kegiatan · nama · periode*) dan *Halaman X dari Y* ada di margin seperti header/footer Word (kotak
+    margin `@page`, Chrome 131+). Dokumen disusun dari semua transaksi kegiatan, tidak dibatasi rentang tanggal laporan, sehingga
+    pengeluaran pra-kegiatan dan **uang harian hari kepulangan** (sampai 2 hari sesudah tanggal selesai, walau belum dikaitkan) ikut.
+    Tanpa kegiatan terpilih, dokumen umum per kategori dengan Lampiran Bukti (di bawah) tetap dipakai.
+  - **Semua foto bukti tercetak**: satu pengeluaran boleh punya beberapa foto (mis. tiket pesawat/speedboat tiap orang yang ikut
+    diklaim, beberapa struk snack perjalanan). Struk thermal: kotak tempel di kiri dan foto pertama di kanan; foto lainnya (atau semua
+    foto untuk bukti lain) ditata satu di tengah atau dua per baris dengan keterangan *Foto bukti n dari N*. Foto yang hanya punya
+    tautan Drive (hasil tarik dari sheet) ikut dimuat; PDF dicantumkan sebagai tautan. Di formulir, tombol kamera menjadi *Tambah Foto
+    Lagi* setelah foto pertama dan tiap foto bernomor.
+  - **Kartu ringkasan penyelesaian dana** (Word dan cetak): pita judul gelap, rincian dana awal, realisasi, dan uang harian, baris total
+    yang diakui, lalu pita status berwarna (hijau sisa dikembalikan, merah kelebihan diganti, biru nihil) dengan nominal besar dan
+    rumusnya, menggantikan baris bertitik-titik.
   - **Timesheet lanskap pas A4**: lebar kolom berupa persen kertas (No 4%, Tanggal 12%, Keterangan 46%, Lokasi 25%, Jumlah 13%, sama di
     layar, cetak, dan Word); dengan sedikit hari baris meregang sampai tanda tangan menyentuh dasar halaman, dengan banyak hari tabel
     mengalir antarhalaman (kepala berulang; Total dan tanda tangan di halaman terakhir).
   - **Timesheet dari Drive sebagai sumber kebenaran**: saat file timesheet ditarik, Tanggal, Keterangan, dan Lokasi di file menggantikan
     salinan di aplikasi dan rentang tanggal kegiatan ikut bertambah bila file lebih panjang (dibatasi 45 hari agar salah ketik tanggal
     tidak melebarkan kegiatan). Tanggal yang belum punya transaksi uang harian tetap tampil (jumlah Rp0) tanpa mengubah nominal, dan uang
-    harian gabungan dibagi ke tanggal timesheet.
+    harian gabungan dibagi ke tanggal timesheet. File cadangan (nama berisi *backup*, *salinan*, *copy*, atau unggahan `.xlsx`) tidak
+    dipilih bila file utama kegiatan yang sama ada, dan baris yang selnya terpecah koma (mis. lokasi dan jumlah dalam satu sel) dirapikan,
+    jadi hari terakhir timesheet tidak hilang. Isian Profil Pelapor yang kosong diisi dari kop timesheet (Nama, Proyek, Disetujui) hanya
+    untuk dokumen; profil sendiri tidak diubah.
   - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan, dan
     **penerimaan dana** yang masuk sebelum hari pertama timesheet (setelah kegiatan sebelumnya selesai) dihitung sebagai dana awal
     kegiatan itu, bukan saldo awal di luar periode.
@@ -95,7 +111,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     92 × 120 mm di kanan, dua kartu per halaman; Tipe B (kuitansi/tiket, area 190 × 76 mm) dan Tipe C (kuitansi besar/faktur,
     190 × 120 mm): foto di atas, area tempel di bawah, satu kartu per halaman. Pengeluaran tanpa foto mendapat kotak tempel ringkas
     (A 92 × 132 mm berpasangan, B 190 × 88 mm, C 190 × 132 mm). Ukuran dipilih otomatis menurut jenis bukti dan kategori, bisa diubah
-    per pengeluaran. Dokumen Word memakai tata letaknya sendiri.
+    per pengeluaran. Lampiran ini dipakai dokumen umum (tanpa kegiatan terpilih); laporan satu kegiatan memakai susunan Word di atas.
   - Kartu ringkasan saldo di Laporan: empat kartu sebaris di PC (≥ 1024 px), 2 × 2 di tablet, label di atas dan nominal di bawah sejajar.
 - **Depresiasi Aset** (tab Saya → Depresiasi): setelah pengeluaran barang yang **bukan sekali pakai** dicatat (laptop, ponsel,
   ban, aki, oli, dan sejenisnya; makan, bensin, pulsa, tiket, sewa, dan servis tidak ditawari), aplikasi menawarkan *Hitung depresiasi?*.
