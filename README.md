@@ -59,13 +59,37 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     Mengubah atau mengosongkan sebagian isian secara sengaja tetap berjalan. Diuji di `scripts/uji_profil_pelapor.ts`.
   - **Kudapan Perjalanan**: subkategori Konsumsi dengan plafon sepertiga uang harian Kalimantan (Rp200.000 / 3 = Rp66.667 per
     orang). Nama staf penerima dicatat sebagai tag; jumlah mengikuti plafon, tetap bisa disesuaikan dengan struk riil.
-  - **Penerima Manfaat** ("numpang klaim") untuk kategori lain (akomodasi, transportasi, konsumsi, perlengkapan, dst.); nama
-    tercantum di bawah uraian pada tabel laporan, Word, dan kepala kotak tempel. Daftar nama staf hanya tersimpan di perangkat.
-  - **Cetak**: timesheet uang harian dicetak A4 **lanskap**, dokumen lain A4 **potret** (halaman bernama CSS). Tersedia tombol
-    *Cetak Semua Dokumen*, *Cetak Khusus Timesheet (Lanskap)*, dan *Cetak Dokumen Klaim & Nota (Potret)* untuk peramban ponsel
-    yang mengabaikan halaman bernama (orientasi di jendela cetak Android tetap perlu dicocokkan). Tabel mengalir penuh halaman:
-    kepala berulang, Total dan tanda tangan hanya di akhir.
-  - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan.
+  - **Penerima Manfaat** ("numpang klaim") untuk kategori lain (akomodasi, transportasi, konsumsi, perlengkapan, dst.). Di tabel
+    laporan, Word, dan kepala kotak tempel tercantum **"Diklaim untuk: <pelapor>, <rekan 1>, <rekan 2>"** (hanya pelapor bila tanpa
+    rekan; nama pelapor diambil dari Profil Pelapor). Daftar nama staf hanya tersimpan di perangkat.
+  - **Kelengkapan per kategori** (`src/lib/kelengkapanKategori.ts`, dipakai tabel cetak, kepala kotak tempel, dan Word): Transportasi
+    (rute, moda, sopir dan telepon, nomor polisi, tiket/boarding pass/STNK), Rental Kendaraan (jenis, tahun, plat, pemilik, durasi dan
+    tanggal, gross-up pajak, timesheet rental, STNK/SIM/KTP), BBM (KM spidometer, jarak, rute, plat), Akomodasi (penginapan, check-in/out,
+    malam, pemilik dan telepon, KTP pemilik), Konsumsi (penyedia, telepon, lokasi, peserta atau daftar nama dan plafon kudapan),
+    Honorarium (nama, PNS/NPWP, orang × hari, nomor absen, bruto/PPh 21/netto), dan Pengadaan/Lain-lain (jumlah × harga, penjual,
+    surat justifikasi). Tiap baris tabel juga menyebut metode pembayaran; judul kegiatan tidak diulang di tiap kategori atau baris.
+  - **Satu dokumen terpadu** (cetak, PDF, dan Word memakai susunan yang sama): **timesheet uang harian** (A4 **lanskap**, paling
+    depan), lalu tabel Penerimaan Dana, lalu tiap kategori pengeluaran **diikuti foto nota dan kotak tempel buktinya** (A4 **potret**),
+    ditutup **rekapitulasi dan penyelesaian dana**. Satu tombol *Cetak / Simpan PDF* dan satu tombol *Unduh Laporan Word* di bilah
+    dokumen; orientasi berganti otomatis lewat halaman bernama CSS (`@page timesheet-page`). Peramban ponsel yang mengabaikan halaman
+    bernama tetap bisa memakai Word, yang orientasinya per bagian selalu benar. Kop (judul laporan, kegiatan, periode) hanya sekali.
+  - **Timesheet lanskap pas A4**: lebar kolom berupa persen kertas (No 4%, Tanggal 12%, Keterangan 46%, Lokasi 25%, Jumlah 13%, sama di
+    layar, cetak, dan Word); dengan sedikit hari baris meregang sampai tanda tangan menyentuh dasar halaman, dengan banyak hari tabel
+    mengalir antarhalaman (kepala berulang; Total dan tanda tangan di halaman terakhir).
+  - **Timesheet dari Drive sebagai sumber kebenaran**: saat file timesheet ditarik, Tanggal, Keterangan, dan Lokasi di file menggantikan
+    salinan di aplikasi dan rentang tanggal kegiatan ikut bertambah bila file lebih panjang (dibatasi 45 hari agar salah ketik tanggal
+    tidak melebarkan kegiatan). Tanggal yang belum punya transaksi uang harian tetap tampil (jumlah Rp0) tanpa mengubah nominal, dan uang
+    harian gabungan dibagi ke tanggal timesheet.
+  - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan, dan
+    **penerimaan dana** yang masuk sebelum hari pertama timesheet (setelah kegiatan sebelumnya selesai) dihitung sebagai dana awal
+    kegiatan itu, bukan saldo awal di luar periode.
+  - **Judul kegiatan panjang dan penyatuan otomatis**: judul diisi di kolom lebar (hingga 500 huruf). Kegiatan dari Penerimaan Dana dan
+    dari Timesheet yang sama dikenali walau beda "(Batch N)", spasi, huruf besar-kecil, atau terpotong, lalu disatukan otomatis (isi
+    digabung, transaksi dialihkan, tidak ada data yang dihapus) sehingga "Pilih Kegiatan Lapangan" hanya memuat satu pilihan
+    (`src/lib/kegiatanSama.ts`, diuji `scripts/uji_kegiatan_sama.ts`). Tarikan dari Drive menggabungkan daftar kegiatan, tidak menimpanya.
+    Menyimpan Penerimaan Dana tidak lagi menempelkan judul kegiatan ke uraian ("Penerimaan Dana Kegiatan").
+  - **Catatan SPJ fisik**: batas penyerahan +14 hari beserta hitung mundur sudah dihapus; diganti satu catatan kecil di aplikasi yang
+    tidak ikut dicetak. Filter *Kaitan Kegiatan / Sumber* dihapus: *Pilih Kegiatan Lapangan* satu-satunya penyaring kegiatan.
   - **Lampiran Bukti** (A4 potret, area 190 × 277 mm): foto bukti digital dan kotak kosong tempat nota/struk/tiket asli ditempel
     berada di **satu lembar yang sama** per pengeluaran dan tidak terbelah antarhalaman. Tipe A (struk): foto di kiri, area tempel
     92 × 120 mm di kanan, dua kartu per halaman; Tipe B (kuitansi/tiket, area 190 × 76 mm) dan Tipe C (kuitansi besar/faktur,

@@ -1,5 +1,6 @@
 import { BuktiItem, Transaksi, UkuranKotakTempel } from "../types";
 import { formatRupiah, labelKategori } from "./constants";
+import { barisKepalaBukti } from "./kelengkapanKategori";
 
 /**
  * Lampiran Bukti (A4 potret, area cetak bersih 190 × 277 mm): untuk tiap pengeluaran, foto bukti digital dan kotak kosong tempat
@@ -86,8 +87,10 @@ export interface KotakTempel {
   nomor: string;
   ukuran: UkuranKotak;
   varian: VarianLampiran;
-  /** Satu baris ringkas untuk kepala kotak: No. | Tanggal | Kategori - Uraian | Penerima Manfaat | Rp. */
+  /** Satu baris ringkas untuk kepala kotak: No. | Tanggal | Kategori - Uraian | Rp. */
   kepala: string;
+  /** Keterangan di bawah kepala: "Diklaim untuk: ..." lalu kelengkapan kategori (rute, kendaraan, penyedia, dan seterusnya). */
+  rincian: string[];
   /** Foto bukti digital yang menyertai kotak (kosong pada varian ringkas). */
   bukti: BuktiItem[];
 }
@@ -111,22 +114,16 @@ function tanggalSingkat(iso: string): string {
   return y && m && d ? `${d}/${m}/${y}` : iso;
 }
 
-/** Uraian singkat untuk kepala kotak; penerima manfaat dipisah karena tampil sebagai bagiannya sendiri. */
+/** Uraian singkat untuk kepala kotak; daftar nama yang diklaim dan kelengkapan kategori ada di baris `rincian` di bawahnya. */
 export function teksKepalaKotak(t: Transaksi, nomor: string): string {
-  const penerima = (t.detailKegiatan?.penerimaManfaat ?? []).filter(Boolean);
-  const bagian = [
-    `No. ${nomor}`,
-    tanggalSingkat(t.tanggal),
-    `${labelKategori(t.kategori)} - ${t.deskripsi}`,
-  ];
-  if (penerima.length > 0) bagian.push(`Penerima Manfaat: ${penerima.join(", ")}`);
-  bagian.push(formatRupiah(t.jumlah));
-  return bagian.join(" | ");
+  return [`No. ${nomor}`, tanggalSingkat(t.tanggal), `${labelKategori(t.kategori)} - ${t.deskripsi}`, formatRupiah(t.jumlah)].join(" | ");
 }
 
 export interface OpsiLampiran {
   /** Sertakan kotak tempel untuk bukti fisik asli (pengeluaran Dana Kegiatan). */
   sertakanTempel: boolean;
+  /** Nama pelapor untuk baris "Diklaim untuk: ..." di kepala kotak. */
+  namaPelapor?: string;
 }
 
 /**
@@ -150,6 +147,7 @@ export function susunKotakTempel(
       ukuran: UKURAN_KOTAK[pilihUkuranKotak(t)],
       varian: !tempel ? "foto" : bukti.length > 0 ? "terpadu" : "ringkas",
       kepala: teksKepalaKotak(t, nomor),
+      rincian: barisKepalaBukti(t, opsi.namaPelapor ?? ""),
       bukti,
     });
   }

@@ -17,6 +17,7 @@ import {
   judulUntukTimesheet,
   labelBulan,
   namaFileTimesheet,
+  rentangMengikutiTimesheet,
   sarankanBatch,
   susunDaftarPerdiem,
   susunIsiTimesheet,
@@ -183,6 +184,46 @@ const perdiem = barisPerdiemKegiatan(
 cek("hanya perdiem Dana Kegiatan", perdiem.length === 3 && perdiem.map((b) => b.tanggal).join() === "2026-09-20,2026-09-21,2026-09-22", perdiem);
 cek("keterangan dan lokasi dari timesheet, jumlah dari transaksi", perdiem[0].keterangan === "Perjalanan ke Kota Tujuan" && perdiem[0].jumlah === 200000 && perdiem[2].lokasi === "Desa Contoh Satu");
 cek("hari tanpa baris di timesheet tetap muncul dengan keterangan kosong", perdiem[1].keterangan === "" && perdiem[1].jumlah === 200000);
+
+console.log("Timesheet sebagai sumber kebenaran tanggal, keterangan, dan lokasi");
+const hariTs = (tanggal: string, keterangan: string, lokasi = "Desa Contoh") => ({ tanggal, keterangan, lokasi });
+const timesheetLima = [
+  hariTs("2026-09-20", "Hari satu"),
+  hariTs("2026-09-21", "Hari dua"),
+  hariTs("2026-09-22", "Hari tiga"),
+  hariTs("2026-09-23", "Hari empat"),
+  hariTs("2026-09-24", "Hari lima"),
+];
+const hanyaDua = barisPerdiemKegiatan([trx({}), trx({ tanggal: "2026-09-22" })], timesheetLima);
+cek("hari timesheet tanpa transaksi perdiem tetap muncul", hanyaDua.map((b) => b.tanggal).join() === "2026-09-20,2026-09-21,2026-09-22,2026-09-23,2026-09-24", hanyaDua.map((b) => b.tanggal));
+cek("hari tanpa transaksi: keterangan dan lokasi dari timesheet, jumlah 0", hanyaDua[3].keterangan === "Hari empat" && hanyaDua[3].lokasi === "Desa Contoh" && hanyaDua[3].jumlah === 0, hanyaDua[3]);
+cek("total tetap sama dengan perdiem tercatat (nominal tidak hilang)", hanyaDua.reduce((s, b) => s + (b.jumlah ?? 0), 0) === 400000);
+cek("tanpa transaksi sama sekali: seluruh hari timesheet muncul", barisPerdiemKegiatan([], timesheetLima).length === 5);
+
+const gabungan = trx({ tanggal: "2026-09-20", jumlah: 1000000, detailKegiatan: { perdiem: { jumlahHari: 5, tarifPerHari: 200000 } } });
+const dariGabungan = barisPerdiemKegiatan([gabungan], timesheetLima);
+cek("perdiem gabungan dibagi ke lima hari timesheet", dariGabungan.length === 5 && dariGabungan.every((b) => b.jumlah === 200000), dariGabungan.map((b) => b.jumlah));
+cek("keterangan tiap hari ikut tampil", dariGabungan[2].keterangan === "Hari tiga");
+cek("total perdiem gabungan tidak berubah", dariGabungan.reduce((s, b) => s + (b.jumlah ?? 0), 0) === 1000000);
+const timesheetKurang = timesheetLima.slice(0, 3);
+const gabunganKurang = barisPerdiemKegiatan([gabungan], timesheetKurang);
+cek("timesheet kurang dari jumlah hari: nominal tetap utuh satu baris, tidak ditebak", gabunganKurang.length === 3 && gabunganKurang[0].jumlah === 1000000 && gabunganKurang[1].jumlah === 0, gabunganKurang.map((b) => b.jumlah));
+const gabunganSebagian = barisPerdiemKegiatan([trx({ tanggal: "2026-09-22", jumlah: 400000, detailKegiatan: { perdiem: { jumlahHari: 2, tarifPerHari: 200000 } } })], timesheetLima);
+cek("perdiem gabungan mulai di tengah: dibagi mulai tanggalnya", gabunganSebagian.map((b) => b.jumlah).join() === "0,0,200000,200000,0", gabunganSebagian.map((b) => b.jumlah));
+cek("gabungan tanpa timesheet: tetap satu baris", barisPerdiemKegiatan([gabungan], []).length === 1);
+
+cek("daftar dokumen: hari timesheet tanpa transaksi ikut, total dari transaksi", (() => {
+  const d = susunDaftarPerdiem([trx({}), trx({ tanggal: "2026-09-21" })], { nama: "K", batch: 1, timesheetNama: undefined, timesheetBaris: timesheetLima }, { nama: "N", proyek: "P" });
+  return d?.baris.length === 5 && d.total === 400000 && d.baris[4].keterangan === "Hari lima" && d.baris[4].jumlah === 0 && d.hariBerketerangan === 5;
+})());
+cek("tanpa transaksi perdiem sama sekali, lembar tidak dibuat walau timesheet ada", susunDaftarPerdiem([trx({ kategori: "Konsumsi" })], { nama: "K", batch: 1, timesheetNama: undefined, timesheetBaris: timesheetLima }, { nama: "N", proyek: "P" }) === null);
+
+const rentangAwal = { tanggalMulai: "2026-09-20", tanggalSelesai: "2026-10-24" };
+cek("rentang melebar bila timesheet memuat hari sesudah tanggal selesai", rentangMengikutiTimesheet(rentangAwal, [hariTs("2026-10-25", "x"), hariTs("2026-10-26", "y")]).tanggalSelesai === "2026-10-26");
+cek("rentang melebar bila timesheet memuat hari sebelum tanggal mulai", rentangMengikutiTimesheet(rentangAwal, [hariTs("2026-09-18", "x")]).tanggalMulai === "2026-09-18");
+cek("rentang tidak pernah menyempit", (() => { const r = rentangMengikutiTimesheet(rentangAwal, [hariTs("2026-10-01", "x")]); return r.tanggalMulai === "2026-09-20" && r.tanggalSelesai === "2026-10-24"; })());
+cek("tanggal salah ketik (tahun jauh) diabaikan", (() => { const r = rentangMengikutiTimesheet(rentangAwal, [hariTs("2062-10-25", "x"), hariTs("2025-10-25", "y")]); return r.tanggalMulai === "2026-09-20" && r.tanggalSelesai === "2026-10-24"; })());
+cek("tanpa baris: rentang sama", rentangMengikutiTimesheet(rentangAwal, []).tanggalSelesai === "2026-10-24");
 
 console.log("Daftar perdiem untuk dokumen");
 const daftar = susunDaftarPerdiem(

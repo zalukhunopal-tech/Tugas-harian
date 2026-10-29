@@ -50,6 +50,7 @@ import {
 import { ingatStaf, kategoriBolehPenerima } from "../lib/penerimaManfaat";
 import { normalisasiJenisBukti } from "../lib/constants";
 import { cekKetentuanTransaksi } from "../lib/ketentuanKegiatan";
+import { cariKegiatanSama, satukanKegiatanKembar } from "../lib/kegiatanSama";
 import { KotakDepresiasi } from "./KotakDepresiasi";
 import { FORM_PENYUSUTAN_AWAL, FormPenyusutan, formDariItem, galatForm as galatPenyusutan, itemDariForm } from "../lib/penyusutan";
 import { dapatkanInfoKategori } from "../lib/kategoriIcon";
@@ -65,6 +66,9 @@ import {
   tanggalPendek,
   tanggalSudahAdaPerdiem,
 } from "../lib/perdiemOtomatis";
+
+/** Uraian penerimaan dana kegiatan; judul kegiatannya ada di kolom kaitan dan tidak diulang di uraian. */
+const URAIAN_PENERIMAAN_DANA = "Penerimaan Dana Kegiatan";
 
 interface TambahViewProps {
   editTransaksi: Transaksi | null;
@@ -614,7 +618,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setGalatForm("Isi Nama/Judul Kegiatan (minimal 3 huruf), mis. Kegiatan Pemetaan Krayan Batch 4.");
           return;
         }
-        const cocok = daftarKegiatan.find((k) => k.nama.trim().toLowerCase() === kaitanSimpan.toLowerCase());
+        const cocok = cariKegiatanSama(daftarKegiatan, { nama: kaitanSimpan, tanggalMulai: tanggal, tanggalSelesai: tanggal });
         if (cocok) {
           kegiatanIdSimpan = cocok.id;
           kaitanSimpan = cocok.nama;
@@ -630,7 +634,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
           onTambahKegiatan?.(baru);
           kegiatanIdSimpan = baru.id;
         }
-        if (!editTransaksi || !deskripsiSimpan || deskripsiSimpan.startsWith("Penerimaan Dana")) deskripsiSimpan = `Penerimaan Dana ${kaitanSimpan}`;
+        // Judul kegiatan sudah tersimpan di kaitan dan kegiatanId; uraian tidak mengulanginya.
+        if (!editTransaksi || !deskripsiSimpan || deskripsiSimpan.startsWith("Penerimaan Dana")) deskripsiSimpan = URAIAN_PENERIMAAN_DANA;
       }
       if (!deskripsiSimpan) return;
       setGalatForm("");
@@ -985,31 +990,51 @@ export const TambahView: React.FC<TambahViewProps> = ({
       </div>
     </>
   );
+  const kegiatanBerjudulSama = useMemo(
+    () => (kaitan.trim().length < 3 ? undefined : cariKegiatanSama(daftarKegiatan, { nama: kaitan, tanggalMulai: tanggal, tanggalSelesai: tanggal })),
+    [kaitan, tanggal, daftarKegiatan]
+  );
+  // Kegiatan yang sama dari Penerimaan Dana dan Timesheet tampil sebagai satu pilihan.
+  const kegiatanUntukDipilih = useMemo(
+    () => [...satukanKegiatanKembar(daftarKegiatan).daftar].sort((x, y) => (x.tanggalMulai < y.tanggalMulai ? 1 : -1)),
+    [daftarKegiatan]
+  );
   const blokJudulKegiatan = (
     <div className="field f-judul-kegiatan" data-testid="judul-kegiatan">
       <label htmlFor="judul-kegiatan">Nama / Judul Kegiatan</label>
-      <input
-        type="text"
+      {kegiatanUntukDipilih.length > 0 && (
+        <select
+          id="pilih-kegiatan-ada"
+          aria-label="Pilih kegiatan yang sudah ada"
+          value={kegiatanBerjudulSama && kegiatanBerjudulSama.nama === kaitan ? kegiatanBerjudulSama.id : ""}
+          onChange={(e) => {
+            const dipilih = kegiatanUntukDipilih.find((k) => k.id === e.target.value);
+            if (dipilih) setKaitan(dipilih.nama);
+          }}
+        >
+          <option value="">Pilih kegiatan yang sudah ada…</option>
+          {kegiatanUntukDipilih.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.nama.length > 90 ? `${k.nama.slice(0, 90)}…` : k.nama}
+              {k.timesheetId ? " • timesheet" : ""}
+            </option>
+          ))}
+        </select>
+      )}
+      <textarea
         id="judul-kegiatan"
-        list="daftar-judul-kegiatan"
-        placeholder="Contoh: Kegiatan Pemetaan Krayan Batch 4"
-        maxLength={150}
+        rows={3}
+        placeholder="Atau ketik judul kegiatan, mis. Kegiatan Pemetaan Krayan Batch 4"
+        maxLength={500}
         autoComplete="off"
         value={kaitan}
-        onChange={(e) => setKaitan(e.target.value)}
+        onChange={(e) => setKaitan(e.target.value.replace(/\s*\n+\s*/g, " "))}
         required
       />
-      <datalist id="daftar-judul-kegiatan">
-        {daftarKegiatan.map((k) => (
-          <option key={k.id} value={k.nama} />
-        ))}
-      </datalist>
       {(() => {
-        const judul = kaitan.trim().toLowerCase();
-        if (judul.length < 3) return <p className="judul-kegiatan__ket">Judul ini menjadi patokan utama laporan kegiatan: pengeluaran dan dokumen dengan judul yang sama dihimpun dalam satu laporan.</p>;
-        const ada = daftarKegiatan.some((k) => k.nama.trim().toLowerCase() === judul);
-        return ada ? (
-          <p className="judul-kegiatan__ket judul-kegiatan__ket--ada" data-testid="judul-ada">✓ Terhubung ke kegiatan yang sudah ada.</p>
+        if (kaitan.trim().length < 3) return <p className="judul-kegiatan__ket">Judul ini menjadi patokan utama laporan kegiatan: pengeluaran dan dokumen dengan judul yang sama dihimpun dalam satu laporan.</p>;
+        return kegiatanBerjudulSama ? (
+          <p className="judul-kegiatan__ket judul-kegiatan__ket--ada" data-testid="judul-ada">✓ Terhubung ke kegiatan yang sudah ada{kegiatanBerjudulSama.nama !== kaitan.trim() ? ` (${kegiatanBerjudulSama.nama.length > 80 ? `${kegiatanBerjudulSama.nama.slice(0, 80)}…` : kegiatanBerjudulSama.nama})` : ""}.</p>
         ) : (
           <p className="judul-kegiatan__ket judul-kegiatan__ket--baru" data-testid="judul-baru">Judul baru: kegiatan ini dibuat otomatis saat disimpan.</p>
         );
@@ -1175,7 +1200,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
             id="kaitan"
             list="list-saran-kaitan"
             placeholder={kaitanMeta.placeholder}
-            maxLength={150}
+            maxLength={500}
             value={kaitan}
             onChange={(e) => setKaitan(e.target.value)}
           />

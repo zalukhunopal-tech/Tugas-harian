@@ -1,4 +1,5 @@
 import { Transaksi } from "../types";
+import { kegiatanDariKaitan } from "./kegiatanSama";
 
 /**
  * Alur dana operasional kegiatan lapangan (cash advance / advance settlement):
@@ -54,16 +55,39 @@ export interface RentangKegiatan {
 
 const namaKecil = (s: string | undefined) => (s || "").trim().toLowerCase();
 
-/** Terhubung ke kegiatan lewat id, atau lewat nama kegiatan yang diisi di kolom kaitan. */
-function terhubungKe(t: Transaksi, k: RentangKegiatan): boolean {
-  return t.kegiatanId === k.id || (Boolean(namaKecil(t.kaitan)) && namaKecil(t.kaitan) === namaKecil(k.nama));
+/**
+ * Terhubung ke kegiatan lewat id, atau lewat judul kegiatan yang diisi di kolom kaitan. Judul dicocokkan longgar (lihat
+ * kegiatanSama.ts: tanpa "(Batch N)", beda spasi atau huruf besar, judul terpotong); bila beberapa kegiatan cocok, yang dipilih
+ * satu kegiatan saja menurut tanggal transaksi supaya transaksi tidak terhitung di dua kegiatan.
+ */
+function terhubungKe(t: Transaksi, k: RentangKegiatan, semuaKegiatan: RentangKegiatan[]): boolean {
+  if (t.kegiatanId === k.id) return true;
+  if (!namaKecil(t.kaitan)) return false;
+  const daftar = semuaKegiatan.some((x) => x.id === k.id) ? semuaKegiatan : [...semuaKegiatan, k];
+  return kegiatanDariKaitan(daftar, t.kaitan, t.tanggal)?.id === k.id;
+}
+
+const dalamRentang = (tanggal: string, k: RentangKegiatan) => tanggal >= k.tanggalMulai && tanggal <= k.tanggalSelesai;
+
+/**
+ * Penerimaan dana lembaga umumnya masuk SEBELUM hari pertama timesheet. Penerimaan bertanggal sebelum `kegiatan.tanggalMulai`
+ * (yang belum dikaitkan ke kegiatan mana pun) menjadi dana awal kegiatan ini bila kegiatan ini yang paling dulu dimulai sesudah
+ * tanggal itu; artinya tanggalnya jatuh setelah kegiatan sebelumnya selesai dan sebelum kegiatan ini selesai. Penerimaan yang
+ * tanggalnya sudah berada di dalam rentang kegiatan lain menjadi milik kegiatan lain itu, bukan dana pra-kegiatan.
+ */
+function praKegiatanMilik(tanggal: string, kegiatan: RentangKegiatan, semuaKegiatan: RentangKegiatan[]): boolean {
+  if (tanggal >= kegiatan.tanggalMulai) return false;
+  if (semuaKegiatan.some((k) => dalamRentang(tanggal, k))) return false;
+  const berikutnya = semuaKegiatan.filter((k) => k.tanggalMulai > tanggal);
+  const terdekat = berikutnya.reduce((min, k) => (k.tanggalMulai < min ? k.tanggalMulai : min), kegiatan.tanggalMulai);
+  return terdekat === kegiatan.tanggalMulai;
 }
 
 /**
  * Transaksi Dana Kegiatan milik satu kegiatan: semua yang terhubung ke kegiatan itu (tanpa batas tanggal), ditambah
- * dua jenis yang belum dikaitkan ke kegiatan mana pun tetapi tanggalnya dalam rentang kegiatan, supaya terisi otomatis
- * walau dicatat tanpa memilih kegiatan (kolom kegiatan tidak ikut tersimpan di Google Sheets):
- *   - penerimaan dana (dana awal);
+ * dua jenis yang belum dikaitkan ke kegiatan mana pun supaya terisi otomatis walau dicatat tanpa memilih kegiatan
+ * (kolom kegiatan tidak ikut tersimpan di Google Sheets):
+ *   - penerimaan dana (dana awal): dalam rentang kegiatan, atau pra-kegiatan (lihat praKegiatanMilik);
  *   - perdiem, selama tanggalnya hanya jatuh di rentang satu kegiatan (bila dua kegiatan beririsan, tidak ditebak).
  */
 export function transaksiKegiatan(
@@ -73,12 +97,14 @@ export function transaksiKegiatan(
 ): Transaksi[] {
   return transaksi.filter((t) => {
     if (t.dana !== "Dana Kegiatan") return false;
-    if (terhubungKe(t, kegiatan)) return true;
-    if (semuaKegiatan.some((k) => terhubungKe(t, k))) return false;
-    if (t.tanggal < kegiatan.tanggalMulai || t.tanggal > kegiatan.tanggalSelesai) return false;
-    if (t.jenis === "pemasukan") return t.kategori !== KATEGORI_PINDAH_DANA;
+    if (terhubungKe(t, kegiatan, semuaKegiatan)) return true;
+    if (semuaKegiatan.some((k) => terhubungKe(t, k, semuaKegiatan))) return false;
+    if (t.jenis === "pemasukan" && t.kategori !== KATEGORI_PINDAH_DANA) {
+      return dalamRentang(t.tanggal, kegiatan) || praKegiatanMilik(t.tanggal, kegiatan, semuaKegiatan);
+    }
+    if (!dalamRentang(t.tanggal, kegiatan)) return false;
     if (t.jenis === "pengeluaran" && t.kategori === KATEGORI_PERDIEM && !t.kegiatanId) {
-      return semuaKegiatan.filter((k) => t.tanggal >= k.tanggalMulai && t.tanggal <= k.tanggalSelesai).length <= 1;
+      return semuaKegiatan.filter((k) => dalamRentang(t.tanggal, k)).length <= 1;
     }
     return false;
   });

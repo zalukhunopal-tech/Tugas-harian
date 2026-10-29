@@ -1,6 +1,7 @@
 /**
- * Uji dokumen Word laporan kegiatan: daftar perdiem berformat timesheet berada di bagian (section) lanskap, bagian lain
- * tetap potret, dan perpindahan bagian tidak menyisakan halaman kosong. Jalankan: npx tsx scripts/uji_docx_perdiem.ts
+ * Uji dokumen Word laporan kegiatan: daftar perdiem berformat timesheet berada di bagian (section) lanskap paling depan, bagian
+ * lain tetap potret, perpindahan bagian tidak menyisakan halaman kosong, dan urutannya: timesheet, identitas, penerimaan dana,
+ * tiap kategori (tabel lalu bukti), rekapitulasi penyelesaian dana, daftar periksa. Jalankan: npx tsx scripts/uji_docx_perdiem.ts
  */
 import JSZip from "jszip";
 import { buatDokumenLaporanKegiatanDocx } from "../src/lib/docxGenerator";
@@ -92,8 +93,8 @@ async function main() {
   const dengan = await bacaBagian(
     await buatDokumenLaporanKegiatanDocx({
       transaksi: [
-        trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", deskripsi: "Dana awal", jumlah: 5000000, tanggal: "2026-09-20" }),
-        trx({ deskripsi: "Makan siang tim" }),
+        trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", deskripsi: `Penerimaan Dana ${kegiatan.nama}`, jumlah: 5000000, tanggal: "2026-09-20" }),
+        trx({ deskripsi: "Makan siang tim", detailKegiatan: { penerimaManfaat: ["Andi Pratama"], konsumsi: { penyedia: "Warung Contoh", noTelp: "0811000111", lokasi: "Balai Desa", jumlahPeserta: 12 } } }),
         perdiem("2026-09-21"),
         perdiem("2026-09-22"),
         perdiem("2026-09-23"),
@@ -102,14 +103,24 @@ async function main() {
       profilPelapor: profil,
     })
   );
-  cek("tiga bagian: potret, lanskap (perdiem), potret (daftar periksa)", dengan.map((b) => (b.lanskap ? "L" : "P")).join("") === "PLP", dengan.map((b) => [b.lebar, b.tinggi]));
+  cek("dua bagian: lanskap (timesheet) paling depan, lalu potret", dengan.map((b) => (b.lanskap ? "L" : "P")).join("") === "LP", dengan.map((b) => [b.lebar, b.tinggi]));
   // 297 mm = 16838 twip, 210 mm = 11906 twip (docx membulatkan ke bawah satu twip).
   const kira = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) <= 2;
-  cek("bagian lanskap berukuran A4 lanskap (297 x 210 mm)", kira(dengan[1]?.lebar, 16838) && kira(dengan[1]?.tinggi, 11906), dengan[1] && [dengan[1].lebar, dengan[1].tinggi]);
-  cek("bagian potret A4 (210 x 297 mm)", kira(dengan[0]?.lebar, 11906) && kira(dengan[0]?.tinggi, 16838), dengan[0] && [dengan[0].lebar, dengan[0].tinggi]);
-  cek("daftar perdiem ada di bagian lanskap", /Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[1]?.teks ?? "") && !/Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[0]?.teks ?? ""));
-  cek("kelompok lain (Konsumsi) tetap di bagian potret", /KONSUMSI/.test(dengan[0]?.teks ?? "") && !/KONSUMSI/.test(dengan[1]?.teks ?? ""));
-  cek("daftar periksa di bagian potret terakhir", /DAFTAR PERIKSA KELENGKAPAN/.test(dengan[2]?.teks ?? ""));
+  cek("bagian lanskap berukuran A4 lanskap (297 x 210 mm)", kira(dengan[0]?.lebar, 16838) && kira(dengan[0]?.tinggi, 11906), dengan[0] && [dengan[0].lebar, dengan[0].tinggi]);
+  cek("bagian potret A4 (210 x 297 mm)", kira(dengan[1]?.lebar, 11906) && kira(dengan[1]?.tinggi, 16838), dengan[1] && [dengan[1].lebar, dengan[1].tinggi]);
+  cek("daftar perdiem ada di bagian lanskap", /Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[0]?.teks ?? "") && !/Uang Harian \(Per Diem\) Kegiatan Lapangan/.test(dengan[1]?.teks ?? ""));
+  cek("bagian lanskap hanya berisi timesheet (tanpa identitas atau kategori lain)", !/KONSUMSI|Rekapitulasi|IDENTITAS|Nama Pelapor/.test(dengan[0]?.teks ?? ""));
+  const potret = dengan[1]?.teks ?? "";
+  const pos = (re: RegExp) => potret.search(re);
+  cek("kelompok lain (Konsumsi) di bagian potret", /KONSUMSI/.test(potret));
+  cek("urutan potret: identitas, penerimaan dana, kategori, rekapitulasi, daftar periksa", pos(/Nama Pelapor/) < pos(/Penerimaan Dana \(Dana Awal Kegiatan\)/) && pos(/Penerimaan Dana \(Dana Awal Kegiatan\)/) < pos(/KONSUMSI/) && pos(/KONSUMSI/) < pos(/Rekapitulasi Penggunaan Dana/) && pos(/Rekapitulasi Penggunaan Dana/) < pos(/DAFTAR PERIKSA KELENGKAPAN/), [pos(/Nama Pelapor/), pos(/Penerimaan Dana \(Dana Awal Kegiatan\)/), pos(/KONSUMSI/), pos(/Rekapitulasi Penggunaan Dana/), pos(/DAFTAR PERIKSA KELENGKAPAN/)]);
+  cek("daftar periksa di bagian potret terakhir", /DAFTAR PERIKSA KELENGKAPAN/.test(potret));
+  cek("tanpa baris batas penyerahan laporan fisik", !/Batas Penyerahan|terlambat \d+ hari/.test(potret));
+  cek("judul kegiatan tidak diulang pada tabel penerimaan dana", (potret.match(/Kegiatan Contoh/gi) ?? []).length === 1, (potret.match(/Kegiatan Contoh/gi) ?? []).length);
+  cek("uraian penerimaan dana bersih: 'Penerimaan Dana Kegiatan'", /Penerimaan Dana Kegiatan/.test(potret));
+  cek("tabel kategori memuat Diklaim untuk: pelapor lalu rekan", /Diklaim untuk: Budi Santoso, Andi Pratama/.test(potret));
+  cek("tabel kategori memuat penyedia, telepon, lokasi, peserta konsumsi", /Penyedia: Warung Contoh/.test(potret) && /0811000111/.test(potret) && /Lokasi: Balai Desa/.test(potret) && /Peserta: 12 orang/.test(potret));
+  cek("tabel kategori memuat metode pembayaran", /Metode: Tunai/.test(potret));
   cek("bagian baru tidak diawali pemisah halaman tambahan (tanpa halaman kosong)", dengan.slice(1).every((b) => !b.awalPisahHalaman), dengan.map((b) => b.awalPisahHalaman));
 
   console.log("Perdiem yang punya bukti");
@@ -122,7 +133,7 @@ async function main() {
       sertakanDaftarPeriksa: false,
     })
   );
-  cek("daftar perdiem lanskap, lalu halaman bukti kembali potret", berbukti.map((b) => (b.lanskap ? "L" : "P")).join("") === "PLP", berbukti.map((b) => [b.lebar, b.tinggi]));
+  cek("daftar perdiem lanskap di depan, halaman bukti sesudahnya potret", berbukti.map((b) => (b.lanskap ? "L" : "P")).join("") === "LP", berbukti.map((b) => [b.lebar, b.tinggi]));
   cek("tanpa pemisah halaman tambahan", berbukti.slice(1).every((b) => !b.awalPisahHalaman));
 
   console.log("Laporan tanpa perdiem");

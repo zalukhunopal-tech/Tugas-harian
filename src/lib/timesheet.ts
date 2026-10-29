@@ -385,24 +385,76 @@ export function rentangBersih(tab: string, barisTerakhirBaru: number): string {
 /* ---------- dari transaksi perdiem ke baris timesheet ---------- */
 
 /**
- * Hari-hari perdiem sebuah kegiatan (transaksi Dana Kegiatan milik kegiatan itu, lihat transaksiKegiatan), digabung
- * dengan Keterangan dan Lokasi dari timesheet. Jumlah selalu dari transaksi. Hari yang ada transaksinya tetapi belum
- * diisi di timesheet tetap muncul dengan keterangan kosong.
+ * Perdiem yang dicatat gabungan (satu transaksi `jumlahHari` × `tarifPerHari`, bertanggal hari pertama) dibagi ke hari-hari
+ * di timesheet mulai tanggalnya, satu tarif per hari, hanya bila timesheet punya cukup hari untuk seluruhnya. Selain itu
+ * (perdiem per hari, atau timesheet belum cukup) jumlahnya tetap di tanggal transaksi: nominal tidak pernah berkurang.
+ */
+function bagiPerdiem(t: Transaksi, tanggalTimesheet: string[]): Array<[string, number]> {
+  const d = t.detailKegiatan?.perdiem;
+  const hari = d?.jumlahHari ?? 0;
+  const tarif = d?.tarifPerHari ?? 0;
+  if (hari > 1 && tarif > 0 && Math.abs(hari * tarif - t.jumlah) <= hari) {
+    const hariDipakai = tanggalTimesheet.filter((tgl) => tgl >= t.tanggal).slice(0, hari);
+    if (hariDipakai.length === hari) {
+      const sisa = t.jumlah - tarif * hari; // pembulatan kecil, ditaruh di hari pertama
+      return hariDipakai.map((tgl, i) => [tgl, i === 0 ? tarif + sisa : tarif]);
+    }
+  }
+  return [[t.tanggal, t.jumlah]];
+}
+
+/**
+ * Hari-hari perdiem sebuah kegiatan: gabungan tanggal pada timesheet (sumber kebenaran Tanggal, Keterangan, dan Lokasi, bahkan
+ * untuk hari yang belum punya transaksi perdiem atau dicatat gabungan) dan tanggal transaksi perdiem milik kegiatan itu
+ * (lihat transaksiKegiatan). Jumlah selalu dari transaksi: hari timesheet tanpa transaksi berjumlah 0, sehingga total
+ * tetap sama dengan perdiem yang tercatat. Hari yang ada transaksinya tetapi belum diisi di timesheet tetap muncul
+ * dengan keterangan kosong.
  */
 export function barisPerdiemKegiatan(transaksiKegiatanIni: Transaksi[], timesheetBaris: BarisTimesheet[] = []): BarisTimesheet[] {
+  const isi = new Map(timesheetBaris.map((b) => [b.tanggal, b]));
+  const tanggalTimesheet = [...isi.keys()].sort();
   const perTanggal = new Map<string, number>();
   for (const t of transaksiKegiatanIni) {
-    if (adalahPerdiemKegiatan(t)) perTanggal.set(t.tanggal, (perTanggal.get(t.tanggal) ?? 0) + t.jumlah);
+    if (!adalahPerdiemKegiatan(t)) continue;
+    for (const [tanggal, jumlah] of bagiPerdiem(t, tanggalTimesheet)) perTanggal.set(tanggal, (perTanggal.get(tanggal) ?? 0) + jumlah);
   }
-  const isi = new Map(timesheetBaris.map((b) => [b.tanggal, b]));
-  return [...perTanggal.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([tanggal, jumlah]) => ({
+  return [...new Set([...perTanggal.keys(), ...isi.keys()])]
+    .sort((a, b) => a.localeCompare(b))
+    .map((tanggal) => ({
       tanggal,
       keterangan: isi.get(tanggal)?.keterangan ?? "",
       lokasi: isi.get(tanggal)?.lokasi ?? "",
-      jumlah,
+      jumlah: perTanggal.get(tanggal) ?? 0,
     }));
+}
+
+/** Batas perluasan rentang kegiatan dari tanggal timesheet, supaya salah ketik tahun di sheet tidak melebarkan rentang tanpa batas. */
+export const BATAS_PERLUASAN_HARI = 45;
+
+function geserHari(iso: string, hari: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + hari);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Rentang kegiatan setelah mengikuti tanggal di timesheet: melebar bila timesheet memuat hari sebelum tanggal mulai atau sesudah
+ * tanggal selesai (dalam batas BATAS_PERLUASAN_HARI), tidak pernah menyempit. Tanggal yang jauh di luar rentang diabaikan.
+ */
+export function rentangMengikutiTimesheet(
+  k: Pick<DataKegiatan, "tanggalMulai" | "tanggalSelesai">,
+  baris: Array<Pick<BarisTimesheet, "tanggal">>
+): { tanggalMulai: string; tanggalSelesai: string } {
+  const batasAwal = geserHari(k.tanggalMulai, -BATAS_PERLUASAN_HARI);
+  const batasAkhir = geserHari(k.tanggalSelesai, BATAS_PERLUASAN_HARI);
+  let mulai = k.tanggalMulai;
+  let selesai = k.tanggalSelesai;
+  for (const { tanggal } of baris) {
+    if (tanggal < batasAwal || tanggal > batasAkhir) continue;
+    if (tanggal < mulai) mulai = tanggal;
+    if (tanggal > selesai) selesai = tanggal;
+  }
+  return { tanggalMulai: mulai, tanggalSelesai: selesai };
 }
 
 /** Tanggal perdiem yang belum punya keterangan di timesheet (untuk peringatan di aplikasi). */
@@ -443,6 +495,8 @@ export function susunDaftarPerdiem(
   kegiatan: Pick<DataKegiatan, "nama" | "batch" | "timesheetNama" | "timesheetBaris">,
   profil: Pick<ProfilPelapor, "nama" | "proyek" | "penyetuju">
 ): DaftarPerdiemDokumen | null {
+  // Lembar ini hanya ada bila perdiem sudah dicatat; hari-hari timesheet tanpa satu pun transaksi perdiem tidak membuat lembar bernilai nol.
+  if (!transaksiPerdiem.some(adalahPerdiemKegiatan)) return null;
   const hari = barisPerdiemKegiatan(transaksiPerdiem, kegiatan.timesheetBaris);
   if (hari.length === 0) return null;
   const batch = batchKegiatan(kegiatan);

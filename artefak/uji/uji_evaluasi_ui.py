@@ -237,7 +237,7 @@ with sync_playwright() as p:
         kg = kegiatan(pg)
         cek(len(t) == 1 and t[0]["jenis"] == "pemasukan" and t[0]["dana"] == "Dana Kegiatan" and t[0]["jumlah"] == 10000000, "penerimaan dana tersimpan")
         cek(len(kg) == 1 and kg[0]["nama"] == "Kegiatan Pemetaan Krayan Batch 4", f"kegiatan dibuat otomatis dengan judul itu ({[k['nama'] for k in kg]})")
-        cek(t and t[0]["kaitan"] == "Kegiatan Pemetaan Krayan Batch 4" and t[0].get("kegiatanId") == kg[0]["id"] and t[0]["deskripsi"] == "Penerimaan Dana Kegiatan Pemetaan Krayan Batch 4" and not t[0].get("detailKegiatan"), "transaksi terhubung ke kegiatan; uraian otomatis; tanpa rincian SPJ")
+        cek(t and t[0]["kaitan"] == "Kegiatan Pemetaan Krayan Batch 4" and t[0].get("kegiatanId") == kg[0]["id"] and t[0]["deskripsi"] == "Penerimaan Dana Kegiatan" and not t[0].get("detailKegiatan"), "transaksi terhubung ke kegiatan; uraian bersih tanpa mengulang judul; tanpa rincian SPJ")
         buka_form(pg)
         pg.locator(".f-jenis label", has_text="Pemasukan").click()
         pg.select_option("#dana", "Dana Kegiatan")

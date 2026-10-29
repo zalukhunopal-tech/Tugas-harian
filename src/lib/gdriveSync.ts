@@ -1,7 +1,8 @@
 import { Transaksi, AsetItem, NamaDana, DataHarga, PengaturanKeuangan, LaporanKegiatanFileContent } from "../types";
 import { adalahFileTimesheet } from "./timesheet";
-import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile, muatProfilPelapor } from "./storage";
+import { buatId, normalisasiTransaksi, muatIdTerhapus, simpanIdTerhapus, muatLaporanKegiatanFile, simpanLaporanKegiatanFile, muatProfilPelapor, muatDaftarKegiatan } from "./storage";
 import { lindungiProfil, profilKosong } from "./profilPelapor";
+import { gabungDaftarKegiatan } from "./kegiatanSama";
 
 export interface GDriveFolder {
   id: string;
@@ -1772,6 +1773,9 @@ export async function tarikSemuaDariDrive(
         // Profil kosong di Drive tidak boleh menghapus profil yang sudah terisi di perangkat ini; pengiriman berikutnya memulihkan Drive.
         const profil = lindungiProfil(lDrive.profilPelapor, muatProfilPelapor());
         if (profil) lDrive.profilPelapor = profil;
+        // Daftar kegiatan Drive digabung dengan yang ada di perangkat ini, bukan menimpanya: kegiatan yang baru dibuat di
+        // perangkat ini dan belum terkirim tidak boleh hilang. Kembaran disatukan oleh aplikasi sesudahnya.
+        lDrive.daftarKegiatan = gabungDaftarKegiatan(Array.isArray(lDrive.daftarKegiatan) ? lDrive.daftarKegiatan : [], muatDaftarKegiatan());
         laporanKegiatanBaru = lDrive;
         simpanLaporanKegiatanFile(lDrive);
       }
