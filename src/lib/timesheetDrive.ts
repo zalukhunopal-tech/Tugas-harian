@@ -16,6 +16,7 @@ import {
   namaFileBeririsan,
   namaFileTimesheet,
   rentangBersih,
+  rentangMengikutiTimesheet,
   susunIsiTimesheet,
   uraikanIsiTimesheet,
 } from "./timesheet";
@@ -121,15 +122,26 @@ export async function tarikTimesheetKegiatan(
     k.timesheetSinkron &&
     berkas.modifiedTime &&
     berkas.modifiedTime <= k.timesheetSinkron;
-  if (terbaru) return { kegiatan: k, status: "tetap", berubah: false };
+  if (terbaru) {
+    // File tidak berubah, tetapi rentang kegiatan yang tercatat bisa tertinggal dari tanggal di timesheet (data lama): rapikan tanpa membaca ulang.
+    const rentangSalinan = rentangMengikutiTimesheet(k, k.timesheetBaris ?? []);
+    if (rentangSalinan.tanggalMulai === k.tanggalMulai && rentangSalinan.tanggalSelesai === k.tanggalSelesai) {
+      return { kegiatan: k, status: "tetap", berubah: false };
+    }
+    return { kegiatan: { ...k, ...rentangSalinan }, status: "diperbarui", berubah: true };
+  }
 
   const isi = await bacaIsiFileTimesheet(token, berkas.id, { mulai: k.tanggalMulai, selesai: k.tanggalSelesai });
   cacheKeterangan.set(berkas.id, { diubah: berkas.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) });
   const baris = barisUntukSimpan(isi.baris);
+  // Tanggal di timesheet menjadi sumber kebenaran: rentang kegiatan ikut melebar bila timesheet memuat hari di luarnya.
+  const rentang = rentangMengikutiTimesheet(k, isi.baris);
+  const rentangBerubah = rentang.tanggalMulai !== k.tanggalMulai || rentang.tanggalSelesai !== k.tanggalSelesai;
   const berubah =
-    k.timesheetId !== berkas.id || k.timesheetNama !== berkas.nama || !samaBaris(k.timesheetBaris, baris);
+    k.timesheetId !== berkas.id || k.timesheetNama !== berkas.nama || !samaBaris(k.timesheetBaris, baris) || rentangBerubah;
   const kegiatan: DataKegiatan = {
     ...k,
+    ...rentang,
     batch: k.batch ?? batchDariNama(berkas.nama),
     timesheetId: berkas.id,
     timesheetNama: berkas.nama,

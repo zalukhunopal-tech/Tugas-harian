@@ -140,45 +140,10 @@ export interface KetentuanPeringatan {
 }
 
 /**
- * Hitung batas waktu penyerahan laporan fisik (tanggal selesai + 14 hari)
+ * Catatan kecil di aplikasi (tidak ikut dicetak atau diekspor) tentang penyerahan SPJ fisik. Dulu ditampilkan sebagai kotak batas
+ * tanggal dengan hitung mundur dan peringatan terlambat; kini cukup pengingat ringkas.
  */
-export function hitungBatasLaporanFisik(tanggalSelesai: string): {
-  tanggalBatas: string;
-  formatTeks: string;
-  hariTersisa: number;
-} {
-  try {
-    const parts = tanggalSelesai.split("-").map((p) => parseInt(p, 10));
-    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-      const d = new Date(parts[0], parts[1] - 1, parts[2]);
-      d.setDate(d.getDate() + 14);
-
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const dt = String(d.getDate()).padStart(2, "0");
-      const tanggalBatas = `${y}-${m}-${dt}`;
-
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      d.setHours(0, 0, 0, 0);
-      const diffMs = d.getTime() - now.getTime();
-      const hariTersisa = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-      const bulanNama = [
-        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-      ][d.getMonth()];
-
-      const formatTeks = `${d.getDate()} ${bulanNama} ${d.getFullYear()}`;
-
-      return { tanggalBatas, formatTeks, hariTersisa };
-    }
-  } catch (err) {
-    console.error("Gagal hitung batas laporan fisik:", err);
-  }
-
-  return { tanggalBatas: "", formatTeks: "-", hariTersisa: 0 };
-}
+export const CATATAN_SPJ_FISIK = "Catatan: SPJ fisik diserahkan maksimal 14 hari setelah kegiatan selesai.";
 
 /**
  * Menghasilkan daftar peringatan ramah (bukan larangan) berdasarkan ketentuan SPJ
@@ -309,23 +274,6 @@ export function cekKetentuanTransaksi(
       hasil.push({
         tipe: "peringatan",
         pesan: "Nama penerima honor belum dicantumkan.",
-      });
-    }
-  }
-
-  // 6. Batas Laporan Fisik bila terhubung ke kegiatan
-  if (kegiatan?.tanggalSelesai) {
-    const batas = hitungBatasLaporanFisik(kegiatan.tanggalSelesai);
-    if (batas.hariTersisa < 0) {
-      hasil.push({
-        tipe: "perhatian",
-        pesan: `Batas penyerahan fisik SPJ (${batas.formatTeks}) telah terlewati ${Math.abs(batas.hariTersisa)} hari yang lalu.`,
-        rekomendasi: "Segera selesaikan dan serahkan berkas fisik ke koordinator/administrasi.",
-      });
-    } else if (batas.hariTersisa <= 3) {
-      hasil.push({
-        tipe: "peringatan",
-        pesan: `Tersisa ${batas.hariTersisa} hari lagi menuju batas penyerahan fisik SPJ (${batas.formatTeks}).`,
       });
     }
   }

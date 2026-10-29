@@ -3777,20 +3777,34 @@ button {
   break-inside: avoid;
 }
 
+/* Lebar kolom berupa persen lebar kertas lanskap (273 mm area cetak): No 4%, Tanggal 12%, Keterangan 46%, Lokasi 25%, Jumlah 13%.
+   Docx memakai pembagian yang sama (lib/docxGenerator.ts, LEBAR_KOLOM_TIMESHEET). */
 .dsc-ts__k-no {
-  width: 2.8em;
+  width: 4%;
 }
 
 .dsc-ts__k-tgl {
-  width: 6.8em;
+  width: 12%;
 }
 
 .dsc-ts__k-ket {
-  width: 48%;
+  width: 46%;
+}
+
+.dsc-ts__k-lok {
+  width: 25%;
 }
 
 .dsc-ts__k-jml {
-  width: 7.6em;
+  width: 13%;
+}
+
+/* Di layar lembar lanskap berbentuk kertas A4 mendatar: tabel meregang mengisi sisa tinggi, jadi baris lebih lapang bila harinya
+   sedikit, bukan menyisakan kertas kosong. (Saat dicetak tinggi tabel diatur lewat aturan @media print di bawah.) */
+@media screen {
+  .dsc-kertas.dsc-lanskap > .dsc-ts__tabel {
+    flex: 1 1 auto;
+  }
 }
 
 .dsc-ts__total td {
@@ -3798,15 +3812,15 @@ button {
   border-bottom: 1.5px solid #111111;
 }
 
+.dsc-ts__teks {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Baris tanda tangan ada di tfoot supaya hanya muncul sekali, tepat di bawah baris Total. */
 .dsc-ts__tabel tfoot .dsc-ts__ttd-baris td {
   border-bottom: none;
   padding: 12px 0 0;
-}
-
-.dsc-ts__teks {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .dsc-ts__ttd {
@@ -4335,8 +4349,7 @@ button {
 
 /* ---------- Cetak dokumen klaim ----------
    Halaman bernama: dokumen potret memakai halaman bawaan (A4 potret), timesheet memakai "timesheet-page" (A4 lanskap),
-   lembar tempel bukti memakai "tempel" (margin 10 mm supaya kotak 190 mm muat). Peramban ponsel yang mengabaikan halaman
-   bernama dibantu mode cetak (lib/cetak.ts): html[data-mode-cetak] menyembunyikan bagian yang bukan miliknya. */
+   lembar tempel bukti memakai "tempel" (margin 10 mm supaya kotak 190 mm muat). Satu kali cetak menghasilkan seluruh dokumen. */
 @media print {
   @page {
     size: A4 portrait;
@@ -4432,24 +4445,18 @@ button {
     margin-top: 0.9em;
   }
 
-  /* Kategori yang berurutan mengalir bersambung; kop laporan hanya di awal rangkaian. */
+  /* Urutan cetak: timesheet (lanskap), lalu tiap kategori: tabel diikuti lampiran buktinya (potret), ditutup rekapitulasi.
+     Kop dokumen hanya ada di tabel pertama (lihat DokumenSiapCetak). Tabel yang langsung menyambung tabel lain mengalir
+     bersambung; sesudah timesheet atau lampiran bukti, tabel berikutnya mulai di halaman baru. */
   .dsc-kertas {
     break-before: auto;
     margin-top: 6mm;
   }
 
-  .dsc-bagian-timesheet + .dsc-kertas {
+  .dsc-bagian-timesheet + .dsc-kertas,
+  .dsc-tempel + .dsc-kertas {
     break-before: page;
     margin-top: 0;
-  }
-
-  /* Sampul (kop dan ringkasan saldo) sudah memuat judul dan periode, jadi kategori pertama langsung menyambung di bawahnya. */
-  .dsc-daftar-lembar > .dsc-kertas:first-child .dsc-kop {
-    display: none;
-  }
-
-  .dsc-kertas:not(.dsc-penutup) + .dsc-kertas:not(.dsc-penutup) .dsc-kop {
-    display: none;
   }
 
   .dsc-judul-kelompok {
@@ -4496,7 +4503,11 @@ button {
   }
 
   .dsc-ts__tabel tfoot .dsc-ts__ttd-baris td {
-    padding: 12px 0 0 !important;
+    padding: 4mm 0 0 !important;
+  }
+
+  .dsc-ts__ttd-ruang {
+    height: 3em;
   }
 
   .dsc-ts__tabel .dsc-ts__total {
@@ -4504,12 +4515,11 @@ button {
   }
 
   .dsc-ts__ttd {
-    margin-top: 12px;
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  /* Timesheet: satu-satunya bagian lanskap. */
+  /* Timesheet: satu-satunya bagian lanskap (A4 mendatar, area cetak 273 × 190 mm), selalu mulai di halaman sendiri. */
   .dsc-bagian-timesheet {
     page: timesheet-page;
     page-break-before: always;
@@ -4526,24 +4536,28 @@ button {
     padding: 0;
   }
 
-  /* Lembar tempel bukti: halaman bernama "tempel" (A4 potret, margin 10 mm). */
+  /* Tinggi tabel berlaku sebagai tinggi minimum: sedikit hari berarti baris yang lapang sampai tanda tangan menyentuh dasar
+     halaman; banyak hari mengalir ke halaman berikutnya seperti biasa. 138 mm = area cetak 190 mm dikurangi kop dan data. */
+  .dsc-lanskap .dsc-ts__tabel {
+    height: 138mm;
+  }
+
+  .dsc-lanskap .dsc-ts__tabel td,
+  .dsc-lanskap .dsc-ts__tabel th {
+    padding: 1.8mm 2.5mm !important;
+    font-size: 10pt !important;
+    line-height: 1.3 !important;
+  }
+
+  .dsc-lanskap .dsc-ts__info {
+    font-size: 10.5pt;
+  }
+
+  /* Lampiran bukti tiap kategori: halaman bernama "tempel" (A4 potret, margin 10 mm), dimulai di halaman baru. */
   .dsc-tempel {
     page: tempel;
     break-before: page;
     margin: 0;
-  }
-
-  /* Mode cetak (lib/cetak.ts): hanya bagian yang dipilih ikut dicetak. */
-  html[data-mode-cetak="timesheet"] .dsc-bagian-potret,
-  html[data-mode-cetak="timesheet"] .printable-report > :not(.dokumen-siap-cetak),
-  html[data-mode-cetak="klaim"] .dsc-bagian-timesheet {
-    display: none !important;
-  }
-
-  /* Timesheet dicetak sendirian: tidak ada halaman potret di depannya yang memaksa pemisah halaman. */
-  html[data-mode-cetak="timesheet"] .dsc-bagian-timesheet {
-    break-before: auto;
-    page-break-before: auto;
   }
 }
 
@@ -7082,6 +7096,30 @@ button {
   padding: 8px 12px;
 }
 
+.dsc-pesan-word {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+/* Catatan kecil di aplikasi tentang penyerahan SPJ fisik; tidak ikut dicetak atau diekspor. */
+.catatan-spj-fisik {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+@media print {
+  .catatan-spj-fisik {
+    display: none !important;
+  }
+}
+
 .dsc-cetak-petunjuk,
 .dsc-tempel-pilihan {
   flex-basis: 100%;
@@ -7226,19 +7264,29 @@ button {
 .dsc-kotak__kepala {
   flex: none;
   box-sizing: border-box;
-  max-height: calc(12 * var(--mm));
+  min-height: calc(12 * var(--mm));
+  max-height: calc(32 * var(--mm));
   padding: calc(0.8 * var(--mm)) calc(2 * var(--mm));
   overflow: hidden;
   background: #f8fafc;
   border-bottom: 1px solid #cbd5e1;
   font-size: calc(3 * var(--mm)); /* 8,5 pt */
   line-height: 1.15;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
   overflow-wrap: anywhere;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+.dsc-kotak__kepala-utama {
+  font-weight: 700;
+}
+
+/* Diklaim untuk dan kelengkapan kategori (rute, kendaraan, penyedia, dan seterusnya) di bawah baris utama. */
+.dsc-kotak__kepala-rinci {
+  margin-top: calc(0.5 * var(--mm));
+  font-size: calc(2.6 * var(--mm));
+  line-height: 1.2;
+  color: #334155;
 }
 
 .dsc-kotak__isi {
@@ -7272,8 +7320,8 @@ button {
 }
 
 .dsc-kotak--terpadu.dsc-kotak--B .dsc-kotak__area {
-  flex: none;
-  height: calc(76 * var(--mm));
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .dsc-kotak--terpadu.dsc-kotak--C .dsc-kotak__foto {
@@ -7282,8 +7330,8 @@ button {
 }
 
 .dsc-kotak--terpadu.dsc-kotak--C .dsc-kotak__area {
-  flex: none;
-  height: calc(120 * var(--mm));
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .dsc-kotak__foto {
@@ -8928,8 +8976,29 @@ button {
   grid-column: 1 / -1;
 }
 
-.f-judul-kegiatan input {
+.f-judul-kegiatan input,
+.f-judul-kegiatan select,
+.f-judul-kegiatan textarea {
   width: 100%;
+  box-sizing: border-box;
+}
+
+.f-judul-kegiatan select {
+  margin-bottom: 8px;
+}
+
+/* Judul kegiatan bisa panjang: kolom beberapa baris yang tumbuh mengikuti isi, berhuruf sama dengan kolom lain. */
+.f-judul-kegiatan textarea {
+  min-height: 4.4em;
+  font: inherit;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+@supports (field-sizing: content) {
+  .f-judul-kegiatan textarea {
+    field-sizing: content;
+  }
 }
 
 .judul-kegiatan__ket {

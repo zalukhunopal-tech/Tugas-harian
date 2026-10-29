@@ -98,6 +98,7 @@ import { cariDataGanda } from "./lib/dataGanda";
 import { bersihkanDataPerangkat } from "./lib/bersihkanPerangkat";
 import { periksaKeberadaanFolder, ringkasSetup, siapkanFolderKeuangan } from "./lib/setupDrive";
 import { kumpulkanKeteranganTimesheet, siapkanTimesheetKegiatan, tarikTimesheetSemuaKegiatan } from "./lib/timesheetDrive";
+import { kegiatanDariKaitan, satukanKegiatanKembar } from "./lib/kegiatanSama";
 import {
   simpanBuktiOffline,
   ambilSemuaBuktiOffline,
@@ -621,6 +622,21 @@ export default function App() {
     [jalankanAutoTimesheet]
   );
 
+  // Kegiatan yang sama tercatat dua kali (mis. lewat Penerimaan Dana dan lewat Timesheet, judul beda tipis) disatukan otomatis:
+  // isinya digabung, transaksinya dialihkan ke satu kegiatan, tidak ada yang dihapus selain catatan kembarannya.
+  useEffect(() => {
+    const hasil = satukanKegiatanKembar(daftarKegiatan, transaksiRef.current);
+    const idDilebur = Object.keys(hasil.dilebur);
+    if (idDilebur.length === 0) return;
+    setDaftarKegiatan(hasil.daftar);
+    simpanDaftarKegiatan(hasil.daftar);
+    if (hasil.transaksi !== transaksiRef.current) perbaruiTransaksi(hasil.transaksi);
+    jadwalkanAutoSync();
+    jadwalkanAutoSyncDocx(Array.from(new Set(idDilebur.map((id) => hasil.dilebur[id]))));
+    setSyncStatus({ pesan: `${idDilebur.length} catatan kegiatan kembar disatukan`, status: "sukses" });
+    setTimeout(() => setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev)), 6000);
+  }, [daftarKegiatan, perbaruiTransaksi, jadwalkanAutoSync, jadwalkanAutoSyncDocx]);
+
   // Sisa pembacaan keliru versi lama: baris file timesheet yang masuk sebagai pemasukan Dana Kegiatan yang tidak pernah
   // dicatat. Dikenali dengan ketat (lihat cariTransaksiNyasarTimesheet), dihapus, dan ID-nya dicatat sebagai terhapus.
   useEffect(() => {
@@ -660,7 +676,7 @@ export default function App() {
           ids.add(t.kegiatanId);
         }
         if (t.dana === "Dana Kegiatan" && t.kaitan) {
-          const kg = daftarKegiatanRef.current.find((k) => k.nama === t.kaitan);
+          const kg = kegiatanDariKaitan(daftarKegiatanRef.current, t.kaitan, t.tanggal);
           if (kg) ids.add(kg.id);
         }
       }

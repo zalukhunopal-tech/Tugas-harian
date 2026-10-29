@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   DataKegiatan,
   JenisBukti,
@@ -43,11 +43,12 @@ const KETERANGAN_BUKTI: Record<string, string> = {
   "Bukti tidak lengkap": "Wajib surat justifikasi",
 };
 import {
-  hitungBatasLaporanFisik,
+  CATATAN_SPJ_FISIK,
   cekKetentuanTransaksi,
   KetentuanPeringatan,
   KETENTUAN_DANA_KEGIATAN,
 } from "../lib/ketentuanKegiatan";
+import { cariKegiatanSama, satukanKegiatanKembar } from "../lib/kegiatanSama";
 
 interface DanaKegiatanFormFieldsProps {
   kategori: string;
@@ -232,9 +233,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
   // Kegiatan Terpilih
   const kegiatanTerpilih = daftarKegiatan.find((k) => k.id === kegiatanId);
-  const batasFisik = kegiatanTerpilih
-    ? hitungBatasLaporanFisik(kegiatanTerpilih.tanggalSelesai)
-    : null;
+  // Kegiatan kembar (Penerimaan Dana dan Timesheet) tampil sebagai satu pilihan.
+  const daftarPilihan = useMemo(() => satukanKegiatanKembar(daftarKegiatan).daftar, [daftarKegiatan]);
 
   // Wajib surat justifikasi bila jenisBukti === "Bukti tidak lengkap"
   useEffect(() => {
@@ -322,6 +322,25 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       return;
     }
     setGalatKegiatanBaru("");
+
+    // Kegiatan yang sama sudah tercatat (mis. dari Timesheet atau Penerimaan Dana): pakai yang ada, jangan buat kembarannya.
+    const sudahAda = cariKegiatanSama(daftarKegiatan, {
+      nama: namaBaru.trim(),
+      batch: batchBaru > 0 ? batchBaru : undefined,
+      tanggalMulai: tglMulaiBaru,
+      tanggalSelesai: tglSelesaiBaru,
+      lokasi: lokasiBaru.trim(),
+    });
+    if (sudahAda) {
+      onUpdateKegiatanId(sudahAda.id);
+      onUpdateKaitan(sudahAda.nama);
+      setModalKegiatanBaru(false);
+      setNamaBaru("");
+      setLokasiBaru("");
+      setBatchManual(null);
+      if (bagian === "kegiatan") onLanjut?.();
+      return;
+    }
 
     const baru: DataKegiatan = {
       id: "kg_" + buatId(),
@@ -562,20 +581,15 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   );
   const tampilRincianBertahap = bagian === "rincian" && kategori !== "Perdiem" && kategori !== "Honorarium & Ganti Hari";
 
-  const infoBatasFisik = kegiatanTerpilih && batasFisik && (
+  const infoKegiatan = kegiatanTerpilih && (
     <div
       style={{
         marginTop: "8px",
         padding: "8px 12px",
         borderRadius: "8px",
-        background: batasFisik.hariTersisa < 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(16, 185, 129, 0.12)",
-        border: `1px solid ${batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981"}`,
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
         fontSize: "0.8rem",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "6px",
       }}
     >
       <div>
@@ -583,12 +597,9 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         <span style={{ margin: "0 6px" }}>•</span>
         <span>📅 {kegiatanTerpilih.tanggalMulai} s.d {kegiatanTerpilih.tanggalSelesai}</span>
       </div>
-      <div style={{ fontWeight: 700, color: batasFisik.hariTersisa < 0 ? "var(--keluar)" : "#10b981" }}>
-        ⏳ Batas Penyerahan Laporan Fisik: {batasFisik.formatTeks}{" "}
-        {batasFisik.hariTersisa < 0
-          ? `(Terlewat ${Math.abs(batasFisik.hariTersisa)} hari)`
-          : `(${batasFisik.hariTersisa} hari lagi)`}
-      </div>
+      <p className="catatan-spj-fisik" style={{ margin: "4px 0 0", fontSize: "0.72rem", color: "var(--muted)" }}>
+        {CATATAN_SPJ_FISIK}
+      </p>
     </div>
   );
 
@@ -634,10 +645,10 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       {/* 1. Kaitan Kegiatan (Pilih dari daftar atau buat baru) */}
       {bagian === "kegiatan" && (
         <div className="bertahap-kegiatan">
-          {daftarKegiatan.length === 0 && (
+          {daftarPilihan.length === 0 && (
             <p className="help">Belum ada kegiatan lapangan. Buat dulu kegiatannya, lalu pengeluaran dicatat di bawahnya.</p>
           )}
-          {daftarKegiatan.map((k) => (
+          {daftarPilihan.map((k) => (
             <button
               key={k.id}
               type="button"
@@ -658,7 +669,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
           <button type="button" className="btn-secondary bertahap-kegiatan__baru" onClick={() => setModalKegiatanBaru(true)}>
             + Buat kegiatan baru
           </button>
-          {infoBatasFisik}
+          {infoKegiatan}
         </div>
       )}
       {semua && (
@@ -695,7 +706,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             style={{ width: "100%", padding: "8px 10px", fontSize: "0.85rem" }}
           >
             <option value="">-- Pilih Kegiatan dari Daftar --</option>
-            {daftarKegiatan.map((k) => (
+            {daftarPilihan.map((k) => (
               <option key={k.id} value={k.id}>
                 📌 {k.nama} ({k.lokasi || "Lokasi tidak dicatat"} • {k.tanggalMulai} s.d {k.tanggalSelesai})
               </option>
@@ -703,7 +714,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             <option value="__buat_baru__">+ Tambah / Buat Kegiatan Baru...</option>
           </select>
 
-          {infoBatasFisik}
+          {infoKegiatan}
         </div>
       )}
 
@@ -1834,7 +1845,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
               aria-label="Kegiatan baru"
               onKeyDown={(e) => {
                 // Enter di isian modal menyimpan kegiatan, bukan mengirim form transaksi di belakangnya.
-                if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+                const tag = (e.target as HTMLElement).tagName;
+                if (e.key === "Enter" && (tag === "INPUT" || tag === "TEXTAREA")) {
                   e.preventDefault();
                   handleSimpanKegiatanBaru();
                 }
@@ -1843,11 +1855,13 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             >
               <div className="input-field">
                 <label style={{ fontSize: "0.8rem", fontWeight: 700 }}>Nama Kegiatan</label>
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
+                  maxLength={500}
                   placeholder="Contoh: Survei Batas Hutan Desa Long Belaka"
                   value={namaBaru}
-                  onChange={(e) => setNamaBaru(e.target.value)}
+                  onChange={(e) => setNamaBaru(e.target.value.replace(/\s*\n+\s*/g, " "))}
+                  style={{ width: "100%", boxSizing: "border-box", resize: "vertical", font: "inherit", lineHeight: 1.4 }}
                 />
               </div>
 
@@ -1900,9 +1914,9 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 )}
               </div>
 
-              <div style={{ fontSize: "0.78rem", color: "var(--muted)", background: "rgba(0,0,0,0.05)", padding: "8px 10px", borderRadius: "8px" }}>
-                ⏳ <strong>Batas penyerahan laporan fisik SPJ:</strong> {hitungBatasLaporanFisik(tglSelesaiBaru).formatTeks} (14 hari setelah tanggal selesai).
-              </div>
+              <p className="catatan-spj-fisik" style={{ margin: 0, fontSize: "0.74rem", color: "var(--muted)" }}>
+                {CATATAN_SPJ_FISIK}
+              </p>
 
               {galatKegiatanBaru && (
                 <p role="alert" style={{ margin: 0, fontSize: "0.82rem", color: "var(--keluar)" }}>

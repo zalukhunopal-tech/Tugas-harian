@@ -3,7 +3,8 @@
  * Google Drive dan Sheets palsu di memori yang menjawab fetch. Jalankan: npx tsx scripts/uji_profil_pelapor.ts
  *
  * Dua arah: TARIK (Drive kosong, perangkat terisi) dan KIRIM (perangkat/artefak kosong, Drive terisi). Perubahan sengaja
- * (profil terisi menggantikan yang lain) tetap berjalan.
+ * (profil terisi menggantikan yang lain) tetap berjalan. Daftar kegiatan dari Drive digabung dengan yang ada di perangkat, tidak
+ * menimpanya (kegiatan baru di perangkat yang belum terkirim tidak boleh hilang).
  */
 import {
   kirimSemuaKeDrive,
@@ -12,7 +13,7 @@ import {
   tarikSemuaDariDrive,
 } from "../src/lib/gdriveSync";
 import { lindungiProfil, profilKosong } from "../src/lib/profilPelapor";
-import { muatProfilPelapor, simpanProfilPelapor } from "../src/lib/storage";
+import { muatDaftarKegiatan, muatProfilPelapor, simpanDaftarKegiatan, simpanProfilPelapor } from "../src/lib/storage";
 import type { DataHarga } from "../src/lib/aset";
 import type { LaporanKegiatanFileContent, ProfilPelapor } from "../src/types";
 
@@ -193,6 +194,22 @@ async function main() {
   mulaiBaru(null);
   await tarikSemuaDariDrive(TOKEN, [], [], HARGA);
   cek("tetap kosong, tidak galat", profilKosong(muatProfilPelapor()));
+
+  console.log("TARIK: daftar kegiatan Drive digabung dengan perangkat, tidak menimpa");
+  const KG_DRIVE = { id: "kgDrive", nama: "Kegiatan Dari Drive", lokasi: "Lokasi Drive", tanggalMulai: "2026-09-01", tanggalSelesai: "2026-09-05", diubah: "2026-10-01T00:00:00.000Z" };
+  const KG_LOKAL = { id: "kgLokal", nama: "Kegiatan Baru Di Perangkat", lokasi: "", tanggalMulai: "2026-10-10", tanggalSelesai: "2026-10-12", diubah: "2026-10-20T00:00:00.000Z" };
+  const KG_BERSAMA_DRIVE = { id: "kgBersama", nama: "Kegiatan Bersama", lokasi: "Lokasi Dari Drive", catatan: "catatan Drive", tanggalMulai: "2026-08-01", tanggalSelesai: "2026-08-05", diubah: "2026-10-02T00:00:00.000Z" };
+  const KG_BERSAMA_LOKAL = { id: "kgBersama", nama: "Kegiatan Bersama (judul diubah)", lokasi: "", tanggalMulai: "2026-08-01", tanggalSelesai: "2026-08-06", diubah: "2026-10-25T00:00:00.000Z" };
+  isiDrive(laporan(PROFIL_A, [KG_DRIVE, KG_BERSAMA_DRIVE]));
+  mulaiBaru(PROFIL_A);
+  simpanDaftarKegiatan([KG_LOKAL, KG_BERSAMA_LOKAL] as never);
+  const t3 = await tarikSemuaDariDrive(TOKEN, [], [], HARGA);
+  const lokalSesudah = muatDaftarKegiatan();
+  cek("kegiatan yang hanya ada di perangkat tetap ada", lokalSesudah.some((k) => k.id === "kgLokal"), lokalSesudah.map((k) => k.id));
+  cek("kegiatan yang hanya ada di Drive ikut masuk", lokalSesudah.some((k) => k.id === "kgDrive"));
+  cek("kegiatan dengan id sama: versi terbaru (perangkat) dipakai, isian kosong dilengkapi dari Drive", lokalSesudah.find((k) => k.id === "kgBersama")?.nama === "Kegiatan Bersama (judul diubah)" && lokalSesudah.find((k) => k.id === "kgBersama")?.lokasi === "Lokasi Dari Drive" && lokalSesudah.find((k) => k.id === "kgBersama")?.catatan === "catatan Drive", lokalSesudah.find((k) => k.id === "kgBersama"));
+  cek("hasil tarik (dipakai App) memuat daftar gabungan", (t3.laporanKegiatan?.daftarKegiatan?.length ?? 0) === 3, t3.laporanKegiatan?.daftarKegiatan?.map((k) => k.id));
+  cek("tarik hanya membaca (tidak menulis ke Drive)", tulis().length === 0, tulis());
 
   console.log("KIRIM: perangkat kosong, Drive terisi");
   isiDrive(laporan(PROFIL_A));

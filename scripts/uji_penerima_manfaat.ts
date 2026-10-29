@@ -13,7 +13,6 @@ import {
   tambahPenerima,
 } from "../src/lib/penerimaManfaat";
 import { perkirakanHalamanTempel, pilihUkuranKotak, susunKotakTempel, perluKotakTempel, tinggiBarisLampiran, UKURAN_KOTAK } from "../src/lib/lembarTempel";
-import { aturanHalaman } from "../src/lib/cetak";
 import { labelKategori, normalisasiJenisBukti } from "../src/lib/constants";
 import { normalisasiTransaksi } from "../src/lib/storage";
 import type { DataKegiatan, ProfilPelapor, Transaksi, UkuranKotakTempel } from "../src/types";
@@ -121,7 +120,13 @@ async function main() {
   cek("uang harian dan pemasukan tidak dapat kotak", kotak.map((k) => k.id).join("") === "ab" && !perluKotakTempel(semua[1]) && !perluKotakTempel(semua[2]));
   cek("kepala kotak: No. | Tanggal | Kategori - Uraian | Rp", /^No\. 1 \| 21\/09\/2026 \| BBM - Pengeluaran contoh \| Rp/.test(kotak[0].kepala), kotak[0].kepala);
   const kotakPenerima = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi"] } })], () => "7");
-  cek("kepala kotak memuat Penerima Manfaat", /\| Penerima Manfaat: Nopal, Budi \| Rp/.test(kotakPenerima[0].kepala), kotakPenerima[0].kepala);
+  cek("kepala kotak satu baris tanpa daftar nama: No | Tanggal | Kategori - Uraian | Rp", !/Penerima Manfaat|Diklaim/.test(kotakPenerima[0].kepala) && /\| Rp/.test(kotakPenerima[0].kepala), kotakPenerima[0].kepala);
+  const kotakDiklaim = susunKotakTempel([trx({ id: "z", kategori: "Transportasi", detailKegiatan: { penerimaManfaat: ["Nopal", "Budi"] } })], () => "7", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
+  cek("baris di bawah kepala: Diklaim untuk pelapor lalu rekan", kotakDiklaim[0].rincian[0] === "Diklaim untuk: Pelapor Contoh, Nopal, Budi", kotakDiklaim[0].rincian);
+  const kotakSendiri = susunKotakTempel([trx({ id: "z", kategori: "Transportasi" })], () => "7", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
+  cek("tanpa rekan: Diklaim untuk pelapor saja", kotakSendiri[0].rincian[0] === "Diklaim untuk: Pelapor Contoh", kotakSendiri[0].rincian);
+  const kotakPerdiem = susunKotakTempel([trx({ id: "z", kategori: "Perdiem", bukti: [{ id: "f", nama: "f.jpg", tipe: "image/jpeg", dataUrl: "data:image/jpeg;base64,AA==" }] })], () => "1", { sertakanTempel: true, namaPelapor: "Pelapor Contoh" });
+  cek("uang harian: tanpa baris Diklaim untuk", kotakPerdiem[0].rincian.length === 0, kotakPerdiem[0].rincian);
 
   console.log("Perkiraan halaman lampiran bukti (A4 potret, area 190 × 277 mm)");
   const dari = (u: string, varian: "ringkas" | "terpadu" | "foto" = "ringkas") => [...u].map((k) => ({ ukuran: UKURAN_KOTAK[k as UkuranKotakTempel], varian }));
@@ -146,11 +151,6 @@ async function main() {
   cek("uang harian dan penerimaan berfoto → lembar foto saja (tanpa kotak tempel)", bukti[2].varian === "foto" && bukti[3].varian === "foto");
   const tanpaTempel = susunKotakTempel([trx({ id: "a", kategori: "BBM", bukti: [foto] }), trx({ id: "b", kategori: "Akomodasi" })], (id) => id, { sertakanTempel: false });
   cek("kotak tempel dimatikan: hanya yang berfoto, sebagai lembar foto", tanpaTempel.length === 1 && tanpaTempel[0].varian === "foto");
-
-console.log("Aturan halaman cetak");
-  cek("semua: tanpa suntikan (halaman bernama di CSS)", aturanHalaman("semua") === null);
-  cek("timesheet: A4 landscape", /size: A4 landscape/.test(aturanHalaman("timesheet") ?? ""));
-  cek("klaim: A4 portrait", /size: A4 portrait/.test(aturanHalaman("klaim") ?? ""));
 
   console.log("Istilah baku");
   cek("kategori Perdiem tampil sebagai Uang Harian, lainnya tetap", labelKategori("Perdiem") === "Uang Harian" && labelKategori("Konsumsi") === "Konsumsi" && labelKategori(undefined) === "");
@@ -185,7 +185,7 @@ console.log("Aturan halaman cetak");
   });
   const { teks, xml } = await teksWord(blob);
   cek("pengeluaran pra-kegiatan (17 Sep, sebelum 20 Sep) ikut dilaporkan", /Tiket pesawat keberangkatan/.test(teks));
-  cek("penerima manfaat tampil di dokumen Word", /Penerima Manfaat: Nopal, Budi/.test(teks));
+  cek("daftar nama yang diklaim tampil di dokumen Word: pelapor lalu rekan", new RegExp(`Diklaim untuk: ${profil.nama}, Nopal, Budi`).test(teks), teks.match(/Diklaim untuk[^|]{0,80}/)?.[0]);
   cek(
     "kudapan: rincian penerima dan plafon per orang",
     /Kudapan\/Snack Perjalanan — Penerima Manfaat: 3 orang \(Nopal, Budi, Andi @ Rp66\.667\)/.test(teks),

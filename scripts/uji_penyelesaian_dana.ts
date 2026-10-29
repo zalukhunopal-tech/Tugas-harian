@@ -44,7 +44,7 @@ const danaAwalBebas = trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", tan
 const perdiem = trx({ kategori: "Perdiem", tanggal: "2026-10-05", jumlah: 4800000, kegiatanId: "kA" });
 cek("penerimaan dana tanpa kaitan, dalam rentang kegiatan: ikut", transaksiKegiatan([danaAwalBebas, perdiem], A, semua).length === 2);
 cek("dana awal terhitung di penyelesaian", hitungPenyelesaian(transaksiKegiatan([danaAwalBebas, perdiem], A, semua)).danaAwal === 10000000);
-cek("di luar rentang kegiatan: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", tanggal: "2026-09-10" })], A, semua).length);
+cek("sesudah kegiatan terakhir selesai: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", tanggal: "2026-12-01" })], A, semua).length);
 cek("tepat di tanggal mulai dan selesai: ikut", transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-09-16" }), trx({ jenis: "pemasukan", tanggal: "2026-10-24" })], A, semua).length === 2);
 cek("terhubung id ke kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kegiatanId: "kB" })], A, semua).length);
 cek("kaitan = nama kegiatan lain: tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", tanggal: "2026-10-01", kaitan: "monev contoh" })], A, semua).length);
@@ -67,6 +67,35 @@ cek("Pindah Dana tidak dihitung sebagai dana awal", !transaksiKegiatan([trx({ je
 cek("Dana Pribadi tidak ikut", !transaksiKegiatan([trx({ jenis: "pemasukan", dana: "Dana Pribadi", tanggal: "2026-10-01" })], A, semua).length);
 cek("pengeluaran tanpa kaitan tidak ikut (hanya penerimaan yang diisi otomatis)", !transaksiKegiatan([trx({ tanggal: "2026-10-01" })], A, semua).length);
 cek("kaitan kosong tidak cocok dengan nama kegiatan kosong", !transaksiKegiatan([trx({ tanggal: "2027-01-01", kaitan: "" })], { ...A, nama: "" }, semua).length);
+
+console.log("Penerimaan dana pra-kegiatan (sebelum tanggal mulai timesheet)");
+const masuk = (tanggal: string, o: Partial<Transaksi> = {}) => trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", tanggal, jumlah: 5000000, ...o });
+cek("sebelum kegiatan pertama: ikut kegiatan pertama (dana awal)", transaksiKegiatan([masuk("2026-09-10")], A, semua).length === 1);
+cek("dana awal pra-kegiatan terhitung di penyelesaian", hitungPenyelesaian(transaksiKegiatan([masuk("2026-09-10"), perdiem], A, semua)).danaAwal === 5000000);
+cek("antara dua kegiatan: ikut kegiatan berikutnya saja", transaksiKegiatan([masuk("2026-10-30")], B, semua).length === 1 && !transaksiKegiatan([masuk("2026-10-30")], A, semua).length);
+cek("sehari sebelum kegiatan berikutnya: ikut kegiatan berikutnya", transaksiKegiatan([masuk("2026-11-01")], B, semua).length === 1);
+cek("tepat sehari setelah kegiatan sebelumnya selesai: ikut kegiatan berikutnya", transaksiKegiatan([masuk("2026-10-25")], B, semua).length === 1 && !transaksiKegiatan([masuk("2026-10-25")], A, semua).length);
+cek("di dalam rentang kegiatan lain: milik kegiatan itu, bukan pra-kegiatan berikutnya", transaksiKegiatan([masuk("2026-10-10")], A, semua).length === 1 && !transaksiKegiatan([masuk("2026-10-10")], B, semua).length);
+cek("tiga kegiatan: pra-kegiatan hanya ke yang paling dekat", (() => {
+  const D: RentangKegiatan = { id: "kD", nama: "Evaluasi Contoh", tanggalMulai: "2026-12-05", tanggalSelesai: "2026-12-08" };
+  const tiga = [A, B, D];
+  const t = masuk("2026-11-20");
+  return transaksiKegiatan([t], D, tiga).length === 1 && !transaksiKegiatan([t], B, tiga).length && !transaksiKegiatan([t], A, tiga).length;
+})());
+cek("Pindah Dana pra-kegiatan: tidak ikut", !transaksiKegiatan([masuk("2026-09-10", { kategori: "Pindah Dana" })], A, semua).length);
+cek("Dana Pribadi pra-kegiatan: tidak ikut", !transaksiKegiatan([masuk("2026-09-10", { dana: "Dana Pribadi" })], A, semua).length);
+cek("pra-kegiatan yang dikaitkan ke kegiatan lain: tidak ikut", !transaksiKegiatan([masuk("2026-09-10", { kegiatanId: "kB" })], A, semua).length);
+cek("pengeluaran pra-kegiatan tanpa kaitan tetap tidak ikut", !transaksiKegiatan([trx({ tanggal: "2026-09-10" })], A, semua).length);
+cek("tanpa daftar kegiatan lain (bawaan): sebelum mulai ikut", transaksiKegiatan([masuk("2026-09-10")], A).length === 1);
+cek("dua kegiatan beririsan: tanggal sebelum keduanya ikut yang mulai lebih dulu saja", (() => {
+  const C2: RentangKegiatan = { id: "kC", nama: "Beririsan Contoh", tanggalMulai: "2026-10-05", tanggalSelesai: "2026-10-30" };
+  const t = masuk("2026-09-10");
+  return transaksiKegiatan([t], A, [A, C2]).length === 1 && !transaksiKegiatan([t], C2, [A, C2]).length;
+})());
+const praSeluruh = [masuk("2026-09-10"), perdiem, trx({ kategori: "BBM", tanggal: "2026-09-20", jumlah: 300000, kegiatanId: "kA" })];
+const praPeriode = praSeluruh.filter((t) => t.tanggal >= "2026-09-16" && t.tanggal <= "2026-10-24");
+const praGabung = susunTransaksiPenyelesaian(praSeluruh, praPeriode, kegiatanBerjalanDalam(semua, "2026-09-16", "2026-10-24"), semua);
+cek("penyelesaian laporan: dana awal pra-kegiatan ikut walau di luar periode", hitungPenyelesaian(praGabung).danaAwal === 5000000, hitungPenyelesaian(praGabung));
 
 console.log("Periode laporan");
 cek("kegiatan yang beririsan dengan periode", kegiatanBerjalanDalam(semua, "2026-10-01", "2026-10-24").map((k) => k.id).join() === "kA");
