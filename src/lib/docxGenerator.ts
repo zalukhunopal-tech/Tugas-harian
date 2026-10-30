@@ -28,6 +28,7 @@ import {
   BarisKeterangan,
   BarisTabelLaporan,
   KALIMAT_PENUTUP_JUSTIFIKASI,
+  PasanganBuktiLaporan,
   rincianPenyelesaian,
   rumusPenyelesaian,
   susunLaporanKegiatan,
@@ -403,6 +404,328 @@ function buatKotakStrukThermal(
   });
 }
 
+/**
+ * Pasangan bukti potret (samping):
+ * Dua kolom: Kotak tempel di kiri, Foto bukti digital di kanan.
+ */
+function buatTabelPasanganSamping(
+  p: PasanganBuktiLaporan,
+  foto?: GambarDokumen | null
+): Table {
+  const tinggiTwip = convertMillimetersToTwip(p.kotak.tinggiMm);
+  const dashedBorder = {
+    style: BorderStyle.DASHED,
+    size: 6,
+    color: "888888",
+  };
+  const solidBorder = {
+    style: BorderStyle.SINGLE,
+    size: 4,
+    color: "CCCCCC",
+  };
+
+  const lebarKotakPersen = Math.round((p.kotak.lebarMm / 170) * 100);
+  const lebarFotoPersen = 100 - lebarKotakPersen;
+
+  const anakKotak: Paragraph[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 40 },
+      children: [
+        new TextRun({
+          text: p.kotak.judul,
+          bold: true,
+          font: "Arial",
+          size: 20,
+          color: "666666",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: p.kotak.catatan ? 40 : 80 },
+      children: [
+        new TextRun({
+          text: p.kotak.keterangan,
+          font: "Arial",
+          size: 18,
+          color: "888888",
+        }),
+      ],
+    }),
+  ];
+
+  if (p.kotak.catatan) {
+    anakKotak.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [
+          new TextRun({
+            text: `(${p.kotak.catatan})`,
+            italics: true,
+            font: "Arial",
+            size: 16,
+            color: "999999",
+          }),
+        ],
+      })
+    );
+  }
+
+  const selKotak = new TableCell({
+    width: { size: lebarKotakPersen, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: {
+      top: dashedBorder,
+      bottom: dashedBorder,
+      left: dashedBorder,
+      right: dashedBorder,
+    },
+    shading: { type: ShadingType.CLEAR, fill: "FAFAFA" },
+    margins: { top: 60, bottom: 60, left: 60, right: 60 },
+    children: anakKotak,
+  });
+
+  const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label.toUpperCase()})` : "FOTO BUKTI DIGITAL";
+  const anakFoto: Paragraph[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: judulFoto,
+          bold: true,
+          font: "Arial",
+          size: 17,
+          color: "666666",
+        }),
+      ],
+    }),
+  ];
+
+  if (foto) {
+    const sisaLebarMm = 170 - p.kotak.lebarMm;
+    const maksLebarPx = Math.max(160, Math.round(sisaLebarMm * 3.78) - 24);
+    const maksTinggiPx = Math.max(160, Math.round(p.kotak.tinggiMm * 3.78) - 30);
+    try {
+      anakFoto.push(paragrafGambar(foto, maksLebarPx, maksTinggiPx));
+    } catch {
+      anakFoto.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "[Lampiran foto tidak dapat ditampilkan]",
+              italics: true,
+              font: "Arial",
+              size: 18,
+              color: "888888",
+            }),
+          ],
+        })
+      );
+    }
+  } else {
+    anakFoto.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 100, after: 100 },
+        children: [
+          new TextRun({
+            text: "Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).",
+            italics: true,
+            font: "Arial",
+            size: 18,
+            color: "888888",
+          }),
+        ],
+      })
+    );
+  }
+
+  const selFoto = new TableCell({
+    width: { size: lebarFotoPersen, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: {
+      top: solidBorder,
+      bottom: solidBorder,
+      left: solidBorder,
+      right: solidBorder,
+    },
+    shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
+    margins: { top: 60, bottom: 60, left: 60, right: 60 },
+    children: anakFoto,
+  });
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        height: { value: tinggiTwip, rule: HeightRule.ATLEAST },
+        children: [selKotak, selFoto],
+      }),
+    ],
+  });
+}
+
+/**
+ * Pasangan bukti lanskap (bawah):
+ * Foto bukti digital di atas (bila ada), kotak tempel di bawahnya.
+ */
+function buatTabelPasanganBawah(
+  p: PasanganBuktiLaporan,
+  foto?: GambarDokumen | null
+): Table {
+  const tinggiTwip = convertMillimetersToTwip(p.kotak.tinggiMm);
+  const dashedBorder = {
+    style: BorderStyle.DASHED,
+    size: 6,
+    color: "888888",
+  };
+  const solidBorder = {
+    style: BorderStyle.SINGLE,
+    size: 4,
+    color: "CCCCCC",
+  };
+
+  const anakKotak: Paragraph[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 80, after: 40 },
+      children: [
+        new TextRun({
+          text: p.kotak.judul,
+          bold: true,
+          font: "Arial",
+          size: 20,
+          color: "666666",
+        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: p.kotak.catatan ? 40 : 80 },
+      children: [
+        new TextRun({
+          text: p.kotak.keterangan,
+          font: "Arial",
+          size: 18,
+          color: "888888",
+        }),
+      ],
+    }),
+  ];
+
+  if (p.kotak.catatan) {
+    anakKotak.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [
+          new TextRun({
+            text: `(${p.kotak.catatan})`,
+            italics: true,
+            font: "Arial",
+            size: 16,
+            color: "999999",
+          }),
+        ],
+      })
+    );
+  }
+
+  const baris: TableRow[] = [];
+
+  // Jika ada foto, tampilkan di atas kotak (lanskap: maks lebar 170 mm ~ 580 px, maks tinggi ~70 mm ~ 260 px)
+  if (foto) {
+    const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label.toUpperCase()})` : "FOTO BUKTI DIGITAL";
+    const anakFoto: Paragraph[] = [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 40, after: 40 },
+        children: [
+          new TextRun({
+            text: judulFoto,
+            bold: true,
+            font: "Arial",
+            size: 17,
+            color: "666666",
+          }),
+        ],
+      }),
+    ];
+    try {
+      anakFoto.push(paragrafGambar(foto, 580, 260));
+    } catch {
+      anakFoto.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({
+              text: "[Lampiran foto tidak dapat ditampilkan]",
+              italics: true,
+              font: "Arial",
+              size: 18,
+              color: "888888",
+            }),
+          ],
+        })
+      );
+    }
+
+    baris.push(
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.CENTER,
+            borders: {
+              top: solidBorder,
+              bottom: solidBorder,
+              left: solidBorder,
+              right: solidBorder,
+            },
+            shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
+            margins: { top: 40, bottom: 40, left: 60, right: 60 },
+            children: anakFoto,
+          }),
+        ],
+      })
+    );
+  }
+
+  // Baris kotak tempel
+  baris.push(
+    new TableRow({
+      cantSplit: true,
+      height: { value: tinggiTwip, rule: HeightRule.ATLEAST },
+      children: [
+        new TableCell({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          verticalAlign: VerticalAlign.CENTER,
+          borders: {
+            top: dashedBorder,
+            bottom: dashedBorder,
+            left: dashedBorder,
+            right: dashedBorder,
+          },
+          shading: { type: ShadingType.CLEAR, fill: "FAFAFA" },
+          margins: { top: 60, bottom: 60, left: 60, right: 60 },
+          children: anakKotak,
+        }),
+      ],
+    })
+  );
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: baris,
+  });
+}
+
 /** Proporsi kolom timesheet (persen): No, Tanggal, Keterangan, Lokasi, Jumlah. Sama dengan tabel di dokumen siap cetak (style.css). */
 export const LEBAR_KOLOM_TIMESHEET = [4, 12, 46, 25, 13];
 /** Tinggi baris timesheet (twip): ruang tabel pada halaman lanskap A4 (170 mm dikurangi kop, data, total, tanda tangan) dibagi jumlah hari. */
@@ -566,6 +889,24 @@ export async function buatDokumenLaporanKegiatanDocx(
     googleToken,
   } = opsi;
 
+  // 0. Ukur gambar bukti sebelum menyusun laporan agar susunan memiliki rasio foto yang akurat
+  const ukuranFoto = new Map<string, { lebar: number; tinggi: number }>();
+  const gambarCache = new Map<string, GambarDokumen | null>();
+
+  for (const t of transaksi) {
+    for (const b of t.bukti || []) {
+      if (b.lebarPx && b.tinggiPx) {
+        ukuranFoto.set(b.id, { lebar: b.lebarPx, tinggi: b.tinggiPx });
+      } else {
+        const g = await muatGambar(b, googleToken);
+        gambarCache.set(b.id, g);
+        if (g) {
+          ukuranFoto.set(b.id, { lebar: g.lebar, tinggi: g.tinggi });
+        }
+      }
+    }
+  }
+
   // 1. Isi dan urutan dokumen dari susunan laporan, sama dengan dokumen siap cetak di aplikasi (lib/susunanLaporan.ts).
   const susunan: SusunanLaporan = susunLaporanKegiatan({
     transaksi,
@@ -574,6 +915,7 @@ export async function buatDokumenLaporanKegiatanDocx(
     profilPelapor: profilAsli,
     urutanTransaksiIds,
     sertakanDaftarPeriksa,
+    ukuranFoto,
   });
   // Profil untuk dokumen: isian kosong dilengkapi dari kop file timesheet (Profil Pelapor sendiri tidak diubah).
   const profilPelapor = susunan.profil;
@@ -886,6 +1228,7 @@ export async function buatDokumenLaporanKegiatanDocx(
       childrenSections.push(
         new Paragraph({
           pageBreakBefore: blok.halamanBaru,
+          keepNext: true,
           spacing: { before: blok.halamanBaru ? 80 : 180, after: 60 },
           tabStops: [{ type: AlignmentType.RIGHT, position: convertMillimetersToTwip(170) }],
           children: [
@@ -895,30 +1238,33 @@ export async function buatDokumenLaporanKegiatanDocx(
         })
       );
 
-      // 1. Kotak tempel bukti asli (struk: berdampingan dengan foto pertamanya)
-      const k = blok.kotakUtama;
-      if (k.bentuk === "struk") {
-        const foto = blok.fotoDiKotak ? await muatGambar(blok.fotoDiKotak, googleToken) : null;
-        childrenSections.push(buatKotakStrukThermal(k.judul, k.keterangan, foto, "FOTO BUKTI DIGITAL"));
-      } else {
-        childrenSections.push(buatKotakTempel(k.judul, k.keterangan, k.tinggiMm));
+      // 1. Pasangan bukti asli dan foto bukti digital (satu kotak per foto bukan PDF)
+      for (const [idxPasangan, p] of blok.pasangan.entries()) {
+        if (idxPasangan > 0) {
+          // Jarak antarpasangan minimal 4 mm
+          childrenSections.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
+        }
+        let foto: GambarDokumen | null = null;
+        if (p.foto) {
+          if (gambarCache.has(p.foto.id)) {
+            foto = gambarCache.get(p.foto.id) ?? null;
+          } else {
+            foto = await muatGambar(p.foto, googleToken);
+            gambarCache.set(p.foto.id, foto);
+          }
+        }
+        if (p.tataLetak === "samping") {
+          childrenSections.push(buatTabelPasanganSamping(p, foto));
+        } else {
+          childrenSections.push(buatTabelPasanganBawah(p, foto));
+        }
       }
 
-      // 2. Foto bukti digital (semua foto; mis. tiket tiap orang yang ikut klaim)
-      const totalFoto = blok.fotoBukti.length + (blok.fotoDiKotak ? 1 : 0);
-      const fotoSiap: Array<{ gambar: GambarDokumen; keterangan: string }> = [];
-      const gagalMuat: string[] = [];
-      for (const [i, b] of blok.fotoBukti.entries()) {
-        const gambar = await muatGambar(b, googleToken);
-        const urutan = i + 1 + (blok.fotoDiKotak ? 1 : 0);
-        if (gambar) fotoSiap.push({ gambar, keterangan: `Foto bukti ${urutan} dari ${totalFoto}` });
-        else gagalMuat.push(b.driveLink || b.nama || `Foto bukti ${urutan}`);
-      }
-      childrenSections.push(...buatGridFoto(fotoSiap, `FOTO BUKTI DIGITAL${totalFoto > 1 ? ` (${totalFoto} FOTO)` : ""}`));
-      for (const tautan of [...gagalMuat, ...blok.lampiranPdf.map((b) => b.driveLink || b.nama)]) {
+      // 2. Lampiran PDF (ditulis sebagai tautan berkas asli)
+      for (const tautan of blok.lampiranPdf.map((b) => b.driveLink || b.nama)) {
         childrenSections.push(
           new Paragraph({
-            spacing: { after: 30 },
+            spacing: { before: 40, after: 30 },
             children: [new TextRun({ text: `Lampiran bukti (lihat berkas asli): ${tautan}`, italics: true, font: "Arial", size: 17, color: "555555" })],
           })
         );

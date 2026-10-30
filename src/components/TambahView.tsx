@@ -384,6 +384,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
             nama: kompres.namaFile,
             tipe: kompres.tipe,
             dataUrl: kompres.dataUrl,
+            lebarPx: kompres.lebarPx,
+            tinggiPx: kompres.tinggiPx,
             waktu: new Date().toISOString(),
           },
         ]);
@@ -483,6 +485,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
           nama: kompres.namaFile,
           tipe: kompres.tipe,
           dataUrl: kompres.dataUrl,
+          lebarPx: kompres.lebarPx,
+          tinggiPx: kompres.tinggiPx,
           waktu: new Date().toISOString(),
         });
       }

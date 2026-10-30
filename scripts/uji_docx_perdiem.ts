@@ -191,10 +191,35 @@ async function main() {
   const zipFoto = await JSZip.loadAsync(await blobFoto.arrayBuffer());
   const media = Object.keys(zipFoto.files).filter((n) => n.startsWith("word/media/") && !zipFoto.files[n].dir);
   cek("kelima foto bukti tersisip (tiga tiket dan dua foto struk)", media.length === 5, media);
-  const teksFoto = (await zipFoto.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, "");
-  cek("judul kisi foto menyebut jumlah foto", /FOTO BUKTI DIGITAL \(3 FOTO\)/.test(teksFoto) && /Foto bukti 3 dari 3/.test(teksFoto) && /Foto bukti 2 dari 2/.test(teksFoto));
+  const xmlFoto = await zipFoto.file("word/document.xml")!.async("string");
+  const teksFoto = xmlFoto.replace(/<[^>]+>/g, "");
+  const jumlahKotakPutus = (xmlFoto.match(/w:val="dashed"/g) ?? []).length;
+  cek("jumlah kotak tempel di document.xml sesuai dengan jumlah foto (5 kotak)", jumlahKotakPutus >= 5, jumlahKotakPutus);
+  cek("tiap foto berpasangan dengan kotaknya berlabel Bukti n dari N", /Bukti 3 dari 3/.test(teksFoto) && /Bukti 2 dari 2/.test(teksFoto));
   cek("ringkasan penyelesaian: pita judul, total diakui, status, dan rumus", /RINGKASAN PENYELESAIAN DANA KEGIATAN/.test(teksFoto) && /Total pengeluaran yang diakui/.test(teksFoto) && /SISA DANA YANG HARUS DIKEMBALIKAN/i.test(teksFoto) && /Dana awal Rp\s?3\.000\.000 − total pengeluaran yang diakui/.test(teksFoto));
   cek("ringkasan tanpa garis titik-titik", !/\.{6,}/.test(teksFoto));
+
+  console.log("Nama penandatangan pada dokumen Word mengikuti isian form kegiatan");
+  const blobTtd = await buatDokumenLaporanKegiatanDocx({
+    transaksi: [perdiem("2026-09-21")],
+    kegiatan: {
+      ...kegiatan,
+      penandatangan: {
+        dilaporkanOleh: "Sari Wulandari",
+        disetujuiOleh: "Rudi Hartono",
+      },
+      timesheetKop: {
+        nama: "Nama Lama Drive",
+        disetujuiOleh: "Penyetuju Lama Drive",
+      },
+    },
+    profilPelapor: profil,
+  });
+  const zipTtd = await JSZip.loadAsync(await blobTtd.arrayBuffer());
+  const teksTtd = (await zipTtd.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
+  cek("Dilaporkan Oleh di Word mengikuti penandatangan form kegiatan", /Dilaporkan Oleh\s*:\s*Sari Wulandari/.test(teksTtd), teksTtd);
+  cek("Disetujui Oleh di Word mengikuti penandatangan form kegiatan", /Disetujui Oleh\s*:\s*Rudi Hartono/.test(teksTtd), teksTtd);
+  cek("kop timesheet Drive tidak dipakai diam-diam di Word", !teksTtd.includes("Nama Lama Drive") && !teksTtd.includes("Penyetuju Lama Drive"));
 
   console.log("Laporan tanpa perdiem");
   const tanpa = await bacaBagian(

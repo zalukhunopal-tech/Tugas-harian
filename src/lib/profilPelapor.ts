@@ -23,20 +23,28 @@ export function lindungiProfil(
 }
 
 /**
- * Profil untuk dokumen kegiatan: isian Profil Pelapor, dengan isian yang masih kosong dilengkapi dari kop file timesheet kegiatan
- * itu (Nama, Proyek, Disetujui Oleh). Profil Pelapor sendiri tidak diubah; ini hanya supaya dokumen tidak bernama kosong.
+ * Profil untuk dokumen kegiatan:
+ * Urutan sumber nama pelapor dan penyetuju:
+ *   1. Isian formulir kegiatan (kegiatan.penandatangan?.dilaporkanOleh / disetujuiOleh)
+ *   2. Profil Pelapor (profil.nama / penyetuju)
+ *   3. Kosong ("")
+ * timesheetKop dari Drive TIDAK lagi dipakai diam-diam untuk nama penandatangan (hanya proyek yang dapat dilengkapi dari kop).
  */
 export function profilUntukDokumen(
   profil: ProfilPelapor,
-  kegiatan?: { timesheetKop?: { proyek?: string; nama?: string; penyetuju?: string } }
+  kegiatan?: {
+    penandatangan?: { dilaporkanOleh?: string; disetujuiOleh?: string };
+    timesheetKop?: { proyek?: string; nama?: string; penyetuju?: string };
+  }
 ): ProfilPelapor {
-  const kop = kegiatan?.timesheetKop;
-  if (!kop) return profil;
-  const isi = (nilai: string | undefined, cadangan: string | undefined) => (nilai && nilai.trim() ? nilai : cadangan ?? nilai ?? "");
+  const p = kegiatan?.penandatangan;
+  const nama = p?.dilaporkanOleh !== undefined ? p.dilaporkanOleh : (profil.nama || "");
+  const penyetuju = p?.disetujuiOleh !== undefined ? p.disetujuiOleh : (profil.penyetuju || "");
+  const proyek = profil.proyek && profil.proyek.trim() ? profil.proyek : (kegiatan?.timesheetKop?.proyek ?? "");
   return {
     ...profil,
-    nama: isi(profil.nama, kop.nama),
-    proyek: isi(profil.proyek, kop.proyek),
-    penyetuju: isi(profil.penyetuju, kop.penyetuju),
+    nama,
+    penyetuju,
+    proyek,
   };
 }

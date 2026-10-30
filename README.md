@@ -78,11 +78,15 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     margin `@page`, Chrome 131+). Dokumen disusun dari semua transaksi kegiatan, tidak dibatasi rentang tanggal laporan, sehingga
     pengeluaran pra-kegiatan dan **uang harian hari kepulangan** (sampai 2 hari sesudah tanggal selesai, walau belum dikaitkan) ikut.
     Tanpa kegiatan terpilih, dokumen umum per kategori dengan Lampiran Bukti (di bawah) tetap dipakai.
-  - **Semua foto bukti tercetak**: satu pengeluaran boleh punya beberapa foto (mis. tiket pesawat/speedboat tiap orang yang ikut
-    diklaim, beberapa struk snack perjalanan). Struk thermal: kotak tempel di kiri dan foto pertama di kanan; foto lainnya (atau semua
-    foto untuk bukti lain) ditata satu di tengah atau dua per baris dengan keterangan *Foto bukti n dari N*. Foto yang hanya punya
-    tautan Drive (hasil tarik dari sheet) ikut dimuat; PDF dicantumkan sebagai tautan. Di formulir, tombol kamera menjadi *Tambah Foto
-    Lagi* setelah foto pertama dan tiap foto bernomor.
+  - **Semua foto bukti berpasangan dengan kotak tempel**: satu pengeluaran yang memiliki beberapa foto bukti (mis. tiket pesawat/speedboat tiap orang yang ikut diklaim, beberapa struk belanja/snack) menghasilkan kotak tempel bukti fisik sebanyak foto bukti yang bukan PDF. Tiap foto berpasangan langsung dengan kotak tempelnya sendiri dengan label *Bukti n dari N* dan keterangan nota terkait (nominal diletakkan di kepala blok transaksi). Pengeluaran tanpa foto tetap mendapat satu kotak tempel, dan lampiran berkas PDF dicantumkan sebagai tautan dokumen asli.
+  - **Bentuk dan ukuran kotak mengikuti foto (rasio t/l)**: ukuran kotak tempel dan tata letaknya ditentukan otomatis dari rasio tinggi/lebar piksel foto bukti (setelah koreksi orientasi EXIF):
+    - *Potret sempit* (rasio ≥ 1,6, struk belanja/SPBU): kotak 85 mm × (85 × rasio + 10) dibatasi 100–230 mm di SAMPING foto (dua kolom: kotak di kiri, foto di kanan minimal 60 mm menjaga rasio asli). Bila struk lebih panjang dari batas, disertakan catatan *"Lipat struk bila lebih panjang dari kotak"*.
+    - *Potret* (rasio 1,15–1,6, nota/kuitansi): kotak 100 mm × (100 × rasio + 10) dibatasi 110–200 mm di SAMPING foto.
+    - *Hampir persegi* (rasio 0,87–1,15): kotak 100 × 100 mm di SAMPING foto.
+    - *Lanskap* (rasio < 0,87, tiket lebar/kuitansi lanskap): kotak 170 mm × (170 × rasio + 10) dibatasi 55–120 mm di BAWAH foto (foto di atas setinggi maksimal ~70 mm).
+    - Pilihan manual Tipe A/B/C tetap dihormati; formulir menyediakan opsi bawaan *"Otomatis (ikuti foto)"*.
+  - **Tata letak efisien & perpindahan halaman berbasis tinggi (257 mm)**: satu pasangan bukti dan fotonya tidak terbelah antarhalaman (`cantSplit: true` di Word, `break-inside: avoid` di cetak/layar, dengan jarak antarpasangan minimal 4 mm). Perpindahan halaman dihitung langsung pada model tunggal (`src/lib/susunanLaporan.ts`) dengan menjumlahkan perkiraan tinggi elemen dalam mm (kepala blok, pasangan bukti, baris keterangan ~4,5 mm/baris, kotak tambahan, dan foto pendukung) terhadap area cetak 257 mm, sehingga halaman terisi padat tanpa elemen berhimpit.
+  - **Penandatangan Timesheet Uang Harian tersinkron**: kolom *Dilaporkan oleh* dan *Disetujui oleh* disimpan per kegiatan pada formulir Timesheet (`DataKegiatan.penandatangan`). Urutan prioritas di seluruh dokumen (Word, cetak, pratinjau, dan kop timesheet): isian formulir kegiatan → Profil Pelapor → kosong. Kop dari file Google Drive (`timesheetKop`) tidak lagi dipakai diam-diam; bila berbeda dengan isian aplikasi, ditampilkan saran *"Di file Drive tertulis: …"* dengan tombol `[Pakai]`. Tombol *Perbarui file timesheet* menuliskan isian aplikasi ke file Drive.
   - **Kartu ringkasan penyelesaian dana** (Word dan cetak): pita judul gelap, rincian dana awal, realisasi, dan uang harian, baris total
     yang diakui, lalu pita status berwarna (hijau sisa dikembalikan, merah kelebihan diganti, biru nihil) dengan nominal besar dan
     rumusnya, menggantikan baris bertitik-titik.
@@ -94,8 +98,7 @@ Aplikasi pencatatan keuangan harian pribadi dan kegiatan berbasis React, TypeScr
     tidak melebarkan kegiatan). Tanggal yang belum punya transaksi uang harian tetap tampil (jumlah Rp0) tanpa mengubah nominal, dan uang
     harian gabungan dibagi ke tanggal timesheet. File cadangan (nama berisi *backup*, *salinan*, *copy*, atau unggahan `.xlsx`) tidak
     dipilih bila file utama kegiatan yang sama ada, dan baris yang selnya terpecah koma (mis. lokasi dan jumlah dalam satu sel) dirapikan,
-    jadi hari terakhir timesheet tidak hilang. Isian Profil Pelapor yang kosong diisi dari kop timesheet (Nama, Proyek, Disetujui) hanya
-    untuk dokumen; profil sendiri tidak diubah.
+    jadi hari terakhir timesheet tidak hilang. Isian penandatangan tetap mengutamakan data formulir kegiatan dan Profil Pelapor.
   - **Pra-kegiatan**: pengeluaran bertanggal sebelum tanggal mulai kegiatan (tiket berangkat, belanja awal) ikut masuk laporan, dan
     **penerimaan dana** yang masuk sebelum hari pertama timesheet (setelah kegiatan sebelumnya selesai) dihitung sebagai dana awal
     kegiatan itu, bukan saldo awal di luar periode.

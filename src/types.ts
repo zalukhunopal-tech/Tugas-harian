@@ -9,6 +9,8 @@ export interface BuktiItem {
   driveId?: string;
   driveLink?: string;
   waktu?: string;
+  lebarPx?: number;
+  tinggiPx?: number;
 }
 
 export interface Transaksi {
@@ -288,6 +290,7 @@ export interface DataKegiatan {
   timesheetSinkron?: string; // waktu ISO terakhir isi timesheet ditarik
   timesheetDibuatApp?: boolean; // file dibuat aplikasi (salinan), jadi tanggal dan jumlahnya boleh diperbarui aplikasi
   timesheetKop?: { proyek?: string; nama?: string; penyetuju?: string }; // isian kop file timesheet, cadangan bila Profil Pelapor kosong
+  penandatangan?: { dilaporkanOleh?: string; disetujuiOleh?: string }; // nama penandatangan per kegiatan (prioritas utama dokumen)
   dibuat?: string;
   diubah?: string;
 }

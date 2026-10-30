@@ -1,4 +1,4 @@
-import type { BuktiItem, DataKegiatan, FotoPendukung, ProfilPelapor, Transaksi } from "../types";
+import type { BuktiItem, DataKegiatan, FotoPendukung, ProfilPelapor, Transaksi, UkuranKotakTempel } from "../types";
 import { formatAngka, formatRupiah, hariIni, KELOMPOK_DANA_KEGIATAN, labelKategori } from "./constants";
 import { KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
 import { hitungPenyelesaian, KATEGORI_PERDIEM, RingkasanPenyelesaian, transaksiKegiatan } from "./penyelesaianDana";
@@ -6,7 +6,7 @@ import { adalahKudapanPerjalanan, barisPenerimaManfaat } from "./penerimaManfaat
 import { barisDiklaimUntuk, barisRincianLengkap, uraianTampil } from "./kelengkapanKategori";
 import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { profilUntukDokumen } from "./profilPelapor";
-import { buktiPdf } from "./gambarDokumen";
+import { buktiPdf, kenaliGambar } from "./gambarDokumen";
 
 /**
  * Susunan laporan dana kegiatan: satu sumber isi dan urutan untuk dokumen Word (lib/docxGenerator.ts) dan dokumen siap cetak /
@@ -51,24 +51,36 @@ export interface KotakTempelLaporan {
   judul: string;
   keterangan: string;
   tinggiMm: number;
-  /** "struk": kotak tempel di kiri dan foto bukti digital di kanan; "lebar": kotak tempel selebar halaman. */
+  lebarMm: number;
+  /** "struk": kotak tempel potret (tata letak berdampingan); "lebar": kotak tempel selebar halaman. */
   bentuk: "lebar" | "struk";
+  catatan?: string;
+}
+
+export interface PasanganBuktiLaporan {
+  urutan: number;
+  total: number;
+  label?: string; // "Bukti 1 dari 3"
+  foto?: BuktiItem;
+  kotak: KotakTempelLaporan;
+  tataLetak: "samping" | "bawah";
 }
 
 export interface BlokTransaksiLaporan {
   transaksi: Transaksi;
   nomor: number;
-  /** Mulai di halaman baru (aturan sama dengan Word: paling banyak dua pengeluaran sederhana per halaman). */
+  /** Mulai di halaman baru berdasarkan perkiraan tinggi dalam mm (area isi 257 mm). */
   halamanBaru: boolean;
+  pasangan: PasanganBuktiLaporan[];
+  /** Turunan dari pasangan (untuk kompatibilitas dengan pemanggil lama): */
   kotakUtama: KotakTempelLaporan;
-  /** Foto yang tampil di kotak struk (kolom kanan). */
   fotoDiKotak?: BuktiItem;
-  /** Foto bukti digital lainnya (semua foto bila kotaknya lebar), ditata dua per baris. */
   fotoBukti: BuktiItem[];
   lampiranPdf: BuktiItem[];
   keterangan: BarisKeterangan[];
   kotakTambahan: KotakTempelLaporan[];
   fotoPendukung: FotoPendukung[];
+  perkiraanTinggiMm: number;
 }
 
 export interface BarisTabelLaporan {
@@ -168,6 +180,7 @@ export interface OpsiSusunanLaporan {
   profilPelapor: ProfilPelapor;
   urutanTransaksiIds?: string[];
   sertakanDaftarPeriksa?: boolean;
+  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>;
 }
 
 const KATEGORI_PINDAH_DANA = "Pindah Dana";
@@ -361,25 +374,202 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
   return baris;
 }
 
-const JENIS_THERMAL = "Struk thermal (minimarket/SPBU)";
+export const BATAS_RASIO = {
+  POTRET_SEMPIT: 1.6,
+  POTRET: 1.15,
+  HAMPIR_PERSEGI: 0.87,
+} as const;
 
-/** Kotak tempel utama: struk thermal (atau pilihan Tipe A) berdampingan dengan fotonya; lainnya kotak lebar setinggi menurut tipe. */
-function kotakUtama(t: Transaksi, nomor: number, profil: ProfilPelapor): KotakTempelLaporan {
+export interface UkuranKotakHasil {
+  lebarMm: number;
+  tinggiMm: number;
+  tataLetak: "samping" | "bawah";
+  bentuk: "lebar" | "struk";
+  catatan?: string;
+}
+
+export function hitungUkuranKotakDanTataLetak(
+  rasio: number | undefined,
+  jenisBukti = "Kuitansi",
+  manual?: UkuranKotakTempel
+): UkuranKotakHasil {
+  // Pilihan manual kotakTempel A/B/C dihormati
+  if (manual === "A") {
+    return { lebarMm: 85, tinggiMm: 120, tataLetak: "samping", bentuk: "struk" };
+  }
+  if (manual === "B") {
+    return { lebarMm: 170, tinggiMm: 65, tataLetak: "bawah", bentuk: "lebar" };
+  }
+  if (manual === "C") {
+    return { lebarMm: 170, tinggiMm: 130, tataLetak: "bawah", bentuk: "lebar" };
+  }
+
+  // Dari rasio foto bukti:
+  if (typeof rasio === "number" && Number.isFinite(rasio) && rasio > 0) {
+    if (rasio >= BATAS_RASIO.POTRET_SEMPIT) {
+      const tinggiHitung = Math.round(85 * rasio + 10);
+      const tinggiMm = Math.min(230, Math.max(100, tinggiHitung));
+      const catatan = tinggiHitung > 230 ? "Lipat struk bila lebih panjang dari kotak" : undefined;
+      return { lebarMm: 85, tinggiMm, tataLetak: "samping", bentuk: "struk", catatan };
+    }
+    if (rasio >= BATAS_RASIO.POTRET) {
+      const tinggiMm = Math.min(200, Math.max(110, Math.round(100 * rasio + 10)));
+      return { lebarMm: 100, tinggiMm, tataLetak: "samping", bentuk: "struk" };
+    }
+    if (rasio >= BATAS_RASIO.HAMPIR_PERSEGI) {
+      return { lebarMm: 100, tinggiMm: 100, tataLetak: "samping", bentuk: "struk" };
+    }
+    // lanskap < 0.87
+    const tinggiMm = Math.min(120, Math.max(55, Math.round(170 * rasio + 10)));
+    return { lebarMm: 170, tinggiMm, tataLetak: "bawah", bentuk: "lebar" };
+  }
+
+  // Tanpa foto atau ukuran tidak terbaca:
+  if (jenisBukti === "Struk thermal (minimarket/SPBU)") {
+    return { lebarMm: 85, tinggiMm: 120, tataLetak: "samping", bentuk: "struk", catatan: "(Struk Thermal Mudah Pudar)" };
+  }
+  if (jenisBukti === "Nota") {
+    return { lebarMm: 100, tinggiMm: 130, tataLetak: "samping", bentuk: "struk" };
+  }
+  return { lebarMm: 170, tinggiMm: 65, tataLetak: "bawah", bentuk: "lebar" };
+}
+
+export function rasioFotoBukti(
+  b: BuktiItem,
+  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
+): number | undefined {
+  if (b.lebarPx && b.tinggiPx && b.lebarPx > 0) {
+    return b.tinggiPx / b.lebarPx;
+  }
+  const u = ukuranFoto?.get(b.id);
+  if (u && u.lebar > 0 && u.tinggi > 0) {
+    return u.tinggi / u.lebar;
+  }
+  if (b.dataUrl && b.dataUrl.startsWith("data:")) {
+    try {
+      const idx = b.dataUrl.indexOf(";base64,");
+      if (idx >= 0) {
+        const b64 = b.dataUrl.slice(idx + 8, idx + 8 + 600);
+        const bin = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const info = kenaliGambar(bytes);
+        if (info.lebar && info.tinggi) {
+          const [effW, effH] =
+            info.orientasi && info.orientasi >= 5 && info.orientasi <= 8
+              ? [info.tinggi, info.lebar]
+              : [info.lebar, info.tinggi];
+          return effH / effW;
+        }
+      }
+    } catch {
+      // abaikan
+    }
+  }
+  return undefined;
+}
+
+function susunPasanganBukti(
+  t: Transaksi,
+  nomor: number,
+  profil: ProfilPelapor,
+  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
+): { pasangan: PasanganBuktiLaporan[]; lampiranPdf: BuktiItem[] } {
   const d = t.detailKegiatan ?? {};
   const jenisBukti = d.jenisBukti || "Kuitansi";
-  const diklaim = barisDiklaimUntuk(t, profil.nama);
-  const keterangan = `No. ${nomor} · ${t.deskripsi} · ${formatRupiah(t.jumlah)}${diklaim ? ` · ${diklaim}` : ""}`;
   const manual = d.kotakTempel;
-  const struk = manual ? manual === "A" : jenisBukti === JENIS_THERMAL;
-  if (struk) {
+  const diklaim = barisDiklaimUntuk(t, profil.nama);
+  const judulKotak =
+    jenisBukti === "Struk thermal (minimarket/SPBU)"
+      ? "TEMPEL STRUK ASLI DI SINI"
+      : `TEMPEL ${jenisBukti.toUpperCase()} ASLI DI SINI`;
+
+  const buktiSemua = t.bukti ?? [];
+  const lampiranPdf = buktiSemua.filter((b) => buktiPdf(b));
+  const foto = buktiSemua.filter((b) => !buktiPdf(b));
+
+  if (foto.length === 0) {
+    const ukuran = hitungUkuranKotakDanTataLetak(undefined, jenisBukti, manual);
+    const keterangan = `No. ${nomor} · ${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
     return {
-      judul: jenisBukti === JENIS_THERMAL ? "TEMPEL STRUK ASLI DI SINI" : `TEMPEL ${jenisBukti.toUpperCase()} ASLI DI SINI`,
-      keterangan,
-      tinggiMm: 120,
-      bentuk: "struk",
+      pasangan: [
+        {
+          urutan: 1,
+          total: 1,
+          foto: undefined,
+          kotak: {
+            judul: judulKotak,
+            keterangan,
+            tinggiMm: ukuran.tinggiMm,
+            lebarMm: ukuran.lebarMm,
+            bentuk: ukuran.bentuk,
+            catatan: ukuran.catatan,
+          },
+          tataLetak: ukuran.tataLetak,
+        },
+      ],
+      lampiranPdf,
     };
   }
-  return { judul: `TEMPEL ${jenisBukti.toUpperCase()} ASLI DI SINI`, keterangan, tinggiMm: manual === "C" ? 110 : 65, bentuk: "lebar" };
+
+  const total = foto.length;
+  const pasangan: PasanganBuktiLaporan[] = foto.map((f, idx) => {
+    const urutan = idx + 1;
+    const label = total > 1 ? `Bukti ${urutan} dari ${total}` : undefined;
+    const rasio = rasioFotoBukti(f, ukuranFoto);
+    const ukuran = hitungUkuranKotakDanTataLetak(rasio, jenisBukti, manual);
+    const labelBagian = total > 1 ? `Bukti ${urutan} dari ${total} · ` : "";
+    const keterangan = `No. ${nomor} · ${labelBagian}${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
+    return {
+      urutan,
+      total,
+      label,
+      foto: f,
+      kotak: {
+        judul: judulKotak,
+        keterangan,
+        tinggiMm: ukuran.tinggiMm,
+        lebarMm: ukuran.lebarMm,
+        bentuk: ukuran.bentuk,
+        catatan: ukuran.catatan,
+      },
+      tataLetak: ukuran.tataLetak,
+    };
+  });
+
+  return { pasangan, lampiranPdf };
+}
+
+function hitungTinggiBlokMm(
+  pasangan: PasanganBuktiLaporan[],
+  keterangan: BarisKeterangan[],
+  kotakTambahan: KotakTempelLaporan[],
+  fotoPendukung: FotoPendukung[],
+  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
+): number {
+  let tinggi = 10; // kepala blok + padding
+  for (let i = 0; i < pasangan.length; i++) {
+    const p = pasangan[i];
+    if (i > 0) tinggi += 4;
+    if (p.tataLetak === "samping") {
+      tinggi += p.kotak.tinggiMm;
+    } else {
+      if (p.foto) {
+        const rasio = rasioFotoBukti(p.foto, ukuranFoto) ?? 0.45;
+        const tinggiFoto = Math.min(70, Math.max(30, Math.round(170 * rasio)));
+        tinggi += tinggiFoto + 4 + p.kotak.tinggiMm;
+      } else {
+        tinggi += p.kotak.tinggiMm;
+      }
+    }
+  }
+  tinggi += keterangan.length * 4.5;
+  for (const kt of kotakTambahan) {
+    tinggi += kt.tinggiMm + 4;
+  }
+  tinggi += fotoPendukung.length * 60;
+  tinggi += 6;
+  return tinggi;
 }
 
 function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): KotakTempelLaporan[] {
@@ -387,7 +577,13 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
   const jenisBukti = (d.jenisBukti || "Kuitansi").toLowerCase();
   const moda = (d.transportasi?.moda || "").toLowerCase();
   const hasil: KotakTempelLaporan[] = [];
-  const lebar = (judul: string, keterangan: string, tinggiMm: number): KotakTempelLaporan => ({ judul, keterangan, tinggiMm, bentuk: "lebar" });
+  const lebar = (judul: string, keterangan: string, tinggiMm: number): KotakTempelLaporan => ({
+    judul,
+    keterangan,
+    tinggiMm,
+    lebarMm: 170,
+    bentuk: "lebar",
+  });
   if (moda.includes("pesawat") || jenisBukti.includes("pesawat")) {
     hasil.push(lebar("TEMPEL BOARDING PASS ASLI / TIKET TRAVEL ASLI DI SINI", `No. ${nomor} · Boarding Pass / Tiket Pesawat Asli · ${profil.nama}`, 55));
   }
@@ -420,48 +616,52 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
   return hasil;
 }
 
-/** Pengeluaran "kompleks" (banyak kotak atau berfoto) selalu mulai di halaman baru, seperti di Word. */
-function kompleks(t: Transaksi): boolean {
-  const d = t.detailKegiatan ?? {};
-  const jenisBukti = d.jenisBukti || "Kuitansi";
-  const moda = (d.transportasi?.moda || "").toLowerCase();
-  return (
-    jenisBukti === JENIS_THERMAL ||
-    t.kategori === "Rental Kendaraan" ||
-    t.kategori === "Honorarium & Ganti Hari" ||
-    t.kategori === "Akomodasi" ||
-    moda.includes("pesawat") ||
-    jenisBukti.toLowerCase().includes("pesawat") ||
-    moda.includes("travel") ||
-    moda.includes("ojek") ||
-    Boolean(d.transportasi?.namaSopir) ||
-    adaFoto(t)
-  );
-}
+function blokKelompok(
+  daftar: Transaksi[],
+  nomorUrut: Map<string, number>,
+  profil: ProfilPelapor,
+  punyaTabel: boolean,
+  jumlahBarisTabel: number,
+  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
+): BlokTransaksiLaporan[] {
+  const TINGGI_HALAMAN_MM = 257;
+  const tinggiHeader = 15 + (punyaTabel ? 22 + jumlahBarisTabel * 7 : 0);
+  let sisaHalaman = TINGGI_HALAMAN_MM - tinggiHeader;
 
-function blokKelompok(daftar: Transaksi[], nomorUrut: Map<string, number>, profil: ProfilPelapor): BlokTransaksiLaporan[] {
-  let terisi = 0;
   return daftar.map((t) => {
     const nomor = nomorUrut.get(t.id) ?? 1;
-    const rumit = kompleks(t);
-    const halamanBaru = terisi >= 2 || (terisi > 0 && rumit);
-    if (halamanBaru) terisi = 0;
-    terisi += rumit ? 2 : 1;
-    const utama = kotakUtama(t, nomor, profil);
-    const bukti = t.bukti ?? [];
-    const foto = bukti.filter((b) => !buktiPdf(b));
-    const fotoDiKotak = utama.bentuk === "struk" ? foto[0] : undefined;
+    const ket = keteranganTransaksi(t, profil);
+    const tambahan = kotakTambahan(t, nomor, profil);
+    const pendukung = t.detailKegiatan?.fotoPendukung ?? [];
+    const { pasangan, lampiranPdf } = susunPasanganBukti(t, nomor, profil, ukuranFoto);
+    const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung, ukuranFoto);
+
+    let halamanBaru = false;
+    if (sisaHalaman < tinggiBlok && sisaHalaman < TINGGI_HALAMAN_MM - 20) {
+      halamanBaru = true;
+      sisaHalaman = TINGGI_HALAMAN_MM - tinggiBlok;
+    } else {
+      halamanBaru = false;
+      sisaHalaman -= tinggiBlok;
+    }
+
+    const utama = pasangan[0].kotak;
+    const fotoDiKotak = pasangan.find((p) => p.tataLetak === "samping")?.foto;
+    const fotoBukti = pasangan.map((p) => p.foto).filter((f): f is BuktiItem => Boolean(f));
+
     return {
       transaksi: t,
       nomor,
       halamanBaru,
+      pasangan,
       kotakUtama: utama,
       fotoDiKotak,
-      fotoBukti: fotoDiKotak ? foto.slice(1) : foto,
-      lampiranPdf: bukti.filter((b) => buktiPdf(b)),
-      keterangan: keteranganTransaksi(t, profil),
-      kotakTambahan: kotakTambahan(t, nomor, profil),
-      fotoPendukung: t.detailKegiatan?.fotoPendukung ?? [],
+      fotoBukti: fotoDiKotak ? fotoBukti.filter((f) => f.id !== fotoDiKotak.id) : fotoBukti,
+      lampiranPdf,
+      keterangan: ket,
+      kotakTambahan: tambahan,
+      fotoPendukung: pendukung,
+      perkiraanTinggiMm: tinggiBlok,
     };
   });
 }
@@ -503,7 +703,7 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
       transaksi: daftar,
       subtotal: daftar.reduce((s, t) => s + t.jumlah, 0),
       tabel: timesheet ? null : daftar.map((t) => barisTabel(t, String(nomorUrut.get(t.id) ?? ""), profil.nama, kegiatan.nama)),
-      blok: blokKelompok(untukBlok, nomorUrut, profil),
+      blok: blokKelompok(untukBlok, nomorUrut, profil, !timesheet, untukBlok.length, o.ukuranFoto),
     });
   }
 

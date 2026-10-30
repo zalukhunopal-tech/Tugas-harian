@@ -53,7 +53,11 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
   const [pesan, setPesan] = useState<{ teks: string; tipe: "sukses" | "galat" | "info" } | null>(null);
   const [berkas, setBerkas] = useState<GDriveFileInfo[]>([]);
   const [draftBatch, setDraftBatch] = useState<string>("");
+  const [draftDilaporkan, setDraftDilaporkan] = useState<string | null>(null);
   const [draftPenyetuju, setDraftPenyetuju] = useState<string | null>(null);
+
+  const nilaiDilaporkan = kegiatan.penandatangan?.dilaporkanOleh !== undefined ? kegiatan.penandatangan.dilaporkanOleh : (profilPelapor.nama || "");
+  const nilaiDisetujui = kegiatan.penandatangan?.disetujuiOleh !== undefined ? kegiatan.penandatangan.disetujuiOleh : (profilPelapor.penyetuju || "");
 
   const batch = batchKegiatan(kegiatan);
   const saran = useMemo(
@@ -139,12 +143,29 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
     onUpdateKegiatan({ ...kegiatan, batch: n });
   };
 
-  const simpanPenyetuju = () => {
-    const nilai = (draftPenyetuju ?? "").trim();
-    setDraftPenyetuju(null);
-    if (!onSimpanProfilPelapor || !nilai || nilai === profilPelapor.penyetuju) return;
-    onSimpanProfilPelapor({ ...profilPelapor, penyetuju: nilai, diubah: new Date().toISOString() });
+  const simpanPenandatangan = (bidang: "dilaporkanOleh" | "disetujuiOleh", nilai: string) => {
+    if (bidang === "dilaporkanOleh") setDraftDilaporkan(null);
+    else setDraftPenyetuju(null);
+    if (!onUpdateKegiatan) return;
+    const penandatangan = {
+      ...(kegiatan.penandatangan ?? {}),
+      [bidang]: nilai,
+    };
+    onUpdateKegiatan({
+      ...kegiatan,
+      penandatangan,
+      diubah: new Date().toISOString(),
+    });
   };
+
+  const saranKopDilaporkan =
+    kegiatan.timesheetKop?.nama && kegiatan.timesheetKop.nama !== (draftDilaporkan ?? nilaiDilaporkan)
+      ? kegiatan.timesheetKop.nama
+      : null;
+  const saranKopDisetujui =
+    kegiatan.timesheetKop?.penyetuju && kegiatan.timesheetKop.penyetuju !== (draftPenyetuju ?? nilaiDisetujui)
+      ? kegiatan.timesheetKop.penyetuju
+      : null;
 
   const sibuk = kerja !== null;
 
@@ -181,14 +202,48 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
           </button>
         )}
         <label className="kartu-timesheet__field">
+          <span>Dilaporkan oleh</span>
+          <input
+            type="text"
+            value={draftDilaporkan !== null ? draftDilaporkan : nilaiDilaporkan}
+            placeholder="Nama pelapor di timesheet"
+            onChange={(e) => setDraftDilaporkan(e.target.value)}
+            onBlur={() => simpanPenandatangan("dilaporkanOleh", draftDilaporkan ?? nilaiDilaporkan)}
+          />
+          {saranKopDilaporkan && (
+            <div className="kartu-timesheet__saran-kop" style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "4px" }}>
+              Di file Drive tertulis: <em>{saranKopDilaporkan}</em>{" "}
+              <button
+                type="button"
+                className="btn-small"
+                onClick={() => simpanPenandatangan("dilaporkanOleh", saranKopDilaporkan)}
+              >
+                Pakai
+              </button>
+            </div>
+          )}
+        </label>
+        <label className="kartu-timesheet__field">
           <span>Disetujui oleh</span>
           <input
             type="text"
-            value={draftPenyetuju ?? profilPelapor.penyetuju ?? ""}
+            value={draftPenyetuju !== null ? draftPenyetuju : nilaiDisetujui}
             placeholder="Nama penyetuju di timesheet"
             onChange={(e) => setDraftPenyetuju(e.target.value)}
-            onBlur={simpanPenyetuju}
+            onBlur={() => simpanPenandatangan("disetujuiOleh", draftPenyetuju ?? nilaiDisetujui)}
           />
+          {saranKopDisetujui && (
+            <div className="kartu-timesheet__saran-kop" style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "4px" }}>
+              Di file Drive tertulis: <em>{saranKopDisetujui}</em>{" "}
+              <button
+                type="button"
+                className="btn-small"
+                onClick={() => simpanPenandatangan("disetujuiOleh", saranKopDisetujui)}
+              >
+                Pakai
+              </button>
+            </div>
+          )}
         </label>
       </div>
 

@@ -8,6 +8,7 @@ interface GambarLampiranProps {
   bukti: BuktiItem;
   googleToken?: string;
   onStatus: (id: string, memuat: boolean) => void;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }
 
 /**
@@ -16,7 +17,7 @@ interface GambarLampiranProps {
  * ukuran aslinya, seperti struk yang ditempel di kertas HVS kosong. Foto dari Google Drive (termasuk yang hanya punya tautan)
  * dimuat lewat muatPratinjauBukti; selama memuat, onStatus memberi tahu supaya tombol cetak menunggu.
  */
-export const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleToken, onStatus }) => {
+export const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleToken, onStatus, onUkuran }) => {
   const [status, setStatus] = useState<StatusFoto>("memuat");
   const [url, setUrl] = useState<string | undefined>();
 
@@ -54,7 +55,13 @@ export const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleTok
           className="dsc-foto"
           src={url}
           alt={bukti.nama || "Bukti transaksi"}
-          onLoad={() => onStatus(bukti.id, false)}
+          onLoad={(e) => {
+            const target = e.currentTarget;
+            if (target.naturalWidth > 0 && target.naturalHeight > 0) {
+              onUkuran?.(bukti.id, target.naturalWidth, target.naturalHeight);
+            }
+            onStatus(bukti.id, false);
+          }}
           onError={() => {
             setStatus("gagal");
             onStatus(bukti.id, false);

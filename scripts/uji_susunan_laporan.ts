@@ -106,17 +106,99 @@ const s = susunLaporanKegiatan({ transaksi, kegiatan, daftarKegiatan: [kegiatan]
 console.log("== Semua foto bukti ikut");
 const blok = s.kelompok.flatMap((k) => k.blok);
 const speedboat = blok.find((b) => b.transaksi.deskripsi === "Tiket speedboat")!;
-cek("tiket speedboat: kotak tempel lebar, ketiga foto (termasuk foto bertautan Drive) di kisi foto", speedboat.kotakUtama.bentuk === "lebar" && !speedboat.fotoDiKotak && speedboat.fotoBukti.map((b) => b.id).join() === "f1,f2,l3", speedboat.fotoBukti.map((b) => b.id));
-cek("kotak tiket menyebut nomor, uraian, nominal, dan Diklaim untuk", /^No\. \d+ · Tiket speedboat · Rp\s?900\.000 · Diklaim untuk: Budi Santoso, Andi, Rina$/.test(speedboat.kotakUtama.keterangan), speedboat.kotakUtama.keterangan);
+cek("tiket speedboat: 3 foto menghasilkan 3 pasangan berlabel 'Bukti n dari 3'", speedboat.pasangan.length === 3 && speedboat.pasangan[0].label === "Bukti 1 dari 3" && speedboat.pasangan[2].label === "Bukti 3 dari 3");
+cek("kotak tiket menyebut nomor, label, uraian, dan Diklaim untuk tanpa nominal", speedboat.pasangan[0].kotak.keterangan === "No. 1 · Bukti 1 dari 3 · Tiket speedboat · Diklaim untuk: Budi Santoso, Andi, Rina", speedboat.pasangan[0].kotak.keterangan);
 const snack = blok.find((b) => b.transaksi.deskripsi === "Snack perjalanan")!;
-cek("struk snack: foto pertama di kotak struk, foto kedua di kisi, PDF jadi lampiran tautan", snack.kotakUtama.bentuk === "struk" && snack.fotoDiKotak?.id === "f4" && snack.fotoBukti.map((b) => b.id).join() === "f5" && snack.lampiranPdf.map((b) => b.id).join() === "f6");
-cek("struk snack: kotak 120 mm bertuliskan TEMPEL STRUK ASLI DI SINI", snack.kotakUtama.tinggiMm === 120 && snack.kotakUtama.judul === "TEMPEL STRUK ASLI DI SINI");
+cek("struk snack: 2 foto menghasilkan 2 pasangan, PDF jadi lampiran tautan", snack.pasangan.length === 2 && snack.lampiranPdf.map((b) => b.id).join() === "f6");
+cek("struk snack: kotak bertuliskan TEMPEL STRUK ASLI DI SINI", snack.pasangan[0].kotak.tinggiMm === 120 && snack.pasangan[0].kotak.judul === "TEMPEL STRUK ASLI DI SINI");
 
-console.log("== Halaman baru seperti di Word");
+console.log("== Halaman baru berdasarkan perkiraan tinggi (257 mm)");
 const lain = s.kelompok.find((k) => k.kategori === "Lain-lain")!;
 cek("tiga nota sederhana: dua per halaman, yang ketiga di halaman baru", lain.blok.map((b) => b.halamanBaru).join() === "false,false,true", lain.blok.map((b) => b.halamanBaru));
 const trans = s.kelompok.find((k) => k.kategori === "Transportasi")!;
-cek("pengeluaran berfoto sesudah pengeluaran lain mulai di halaman baru", trans.blok[0].halamanBaru === false && trans.blok[1].halamanBaru === true, trans.blok.map((b) => b.halamanBaru));
+// speedboat punya 3 kotak bukti (195 mm) + tabel kelompok (54 mm) + judul (32 mm) > 257 mm sehingga mulai di halaman baru;
+// ojek (83 mm) juga tidak muat di sisa halaman speedboat sehingga halamanBaru = true.
+cek("pengeluaran yang melebihi sisa tinggi halaman berpindah ke halaman baru", trans.blok[0].halamanBaru === true && trans.blok[1].halamanBaru === true, trans.blok.map((b) => b.halamanBaru));
+
+console.log("== Uji Pasangan Bukti & Ukuran Kotak Berdasarkan Rasio");
+// 1. Foto potret 300x800 px dengan jenis bukti "Nota" -> kotak potret samping (85 mm x 230 mm batas)
+const ukuranNota = new Map<string, { lebar: number; tinggi: number }>([
+  ["fn1", { lebar: 300, tinggi: 800 }],
+]);
+const sNota = susunLaporanKegiatan({
+  transaksi: [
+    trx({ deskripsi: "Nota minimarket panjang", bukti: [{ id: "fn1", nama: "nota.jpg", tipe: "image/jpeg" }], detailKegiatan: { jenisBukti: "Nota" } }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+  ukuranFoto: ukuranNota,
+});
+const pasNota = sNota.kelompok[0].blok[0].pasangan[0];
+cek("foto potret 300x800 px menghasilkan kotak potret samping 85x230 mm", pasNota.kotak.lebarMm === 85 && pasNota.kotak.tinggiMm === 230 && pasNota.tataLetak === "samping");
+cek("ada catatan lipat bila tinggi mencapai batas 230 mm", pasNota.kotak.catatan === "Lipat struk bila lebih panjang dari kotak");
+
+// 2. Foto lanskap tiket (800x400 px, rasio 0.5 < 0.87) -> kotak lebar tata letak bawah
+const ukuranTiket = new Map<string, { lebar: number; tinggi: number }>([
+  ["ft1", { lebar: 800, tinggi: 400 }],
+]);
+const sTiket = susunLaporanKegiatan({
+  transaksi: [
+    trx({ deskripsi: "Tiket pesawat", bukti: [{ id: "ft1", nama: "tiket.jpg", tipe: "image/jpeg" }], detailKegiatan: { jenisBukti: "Tiket" } }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+  ukuranFoto: ukuranTiket,
+});
+const pasTiket = sTiket.kelompok[0].blok[0].pasangan[0];
+cek("foto lanskap tiket menghasilkan kotak lebar tata letak bawah (170x95 mm)", pasTiket.kotak.lebarMm === 170 && pasTiket.kotak.tinggiMm === 95 && pasTiket.tataLetak === "bawah");
+
+// 3. Tanpa foto: kotak mengikuti jenis bukti, pilihan manual A/B/C dihormati
+const sManual = susunLaporanKegiatan({
+  transaksi: [
+    trx({ deskripsi: "Manual A", detailKegiatan: { kotakTempel: "A" } }),
+    trx({ deskripsi: "Manual B", detailKegiatan: { kotakTempel: "B" } }),
+    trx({ deskripsi: "Manual C", detailKegiatan: { kotakTempel: "C" } }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+});
+const bManual = sManual.kelompok[0].blok;
+cek("pilihan manual A: 85x120 mm samping", bManual[0].pasangan[0].kotak.lebarMm === 85 && bManual[0].pasangan[0].kotak.tinggiMm === 120 && bManual[0].pasangan[0].tataLetak === "samping");
+cek("pilihan manual B: 170x65 mm bawah", bManual[1].pasangan[0].kotak.lebarMm === 170 && bManual[1].pasangan[0].kotak.tinggiMm === 65 && bManual[1].pasangan[0].tataLetak === "bawah");
+cek("pilihan manual C: 170x130 mm bawah", bManual[2].pasangan[0].kotak.lebarMm === 170 && bManual[2].pasangan[0].kotak.tinggiMm === 130 && bManual[2].pasangan[0].tataLetak === "bawah");
+
+// 4. Perpindahan halaman berdasarkan tinggi
+const sTinggi = susunLaporanKegiatan({
+  transaksi: [
+    trx({ deskripsi: "Item 1", detailKegiatan: { kotakTempel: "C" } }),
+    trx({ deskripsi: "Item 2", detailKegiatan: { kotakTempel: "C" } }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+});
+cek("transaksi kedua mulai di halaman baru karena tinggi melebihi 257 mm", sTinggi.kelompok[0].blok[0].halamanBaru === false && sTinggi.kelompok[0].blok[1].halamanBaru === true);
+
+// 5. Nama penandatangan: isian kegiatan menang atas Profil Pelapor, dan kop Drive tidak dipakai diam-diam
+const kegPenandatangan: DataKegiatan = {
+  ...kegiatan,
+  penandatangan: {
+    dilaporkanOleh: "Sari Wulandari",
+    disetujuiOleh: "Rudi Hartono",
+  },
+  timesheetKop: {
+    nama: "Nama Lama Drive",
+    disetujuiOleh: "Penyetuju Lama Drive",
+  },
+};
+const sTtd = susunLaporanKegiatan({
+  transaksi: [trx({ kategori: "Perdiem", tanggal: "2026-10-20", deskripsi: "Perdiem · 2026-10-20", jumlah: 200000 })],
+  kegiatan: kegPenandatangan,
+  profilPelapor: profil,
+});
+cek("kop timesheet nama mengikuti penandatangan.dilaporkanOleh", sTtd.daftarPerdiem?.nama === "Sari Wulandari");
+cek("dilaporkanOleh timesheet mengikuti penandatangan.dilaporkanOleh", sTtd.daftarPerdiem?.dilaporkanOleh === "Sari Wulandari");
+cek("disetujuiOleh timesheet mengikuti penandatangan.disetujuiOleh", sTtd.daftarPerdiem?.disetujuiOleh === "Rudi Hartono");
+cek("kop Drive tidak dipakai diam-diam", sTtd.daftarPerdiem?.nama !== "Nama Lama Drive" && sTtd.daftarPerdiem?.disetujuiOleh !== "Penyetuju Lama Drive");
 
 console.log("== Uang harian hari kepulangan ikut");
 cek("timesheet memuat 8 hari sampai 27 Oktober", s.daftarPerdiem?.baris.length === 8 && s.daftarPerdiem?.baris[7].tanggal.includes("27"), s.daftarPerdiem?.baris.map((b) => b.tanggal));

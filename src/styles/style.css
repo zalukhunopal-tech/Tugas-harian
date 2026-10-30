@@ -4853,9 +4853,10 @@ button {
   color: #777777;
 }
 
-.dlk-kotak__ket {
+.dlk-kotak__ket,
+.dlk-kotak__uraian {
   font-size: calc(9 * var(--pt));
-  color: #999999;
+  color: #777777;
   overflow-wrap: anywhere;
 }
 
@@ -4867,6 +4868,82 @@ button {
 
 .dlk-kotak-tambahan {
   margin-top: calc(6 * var(--pt));
+}
+
+/* Pasangan bukti laporan: kotak tempel + foto bukti digital */
+.dlk-pasangan {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.dlk-pasangan + .dlk-pasangan {
+  margin-top: calc(4 * var(--mm));
+}
+
+.dlk-pasangan--samping {
+  display: grid;
+  align-items: stretch;
+}
+
+.dlk-pasangan--samping > .dlk-kotak {
+  border-right: 0;
+}
+
+.dlk-pasangan--samping > .dlk-foto {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(3 * var(--pt));
+  padding: calc(3 * var(--pt));
+  border: 1px solid #cccccc;
+  background: #ffffff;
+  text-align: center;
+  min-width: 0;
+}
+
+.dlk-pasangan--bawah {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2 * var(--mm));
+}
+
+.dlk-pasangan--bawah > .dlk-foto--atas {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(2 * var(--pt));
+  padding: calc(3 * var(--pt));
+  border: 1px solid #cccccc;
+  background: #ffffff;
+  text-align: center;
+  max-height: calc(70 * var(--mm));
+  overflow: hidden;
+}
+
+.dlk-pasangan--bawah > .dlk-foto--atas .dsc-foto-kotak {
+  max-height: calc(62 * var(--mm));
+}
+
+.dlk-pasangan--bawah > .dlk-kotak--bawah {
+  width: 100%;
+}
+
+.dlk-foto__label {
+  font-size: calc(8.5 * var(--pt));
+  font-weight: 700;
+  color: #555555;
+  text-transform: uppercase;
+}
+
+.dlk-foto__placeholder {
+  font-size: calc(8.5 * var(--pt));
+  font-style: italic;
+  color: #888888;
+  padding: calc(8 * var(--pt)) calc(4 * var(--pt));
 }
 
 /* Struk: kotak tempel di kiri, foto bukti digital di kanan, setinggi 120 mm */
