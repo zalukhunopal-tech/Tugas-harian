@@ -221,7 +221,10 @@ const TabelLaporan: React.FC<{ baris: BarisTabelLaporan[]; labelTotal: string }>
 
 const KotakTempel: React.FC<{ kotak: KotakTempelLaporan; catatan?: string }> = ({ kotak, catatan }) => (
   <div className="dlk-kotak" style={{ "--tinggi": kotak.tinggiMm } as CSSProperties} data-testid="kotak-tempel" data-bentuk={kotak.bentuk}>
-    <div className="dlk-kotak__judul">{kotak.judul}</div>
+    <div className="dlk-kotak__judul">
+      {kotak.judul}
+      {kotak.dimensiLabel ? ` | ${kotak.dimensiLabel}` : ""}
+    </div>
     <div className="dlk-kotak__ket">{kotak.keterangan}</div>
     {catatan && <div className="dlk-kotak__catatan">{catatan}</div>}
   </div>
@@ -247,11 +250,10 @@ const PasanganBukti: React.FC<{
         style={{
           "--tinggi": kotak.tinggiMm,
           "--lebar-kotak": kotak.lebarMm,
-          gridTemplateColumns: `calc(${kotak.lebarMm} * var(--mm)) 1fr`,
+          gridTemplateColumns: `minmax(0, 1fr) calc(${kotak.lebarMm} * var(--mm))`,
           minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
         } as CSSProperties}
       >
-        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
         <div className="dlk-struk__foto">
           <div className="dlk-struk__judul-foto">{judulFoto}</div>
           {foto ? (
@@ -263,6 +265,7 @@ const PasanganBukti: React.FC<{
             <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
           )}
         </div>
+        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
       </div>
     );
   }
@@ -279,7 +282,7 @@ const PasanganBukti: React.FC<{
       } as CSSProperties}
     >
       {foto && (
-        <div className="dlk-foto--atas" style={{ marginBottom: "calc(4 * var(--mm))" }}>
+        <div className="dlk-foto--atas" style={{ marginBottom: 0 }}>
           <div className="dlk-foto-judul">{judulFoto}</div>
           <figure className="dlk-foto" data-testid="foto-bukti">
             <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
@@ -641,35 +644,44 @@ export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ 
         <RingkasanPenyelesaianCetak p={susunan.penyelesaian} />
       </Lembar>
 
-      {/* 6. Daftar periksa kelengkapan (bisa dimatikan) */}
+      {/* 6. Daftar periksa kelengkapan (Tabel Lembaga 17 Kategori Otoritatif) */}
       {susunan.daftarPeriksa && (
         <Lembar kepala={kepala} data-testid="dlk-daftar-periksa">
           <h3 className="dlk-judul-tengah">DAFTAR PERIKSA KELENGKAPAN SPJ</h3>
-          <p className="dlk-catatan-tengah">(Halaman ini sebagai panduan internal kelengkapan dokumen dan boleh tidak dicetak)</p>
+          <p className="dlk-catatan-tengah">Kelengkapan Pelaporan Keuangan - dokumen lembaga</p>
           <table className="dlk-tabel dlk-periksa">
             <colgroup>
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "92%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "24%" }} />
+              <col style={{ width: "64%" }} />
+              <col style={{ width: "6%" }} />
             </colgroup>
             <thead>
               <tr>
-                <th className="dlk-tengah">Cek</th>
-                <th>Persyaratan &amp; Dokumen Kelengkapan</th>
+                <th className="dlk-tengah">No</th>
+                <th>Jenis</th>
+                <th>Dokumen pendukung</th>
+                <th className="dlk-tengah">cek</th>
               </tr>
             </thead>
             <tbody>
-              {susunan.daftarPeriksa.map((g) => (
-                <React.Fragment key={g.judul}>
-                  <tr className="dlk-periksa__grup">
-                    <td colSpan={2}>{g.judul}</td>
-                  </tr>
-                  {g.butir.map((b, i) => (
-                    <tr key={i}>
-                      <td className="dlk-periksa__cek">☐</td>
-                      <td>{b}</td>
-                    </tr>
-                  ))}
-                </React.Fragment>
+              {susunan.daftarPeriksa.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="dlk-tengah" style={{ verticalAlign: "top" }}>{item.nomor ?? idx + 1}</td>
+                  <td style={{ verticalAlign: "top", fontWeight: 700 }}>{item.jenis || item.judul}</td>
+                  <td style={{ verticalAlign: "top" }}>
+                    {item.butir.length === 1 ? (
+                      item.butir[0]
+                    ) : (
+                      <ol style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                        {item.butir.map((b, bi) => (
+                          <li key={bi} style={{ marginBottom: "2px" }}>{b}</li>
+                        ))}
+                      </ol>
+                    )}
+                  </td>
+                  <td className="dlk-periksa__cek" style={{ verticalAlign: "top" }}>☐</td>
+                </tr>
               ))}
             </tbody>
           </table>

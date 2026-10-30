@@ -4934,8 +4934,12 @@ button {
   align-items: stretch;
 }
 
-.dlk-pasangan--samping > .dlk-kotak {
+.dlk-pasangan--samping > .dlk-struk__foto {
   border-right: 0;
+}
+
+.dlk-pasangan--samping > .dlk-kotak {
+  border-left: 1px dashed #777777;
 }
 
 .dlk-pasangan--samping > .dlk-foto {
@@ -4955,7 +4959,7 @@ button {
 .dlk-pasangan--bawah {
   display: flex;
   flex-direction: column;
-  gap: calc(2 * var(--mm));
+  gap: 0;
 }
 
 .dlk-pasangan--bawah > .dlk-foto--atas {
@@ -4967,6 +4971,7 @@ button {
   gap: calc(2 * var(--pt));
   padding: calc(3 * var(--pt));
   border: 1px solid #cccccc;
+  border-bottom: 0;
   background: #ffffff;
   text-align: center;
   max-height: calc(70 * var(--mm));
@@ -4979,6 +4984,10 @@ button {
 
 .dlk-pasangan--bawah > .dlk-kotak--bawah {
   width: 100%;
+}
+
+.dlk-pasangan--bawah > .dlk-kotak--bawah > .dlk-kotak {
+  border-top: 1px dashed #777777;
 }
 
 .dlk-foto__label {
@@ -5016,7 +5025,7 @@ button {
   gap: calc(3 * var(--pt));
   padding: calc(3 * var(--pt));
   border: 1px solid #cccccc;
-  border-left: 0;
+  border-right: 0;
   text-align: center;
   min-width: 0;
 }

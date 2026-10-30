@@ -1480,39 +1480,53 @@ export async function buatDokumenLaporanKegiatanDocx(
       })
     );
 
-    const daftarKetentuanItems = (susunan.daftarPeriksa ?? []).map((g) => ({ kelompok: g.judul, butir: g.butir }));
-
     const barisChecklist: TableRow[] = [
       new TableRow({
         cantSplit: true,
         children: [
           new TableCell({
-            width: { size: 8, type: WidthType.PERCENTAGE },
+            width: { size: 6, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
             borders: tableBordersStandard,
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Cek", bold: true, font: "Arial", size: 19 })],
+                children: [new TextRun({ text: "No", bold: true, font: "Arial", size: 19 })],
               }),
             ],
           }),
           new TableCell({
-            width: { size: 92, type: WidthType.PERCENTAGE },
+            width: { size: 24, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
             borders: tableBordersStandard,
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
-                children: [
-                  new TextRun({
-                    text: "Persyaratan & Dokumen Kelengkapan",
-                    bold: true,
-                    font: "Arial",
-                    size: 19,
-                  }),
-                ],
+                children: [new TextRun({ text: "Jenis", bold: true, font: "Arial", size: 19 })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 64, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
+            borders: tableBordersStandard,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: "Dokumen pendukung", bold: true, font: "Arial", size: 19 })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 6, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
+            borders: tableBordersStandard,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "cek", bold: true, font: "Arial", size: 19 })],
               }),
             ],
           }),
@@ -1520,27 +1534,65 @@ export async function buatDokumenLaporanKegiatanDocx(
       }),
     ];
 
-    for (const group of daftarKetentuanItems) {
-      // Subheader kelompok ketentuan
+    (susunan.daftarPeriksa ?? []).forEach((item, idx) => {
       barisChecklist.push(
         new TableRow({
           cantSplit: true,
           children: [
             new TableCell({
-              columnSpan: 2,
-              shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
+              width: { size: 6, type: WidthType.PERCENTAGE },
               borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
+              verticalAlign: VerticalAlign.TOP,
               children: [
                 new Paragraph({
-                  spacing: { before: 40, after: 40 },
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 30, after: 30 },
+                  children: [new TextRun({ text: String(item.nomor ?? idx + 1), font: "Arial", size: 19 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 24, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: [
+                new Paragraph({
+                  spacing: { before: 30, after: 30 },
+                  children: [new TextRun({ text: item.jenis || item.judul, bold: true, font: "Arial", size: 19 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 64, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: item.butir.map((b, bi) =>
+                new Paragraph({
+                  spacing: { before: 20, after: 20 },
                   children: [
                     new TextRun({
-                      text: group.kelompok,
-                      bold: true,
+                      text: item.butir.length > 1 ? `${bi + 1}. ${b}` : b,
                       font: "Arial",
-                      size: 20,
-                      color: "222222",
+                      size: 19,
+                    }),
+                  ],
+                })
+              ),
+            }),
+            new TableCell({
+              width: { size: 6, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 30, after: 30 },
+                  children: [
+                    new TextRun({
+                      text: "☐",
+                      font: "Arial",
+                      size: 22,
+                      color: "555555",
                     }),
                   ],
                 }),
@@ -1549,50 +1601,7 @@ export async function buatDokumenLaporanKegiatanDocx(
           ],
         })
       );
-
-      group.butir.forEach((item) => {
-        barisChecklist.push(
-          new TableRow({
-            cantSplit: true,
-            children: [
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: "☐",
-                        font: "Arial",
-                        size: 24, // Kotak centang
-                        color: "555555",
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 20, after: 20 },
-                    children: [
-                      new TextRun({
-                        text: item,
-                        font: "Arial",
-                        size: 19,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
-          })
-        );
-      });
-    }
+    });
 
     childrenSections.push(
       new Table({
