@@ -1875,33 +1875,117 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
           {/* Notifikasi Error */}
           {errorScan && !memuatScan && (
-            <div className="struk-hasil-error">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                <strong style={{ color: "var(--keluar)", fontSize: "0.85rem" }}>
-                  ⚠️ {errorScan}
-                </strong>
-                <div style={{ display: "flex", gap: "6px" }}>
-                  {(errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")) && (
-                    <button
-                      type="button"
-                      className="btn-small"
-                      onClick={() => setPengaturanGeminiBuka(true)}
-                      style={{ fontSize: "0.75rem", padding: "2px 8px" }}
-                    >
-                      ⚙️ Pengaturan AI
-                    </button>
-                  )}
+            <div
+              className="struk-hasil-error"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                padding: "14px 16px",
+                borderRadius: "12px",
+                background: "color-mix(in srgb, var(--keluar) 12%, var(--surface))",
+                border: "1.5px solid var(--keluar)",
+                marginTop: "14px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                  borderBottom: "1px solid color-mix(in srgb, var(--keluar) 25%, transparent)",
+                  paddingBottom: "8px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+                  <strong style={{ color: "var(--keluar)", fontSize: "0.88rem", fontWeight: 700 }}>
+                    {errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")
+                      ? "Kuota Token AI Penuh (Error 429)"
+                      : "Struk Belum Berhasil Dianalisis"}
+                  </strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetScan}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--muted)",
+                    cursor: "pointer",
+                    padding: "4px 6px",
+                    fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  aria-label="Tutup pesan error"
+                  title="Tutup pesan error"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--text)",
+                  lineHeight: 1.5,
+                  margin: 0,
+                }}
+              >
+                {errorScan}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  marginTop: "2px",
+                }}
+              >
+                {(errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")) && (
                   <button
                     type="button"
-                    className="btn-small"
-                    onClick={handleResetScan}
-                    style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                    className="btn-primary"
+                    onClick={() => setPengaturanGeminiBuka(true)}
+                    style={{
+                      fontSize: "0.78rem",
+                      padding: "7px 14px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      borderRadius: "8px",
+                    }}
                   >
-                    Tutup
+                    <span>⚙️</span> Buka Pengaturan AI &amp; Kuota
                   </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleResetScan}
+                  style={{
+                    fontSize: "0.78rem",
+                    padding: "7px 14px",
+                    borderRadius: "8px",
+                  }}
+                >
+                  Tutup Notifikasi
+                </button>
               </div>
-              <p style={{ margin: "4px 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: "0.74rem",
+                  color: "var(--muted)",
+                  lineHeight: 1.4,
+                }}
+              >
                 Anda tetap dapat memasukkan data secara manual melalui formulir di bawah.
               </p>
             </div>

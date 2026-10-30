@@ -362,7 +362,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
           zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
             type="button"
             className="pemindai-tutup"
@@ -372,18 +372,27 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             style={{
               width: "38px",
               height: "38px",
-              background: "rgba(255,255,255,0.15)",
+              minWidth: "38px",
+              minHeight: "38px",
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.18)",
               color: "#fff",
               border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              padding: 0,
+              flexShrink: 0,
             }}
           >
             <X size={20} />
           </button>
           <div>
-            <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#fff" }}>
+            <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#fff", lineHeight: 1.25 }}>
               Kotak Panduan Kamera
             </h3>
-            <p style={{ margin: 0, fontSize: "0.72rem", color: "rgba(255,255,255,0.7)" }}>
+            <p style={{ margin: "2px 0 0", fontSize: "0.72rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.2 }}>
               Sesuaikan kotak dengan nota/struk
             </p>
           </div>
@@ -397,8 +406,9 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "5px",
-              padding: "5px 10px",
+              justifyContent: "center",
+              gap: "6px",
+              padding: "6px 12px",
               borderRadius: "20px",
               background:
                 tier === "pro"
@@ -434,15 +444,20 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               type="button"
               onClick={handleToggleTorch}
               style={{
-                width: "36px",
-                height: "36px",
+                width: "38px",
+                height: "38px",
+                minWidth: "38px",
+                minHeight: "38px",
                 borderRadius: "50%",
-                background: torchOn ? "#FBBF24" : "rgba(255,255,255,0.15)",
+                background: torchOn ? "#FBBF24" : "rgba(255,255,255,0.18)",
                 color: torchOn ? "#000" : "#fff",
                 border: "none",
-                display: "grid",
-                placeItems: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
               }}
               aria-label="Lampu kilat"
               title="Lampu kilat"
@@ -456,15 +471,20 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               type="button"
               onClick={handleSwitchCamera}
               style={{
-                width: "36px",
-                height: "36px",
+                width: "38px",
+                height: "38px",
+                minWidth: "38px",
+                minHeight: "38px",
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.18)",
                 color: "#fff",
                 border: "none",
-                display: "grid",
-                placeItems: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
               }}
               aria-label="Ganti kamera"
               title="Ganti kamera"
@@ -753,25 +773,31 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             {/* Pilihan Rasio Preset Kotak Panduan */}
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                display: "grid",
+                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                 gap: "6px",
-                flexWrap: "wrap",
+                width: "100%",
+                maxWidth: "420px",
+                margin: "0 auto",
               }}
             >
               <button
                 type="button"
                 onClick={() => setPreset("struk")}
                 style={{
-                  padding: "5px 12px",
-                  borderRadius: "20px",
-                  fontSize: "0.74rem",
-                  fontWeight: 600,
+                  padding: "6px 2px",
+                  borderRadius: "14px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "struk" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
                   background: preset === "struk" ? "rgba(0, 210, 255, 0.25)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
                 }}
               >
                 🧾 Struk
@@ -780,14 +806,19 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("nota")}
                 style={{
-                  padding: "5px 12px",
-                  borderRadius: "20px",
-                  fontSize: "0.74rem",
-                  fontWeight: 600,
+                  padding: "6px 2px",
+                  borderRadius: "14px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "nota" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
                   background: preset === "nota" ? "rgba(0, 210, 255, 0.25)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
                 }}
               >
                 📝 Nota/Bon
@@ -796,30 +827,40 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("faktur")}
                 style={{
-                  padding: "5px 12px",
-                  borderRadius: "20px",
-                  fontSize: "0.74rem",
-                  fontWeight: 600,
+                  padding: "6px 2px",
+                  borderRadius: "14px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "faktur" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
                   background: preset === "faktur" ? "rgba(0, 210, 255, 0.25)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
                 }}
               >
-                📄 Faktur/A4
+                📄 Faktur
               </button>
               <button
                 type="button"
                 onClick={() => setPreset("kustom")}
                 style={{
-                  padding: "5px 12px",
-                  borderRadius: "20px",
-                  fontSize: "0.74rem",
-                  fontWeight: 600,
+                  padding: "6px 2px",
+                  borderRadius: "14px",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "kustom" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
                   background: preset === "kustom" ? "rgba(0, 210, 255, 0.25)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
                 }}
               >
                 ↔️ Kustom
@@ -869,8 +910,12 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                padding: "4px 10px 0",
+                justifyContent: "space-around",
+                padding: "8px 16px 4px",
+                width: "100%",
+                maxWidth: "380px",
+                margin: "0 auto",
+                boxSizing: "border-box",
               }}
             >
               {/* Tombol Galeri Foto */}
@@ -878,15 +923,20 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => fallbackInputRef.current?.click()}
                 style={{
-                  width: "48px",
-                  height: "48px",
+                  width: "50px",
+                  height: "50px",
+                  minWidth: "50px",
+                  minHeight: "50px",
                   borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.14)",
+                  background: "rgba(255, 255, 255, 0.16)",
                   color: "#ffffff",
-                  border: "1px solid rgba(255, 255, 255, 0.25)",
-                  display: "grid",
-                  placeItems: "center",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   cursor: "pointer",
+                  padding: 0,
+                  transition: "transform 0.1s ease",
                 }}
                 aria-label="Pilih dari Galeri"
                 title="Pilih dari Galeri"
@@ -900,17 +950,21 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 onClick={handleJepret}
                 disabled={!kameraMenyala}
                 style={{
-                  width: "72px",
-                  height: "72px",
+                  width: "74px",
+                  height: "74px",
+                  minWidth: "74px",
+                  minHeight: "74px",
                   borderRadius: "50%",
                   border: "4px solid #ffffff",
                   background: "transparent",
-                  display: "grid",
-                  placeItems: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   cursor: kameraMenyala ? "pointer" : "not-allowed",
                   opacity: kameraMenyala ? 1 : 0.5,
                   padding: "4px",
-                  transition: "transform 0.1s ease",
+                  boxSizing: "border-box",
+                  transition: "transform 0.12s ease",
                 }}
                 aria-label="Ambil Foto Struk"
                 title="Ambil Foto Struk"
@@ -930,15 +984,20 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPotongOtomatis(!potongOtomatis)}
                 style={{
-                  width: "48px",
-                  height: "48px",
+                  width: "50px",
+                  height: "50px",
+                  minWidth: "50px",
+                  minHeight: "50px",
                   borderRadius: "50%",
-                  background: potongOtomatis ? "rgba(0, 210, 255, 0.3)" : "rgba(255, 255, 255, 0.14)",
-                  color: potongOtomatis ? "var(--accent, #00d2ff)" : "rgba(255, 255, 255, 0.6)",
-                  border: potongOtomatis ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255, 255, 255, 0.2)",
-                  display: "grid",
-                  placeItems: "center",
+                  background: potongOtomatis ? "rgba(0, 210, 255, 0.28)" : "rgba(255, 255, 255, 0.16)",
+                  color: potongOtomatis ? "var(--accent, #00d2ff)" : "rgba(255, 255, 255, 0.65)",
+                  border: potongOtomatis ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255, 255, 255, 0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   cursor: "pointer",
+                  padding: 0,
+                  transition: "transform 0.1s ease",
                 }}
                 aria-label="Toggle Potong Otomatis"
                 title={potongOtomatis ? "Potong Otomatis Kotak Aktif" : "Ambil Foto Utuh (Tanpa Potong)"}
