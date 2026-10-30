@@ -276,14 +276,16 @@ async function tulisIsiKeFile(
 
 function dataIsi(k: DataKegiatan, profil: ProfilPelapor, baris: BarisTimesheet[]) {
   const batch = batchKegiatan(k);
+  const nama = k.penandatangan?.dilaporkanOleh !== undefined ? k.penandatangan.dilaporkanOleh : (profil.nama || "");
+  const disetujuiOleh = k.penandatangan?.disetujuiOleh !== undefined ? k.penandatangan.disetujuiOleh : (profil.penyetuju || "");
   return {
     proyek: profil.proyek,
     judulKegiatan: judulUntukTimesheet(k.nama, batch),
-    nama: profil.nama,
+    nama,
     mulai: k.tanggalMulai,
     selesai: k.tanggalSelesai,
     baris,
-    disetujuiOleh: profil.penyetuju ?? "",
+    disetujuiOleh,
   };
 }
 
@@ -369,10 +371,7 @@ export async function perbaruiFileTimesheetKegiatan(
   const keteranganLama = new Map(lama.baris.map((b) => [b.tanggal, b]));
   const baris = barisUntukFile(k, transaksi, semuaKegiatan, keteranganLama);
   const { judul, sheetId } = await infoTab(token, k.timesheetId);
-  const { nilai } = susunIsiTimesheet({
-    ...dataIsi(k, profil, baris),
-    disetujuiOleh: lama.disetujuiOleh || profil.penyetuju || "",
-  });
+  const { nilai } = susunIsiTimesheet(dataIsi(k, profil, baris));
   await tulisIsiKeFile(token, k.timesheetId, nilai, judul, sheetId);
   const kegiatan: DataKegiatan = {
     ...k,

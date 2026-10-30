@@ -217,6 +217,19 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
   semuaTransaksi,
   daftarKegiatan,
 }) => {
+  // Peta ukuran foto aktual (lebar × tinggi dalam piksel) yang dimuat pratinjau.
+  const [ukuranFoto, setUkuranFoto] = useState<Map<string, { lebar: number; tinggi: number }>>(() => new Map());
+
+  const onUkuran = React.useCallback((id: string, lebar: number, tinggi: number) => {
+    setUkuranFoto((prev) => {
+      const ada = prev.get(id);
+      if (ada && ada.lebar === lebar && ada.tinggi === tinggi) return prev;
+      const baru = new Map(prev);
+      baru.set(id, { lebar, tinggi });
+      return baru;
+    });
+  }, []);
+
   // Satu kegiatan dipilih: dokumen sama persis dengan dokumen Word (susunan, isi, foto, ringkasan penyelesaian).
   const susunan = useMemo(
     () =>
@@ -228,9 +241,10 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
             profilPelapor,
             urutanTransaksiIds: kegiatan.urutanTransaksi,
             sertakanDaftarPeriksa: kegiatan.sertakanDaftarPeriksa !== false,
+            ukuranFoto,
           })
         : null,
-    [adalahKegiatan, kegiatan, semuaTransaksi, transaksi, daftarKegiatan, profilPelapor]
+    [adalahKegiatan, kegiatan, semuaTransaksi, transaksi, daftarKegiatan, profilPelapor, ukuranFoto]
   );
 
   const kelompok = useMemo(
@@ -396,7 +410,7 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
           <p className="dsc-kosong">Belum ada transaksi untuk kegiatan ini.</p>
         ) : (
           <div className="dsc-daftar-lembar dlk" data-testid="dokumen-laporan-kegiatan">
-            <DokumenLaporanKegiatan susunan={susunan} googleToken={googleToken} onStatus={ubahStatusMuat} />
+            <DokumenLaporanKegiatan susunan={susunan} googleToken={googleToken} onStatus={ubahStatusMuat} onUkuran={onUkuran} />
           </div>
         )
       ) : kelompok.length === 0 ? (

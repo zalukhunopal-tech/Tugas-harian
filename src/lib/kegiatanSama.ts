@@ -208,6 +208,7 @@ function satukan(induk: DataKegiatan, lain: DataKegiatan): DataKegiatan {
     timesheetBaris: induk.timesheetBaris && induk.timesheetBaris.length > 0 ? induk.timesheetBaris : lain.timesheetBaris,
     timesheetSinkron: induk.timesheetSinkron ?? lain.timesheetSinkron,
     timesheetDibuatApp: induk.timesheetDibuatApp ?? lain.timesheetDibuatApp,
+    penandatangan: induk.penandatangan ?? lain.penandatangan,
     dibuat,
     diubah,
   };
@@ -296,6 +297,12 @@ export function gabungDaftarKegiatan(jauh: DataKegiatan[], lokal: DataKegiatan[]
       const nilai = utama[kunci];
       const kosong = nilai === undefined || nilai === null || (typeof nilai === "string" && !nilai.trim()) || (Array.isArray(nilai) && nilai.length === 0);
       if (kosong && pelengkap[kunci] !== undefined) (lengkap as unknown as Record<string, unknown>)[kunci] = pelengkap[kunci];
+    }
+    if (utama.penandatangan || pelengkap.penandatangan) {
+      lengkap.penandatangan = {
+        ...(pelengkap.penandatangan ?? {}),
+        ...(utama.penandatangan ?? {}),
+      };
     }
     hasil.set(k.id, lengkap);
   }

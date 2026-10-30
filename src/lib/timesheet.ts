@@ -538,7 +538,9 @@ export interface DaftarPerdiemDokumen {
  */
 export function susunDaftarPerdiem(
   transaksiPerdiem: Transaksi[],
-  kegiatan: Pick<DataKegiatan, "nama" | "batch" | "timesheetNama" | "timesheetBaris">,
+  kegiatan: Pick<DataKegiatan, "nama" | "batch" | "timesheetNama" | "timesheetBaris"> & {
+    penandatangan?: { dilaporkanOleh?: string; disetujuiOleh?: string };
+  },
   profil: Pick<ProfilPelapor, "nama" | "proyek" | "penyetuju">
 ): DaftarPerdiemDokumen | null {
   // Lembar ini hanya ada bila perdiem sudah dicatat; hari-hari timesheet tanpa satu pun transaksi perdiem tidak membuat lembar bernilai nol.
@@ -546,10 +548,16 @@ export function susunDaftarPerdiem(
   const hari = barisPerdiemKegiatan(transaksiPerdiem, kegiatan.timesheetBaris);
   if (hari.length === 0) return null;
   const batch = batchKegiatan(kegiatan);
+  const dilaporkanOleh = kegiatan.penandatangan?.dilaporkanOleh !== undefined
+    ? kegiatan.penandatangan.dilaporkanOleh
+    : (profil.nama || "");
+  const disetujuiOleh = kegiatan.penandatangan?.disetujuiOleh !== undefined
+    ? kegiatan.penandatangan.disetujuiOleh
+    : (profil.penyetuju || "");
   return {
     proyek: profil.proyek,
     judulKegiatan: judulUntukTimesheet(kegiatan.nama, batch),
-    nama: profil.nama,
+    nama: dilaporkanOleh,
     bulan: labelBulan(hari[0].tanggal, hari[hari.length - 1].tanggal),
     baris: hari.map((b, i) => ({
       no: i + 1,
@@ -559,8 +567,8 @@ export function susunDaftarPerdiem(
       jumlah: b.jumlah ?? 0,
     })),
     total: hari.reduce((s, b) => s + (b.jumlah ?? 0), 0),
-    dilaporkanOleh: profil.nama,
-    disetujuiOleh: profil.penyetuju ?? "",
+    dilaporkanOleh,
+    disetujuiOleh,
     hariBerketerangan: hari.length - tanggalBelumAdaDiTimesheet(hari).length,
   };
 }

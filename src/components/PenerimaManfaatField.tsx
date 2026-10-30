@@ -118,12 +118,12 @@ export const PilihKotakTempel: React.FC<PilihKotakTempelProps> = ({ nilai, otoma
           </button>
         ))}
         <button type="button" className="kotak-tempel-pilih__otomatis" aria-pressed={!nilai} onClick={() => onUbah(undefined)}>
-          Otomatis
+          Otomatis (ikuti foto)
         </button>
       </div>
       <span className="kotak-tempel-pilih__ket">
         {UKURAN_KOTAK[aktif].nama} · {UKURAN_KOTAK[aktif].lebarMm} × {UKURAN_KOTAK[aktif].tinggiMm} mm
-        {nilai ? "" : " (otomatis)"}
+        {nilai ? "" : " (otomatis ikuti foto)"}
       </span>
     </div>
   );

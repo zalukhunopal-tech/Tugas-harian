@@ -33,6 +33,7 @@ function bukaDb(): Promise<IDBDatabase> {
 }
 
 export async function simpanBuktiOffline(item: PendingBuktiUpload): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
   try {
     const db = await bukaDb();
     return new Promise((resolve, reject) => {
@@ -48,6 +49,7 @@ export async function simpanBuktiOffline(item: PendingBuktiUpload): Promise<void
 }
 
 export async function ambilSemuaBuktiOffline(): Promise<PendingBuktiUpload[]> {
+  if (typeof indexedDB === "undefined") return [];
   try {
     const db = await bukaDb();
     return new Promise((resolve, reject) => {
@@ -87,7 +89,7 @@ export async function hapusBuktiOffline(id: string): Promise<void> {
 export async function kompresBukti(
   file: File | Blob,
   namaAsli: string = "bukti.jpg"
-): Promise<{ blob: Blob; dataUrl: string; namaFile: string; tipe: string }> {
+): Promise<{ blob: Blob; dataUrl: string; namaFile: string; tipe: string; lebarPx?: number; tinggiPx?: number }> {
   const tipe = file.type || (namaAsli.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
 
   // Jika PDF, tidak perlu dikompres sebagai canvas
@@ -155,6 +157,8 @@ export async function kompresBukti(
               dataUrl,
               namaFile: namaAsli.replace(/\.[^/.]+$/, "") + ".jpg",
               tipe: "image/jpeg",
+              lebarPx: width,
+              tinggiPx: height,
             });
           };
           reader.onerror = reject;

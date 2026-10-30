@@ -10,6 +10,7 @@ import {
   JustifikasiLaporan,
   KALIMAT_PENUTUP_JUSTIFIKASI,
   KotakTempelLaporan,
+  PasanganBuktiLaporan,
   RentalTimesheetLaporan,
   rincianPenyelesaian,
   rumusPenyelesaian,
@@ -35,6 +36,7 @@ interface DokumenLaporanKegiatanProps {
   susunan: SusunanLaporan;
   googleToken?: string;
   onStatus: UbahStatusMuat;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }
 
 /** Teks bertanda kutip untuk properti `content` CSS (kepala halaman cetak). */
@@ -225,26 +227,70 @@ const KotakTempel: React.FC<{ kotak: KotakTempelLaporan; catatan?: string }> = (
   </div>
 );
 
-const KotakStruk: React.FC<{ kotak: KotakTempelLaporan; foto?: BuktiItem; googleToken?: string; onStatus: UbahStatusMuat }> = ({
-  kotak,
-  foto,
-  googleToken,
-  onStatus,
-}) => (
-  <div className="dlk-struk">
-    <KotakTempel kotak={kotak} catatan="(Struk Thermal Mudah Pudar)" />
-    <div className="dlk-struk__foto">
-      <div className="dlk-struk__judul-foto">FOTO BUKTI DIGITAL</div>
-      {foto ? (
-        <figure className="dlk-foto dlk-foto--struk" data-testid="foto-bukti">
-          <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} />
-        </figure>
-      ) : (
-        <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
+const PasanganBukti: React.FC<{
+  pasangan: PasanganBuktiLaporan;
+  googleToken?: string;
+  onStatus: UbahStatusMuat;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
+}> = ({ pasangan, googleToken, onStatus, onUkuran }) => {
+  const { kotak, foto, tataLetak, urutan, total, label } = pasangan;
+  const judulFoto = `FOTO BUKTI DIGITAL${total > 1 ? ` (${urutan} DARI ${total})` : ""}`;
+
+  if (tataLetak === "samping") {
+    return (
+      <div
+        className="dlk-struk dlk-pasangan--samping"
+        data-testid="pasangan-bukti"
+        data-urutan={urutan}
+        data-total={total}
+        data-tataletak="samping"
+        style={{
+          "--tinggi": kotak.tinggiMm,
+          "--lebar-kotak": kotak.lebarMm,
+          gridTemplateColumns: `calc(${kotak.lebarMm} * var(--mm)) 1fr`,
+          minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
+        } as CSSProperties}
+      >
+        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
+        <div className="dlk-struk__foto">
+          <div className="dlk-struk__judul-foto">{judulFoto}</div>
+          {foto ? (
+            <figure className="dlk-foto dlk-foto--struk" data-testid="foto-bukti">
+              <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+              {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
+            </figure>
+          ) : (
+            <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="dlk-pasangan dlk-pasangan--bawah"
+      data-testid="pasangan-bukti"
+      data-urutan={urutan}
+      data-total={total}
+      data-tataletak="bawah"
+      style={{
+        "--tinggi": kotak.tinggiMm,
+      } as CSSProperties}
+    >
+      {foto && (
+        <div className="dlk-foto-tunggal" style={{ marginBottom: "calc(4 * var(--mm))" }}>
+          <div className="dlk-foto-judul">{judulFoto}</div>
+          <figure className="dlk-foto" data-testid="foto-bukti">
+            <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+            {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
+          </figure>
+        </div>
       )}
+      <KotakTempel kotak={kotak} catatan={kotak.catatan} />
     </div>
-  </div>
-);
+  );
+};
 
 const BarisKet: React.FC<{ baris: BarisKeterangan }> = ({ baris }) => (
   <p>
@@ -269,10 +315,13 @@ const BarisKet: React.FC<{ baris: BarisKeterangan }> = ({ baris }) => (
 
 const sebagaiBukti = (f: FotoPendukung): BuktiItem => ({ ...f, tipe: f.tipe || "image/jpeg" });
 
-const BlokTransaksi: React.FC<{ blok: BlokTransaksiLaporan; googleToken?: string; onStatus: UbahStatusMuat }> = ({ blok, googleToken, onStatus }) => {
+const BlokTransaksi: React.FC<{
+  blok: BlokTransaksiLaporan;
+  googleToken?: string;
+  onStatus: UbahStatusMuat;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
+}> = ({ blok, googleToken, onStatus, onUkuran }) => {
   const t = blok.transaksi;
-  const awal = blok.fotoDiKotak ? 1 : 0;
-  const totalFoto = blok.fotoBukti.length + awal;
   return (
     <section className="dlk-blok" data-testid="blok-transaksi" data-nomor={blok.nomor}>
       <div className="dlk-blok__kepala">
@@ -284,27 +333,18 @@ const BlokTransaksi: React.FC<{ blok: BlokTransaksiLaporan; googleToken?: string
         <span className="dsc-jumlah">{formatRupiah(t.jumlah)}</span>
       </div>
 
-      {blok.kotakUtama.bentuk === "struk" ? (
-        <KotakStruk kotak={blok.kotakUtama} foto={blok.fotoDiKotak} googleToken={googleToken} onStatus={onStatus} />
-      ) : (
-        <KotakTempel kotak={blok.kotakUtama} />
-      )}
+      <div className="dlk-daftar-pasangan" style={{ display: "flex", flexDirection: "column", gap: "calc(4 * var(--mm))" }}>
+        {blok.pasangan.map((p, idx) => (
+          <PasanganBukti
+            key={`${t.id}-p-${idx}`}
+            pasangan={p}
+            googleToken={googleToken}
+            onStatus={onStatus}
+            onUkuran={onUkuran}
+          />
+        ))}
+      </div>
 
-      {blok.fotoBukti.length > 0 && (
-        <>
-          <div className="dlk-foto-judul">FOTO BUKTI DIGITAL{totalFoto > 1 ? ` (${totalFoto} FOTO)` : ""}</div>
-          <div className={blok.fotoBukti.length === 1 ? "dlk-foto-tunggal" : "dlk-foto-kisi"}>
-            {blok.fotoBukti.map((b, i) => (
-              <figure key={b.id} className="dlk-foto" data-testid="foto-bukti">
-                <GambarLampiran bukti={b} googleToken={googleToken} onStatus={onStatus} />
-                <figcaption>
-                  Foto bukti {i + 1 + awal} dari {totalFoto}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </>
-      )}
       {blok.lampiranPdf.map((b) => (
         <p key={b.id} className="dlk-tautan">
           Lampiran bukti (lihat berkas asli): {b.driveLink || b.nama}
@@ -325,7 +365,7 @@ const BlokTransaksi: React.FC<{ blok: BlokTransaksiLaporan; googleToken?: string
 
       {blok.fotoPendukung.map((f) => (
         <figure key={f.id} className="dlk-foto dlk-foto--pendukung">
-          <GambarLampiran bukti={sebagaiBukti(f)} googleToken={googleToken} onStatus={onStatus} />
+          <GambarLampiran bukti={sebagaiBukti(f)} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
           <figcaption>Foto Pendukung: {f.nama || f.keterangan || "Dokumentasi kegiatan lapangan"}</figcaption>
         </figure>
       ))}
@@ -496,7 +536,7 @@ export const RingkasanPenyelesaianCetak: React.FC<{ p: RingkasanPenyelesaian }> 
 
 /* ---------- dokumen ---------- */
 
-export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ susunan, googleToken, onStatus }) => {
+export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ susunan, googleToken, onStatus, onUkuran }) => {
   const { kepalaHalaman: kepala, profil } = susunan;
   return (
     <>
@@ -544,7 +584,7 @@ export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ 
               </>
             )}
             {halaman.map((b) => (
-              <BlokTransaksi key={b.transaksi.id} blok={b} googleToken={googleToken} onStatus={onStatus} />
+              <BlokTransaksi key={b.transaksi.id} blok={b} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
             ))}
           </Lembar>
         ))
