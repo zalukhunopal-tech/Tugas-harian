@@ -132,6 +132,7 @@ interface LampiranBuktiProps {
   kotak: KotakTempel[];
   googleToken?: string;
   onStatus: (id: string, memuat: boolean) => void;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }
 
 /**
@@ -143,7 +144,7 @@ interface LampiranBuktiProps {
  * Kepala tiap kartu memuat uraian, "Diklaim untuk: ..." dan kelengkapan kategori (rute, kendaraan, penyedia, dan seterusnya).
  * Ukuran dalam milimeter lewat --mm: di layar 1 mm = lebar kertas / 210 (pratinjau mengecil bersama kolom), saat cetak 1 mm sebenarnya.
  */
-const LampiranBukti: React.FC<LampiranBuktiProps> = ({ judul, kotak, googleToken, onStatus }) => (
+const LampiranBukti: React.FC<LampiranBuktiProps> = ({ judul, kotak, googleToken, onStatus, onUkuran }) => (
   <section className="dsc-tempel dsc-bagian-potret" aria-label={`Lampiran bukti ${judul}`} data-testid="lembar-tempel">
     <p className="dsc-tempel__ket no-print">
       <strong>Lampiran Bukti · {judul}</strong> · {kotak.length} lembar, sekitar {perkirakanHalamanTempel(kotak)} halaman A4 potret. Foto bukti
@@ -174,7 +175,7 @@ const LampiranBukti: React.FC<LampiranBuktiProps> = ({ judul, kotak, googleToken
                   <span className="dsc-kotak__label">Foto bukti digital{k.bukti.length > 1 ? ` (${k.bukti.length})` : ""}</span>
                   <div className={`dsc-kotak__foto-isi${k.bukti.length > 1 ? " dsc-kotak__foto-isi--banyak" : ""}`}>
                     {k.bukti.map((b) => (
-                      <GambarLampiran key={b.id} bukti={b} googleToken={googleToken} onStatus={onStatus} />
+                      <GambarLampiran key={b.id} bukti={b} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
                     ))}
                   </div>
                 </div>
@@ -319,7 +320,7 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
   const kopDiTabel = kelompok.length > 0;
   const tampilLampiran = (k: Kelompok) => {
     const kotak = lampiranPerKelompok.get(k.kunci) ?? [];
-    return kotak.length > 0 ? <LampiranBukti judul={k.judul} kotak={kotak} googleToken={googleToken} onStatus={ubahStatusMuat} /> : null;
+    return kotak.length > 0 ? <LampiranBukti judul={k.judul} kotak={kotak} googleToken={googleToken} onStatus={ubahStatusMuat} onUkuran={onUkuran} /> : null;
   };
   const kop = (
     <header className="dsc-kop">

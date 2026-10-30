@@ -111,6 +111,15 @@ cek("kotak tiket menyebut nomor, label, uraian, dan Diklaim untuk tanpa nominal"
 const snack = blok.find((b) => b.transaksi.deskripsi === "Snack perjalanan")!;
 cek("struk snack: 2 foto menghasilkan 2 pasangan, PDF jadi lampiran tautan", snack.pasangan.length === 2 && snack.lampiranPdf.map((b) => b.id).join() === "f6");
 cek("struk snack: kotak bertuliskan TEMPEL STRUK ASLI DI SINI", snack.pasangan[0].kotak.tinggiMm === 120 && snack.pasangan[0].kotak.judul === "TEMPEL STRUK ASLI DI SINI");
+cek("struk snack: foto kedua juga memiliki kotak adaptif berlabel Bukti 2 dari 2", snack.pasangan[1].kotak.judul === "TEMPEL STRUK ASLI DI SINI" && snack.pasangan[1].label === "Bukti 2 dari 2");
+const catPlafon = snack.keterangan.find((b) => b.some((s) => s.teks.includes("Catatan Plafon:")));
+cek(
+  "snack perjalanan melebihi plafon memuat catatan merah plafon dan kelebihan",
+  catPlafon !== undefined &&
+    catPlafon[0].warna === "merah" &&
+    catPlafon[0].teks.includes("200.000/3") &&
+    catPlafon[0].teks.includes("tidak dapat diklaim")
+);
 
 console.log("== Halaman baru berdasarkan perkiraan tinggi (257 mm)");
 const lain = s.kelompok.find((k) => k.kategori === "Lain-lain")!;

@@ -1456,16 +1456,41 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                   </button>
                 )}
               </div>
-              {plafon > 0 && jumlahSekarang > plafon && (
-                <p className="kudapan-peringatan" role="status">
-                  Jumlah melebihi plafon kudapan ({formatRupiah(plafon)}). Sesuaikan dengan struk bila nominal riil lebih kecil.
-                </p>
-              )}
-              {plafon > 0 && jumlahSekarang > 0 && jumlahSekarang < plafon && (
-                <p className="kudapan-info" role="status">
-                  Jumlah lebih kecil dari plafon: dicatat sesuai struk riil.
-                </p>
-              )}
+              {(() => {
+                const plafonHitung = plafon > 0 ? plafon : PLAFON_KUDAPAN_PER_ORANG;
+                if (jumlahSekarang > plafonHitung) {
+                  const selisih = jumlahSekarang - plafonHitung;
+                  return (
+                    <div
+                      className="kudapan-peringatan"
+                      role="status"
+                      style={{
+                        color: "var(--keluar, #dc2626)",
+                        background: "rgba(220, 38, 38, 0.08)",
+                        border: "1px solid rgba(220, 38, 38, 0.25)",
+                        borderRadius: "8px",
+                        padding: "8px 10px",
+                        marginTop: "6px",
+                      }}
+                    >
+                      <p style={{ margin: "0 0 3px", fontWeight: 700 }}>
+                        ⚠️ Nominal ({formatRupiah(jumlahSekarang)}) melebihi plafon ({formatRupiah(plafonHitung)}).
+                      </p>
+                      <p style={{ margin: 0, fontSize: "0.82rem" }}>
+                        Yang dapat diklaim sesuai plafon (200.000/3 per orang): <strong>{formatRupiah(plafonHitung)}</strong>. Kelebihannya sebesar <strong>{formatRupiah(selisih)}</strong> tidak dapat diklaim.
+                      </p>
+                    </div>
+                  );
+                }
+                if (plafonHitung > 0 && jumlahSekarang > 0 && jumlahSekarang < plafonHitung) {
+                  return (
+                    <p className="kudapan-info" role="status" style={{ marginTop: "4px" }}>
+                      Jumlah lebih kecil dari plafon: dicatat sesuai struk riil ({formatRupiah(jumlahSekarang)}).
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </div>

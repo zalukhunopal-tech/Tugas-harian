@@ -2,7 +2,7 @@ import type { BuktiItem, DataKegiatan, FotoPendukung, ProfilPelapor, Transaksi, 
 import { formatAngka, formatRupiah, hariIni, KELOMPOK_DANA_KEGIATAN, labelKategori } from "./constants";
 import { KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
 import { hitungPenyelesaian, KATEGORI_PERDIEM, RingkasanPenyelesaian, transaksiKegiatan } from "./penyelesaianDana";
-import { adalahKudapanPerjalanan, barisPenerimaManfaat } from "./penerimaManfaat";
+import { adalahKudapanPerjalanan, barisPenerimaManfaat, plafonKudapan } from "./penerimaManfaat";
 import { barisDiklaimUntuk, barisRincianLengkap, uraianTampil } from "./kelengkapanKategori";
 import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { profilUntukDokumen } from "./profilPelapor";
@@ -354,15 +354,30 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
     const k = d.konsumsi;
     baris.push([
       {
-        teks: adalahKudapanPerjalanan(t.kategori, d)
+        teks: adalahKudapanPerjalanan(t.kategori, d, t.deskripsi)
           ? `Toko/Warung Pembelian: ${k.penyedia || "-"} (Telp: ${k.noTelp || "-"}) | Rute/Lokasi: ${k.lokasi || "-"}`
           : `Penyedia Konsumsi: ${k.penyedia || "-"} (Telp: ${k.noTelp || "-"}) | Lokasi: ${k.lokasi || "-"} | Jumlah Peserta: ${k.jumlahPeserta || "-"} orang`,
         kecil: true,
       },
     ]);
   }
-  const kudapan = adalahKudapanPerjalanan(t.kategori, d) ? barisPenerimaManfaat(t) : null;
+  const kudapan = adalahKudapanPerjalanan(t.kategori, d, t.deskripsi) ? barisPenerimaManfaat(t) : null;
   if (kudapan) baris.push([{ teks: kudapan, tebal: true, kecil: true }]);
+  if (adalahKudapanPerjalanan(t.kategori, d, t.deskripsi)) {
+    const jmlOrang = d.penerimaManfaat?.length || 1;
+    const plafonTotal = plafonKudapan(jmlOrang);
+    if (t.jumlah > plafonTotal) {
+      const lebih = t.jumlah - plafonTotal;
+      baris.push([
+        {
+          teks: `Catatan Plafon: Yang dapat diklaim sesuai plafon (200.000/3 per orang) sebesar ${formatRupiah(plafonTotal)}. Kelebihannya sebesar ${formatRupiah(lebih)} tidak dapat diklaim.`,
+          warna: "merah",
+          tebal: true,
+          kecil: true,
+        },
+      ]);
+    }
+  }
   const diklaim = barisDiklaimUntuk(t, profil.nama);
   if (diklaim) baris.push([{ teks: diklaim, tebal: true, kecil: true }]);
   if (d.perluSuratJustifikasi) {
@@ -449,7 +464,8 @@ export function rasioFotoBukti(
     try {
       const idx = b.dataUrl.indexOf(";base64,");
       if (idx >= 0) {
-        const b64 = b.dataUrl.slice(idx + 8, idx + 8 + 600);
+        // Ambil header yang cukup panjang (hingga 32KB) agar penanda SOF0 JPEG yang terletak setelah header EXIF dapat terbaca
+        const b64 = b.dataUrl.slice(idx + 8, idx + 8 + 32768);
         const bin = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

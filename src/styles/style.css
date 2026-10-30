@@ -3256,6 +3256,9 @@ button {
   gap: 12px;
   border: 1.5px solid var(--border);
   border-radius: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .kartu-timesheet__judul h3 {
@@ -3272,9 +3275,12 @@ button {
 
 .kartu-timesheet__isian {
   display: grid;
-  grid-template-columns: minmax(0, 11rem) auto minmax(0, 1fr);
-  align-items: end;
-  gap: 10px 12px;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 10px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .kartu-timesheet__field {
@@ -3282,12 +3288,28 @@ button {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .kartu-timesheet__field > span {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+.kartu-timesheet__saran-kop {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .kartu-timesheet__file {
@@ -3301,12 +3323,17 @@ button {
   border: 1px solid var(--border);
   font-size: 0.85rem;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .kartu-timesheet__file a {
   color: var(--accent);
   font-weight: 700;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .kartu-timesheet__file span {
@@ -3374,6 +3401,16 @@ button {
 
 .kartu-timesheet__pilih {
   max-width: 30rem;
+  width: 100%;
+}
+
+.kartu-timesheet__pilih select {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .kartu-timesheet__catatan,
@@ -3863,6 +3900,8 @@ button {
   max-height: 100%;
   object-fit: contain;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
 }
 
 .dsc-lampiran-status {
@@ -4322,11 +4361,15 @@ button {
 
 .dsc-kertas.dsc-lanskap {
   position: relative;
-  max-width: none;
+  max-width: 100%;
   aspect-ratio: 297 / 210;
   padding: clamp(14px, 3.6cqw, 40px);
   /* Sedikit lebih besar dari skala kertas sebenarnya supaya tetap terbaca di kolom laporan yang sempit. */
   font-size: clamp(9.5px, 1.6cqw, 13px);
+  --mm: calc(100cqw / 297);
+  --pt: calc(var(--mm) * 0.3528);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .dsc-lanskap .dsc-ts__ttd {
@@ -4615,7 +4658,13 @@ button {
   --mm: calc(100cqw / 297);
   --pt: calc(var(--mm) * 0.3528);
   top: calc(3.5 * var(--mm));
+  left: calc(20 * var(--mm));
+  right: calc(20 * var(--mm));
+  max-width: calc(100% - 40 * var(--mm));
   font-size: max(8px, calc(9 * var(--pt)));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dlk-tengah {
@@ -7759,7 +7808,7 @@ button {
 }
 
 .kudapan-peringatan {
-  color: var(--peringatan, #b45309);
+  color: var(--keluar, #dc2626);
   font-weight: 600;
 }
 
