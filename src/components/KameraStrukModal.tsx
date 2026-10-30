@@ -1,22 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  X,
   Camera,
   RefreshCw,
   Zap,
-  Sparkles,
   Sliders,
   Image as ImageIcon,
   Check,
   RotateCcw,
-  Settings,
 } from "lucide-react";
-import {
-  GeminiModelTier,
-  ambilPengaturanGemini,
-} from "../lib/geminiStruk";
-import { PengaturanGeminiModal } from "./PengaturanGeminiModal";
 
 interface KameraStrukModalProps {
   onTutup: () => void;
@@ -52,22 +44,6 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
     file: File;
     dataUrl: string;
   } | null>(null);
-
-  // Status Gemini & Modal Pengaturan
-  const [tier, setTier] = useState<GeminiModelTier>("flash");
-  const [hasUserKey, setHasUserKey] = useState(false);
-  const [modalPengaturanBuka, setModalPengaturanBuka] = useState(false);
-
-  // Muat status konfigurasi Gemini
-  const muatKonfigurasiGemini = () => {
-    const cfg = ambilPengaturanGemini();
-    setTier(cfg.tier);
-    setHasUserKey(Boolean(cfg.apiKey));
-  };
-
-  useEffect(() => {
-    muatKonfigurasiGemini();
-  }, []);
 
   // Inisialisasi Aliran Kamera
   useEffect(() => {
@@ -362,7 +338,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
           zIndex: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
           <button
             type="button"
             className="pemindai-tutup"
@@ -375,10 +351,10 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               minWidth: "38px",
               minHeight: "38px",
               borderRadius: "50%",
-              background: "rgba(255,255,255,0.18)",
-              color: "#fff",
-              border: "none",
-              display: "flex",
+              background: "rgba(255, 255, 255, 0.2)",
+              border: "1px solid rgba(255, 255, 255, 0.35)",
+              color: "#ffffff",
+              display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
@@ -386,59 +362,33 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               flexShrink: 0,
             }}
           >
-            <X size={20} />
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 700, color: "#fff", lineHeight: 1.25 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h3 style={{ margin: 0, fontSize: "0.98rem", fontWeight: 700, color: "#fff", lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               Kotak Panduan Kamera
             </h3>
-            <p style={{ margin: "2px 0 0", fontSize: "0.72rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.2 }}>
+            <p style={{ margin: "2px 0 0", fontSize: "0.74rem", color: "rgba(255, 255, 255, 0.8)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               Sesuaikan kotak dengan nota/struk
             </p>
           </div>
         </div>
 
-        {/* Model Tier & Pengaturan Badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button
-            type="button"
-            onClick={() => setModalPengaturanBuka(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "20px",
-              background:
-                tier === "pro"
-                  ? "rgba(168, 85, 247, 0.3)"
-                  : "rgba(16, 185, 129, 0.25)",
-              border:
-                tier === "pro"
-                  ? "1px solid #A855F7"
-                  : "1px solid #10B981",
-              color: "#ffffff",
-              fontSize: "0.74rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            title="Ubah Model Gemini & Kuota Akun"
-          >
-            {tier === "pro" ? (
-              <>
-                <Sparkles size={13} style={{ color: "#C084FC" }} />
-                <span>Google AI Pro</span>
-              </>
-            ) : (
-              <>
-                <Zap size={13} style={{ color: "#FBBF24" }} />
-                <span>Gemini Flash</span>
-              </>
-            )}
-            <Settings size={12} style={{ opacity: 0.8 }} />
-          </button>
-
+        {/* Tombol Kontrol Cepat: Senter & Switch Kamera */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
           {hasTorch && kameraMenyala && !fotoPratinjau && (
             <button
               type="button"
@@ -449,10 +399,10 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 minWidth: "38px",
                 minHeight: "38px",
                 borderRadius: "50%",
-                background: torchOn ? "#FBBF24" : "rgba(255,255,255,0.18)",
-                color: torchOn ? "#000" : "#fff",
-                border: "none",
-                display: "flex",
+                background: torchOn ? "#FBBF24" : "rgba(255, 255, 255, 0.2)",
+                color: torchOn ? "#000" : "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
@@ -476,10 +426,10 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 minWidth: "38px",
                 minHeight: "38px",
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.18)",
-                color: "#fff",
-                border: "none",
-                display: "flex",
+                background: "rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
@@ -767,7 +717,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               </button>
             </div>
           </div>
-        ) : (
+        ) : kameraMenyala && !kameraError ? (
           /* MODE KAMERA AKTIF */
           <>
             {/* Pilihan Rasio Preset Kotak Panduan */}
@@ -775,7 +725,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                gap: "6px",
+                gap: "8px",
                 width: "100%",
                 maxWidth: "420px",
                 margin: "0 auto",
@@ -785,9 +735,9 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("struk")}
                 style={{
-                  padding: "6px 2px",
+                  padding: "8px 4px",
                   borderRadius: "14px",
-                  fontSize: "0.72rem",
+                  fontSize: "0.74rem",
                   fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "struk" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
@@ -806,9 +756,9 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("nota")}
                 style={{
-                  padding: "6px 2px",
+                  padding: "8px 4px",
                   borderRadius: "14px",
-                  fontSize: "0.72rem",
+                  fontSize: "0.74rem",
                   fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "nota" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
@@ -827,9 +777,9 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("faktur")}
                 style={{
-                  padding: "6px 2px",
+                  padding: "8px 4px",
                   borderRadius: "14px",
-                  fontSize: "0.72rem",
+                  fontSize: "0.74rem",
                   fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "faktur" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
@@ -848,9 +798,9 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 type="button"
                 onClick={() => setPreset("kustom")}
                 style={{
-                  padding: "6px 2px",
+                  padding: "8px 4px",
                   borderRadius: "14px",
-                  fontSize: "0.72rem",
+                  fontSize: "0.74rem",
                   fontWeight: 700,
                   cursor: "pointer",
                   border: preset === "kustom" ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255,255,255,0.2)",
@@ -872,15 +822,15 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               <div
                 style={{
                   display: "flex",
-                  gap: "12px",
+                  gap: "14px",
                   justifyContent: "center",
                   alignItems: "center",
-                  padding: "4px 8px",
-                  background: "rgba(255,255,255,0.06)",
+                  padding: "6px 12px",
+                  background: "rgba(255,255,255,0.08)",
                   borderRadius: "10px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.72rem", color: "#ccc" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.74rem", color: "#ccc" }}>
                   <span>Lebar:</span>
                   <input
                     type="range"
@@ -891,7 +841,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                     style={{ width: "80px", accentColor: "var(--accent, #00d2ff)" }}
                   />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.72rem", color: "#ccc" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.74rem", color: "#ccc" }}>
                   <span>Tinggi:</span>
                   <input
                     type="range"
@@ -1020,19 +970,8 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 : "💡 Foto diambil satu layar penuh"}
             </div>
           </>
-        )}
+        ) : null}
       </footer>
-
-      {/* Modal Pengaturan Gemini Model Tier & Personal API Key */}
-      {modalPengaturanBuka && (
-        <PengaturanGeminiModal
-          onTutup={() => {
-            setModalPengaturanBuka(false);
-            muatKonfigurasiGemini();
-          }}
-          onSimpan={muatKonfigurasiGemini}
-        />
-      )}
     </div>,
     document.body
   );

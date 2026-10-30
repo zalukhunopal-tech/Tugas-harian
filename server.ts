@@ -156,7 +156,7 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
     if (status === 429 || pesanErr.includes("429") || pesanErr.includes("RESOURCE_EXHAUSTED")) {
       return res.status(429).json({
         sukses: false,
-        pesan: "Kuota token AI (429 Resource Exhausted) untuk saat ini sedang penuh. Tips: Gunakan kotak panduan kamera agar foto terpotong rapi & hemat token, gunakan model Gemini Flash, atau masukkan API Key Google AI Pro pribadi Anda di Pengaturan AI Struk.",
+        pesan: "Layanan AI sedang sibuk atau batas penggunaan sementara tercapai (Error 429). Silakan coba lagi beberapa saat lagi atau masukkan transaksi secara manual.",
       });
     }
 

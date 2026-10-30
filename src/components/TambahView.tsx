@@ -29,7 +29,6 @@ import {
   ambilPengaturanGemini,
 } from "../lib/geminiStruk";
 import { KameraStrukModal } from "./KameraStrukModal";
-import { PengaturanGeminiModal } from "./PengaturanGeminiModal";
 import { BagianFormKegiatan, DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 import {
   NavigasiLangkah,
@@ -195,17 +194,6 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [hasilScan, setHasilScan] = useState<HasilBacaStruk | null>(null);
   const [errorScan, setErrorScan] = useState<string | null>(null);
   const [kameraPanduanBuka, setKameraPanduanBuka] = useState(false);
-  const [pengaturanGeminiBuka, setPengaturanGeminiBuka] = useState(false);
-  const [geminiTier, setGeminiTier] = useState<"flash" | "pro">("flash");
-
-  useEffect(() => {
-    try {
-      const cfg = ambilPengaturanGemini();
-      setGeminiTier(cfg.tier);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // Sync state when editing
   useEffect(() => {
@@ -1771,32 +1759,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
               </span>
               <div>
                 <h3 className="struk-scanner-nama">Scan Struk Belanja Otomatis (Gemini AI)</h3>
-                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi pengeluaran</span>
+                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi formulir pengeluaran</span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setPengaturanGeminiBuka(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "4px 10px",
-                borderRadius: "20px",
-                background: geminiTier === "pro" ? "rgba(168, 85, 247, 0.16)" : "rgba(16, 185, 129, 0.14)",
-                border: geminiTier === "pro" ? "1px solid rgba(168, 85, 247, 0.45)" : "1px solid rgba(16, 185, 129, 0.35)",
-                color: geminiTier === "pro" ? "#c084fc" : "#34d399",
-                fontSize: "0.74rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-              title="Sesuaikan Model Gemini & Kuota Akun Google"
-            >
-              <span>{geminiTier === "pro" ? "✨ Google AI Pro" : "⚡ Gemini Flash"}</span>
-              <span style={{ opacity: 0.8, fontSize: "0.72rem" }}>⚙️</span>
-            </button>
           </div>
 
           <div className="struk-scanner-actions">
@@ -1829,7 +1794,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {memuatScan && (
             <div className="struk-scan-loading-text">
               <span>⚡</span>
-              <span>Gemini AI ({geminiTier === "pro" ? "Google AI Pro" : "Gemini Flash"}) sedang membaca dan menganalisis struk belanja Anda…</span>
+              <span>Gemini AI sedang membaca dan menganalisis struk belanja Anda…</span>
             </div>
           )}
 
@@ -1886,6 +1851,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 background: "color-mix(in srgb, var(--keluar) 12%, var(--surface))",
                 border: "1.5px solid var(--keluar)",
                 marginTop: "14px",
+                width: "100%",
+                boxSizing: "border-box",
               }}
             >
               <div
@@ -1898,30 +1865,33 @@ export const TambahView: React.FC<TambahViewProps> = ({
                   paddingBottom: "8px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontSize: "1.1rem" }}>⚠️</span>
                   <strong style={{ color: "var(--keluar)", fontSize: "0.88rem", fontWeight: 700 }}>
-                    {errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")
-                      ? "Kuota Token AI Penuh (Error 429)"
-                      : "Struk Belum Berhasil Dianalisis"}
+                    Struk Belum Berhasil Dianalisis
                   </strong>
                 </div>
                 <button
                   type="button"
                   onClick={handleResetScan}
                   style={{
-                    background: "transparent",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    background: "rgba(255, 255, 255, 0.15)",
                     border: "none",
-                    color: "var(--muted)",
+                    color: "#ffffff",
                     cursor: "pointer",
-                    padding: "4px 6px",
-                    fontSize: "0.85rem",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    fontSize: "0.95rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    padding: 0,
                   }}
-                  aria-label="Tutup pesan error"
-                  title="Tutup pesan error"
+                  aria-label="Tutup notifikasi"
+                  title="Tutup notifikasi"
                 >
                   ✕
                 </button>
@@ -1929,10 +1899,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
 
               <div
                 style={{
-                  fontSize: "0.8rem",
+                  fontSize: "0.82rem",
                   color: "var(--text)",
                   lineHeight: 1.5,
                   margin: 0,
+                  wordBreak: "break-word",
                 }}
               >
                 {errorScan}
@@ -1942,52 +1913,36 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "space-between",
                   flexWrap: "wrap",
-                  marginTop: "2px",
+                  gap: "10px",
+                  marginTop: "4px",
+                  paddingTop: "4px",
                 }}
               >
-                {(errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")) && (
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setPengaturanGeminiBuka(true)}
-                    style={{
-                      fontSize: "0.78rem",
-                      padding: "7px 14px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <span>⚙️</span> Buka Pengaturan AI &amp; Kuota
-                  </button>
-                )}
+                <span
+                  style={{
+                    fontSize: "0.76rem",
+                    color: "var(--muted)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Anda tetap dapat mengisi formulir secara manual di bawah.
+                </span>
                 <button
                   type="button"
                   className="btn-secondary"
                   onClick={handleResetScan}
                   style={{
-                    fontSize: "0.78rem",
-                    padding: "7px 14px",
+                    fontSize: "0.8rem",
+                    padding: "6px 16px",
                     borderRadius: "8px",
+                    fontWeight: 600,
                   }}
                 >
                   Tutup Notifikasi
                 </button>
               </div>
-
-              <p
-                style={{
-                  margin: "2px 0 0",
-                  fontSize: "0.74rem",
-                  color: "var(--muted)",
-                  lineHeight: 1.4,
-                }}
-              >
-                Anda tetap dapat memasukkan data secara manual melalui formulir di bawah.
-              </p>
             </div>
           )}
         </section>
@@ -2184,28 +2139,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         />
       )}
 
-      {/* Modal Pengaturan Gemini AI & Kuota Akun */}
-      {pengaturanGeminiBuka && (
-        <PengaturanGeminiModal
-          onTutup={() => {
-            setPengaturanGeminiBuka(false);
-            try {
-              const cfg = ambilPengaturanGemini();
-              setGeminiTier(cfg.tier);
-            } catch {
-              // ignore
-            }
-          }}
-          onSimpan={() => {
-            try {
-              const cfg = ambilPengaturanGemini();
-              setGeminiTier(cfg.tier);
-            } catch {
-              // ignore
-            }
-          }}
-        />
-      )}
+
     </section>
   );
 };

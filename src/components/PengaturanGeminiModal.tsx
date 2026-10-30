@@ -160,20 +160,33 @@ export const PengaturanGeminiModal: React.FC<PengaturanGeminiModalProps> = ({
             aria-label="Tutup"
             title="Tutup"
             style={{
-              width: "34px",
-              height: "34px",
+              width: "36px",
+              height: "36px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "none",
-              color: "var(--text)",
+              background: "rgba(255, 255, 255, 0.15)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              color: "#ffffff",
               cursor: "pointer",
               flexShrink: 0,
             }}
           >
-            <X size={18} />
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
