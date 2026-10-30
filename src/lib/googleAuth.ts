@@ -199,44 +199,14 @@ export function muatProfilPenggunaTersimpan(): ProfilPenggunaGoogle | null {
 }
 
 /**
- * Mencoba memperbarui token akses secara hening (silent) di latar belakang
- * menggunakan Google Identity Services (GIS) tanpa memunculkan popup atau mengganggu pengguna.
+ * Di peramban modern (Chrome, Safari, Samsung Internet), Google Identity Services (GIS)
+ * tokenClient.requestAccessToken() selalu menggunakan popup window.
+ * Jika dipanggil di latar belakang tanpa event klik langsung dari pengguna, peramban akan
+ * langsung memblokir popup tersebut ([GSI_LOGGER]: Failed to open popup window).
+ * Oleh karena itu, pembaharuan token hanya dilakukan secara interaktif saat ada gestur klik pengguna.
  */
-export function cobaRefreshSilentGIS(emailHint?: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    try {
-      if (typeof window === "undefined" || !(window as any).google?.accounts?.oauth2 || !firebaseConfig.oAuthClientId) {
-        return resolve(null);
-      }
-
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: firebaseConfig.oAuthClientId,
-        scope: SCOPES.join(" "),
-        prompt: "",
-        hint: emailHint || ambilAkunAktif()?.email || "",
-        callback: (resp: any) => {
-          if (resp && resp.access_token) {
-            setCachedAccessToken(resp.access_token);
-            resolve(resp.access_token);
-          } else {
-            resolve(null);
-          }
-        },
-        error_callback: () => {
-          resolve(null);
-        },
-      });
-
-      client.requestAccessToken({ prompt: "", hint: emailHint || ambilAkunAktif()?.email || "" });
-
-      // Batasi waktu tunggu bila browser memblokir iframe pihak ketiga
-      setTimeout(() => {
-        resolve(null);
-      }, 3500);
-    } catch {
-      resolve(null);
-    }
-  });
+export function cobaRefreshSilentGIS(_emailHint?: string): Promise<string | null> {
+  return Promise.resolve(null);
 }
 
 /**
@@ -249,19 +219,7 @@ export const perbaruiTokenDrive = async (options?: {
   const aktif = ambilAkunAktif() || muatProfilPenggunaTersimpan();
   const emailHint = aktif?.email || auth.currentUser?.email || undefined;
 
-  // 1. Coba silent refresh di latar belakang terlebih dahulu jika tidak dipaksa interaktif
-  if (!options?.interactive) {
-    try {
-      const silentToken = await cobaRefreshSilentGIS(emailHint);
-      if (silentToken) {
-        return silentToken;
-      }
-    } catch (e) {
-      console.warn("Silent GIS refresh belum berhasil, butuh konfirmasi:", e);
-    }
-  }
-
-  // 2. Jika interaktif (dipicu tombol / aksi pengguna)
+  // Hanya jalankan pembaharuan jika interaktif (dipicu gestur klik pengguna langsung)
   if (options?.interactive) {
     isSigningIn = true;
     try {
@@ -300,7 +258,8 @@ export const perbaruiTokenDrive = async (options?: {
     }
   }
 
-  return null;
+  // Jika bukan interaktif (background auto-sync), jangan picu popup yang akan diblokir browser.
+  return cachedAccessToken || pulihkanTokenAwal();
 };
 
 export const initAuth = (
@@ -321,15 +280,6 @@ export const initAuth = (
         if (tokenAda) {
           cachedAccessToken = tokenAda;
           if (onAuthSuccess) onAuthSuccess(user, tokenAda);
-        }
-
-        // Jika token sudah kedaluwarsa (> 50 menit), coba perbarui secara hening (silent) di latar belakang
-        if (status.perluPembaruanToken) {
-          void cobaRefreshSilentGIS(user.email || undefined).then((tokenBaru) => {
-            if (tokenBaru && onAuthSuccess) {
-              onAuthSuccess(user, tokenBaru);
-            }
-          });
         }
       } else if (status.kedaluwarsa) {
         // Sesi 3 bulan di perangkat habis
@@ -358,19 +308,6 @@ export const initAuth = (
           } as User;
           if (onAuthSuccess) onAuthSuccess(fakeUser, tokenAda);
         }
-
-        // Coba silent refresh di latar belakang
-        void cobaRefreshSilentGIS(aktif.email || undefined).then((tokenBaru) => {
-          if (tokenBaru) {
-            const fakeUser = {
-              uid: aktif.uid,
-              email: aktif.email,
-              displayName: aktif.displayName,
-              photoURL: aktif.photoURL,
-            } as User;
-            if (onAuthSuccess) onAuthSuccess(fakeUser, tokenBaru);
-          }
-        });
       } else if (!status.aktif && !isSigningIn) {
         cachedAccessToken = null;
         if (onAuthFailure) onAuthFailure(status.kedaluwarsa ? status.pesan : undefined);
@@ -472,16 +409,16 @@ export const getAccessToken = async (options?: {
   const waktuToken = waktuStr ? Number(waktuStr) : 0;
   const expired = !cachedAccessToken || options?.forceRefresh || apakahTokenKedaluwarsa(waktuToken);
 
-  if (expired) {
-    // Coba silent refresh otomatis terlebih dahulu
+  // Hanya picu pembaruan popup jika diminta secara interaktif lewat klik pengguna langsung
+  if (expired && options?.interactive) {
     try {
-      const refreshed = await perbaruiTokenDrive({ interactive: options?.interactive ?? false });
+      const refreshed = await perbaruiTokenDrive({ interactive: true });
       if (refreshed) {
         cachedAccessToken = refreshed;
         return refreshed;
       }
     } catch {
-      // Lanjut memakai cached token bila silent belum bisa
+      // Lanjut memakai cached token bila ada
     }
   }
 

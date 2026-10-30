@@ -50,10 +50,8 @@ app.post("/api/gemini/baca-struk", async (req, res) => {
         })
       : ai;
 
-    // Tentukan model berdasarkan tier yang dipilih pengguna
-    // 'pro' -> gemini-4-argon (Google AI Pro / Argon)
-    // 'flash' -> gemini-3.8-flash (Standar Cepat & Hemat Token)
-    const selectedModel = modelTier === "pro" ? "gemini-4-argon" : "gemini-3.8-flash";
+    // Gunakan model resmi yang stabil dan efisien: gemini-3.8-flash
+    const selectedModel = "gemini-3.8-flash";
 
     // Bersihkan prefix data URL jika ada (e.g. data:image/jpeg;base64,...)
     let cleanBase64 = image;
@@ -126,7 +124,7 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
 
     const hasilTeks = response.text;
     if (!hasilTeks) {
-      return res.status(500).json({
+      return res.status(200).json({
         sukses: false,
         pesan: "Tidak ada respon teks dari Gemini.",
       });
@@ -147,30 +145,54 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
 
     return res.json(parsedResult);
   } catch (error: any) {
-    console.error("Gagal membaca struk dengan Gemini:", error);
+    console.warn("Info pembacaan struk dengan Gemini:", error?.message || error);
 
-    const pesanErr = error?.message || "";
+    const pesanErr = String(error?.message || "");
     const status = error?.status;
+    const code = error?.code || error?.error?.code;
 
-    // Deteksi kuota habis (429 RESOURCE_EXHAUSTED)
-    if (status === 429 || pesanErr.includes("429") || pesanErr.includes("RESOURCE_EXHAUSTED")) {
-      return res.status(429).json({
+    // Deteksi kredit prepayment habis (402 Prepayment credits depleted)
+    if (
+      code === 402 ||
+      status === 402 ||
+      pesanErr.includes("prepayment credits are depleted") ||
+      pesanErr.includes("402")
+    ) {
+      return res.status(200).json({
+        sukses: false,
+        pesan: "Kredit Google AI di proyek ini saat ini sedang habis (Error 402). Anda tetap dapat mengisi formulir pengeluaran secara manual di bawah.",
+      });
+    }
+
+    // Deteksi kuota habis atau batas frekuensi (429 RESOURCE_EXHAUSTED)
+    if (
+      status === 429 ||
+      code === 429 ||
+      pesanErr.includes("429") ||
+      pesanErr.includes("RESOURCE_EXHAUSTED")
+    ) {
+      return res.status(200).json({
         sukses: false,
         pesan: "Layanan AI sedang sibuk atau batas penggunaan sementara tercapai (Error 429). Silakan coba lagi beberapa saat lagi atau masukkan transaksi secara manual.",
       });
     }
 
     // Deteksi izin / API key tidak valid (403 / 400)
-    if (status === 403 || pesanErr.includes("PERMISSION_DENIED") || pesanErr.includes("API_KEY_INVALID")) {
-      return res.status(403).json({
+    if (
+      status === 403 ||
+      code === 403 ||
+      pesanErr.includes("PERMISSION_DENIED") ||
+      pesanErr.includes("API_KEY_INVALID")
+    ) {
+      return res.status(200).json({
         sukses: false,
-        pesan: "API Key Gemini tidak valid atau tidak memiliki izin akses (403). Silakan periksa pengaturan API Key Anda.",
+        pesan: "Kunci akses AI tidak valid atau tidak memiliki izin akses (403). Silakan periksa pengaturan atau isi formulir secara manual.",
       });
     }
 
-    return res.status(500).json({
+    return res.status(200).json({
       sukses: false,
-      pesan: `Gagal membaca struk: ${pesanErr || "Terjadi kesalahan pada server AI"}`,
+      pesan: "Foto belum dapat dianalisis otomatis saat ini. Anda dapat memasukkan data secara manual melalui formulir di bawah.",
     });
   }
 });
@@ -213,7 +235,7 @@ INSTRUKSI:
 4. Paragraf 3: Menyatakan penegasan bahwa pengeluaran tersebut benar-benar terjadi, bersifat sah, wajar, digunakan sepenuhnya untuk kepentingan kedinasan/kegiatan program tanpa adanya unsur keuntungan pribadi, serta dapat dipertanggungjawabkan kebenarannya.
 5. JANGAN menuliskan kop surat, judul surat, kalimat "Yang bertanda tangan di bawah ini", atau tanda tangan. Cukup kembalikan 2-3 paragraf narasi saja, dipisahkan oleh baris baru ganda (\\n\\n).`;
 
-    const modelName = "gemini-2.5-flash";
+    const modelName = "gemini-3.8-flash";
     const response = await ai.models.generateContent({
       model: modelName,
       contents: promptTeks,
