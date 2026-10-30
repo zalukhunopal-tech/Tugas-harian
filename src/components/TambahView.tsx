@@ -26,7 +26,10 @@ import {
   optimalkanGambarStruk,
   prosesStrukDenganGemini,
   HasilBacaStruk,
+  ambilPengaturanGemini,
 } from "../lib/geminiStruk";
+import { KameraStrukModal } from "./KameraStrukModal";
+import { PengaturanGeminiModal } from "./PengaturanGeminiModal";
 import { BagianFormKegiatan, DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 import {
   NavigasiLangkah,
@@ -191,6 +194,18 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
   const [hasilScan, setHasilScan] = useState<HasilBacaStruk | null>(null);
   const [errorScan, setErrorScan] = useState<string | null>(null);
+  const [kameraPanduanBuka, setKameraPanduanBuka] = useState(false);
+  const [pengaturanGeminiBuka, setPengaturanGeminiBuka] = useState(false);
+  const [geminiTier, setGeminiTier] = useState<"flash" | "pro">("flash");
+
+  useEffect(() => {
+    try {
+      const cfg = ambilPengaturanGemini();
+      setGeminiTier(cfg.tier);
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Sync state when editing
   useEffect(() => {
@@ -515,7 +530,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   useEffect(() => {
     if (initialScanMode === "kamera") {
       setTimeout(() => {
-        kameraInputRef.current?.click();
+        setKameraPanduanBuka(true);
       }, 150);
       if (onResetInitialScanMode) onResetInitialScanMode();
     } else if (initialScanMode === "galeri") {
@@ -1759,6 +1774,29 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi pengeluaran</span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setPengaturanGeminiBuka(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 10px",
+                borderRadius: "20px",
+                background: geminiTier === "pro" ? "rgba(168, 85, 247, 0.16)" : "rgba(16, 185, 129, 0.14)",
+                border: geminiTier === "pro" ? "1px solid rgba(168, 85, 247, 0.45)" : "1px solid rgba(16, 185, 129, 0.35)",
+                color: geminiTier === "pro" ? "#c084fc" : "#34d399",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              title="Sesuaikan Model Gemini & Kuota Akun Google"
+            >
+              <span>{geminiTier === "pro" ? "✨ Google AI Pro" : "⚡ Gemini Flash"}</span>
+              <span style={{ opacity: 0.8, fontSize: "0.72rem" }}>⚙️</span>
+            </button>
           </div>
 
           <div className="struk-scanner-actions">
@@ -1766,7 +1804,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
               type="button"
               className="btn-primary"
               disabled={memuatScan}
-              onClick={() => kameraInputRef.current?.click()}
+              onClick={() => setKameraPanduanBuka(true)}
             >
               <span aria-hidden="true">📸</span> Ambil Foto Kamera
             </button>
@@ -1791,7 +1829,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {memuatScan && (
             <div className="struk-scan-loading-text">
               <span>⚡</span>
-              <span>Gemini AI sedang membaca dan menganalisis struk belanja Anda…</span>
+              <span>Gemini AI ({geminiTier === "pro" ? "Google AI Pro" : "Gemini Flash"}) sedang membaca dan menganalisis struk belanja Anda…</span>
             </div>
           )}
 
@@ -1842,14 +1880,26 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <strong style={{ color: "var(--keluar)", fontSize: "0.85rem" }}>
                   ⚠️ {errorScan}
                 </strong>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={handleResetScan}
-                  style={{ fontSize: "0.75rem", padding: "2px 8px" }}
-                >
-                  Tutup
-                </button>
+                <div style={{ display: "flex", gap: "6px" }}>
+                  {(errorScan.includes("429") || errorScan.includes("Kuota") || errorScan.includes("token")) && (
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() => setPengaturanGeminiBuka(true)}
+                      style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                    >
+                      ⚙️ Pengaturan AI
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-small"
+                    onClick={handleResetScan}
+                    style={{ fontSize: "0.75rem", padding: "2px 8px" }}
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
               <p style={{ margin: "4px 0 0", fontSize: "0.78rem", color: "var(--text-muted)" }}>
                 Anda tetap dapat memasukkan data secara manual melalui formulir di bawah.
@@ -2039,6 +2089,39 @@ export const TambahView: React.FC<TambahViewProps> = ({
         </form>
       </section>
       </div>
+
+      {/* Modal Kamera dengan Kotak Panduan */}
+      {kameraPanduanBuka && (
+        <KameraStrukModal
+          onTutup={() => setKameraPanduanBuka(false)}
+          onFotoTerambil={(file) => {
+            void handleProsesFileStruk(file);
+          }}
+        />
+      )}
+
+      {/* Modal Pengaturan Gemini AI & Kuota Akun */}
+      {pengaturanGeminiBuka && (
+        <PengaturanGeminiModal
+          onTutup={() => {
+            setPengaturanGeminiBuka(false);
+            try {
+              const cfg = ambilPengaturanGemini();
+              setGeminiTier(cfg.tier);
+            } catch {
+              // ignore
+            }
+          }}
+          onSimpan={() => {
+            try {
+              const cfg = ambilPengaturanGemini();
+              setGeminiTier(cfg.tier);
+            } catch {
+              // ignore
+            }
+          }}
+        />
+      )}
     </section>
   );
 };

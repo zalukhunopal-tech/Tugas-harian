@@ -9505,6 +9505,11 @@ button {
     padding: 14px;
   }
 
+  .struk-scanner-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .struk-scanner-judul {
     align-items: flex-start;
   }

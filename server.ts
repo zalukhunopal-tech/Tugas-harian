@@ -26,10 +26,10 @@ const ai = new GoogleGenAI({
   },
 });
 
-// Endpoint pemrosesan struk belanja dengan model Gemini 3.8 Flash
+// Endpoint pemrosesan struk belanja dengan model Gemini (Flash & Pro)
 app.post("/api/gemini/baca-struk", async (req, res) => {
   try {
-    const { image, mimeType } = req.body;
+    const { image, mimeType, modelTier, apiKey: userApiKey } = req.body;
 
     if (!image) {
       return res.status(400).json({
@@ -37,6 +37,23 @@ app.post("/api/gemini/baca-struk", async (req, res) => {
         pesan: "Gambar struk tidak ditemukan dalam permintaan.",
       });
     }
+
+    // Gunakan API Key pribadi pengguna jika ada (langganan Google AI Pro/Plus), atau fallback ke server key
+    const activeAi = userApiKey
+      ? new GoogleGenAI({
+          apiKey: userApiKey,
+          httpOptions: {
+            headers: {
+              "User-Agent": "aistudio-build",
+            },
+          },
+        })
+      : ai;
+
+    // Tentukan model berdasarkan tier yang dipilih pengguna
+    // 'pro' -> gemini-4-argon (Google AI Pro / Argon)
+    // 'flash' -> gemini-3.8-flash (Standar Cepat & Hemat Token)
+    const selectedModel = modelTier === "pro" ? "gemini-4-argon" : "gemini-3.8-flash";
 
     // Bersihkan prefix data URL jika ada (e.g. data:image/jpeg;base64,...)
     let cleanBase64 = image;
@@ -85,8 +102,8 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
   "pesan": "Gambar tidak dapat dikenali sebagai bukti transaksi atau tulisan terlalu buram."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+    const response = await activeAi.models.generateContent({
+      model: selectedModel,
       contents: {
         parts: [
           {
@@ -102,6 +119,8 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
       },
       config: {
         responseMimeType: "application/json",
+        maxOutputTokens: 1024,
+        temperature: 0.1,
       },
     });
 
@@ -129,9 +148,29 @@ Jika gambar sama sekali bukan struk belanja / kuitansi / transaksi atau terlalu 
     return res.json(parsedResult);
   } catch (error: any) {
     console.error("Gagal membaca struk dengan Gemini:", error);
+
+    const pesanErr = error?.message || "";
+    const status = error?.status;
+
+    // Deteksi kuota habis (429 RESOURCE_EXHAUSTED)
+    if (status === 429 || pesanErr.includes("429") || pesanErr.includes("RESOURCE_EXHAUSTED")) {
+      return res.status(429).json({
+        sukses: false,
+        pesan: "Kuota token AI (429 Resource Exhausted) untuk saat ini sedang penuh. Tips: Gunakan kotak panduan kamera agar foto terpotong rapi & hemat token, gunakan model Gemini Flash, atau masukkan API Key Google AI Pro pribadi Anda di Pengaturan AI Struk.",
+      });
+    }
+
+    // Deteksi izin / API key tidak valid (403 / 400)
+    if (status === 403 || pesanErr.includes("PERMISSION_DENIED") || pesanErr.includes("API_KEY_INVALID")) {
+      return res.status(403).json({
+        sukses: false,
+        pesan: "API Key Gemini tidak valid atau tidak memiliki izin akses (403). Silakan periksa pengaturan API Key Anda.",
+      });
+    }
+
     return res.status(500).json({
       sukses: false,
-      pesan: `Gagal membaca struk: ${error.message || "Terjadi kesalahan pada server AI"}`,
+      pesan: `Gagal membaca struk: ${pesanErr || "Terjadi kesalahan pada server AI"}`,
     });
   }
 });

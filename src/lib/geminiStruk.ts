@@ -17,12 +17,55 @@ export interface HasilBacaStruk {
   keteranganLaporan?: string;
 }
 
+export type GeminiModelTier = "flash" | "pro";
+
+export interface PengaturanGemini {
+  tier: GeminiModelTier;
+  apiKey: string;
+}
+
+export const KEY_GEMINI_TIER = "gemini_model_tier";
+export const KEY_GEMINI_API_KEY = "gemini_user_api_key";
+
 /**
- * Membaca File gambar dari input kamera/file, lalu melakukan kompresi cerdas di browser
- * (maksimal dimensi 1600px, JPEG 85%) agar ukuran upload ringan (< 300KB) dan cepat diproses AI.
+ * Mengambil preferensi model Gemini pengguna dari penyimpanan lokal
+ */
+export function ambilPengaturanGemini(): PengaturanGemini {
+  try {
+    const tier = (localStorage.getItem(KEY_GEMINI_TIER) as GeminiModelTier) || "flash";
+    const apiKey = localStorage.getItem(KEY_GEMINI_API_KEY) || "";
+    return {
+      tier: tier === "pro" ? "pro" : "flash",
+      apiKey: apiKey.trim(),
+    };
+  } catch {
+    return { tier: "flash", apiKey: "" };
+  }
+}
+
+/**
+ * Menyimpan preferensi model dan API key pengguna
+ */
+export function simpanPengaturanGemini(pengaturan: PengaturanGemini): void {
+  try {
+    localStorage.setItem(KEY_GEMINI_TIER, pengaturan.tier);
+    if (pengaturan.apiKey) {
+      localStorage.setItem(KEY_GEMINI_API_KEY, pengaturan.apiKey.trim());
+    } else {
+      localStorage.removeItem(KEY_GEMINI_API_KEY);
+    }
+  } catch (err) {
+    console.warn("Gagal menyimpan preferensi Gemini:", err);
+  }
+}
+
+/**
+ * Membaca File gambar dari input kamera/file, lalu melakukan kompresi cerdas di browser.
+ * Disesuaikan ke maksimal dimensi 1080px (bukan 1600px) dan kualitas JPEG 82%
+ * agar teks tetap tajam terbaca namun memangkas konsumsi token Gemini hingga ~75%.
  */
 export async function optimalkanGambarStruk(
-  file: File
+  file: File | Blob
 ): Promise<{ base64: string; mimeType: string; previewUrl: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -31,7 +74,9 @@ export async function optimalkanGambarStruk(
       const img = new Image();
       img.onerror = () => reject(new Error("Gagal memuat elemen gambar"));
       img.onload = () => {
-        const MAX_DIM = 1600;
+        // 1080px adalah sweet spot: teks struk kecil tetap terbaca jernih,
+        // namun resolusi token image Gemini turun drastis sehingga kuota token jauh lebih awet
+        const MAX_DIM = 1080;
         let width = img.width;
         let height = img.height;
 
@@ -62,7 +107,7 @@ export async function optimalkanGambarStruk(
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.82);
         const base64Data = compressedDataUrl.split(";base64,")[1];
 
         resolve({
@@ -79,11 +124,17 @@ export async function optimalkanGambarStruk(
 
 /**
  * Mengirim gambar struk ke endpoint backend /api/gemini/baca-struk
+ * Menyertakan modelTier ('flash' | 'pro') dan personal apiKey jika pengguna menyetelnya.
  */
 export async function prosesStrukDenganGemini(
   base64: string,
-  mimeType: string = "image/jpeg"
+  mimeType: string = "image/jpeg",
+  opsi?: { modelTier?: GeminiModelTier; apiKey?: string }
 ): Promise<HasilBacaStruk> {
+  const settings = ambilPengaturanGemini();
+  const tier = opsi?.modelTier || settings.tier;
+  const apiKey = opsi?.apiKey !== undefined ? opsi.apiKey : settings.apiKey;
+
   const res = await fetch("/api/gemini/baca-struk", {
     method: "POST",
     headers: {
@@ -92,6 +143,8 @@ export async function prosesStrukDenganGemini(
     body: JSON.stringify({
       image: base64,
       mimeType,
+      modelTier: tier,
+      apiKey: apiKey || undefined,
     }),
   });
 
