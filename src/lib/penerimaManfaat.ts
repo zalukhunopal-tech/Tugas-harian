@@ -75,8 +75,11 @@ export function ingatStaf(nama: string[]): void {
 
 /* ---------- teks untuk laporan ---------- */
 
-export function adalahKudapanPerjalanan(kategori: string, detail?: DataKhususKegiatan): boolean {
-  return kategori === "Konsumsi" && Boolean(detail?.konsumsi?.kudapanPerjalanan);
+export function adalahKudapanPerjalanan(kategori: string, detail?: DataKhususKegiatan, deskripsi?: string): boolean {
+  if (kategori !== "Konsumsi") return false;
+  if (detail?.konsumsi?.kudapanPerjalanan === true) return true;
+  if (detail?.konsumsi?.kudapanPerjalanan === false) return false;
+  return Boolean(deskripsi && /kudapan|snack/i.test(deskripsi));
 }
 
 /** Rupiah tanpa spasi ("Rp66.667"), seperti penulisan nominal per orang pada uraian klaim. */
@@ -87,9 +90,9 @@ const rupiahRapat = (n: number) => formatRupiah(n).replace(/\s/g, "");
  *   Kudapan/Snack Perjalanan — Penerima Manfaat: 3 orang (Nama A, Nama B, Nama C @ Rp66.667)
  *   Transportasi Speedboat — Penerima Manfaat: Rudi, Budi, Andi (di kolom uraian; di sini hanya bagian nama)
  */
-export function barisPenerimaManfaat(t: Pick<Transaksi, "kategori" | "jumlah" | "detailKegiatan">): string | null {
+export function barisPenerimaManfaat(t: Pick<Transaksi, "kategori" | "jumlah" | "detailKegiatan"> & { deskripsi?: string }): string | null {
   const nama = (t.detailKegiatan?.penerimaManfaat ?? []).map(rapikanNama).filter(Boolean);
-  if (adalahKudapanPerjalanan(t.kategori, t.detailKegiatan)) {
+  if (adalahKudapanPerjalanan(t.kategori, t.detailKegiatan, t.deskripsi)) {
     if (nama.length === 0) return "Kudapan/Snack Perjalanan — Penerima Manfaat: belum dicatat";
     const perOrang = t.jumlah > 0 ? Math.round(t.jumlah / nama.length) : PLAFON_KUDAPAN_PER_ORANG;
     return `Kudapan/Snack Perjalanan — Penerima Manfaat: ${nama.length} orang (${nama.join(", ")} @ ${rupiahRapat(perOrang)})`;

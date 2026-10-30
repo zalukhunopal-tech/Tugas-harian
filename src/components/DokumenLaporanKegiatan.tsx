@@ -279,7 +279,7 @@ const PasanganBukti: React.FC<{
       } as CSSProperties}
     >
       {foto && (
-        <div className="dlk-foto-tunggal" style={{ marginBottom: "calc(4 * var(--mm))" }}>
+        <div className="dlk-foto--atas" style={{ marginBottom: "calc(4 * var(--mm))" }}>
           <div className="dlk-foto-judul">{judulFoto}</div>
           <figure className="dlk-foto" data-testid="foto-bukti">
             <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
@@ -287,7 +287,9 @@ const PasanganBukti: React.FC<{
           </figure>
         </div>
       )}
-      <KotakTempel kotak={kotak} catatan={kotak.catatan} />
+      <div className="dlk-kotak--bawah">
+        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
+      </div>
     </div>
   );
 };

@@ -182,25 +182,33 @@ export const KartuTimesheet: React.FC<KartuTimesheetProps> = ({
       <div className="kartu-timesheet__isian">
         <label className="kartu-timesheet__field">
           <span>Batch kegiatan ({tahunKegiatan(kegiatan)})</span>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            step={1}
-            value={draftBatch !== "" ? draftBatch : batch ?? ""}
-            placeholder={`Saran: ${saran}`}
-            onChange={(e) => setDraftBatch(e.target.value)}
-            onBlur={simpanBatch}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            }}
-          />
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%", minWidth: 0 }}>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={draftBatch !== "" ? draftBatch : batch ?? ""}
+              placeholder={`Saran: ${saran}`}
+              onChange={(e) => setDraftBatch(e.target.value)}
+              onBlur={simpanBatch}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            {!batch && (
+              <button
+                type="button"
+                className="btn-small"
+                style={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                onClick={() => onUpdateKegiatan?.({ ...kegiatan, batch: saran })}
+              >
+                Pakai Batch {saran}
+              </button>
+            )}
+          </div>
         </label>
-        {!batch && (
-          <button type="button" className="btn-small" onClick={() => onUpdateKegiatan?.({ ...kegiatan, batch: saran })}>
-            Pakai Batch {saran}
-          </button>
-        )}
         <label className="kartu-timesheet__field">
           <span>Dilaporkan oleh</span>
           <input

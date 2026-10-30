@@ -1,7 +1,7 @@
 import { DataKhususKegiatan, Transaksi } from "../types";
 import { formatRupiah } from "./constants";
 import { namaKegiatanSama } from "./kegiatanSama";
-import { adalahKudapanPerjalanan, barisPenerimaManfaat, kategoriBolehPenerima, PLAFON_KUDAPAN_PER_ORANG, rapikanNama } from "./penerimaManfaat";
+import { adalahKudapanPerjalanan, barisPenerimaManfaat, kategoriBolehPenerima, PLAFON_KUDAPAN_PER_ORANG, plafonKudapan, rapikanNama } from "./penerimaManfaat";
 
 /**
  * Kelengkapan informasi per kategori pengeluaran Dana Kegiatan yang diwajibkan ketentuan SPJ, dalam bentuk baris teks yang sama
@@ -123,16 +123,22 @@ function barisAkomodasi(d: DataKhususKegiatan): string[] {
 
 function barisKonsumsi(t: JenisTransaksi, d: DataKhususKegiatan): string[] {
   const k = d.konsumsi;
-  if (!k) return [];
   const baris: string[] = [];
-  if (k.penyedia) baris.push(`${k.kudapanPerjalanan ? "Toko/warung" : "Penyedia"}: ${isi(k.penyedia, k.noTelp && `Telp. ${k.noTelp}`)}`);
-  else if (k.noTelp) baris.push(`Telp. penyedia: ${k.noTelp}`);
-  if (k.lokasi) baris.push(`${k.kudapanPerjalanan ? "Rute" : "Lokasi"}: ${k.lokasi}`);
-  if (adalahKudapanPerjalanan(t.kategori, d)) {
-    const daftar = barisPenerimaManfaat(t as Pick<Transaksi, "kategori" | "jumlah" | "detailKegiatan">);
+  if (k?.penyedia) baris.push(`${k.kudapanPerjalanan ? "Toko/warung" : "Penyedia"}: ${isi(k.penyedia, k.noTelp && `Telp. ${k.noTelp}`)}`);
+  else if (k?.noTelp) baris.push(`Telp. penyedia: ${k.noTelp}`);
+  if (k?.lokasi) baris.push(`${k.kudapanPerjalanan ? "Rute" : "Lokasi"}: ${k.lokasi}`);
+  if (adalahKudapanPerjalanan(t.kategori, d, t.deskripsi)) {
+    const daftar = barisPenerimaManfaat(t as Pick<Transaksi, "kategori" | "jumlah" | "detailKegiatan"> & { deskripsi?: string });
     if (daftar) baris.push(daftar);
-    baris.push(`Plafon kudapan: ${formatRupiah(PLAFON_KUDAPAN_PER_ORANG)} per orang`);
-  } else if (k.jumlahPeserta) {
+    const jmlOrang = d.penerimaManfaat?.length || 1;
+    const plafonTotal = plafonKudapan(jmlOrang);
+    if (t.jumlah > plafonTotal) {
+      const lebih = t.jumlah - plafonTotal;
+      baris.push(`Plafon yang dapat diklaim (200.000/3 per orang): ${formatRupiah(plafonTotal)}. Kelebihan ${formatRupiah(lebih)} tidak dapat diklaim.`);
+    } else {
+      baris.push(`Plafon kudapan: ${formatRupiah(PLAFON_KUDAPAN_PER_ORANG)} per orang`);
+    }
+  } else if (k?.jumlahPeserta) {
     baris.push(`Peserta: ${k.jumlahPeserta} orang`);
   }
   return baris;

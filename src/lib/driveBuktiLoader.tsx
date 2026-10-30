@@ -196,7 +196,11 @@ export async function muatPratinjauBukti(
         const meta = await resMeta.json();
         const isPdf = (meta.mimeType || "").includes("pdf") || isPdfMeta;
         if (meta.thumbnailLink) {
-          return { url: meta.thumbnailLink, isPdf, gagal: false };
+          // Ganti thumbnail kecil =s220 bawaan Drive API dengan resolusi tinggi =s2048 agar foto tidak buram
+          const tautanTinggi = meta.thumbnailLink.includes("=s")
+            ? meta.thumbnailLink.replace(/=s\d+/, "=s2048")
+            : `${meta.thumbnailLink}=s2048`;
+          return { url: tautanTinggi, isPdf, gagal: false };
         }
       }
     } catch {

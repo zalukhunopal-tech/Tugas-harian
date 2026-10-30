@@ -115,7 +115,7 @@ export async function kompresBukti(
 
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const maxDim = 1600;
+      const maxDim = 2048;
       let width = img.width;
       let height = img.height;
 
@@ -137,6 +137,10 @@ export async function kompresBukti(
         reject(new Error("Gagal membuat canvas context"));
         return;
       }
+
+      // Pastikan smoothing berkualitas tinggi agar teks struk tetap tajam dan tidak buram
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
 
       // Beri background putih untuk mengantisipasi PNG transparan sebelum convert ke JPEG
       ctx.fillStyle = "#ffffff";
@@ -165,7 +169,7 @@ export async function kompresBukti(
           reader.readAsDataURL(blob);
         },
         "image/jpeg",
-        0.8
+        0.88
       );
     };
 
