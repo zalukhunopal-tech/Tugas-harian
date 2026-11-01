@@ -53,15 +53,16 @@ const GayaHalamanCetak: React.FC<{ kepala: string }> = ({ kepala }) => {
   return <style>{`@media print { @page laporan-kegiatan { ${kotak} } @page timesheet-page { ${kotak} } }`}</style>;
 };
 
-/** Satu lembar A4 potret. Di layar kepala halaman tampil di margin atas; saat dicetak diganti kotak margin @page. */
-const Lembar: React.FC<{ kepala: string; className?: string; children: React.ReactNode } & Record<`data-${string}`, string | number | undefined>> = ({
+/** Satu lembar A4 potret atau lanskap. Di layar kepala halaman tampil di margin atas; saat dicetak diganti kotak margin @page. */
+const Lembar: React.FC<{ kepala: string; className?: string; lanskap?: boolean; children: React.ReactNode } & Record<`data-${string}`, string | number | undefined>> = ({
   kepala,
   className,
+  lanskap,
   children,
   ...data
 }) => (
-  <article className={`dsc-kertas dlk-lembar${className ? ` ${className}` : ""}`} {...data}>
-    <div className="dlk-kepala-layar" aria-hidden="true">
+  <article className={`dsc-kertas dlk-lembar${lanskap ? " dsc-lanskap dlk-lembar--lanskap" : ""}${className ? ` ${className}` : ""}`} {...data}>
+    <div className={`dlk-kepala-layar${lanskap ? " dlk-kepala-layar--lanskap" : ""}`} aria-hidden="true">
       {kepala}
     </div>
     {children}
@@ -219,13 +220,52 @@ const TabelLaporan: React.FC<{ baris: BarisTabelLaporan[]; labelTotal: string }>
 
 /* ---------- blok tiap pengeluaran ---------- */
 
-const KotakTempel: React.FC<{ kotak: KotakTempelLaporan; catatan?: string }> = ({ kotak, catatan }) => (
-  <div className="dlk-kotak" style={{ "--tinggi": kotak.tinggiMm } as CSSProperties} data-testid="kotak-tempel" data-bentuk={kotak.bentuk}>
-    <div className="dlk-kotak__judul">{kotak.judul}</div>
-    <div className="dlk-kotak__ket">{kotak.keterangan}</div>
-    {catatan && <div className="dlk-kotak__catatan">{catatan}</div>}
-  </div>
-);
+const KotakTempel: React.FC<{
+  kotak: KotakTempelLaporan;
+  catatan?: string;
+  mountStyle?: { label?: boolean; border?: boolean; fill?: boolean };
+}> = ({ kotak, catatan, mountStyle = { label: false, border: false, fill: false } }) => {
+  if (!mountStyle.label && !mountStyle.border && !mountStyle.fill) {
+    return (
+      <div
+        className="dlk-kotak dlk-kotak--bersih"
+        style={{
+          "--tinggi": kotak.tinggiMm,
+          minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
+          width: kotak.lebarMm ? `calc(${kotak.lebarMm} * var(--mm))` : undefined,
+          border: "none",
+          background: "transparent",
+        } as CSSProperties}
+        data-testid="kotak-tempel"
+        data-bentuk={kotak.bentuk}
+        aria-hidden="true"
+      />
+    );
+  }
+  return (
+    <div
+      className="dlk-kotak"
+      style={{
+        "--tinggi": kotak.tinggiMm,
+        minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
+        width: kotak.lebarMm ? `calc(${kotak.lebarMm} * var(--mm))` : undefined,
+      } as CSSProperties}
+      data-testid="kotak-tempel"
+      data-bentuk={kotak.bentuk}
+    >
+      {mountStyle.label && (
+        <>
+          <div className="dlk-kotak__judul">
+            {kotak.judul}
+            {kotak.dimensiLabel ? ` | ${kotak.dimensiLabel}` : ""}
+          </div>
+          <div className="dlk-kotak__ket">{kotak.keterangan}</div>
+          {catatan && <div className="dlk-kotak__catatan">{catatan}</div>}
+        </>
+      )}
+    </div>
+  );
+};
 
 const PasanganBukti: React.FC<{
   pasangan: PasanganBuktiLaporan;
@@ -247,11 +287,10 @@ const PasanganBukti: React.FC<{
         style={{
           "--tinggi": kotak.tinggiMm,
           "--lebar-kotak": kotak.lebarMm,
-          gridTemplateColumns: `calc(${kotak.lebarMm} * var(--mm)) 1fr`,
+          gridTemplateColumns: `minmax(0, 1fr) calc(${kotak.lebarMm} * var(--mm))`,
           minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
         } as CSSProperties}
       >
-        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
         <div className="dlk-struk__foto">
           <div className="dlk-struk__judul-foto">{judulFoto}</div>
           {foto ? (
@@ -263,6 +302,7 @@ const PasanganBukti: React.FC<{
             <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
           )}
         </div>
+        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
       </div>
     );
   }
@@ -279,7 +319,7 @@ const PasanganBukti: React.FC<{
       } as CSSProperties}
     >
       {foto && (
-        <div className="dlk-foto--atas" style={{ marginBottom: "calc(4 * var(--mm))" }}>
+        <div className="dlk-foto--atas" style={{ marginBottom: 0 }}>
           <div className="dlk-foto-judul">{judulFoto}</div>
           <figure className="dlk-foto" data-testid="foto-bukti">
             <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
@@ -324,6 +364,10 @@ const BlokTransaksi: React.FC<{
   onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }> = ({ blok, googleToken, onStatus, onUkuran }) => {
   const t = blok.transaksi;
+  const duaKolom =
+    blok.pasangan.length === 2 &&
+    blok.pasangan.every((p) => p.tataLetak === "bawah" && p.kotak.lebarMm <= 90);
+
   return (
     <section className="dlk-blok" data-testid="blok-transaksi" data-nomor={blok.nomor}>
       <div className="dlk-blok__kepala">
@@ -335,7 +379,14 @@ const BlokTransaksi: React.FC<{
         <span className="dsc-jumlah">{formatRupiah(t.jumlah)}</span>
       </div>
 
-      <div className="dlk-daftar-pasangan" style={{ display: "flex", flexDirection: "column", gap: "calc(4 * var(--mm))" }}>
+      <div
+        className={`dlk-daftar-pasangan${duaKolom ? " dlk-daftar-pasangan--dua-kolom" : ""}`}
+        style={
+          duaKolom
+            ? { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "calc(4 * var(--mm))" }
+            : { display: "flex", flexDirection: "column", gap: "calc(4 * var(--mm))" }
+        }
+      >
         {blok.pasangan.map((p, idx) => (
           <PasanganBukti
             key={`${t.id}-p-${idx}`}
@@ -573,7 +624,13 @@ export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ 
       {/* 3. Tiap kelompok pengeluaran di halaman baru */}
       {susunan.kelompok.map((kel) =>
         bagiPerHalaman(kel.blok).map((halaman, i) => (
-          <Lembar key={`${kel.kategori}-${i}`} kepala={kepala} data-testid={i === 0 ? "dlk-kelompok" : "dlk-kelompok-lanjutan"} data-kategori={kel.kategori}>
+          <Lembar
+            key={`${kel.kategori}-${i}`}
+            kepala={kepala}
+            lanskap={kel.kategori === "Akomodasi"}
+            data-testid={i === 0 ? "dlk-kelompok" : "dlk-kelompok-lanjutan"}
+            data-kategori={kel.kategori}
+          >
             {i === 0 && (
               <>
                 <h3 className="dlk-judul-kelompok">
@@ -641,35 +698,44 @@ export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ 
         <RingkasanPenyelesaianCetak p={susunan.penyelesaian} />
       </Lembar>
 
-      {/* 6. Daftar periksa kelengkapan (bisa dimatikan) */}
+      {/* 6. Daftar periksa kelengkapan (Tabel Lembaga 17 Kategori Otoritatif) */}
       {susunan.daftarPeriksa && (
         <Lembar kepala={kepala} data-testid="dlk-daftar-periksa">
           <h3 className="dlk-judul-tengah">DAFTAR PERIKSA KELENGKAPAN SPJ</h3>
-          <p className="dlk-catatan-tengah">(Halaman ini sebagai panduan internal kelengkapan dokumen dan boleh tidak dicetak)</p>
+          <p className="dlk-catatan-tengah">Kelengkapan Pelaporan Keuangan - dokumen lembaga</p>
           <table className="dlk-tabel dlk-periksa">
             <colgroup>
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "92%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "24%" }} />
+              <col style={{ width: "64%" }} />
+              <col style={{ width: "6%" }} />
             </colgroup>
             <thead>
               <tr>
-                <th className="dlk-tengah">Cek</th>
-                <th>Persyaratan &amp; Dokumen Kelengkapan</th>
+                <th className="dlk-tengah">No</th>
+                <th>Jenis</th>
+                <th>Dokumen pendukung</th>
+                <th className="dlk-tengah">cek</th>
               </tr>
             </thead>
             <tbody>
-              {susunan.daftarPeriksa.map((g) => (
-                <React.Fragment key={g.judul}>
-                  <tr className="dlk-periksa__grup">
-                    <td colSpan={2}>{g.judul}</td>
-                  </tr>
-                  {g.butir.map((b, i) => (
-                    <tr key={i}>
-                      <td className="dlk-periksa__cek">☐</td>
-                      <td>{b}</td>
-                    </tr>
-                  ))}
-                </React.Fragment>
+              {susunan.daftarPeriksa.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="dlk-tengah" style={{ verticalAlign: "top" }}>{item.nomor ?? idx + 1}</td>
+                  <td style={{ verticalAlign: "top", fontWeight: 700 }}>{item.jenis || item.judul}</td>
+                  <td style={{ verticalAlign: "top" }}>
+                    {item.butir.length === 1 ? (
+                      item.butir[0]
+                    ) : (
+                      <ol style={{ margin: 0, paddingLeft: "1.2rem" }}>
+                        {item.butir.map((b, bi) => (
+                          <li key={bi} style={{ marginBottom: "2px" }}>{b}</li>
+                        ))}
+                      </ol>
+                    )}
+                  </td>
+                  <td className="dlk-periksa__cek" style={{ verticalAlign: "top" }}>☐</td>
+                </tr>
               ))}
             </tbody>
           </table>

@@ -3814,26 +3814,26 @@ button {
   break-inside: avoid;
 }
 
-/* Lebar kolom berupa persen lebar kertas lanskap (273 mm area cetak): No 4%, Tanggal 12%, Keterangan 46%, Lokasi 25%, Jumlah 13%.
+/* Lebar kolom perdiem/timesheet A4 lanskap (tabel 245 mm): No 10mm, Tanggal 28mm, Keterangan 120mm, Lokasi 57mm, Jumlah 30mm.
    Docx memakai pembagian yang sama (lib/docxGenerator.ts, LEBAR_KOLOM_TIMESHEET). */
 .dsc-ts__k-no {
-  width: 4%;
+  width: calc(10 / 245 * 100%);
 }
 
 .dsc-ts__k-tgl {
-  width: 12%;
+  width: calc(28 / 245 * 100%);
 }
 
 .dsc-ts__k-ket {
-  width: 46%;
+  width: calc(120 / 245 * 100%);
 }
 
 .dsc-ts__k-lok {
-  width: 25%;
+  width: calc(57 / 245 * 100%);
 }
 
 .dsc-ts__k-jml {
-  width: 13%;
+  width: calc(30 / 245 * 100%);
 }
 
 /* Di layar lembar lanskap berbentuk kertas A4 mendatar: tabel meregang mengisi sisa tinggi, jadi baris lebih lapang bila harinya
@@ -4880,7 +4880,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-/* Kotak tempel bukti asli: garis putus-putus, latar abu sangat muda, tinggi minimum dalam mm seperti di Word */
+/* Kotak tempel bukti asli: ruang kosong dicadangkan (v06: tanpa label/border), tinggi minimum dalam mm seperti di Word */
 .dlk-kotak {
   box-sizing: border-box;
   display: flex;
@@ -4894,6 +4894,13 @@ button {
   background: #fafafa;
   text-align: center;
   break-inside: avoid;
+}
+
+.dlk-kotak--bersih {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 
 .dlk-kotak__judul {
@@ -4929,13 +4936,27 @@ button {
   margin-top: calc(4 * var(--mm));
 }
 
+.dlk-daftar-pasangan--dua-kolom {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: calc(4 * var(--mm)) !important;
+}
+
 .dlk-pasangan--samping {
   display: grid;
   align-items: stretch;
 }
 
-.dlk-pasangan--samping > .dlk-kotak {
+.dlk-pasangan--samping > .dlk-struk__foto {
   border-right: 0;
+}
+
+.dlk-pasangan--samping > .dlk-kotak {
+  border-left: 1px dashed #777777;
+}
+
+.dlk-pasangan--samping > .dlk-kotak--bersih {
+  border-left: none !important;
 }
 
 .dlk-pasangan--samping > .dlk-foto {
@@ -4955,7 +4976,7 @@ button {
 .dlk-pasangan--bawah {
   display: flex;
   flex-direction: column;
-  gap: calc(2 * var(--mm));
+  gap: 0;
 }
 
 .dlk-pasangan--bawah > .dlk-foto--atas {
@@ -4967,6 +4988,7 @@ button {
   gap: calc(2 * var(--pt));
   padding: calc(3 * var(--pt));
   border: 1px solid #cccccc;
+  border-bottom: 0;
   background: #ffffff;
   text-align: center;
   max-height: calc(70 * var(--mm));
@@ -4979,6 +5001,15 @@ button {
 
 .dlk-pasangan--bawah > .dlk-kotak--bawah {
   width: 100%;
+}
+
+.dlk-pasangan--bawah > .dlk-kotak--bawah > .dlk-kotak {
+  border-top: 1px dashed #777777;
+}
+
+.dlk-pasangan--bawah > .dlk-kotak--bawah > .dlk-kotak--bersih {
+  border: none !important;
+  border-top: none !important;
 }
 
 .dlk-foto__label {
@@ -5016,7 +5047,7 @@ button {
   gap: calc(3 * var(--pt));
   padding: calc(3 * var(--pt));
   border: 1px solid #cccccc;
-  border-left: 0;
+  border-right: 0;
   text-align: center;
   min-width: 0;
 }

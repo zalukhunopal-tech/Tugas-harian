@@ -7,6 +7,15 @@ import { barisDiklaimUntuk, barisRincianLengkap, uraianTampil } from "./kelengka
 import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { profilUntukDokumen } from "./profilPelapor";
 import { buktiPdf, kenaliGambar } from "./gambarDokumen";
+import { TABEL_KELENGKAPAN_LEMBAGA } from "./tabelLembagaSPJ";
+import {
+  pelajariTransaksi,
+  taksirUkuranBuktiAdaptif,
+  susunManifesPasangan,
+  ManifesPasanganBukti,
+  StatusUkuranFisik,
+  JenisMediaBukti,
+} from "./dataBelajarBukti";
 
 /**
  * Susunan laporan dana kegiatan: satu sumber isi dan urutan untuk dokumen Word (lib/docxGenerator.ts) dan dokumen siap cetak /
@@ -55,6 +64,8 @@ export interface KotakTempelLaporan {
   /** "struk": kotak tempel potret (tata letak berdampingan); "lebar": kotak tempel selebar halaman. */
   bentuk: "lebar" | "struk";
   catatan?: string;
+  dimensiLabel?: string;
+  statusUkuran?: StatusUkuranFisik;
 }
 
 export interface PasanganBuktiLaporan {
@@ -64,6 +75,11 @@ export interface PasanganBuktiLaporan {
   foto?: BuktiItem;
   kotak: KotakTempelLaporan;
   tataLetak: "samping" | "bawah";
+  statusUkuran?: StatusUkuranFisik;
+  jenisMedia?: JenisMediaBukti;
+  lebarKertasMm?: number;
+  tinggiKertasMm?: number;
+  sumberReferensi?: string;
 }
 
 export interface BlokTransaksiLaporan {
@@ -148,6 +164,13 @@ export interface JustifikasiLaporan {
   tempatTanggal: string;
 }
 
+export interface ButirDaftarPeriksa {
+  nomor?: number;
+  judul: string;
+  jenis?: string;
+  butir: string[];
+}
+
 export interface SusunanLaporan {
   kegiatan: DataKegiatan;
   /** Profil Pelapor dengan isian kosong dilengkapi dari kop timesheet (lihat profilUntukDokumen). */
@@ -166,7 +189,8 @@ export interface SusunanLaporan {
   totalBukti: number;
   totalPengeluaran: number;
   penyelesaian: RingkasanPenyelesaian;
-  daftarPeriksa: Array<{ judul: string; butir: string[] }> | null;
+  daftarPeriksa: ButirDaftarPeriksa[] | null;
+  manifesBukti?: ManifesPasanganBukti[];
   /** Pengeluaran kegiatan sesuai urutan dokumen dan nomornya (1..N). */
   pengeluaran: Transaksi[];
   nomorUrut: Map<string, number>;
@@ -180,6 +204,8 @@ export interface OpsiSusunanLaporan {
   profilPelapor: ProfilPelapor;
   urutanTransaksiIds?: string[];
   sertakanDaftarPeriksa?: boolean;
+  tampilkanTabelRingkasanKategori?: boolean;
+  mountStyle?: { label?: boolean; border?: boolean; fill?: boolean };
   ukuranFoto?: Map<string, { lebar: number; tinggi: number }>;
 }
 
@@ -290,6 +316,7 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
   baris.push([
     { teks: `Pelapor: ${profil.nama}`, tebal: true },
     { teks: `  |  Tanggal: ${formatTanggalIndo(t.tanggal)}`, warna: "abu" },
+    { teks: `  |  Metode: ${t.metode || "Tunai"}`, warna: "abu" },
     ...(d.namaPenjualPenyedia ? [{ teks: `  |  Penyedia/Toko: ${d.namaPenjualPenyedia}`, warna: "abu" as const }] : []),
   ]);
   if (d.keteranganLaporan || t.catatan) baris.push([{ teks: "Keterangan: ", tebal: true }, { teks: d.keteranganLaporan || t.catatan || "-" }]);
@@ -406,47 +433,24 @@ export interface UkuranKotakHasil {
 export function hitungUkuranKotakDanTataLetak(
   rasio: number | undefined,
   jenisBukti = "Kuitansi",
-  manual?: UkuranKotakTempel
+  manual?: UkuranKotakTempel,
+  penyedia?: string,
+  deskripsi?: string
 ): UkuranKotakHasil {
-  // Pilihan manual kotakTempel A/B/C dihormati
-  if (manual === "A") {
-    return { lebarMm: 85, tinggiMm: 120, tataLetak: "samping", bentuk: "struk" };
-  }
-  if (manual === "B") {
-    return { lebarMm: 170, tinggiMm: 65, tataLetak: "bawah", bentuk: "lebar" };
-  }
-  if (manual === "C") {
-    return { lebarMm: 170, tinggiMm: 130, tataLetak: "bawah", bentuk: "lebar" };
-  }
-
-  // Dari rasio foto bukti:
-  if (typeof rasio === "number" && Number.isFinite(rasio) && rasio > 0) {
-    if (rasio >= BATAS_RASIO.POTRET_SEMPIT) {
-      const tinggiHitung = Math.round(85 * rasio + 10);
-      const tinggiMm = Math.min(230, Math.max(100, tinggiHitung));
-      const catatan = tinggiHitung > 230 ? "Lipat struk bila lebih panjang dari kotak" : undefined;
-      return { lebarMm: 85, tinggiMm, tataLetak: "samping", bentuk: "struk", catatan };
-    }
-    if (rasio >= BATAS_RASIO.POTRET) {
-      const tinggiMm = Math.min(200, Math.max(110, Math.round(100 * rasio + 10)));
-      return { lebarMm: 100, tinggiMm, tataLetak: "samping", bentuk: "struk" };
-    }
-    if (rasio >= BATAS_RASIO.HAMPIR_PERSEGI) {
-      return { lebarMm: 100, tinggiMm: 100, tataLetak: "samping", bentuk: "struk" };
-    }
-    // lanskap < 0.87
-    const tinggiMm = Math.min(120, Math.max(55, Math.round(170 * rasio + 10)));
-    return { lebarMm: 170, tinggiMm, tataLetak: "bawah", bentuk: "lebar" };
-  }
-
-  // Tanpa foto atau ukuran tidak terbaca:
-  if (jenisBukti === "Struk thermal (minimarket/SPBU)") {
-    return { lebarMm: 85, tinggiMm: 120, tataLetak: "samping", bentuk: "struk", catatan: "(Struk Thermal Mudah Pudar)" };
-  }
-  if (jenisBukti === "Nota") {
-    return { lebarMm: 100, tinggiMm: 130, tataLetak: "samping", bentuk: "struk" };
-  }
-  return { lebarMm: 170, tinggiMm: 65, tataLetak: "bawah", bentuk: "lebar" };
+  const hasil = taksirUkuranBuktiAdaptif({
+    rasio,
+    jenisBukti,
+    manual,
+    penyedia,
+    deskripsi,
+  });
+  return {
+    lebarMm: hasil.lebarMm,
+    tinggiMm: hasil.tinggiMm,
+    tataLetak: hasil.tataLetak,
+    bentuk: hasil.bentuk,
+    catatan: hasil.catatan,
+  };
 }
 
 export function rasioFotoBukti(
@@ -495,6 +499,13 @@ function susunPasanganBukti(
   const jenisBukti = d.jenisBukti || "Kuitansi";
   const manual = d.kotakTempel;
   const diklaim = barisDiklaimUntuk(t, profil.nama);
+  const penyedia =
+    d.konsumsi?.penyedia ||
+    d.akomodasi?.namaPemilik ||
+    d.rentalKendaraan?.namaPemilik ||
+    d.transportasi?.namaSopir ||
+    d.transportasi?.moda ||
+    "";
   const judulKotak =
     jenisBukti === "Struk thermal (minimarket/SPBU)"
       ? "TEMPEL STRUK ASLI DI SINI"
@@ -505,7 +516,14 @@ function susunPasanganBukti(
   const foto = buktiSemua.filter((b) => !buktiPdf(b));
 
   if (foto.length === 0) {
-    const ukuran = hitungUkuranKotakDanTataLetak(undefined, jenisBukti, manual);
+    const ukuran = taksirUkuranBuktiAdaptif({
+      rasio: undefined,
+      deskripsi: t.deskripsi,
+      kategori: t.kategori,
+      penyedia,
+      jenisBukti,
+      manual,
+    });
     const keterangan = `No. ${nomor} · ${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
     return {
       pasangan: [
@@ -520,8 +538,15 @@ function susunPasanganBukti(
             lebarMm: ukuran.lebarMm,
             bentuk: ukuran.bentuk,
             catatan: ukuran.catatan,
+            dimensiLabel: `${ukuran.lebarMm} × ${ukuran.tinggiMm} mm`,
+            statusUkuran: ukuran.status,
           },
           tataLetak: ukuran.tataLetak,
+          statusUkuran: ukuran.status,
+          jenisMedia: ukuran.jenisMedia,
+          lebarKertasMm: ukuran.lebarKertasMm,
+          tinggiKertasMm: ukuran.tinggiKertasMm,
+          sumberReferensi: ukuran.sumberReferensi,
         },
       ],
       lampiranPdf,
@@ -533,7 +558,14 @@ function susunPasanganBukti(
     const urutan = idx + 1;
     const label = total > 1 ? `Bukti ${urutan} dari ${total}` : undefined;
     const rasio = rasioFotoBukti(f, ukuranFoto);
-    const ukuran = hitungUkuranKotakDanTataLetak(rasio, jenisBukti, manual);
+    const ukuran = taksirUkuranBuktiAdaptif({
+      rasio,
+      deskripsi: t.deskripsi,
+      kategori: t.kategori,
+      penyedia,
+      jenisBukti,
+      manual,
+    });
     const labelBagian = total > 1 ? `Bukti ${urutan} dari ${total} · ` : "";
     const keterangan = `No. ${nomor} · ${labelBagian}${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
     return {
@@ -548,8 +580,15 @@ function susunPasanganBukti(
         lebarMm: ukuran.lebarMm,
         bentuk: ukuran.bentuk,
         catatan: ukuran.catatan,
+        dimensiLabel: `${ukuran.lebarMm} × ${ukuran.tinggiMm} mm`,
+        statusUkuran: ukuran.status,
       },
       tataLetak: ukuran.tataLetak,
+      statusUkuran: ukuran.status,
+      jenisMedia: ukuran.jenisMedia,
+      lebarKertasMm: ukuran.lebarKertasMm,
+      tinggiKertasMm: ukuran.tinggiKertasMm,
+      sumberReferensi: ukuran.sumberReferensi,
     };
   });
 
@@ -782,14 +821,44 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
     return { nomor: i + 1, label: labelKategori(kategori), jumlahBukti: daftar.length, jumlah: daftar.reduce((s, t) => s + t.jumlah, 0) };
   });
 
+  pelajariTransaksi(o.transaksi);
+
   let daftarPeriksa: SusunanLaporan["daftarPeriksa"] = null;
   if (o.sertakanDaftarPeriksa ?? true) {
-    daftarPeriksa = [];
-    if (KETENTUAN_DANA_KEGIATAN["Umum"]?.butir?.length) daftarPeriksa.push({ judul: "Ketentuan Umum SPJ", butir: KETENTUAN_DANA_KEGIATAN["Umum"].butir });
-    const dipakai = new Set(pengeluaran.map((t) => t.kategori));
-    for (const kategori of KELOMPOK_DANA_KEGIATAN) {
-      const butir = KETENTUAN_DANA_KEGIATAN[kategori]?.butir;
-      if (dipakai.has(kategori) && butir && butir.length > 0) daftarPeriksa.push({ judul: `Ketentuan Khusus: ${labelKategori(kategori)}`, butir });
+    daftarPeriksa = TABEL_KELENGKAPAN_LEMBAGA.map((item) => ({
+      nomor: item.nomor,
+      judul: `${item.nomor}. ${item.jenis}`,
+      jenis: item.jenis,
+      butir: item.dokumenPendukung,
+    }));
+  }
+
+  const manifesBukti: ManifesPasanganBukti[] = [];
+  for (const k of kelompok) {
+    for (const b of k.blok) {
+      for (const p of b.pasangan) {
+        if (p.foto) {
+          const detail = b.transaksi.detailKegiatan ?? {};
+          const penyedia =
+            detail.konsumsi?.penyedia ||
+            detail.akomodasi?.namaPemilik ||
+            detail.rentalKendaraan?.namaPemilik ||
+            detail.transportasi?.namaSopir ||
+            detail.transportasi?.moda ||
+            "";
+          const hasilTaksir = taksirUkuranBuktiAdaptif({
+            rasio: rasioFotoBukti(p.foto, o.ukuranFoto),
+            deskripsi: b.transaksi.deskripsi,
+            kategori: b.transaksi.kategori,
+            penyedia,
+            jenisBukti: detail.jenisBukti,
+            manual: detail.kotakTempel,
+          });
+          manifesBukti.push(
+            susunManifesPasangan(b.transaksi, b.nomor, p.foto, p.urutan, p.total, hasilTaksir)
+          );
+        }
+      }
     }
   }
 
@@ -816,6 +885,7 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
     totalPengeluaran: pengeluaran.reduce((s, t) => s + t.jumlah, 0),
     penyelesaian: hitungPenyelesaian(trxKegiatan),
     daftarPeriksa,
+    manifesBukti,
     pengeluaran,
     nomorUrut,
     transaksiKegiatan: trxKegiatan,

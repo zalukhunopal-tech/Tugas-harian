@@ -194,8 +194,8 @@ async function main() {
   const xmlFoto = await zipFoto.file("word/document.xml")!.async("string");
   const teksFoto = xmlFoto.replace(/<[^>]+>/g, "");
   const jumlahKotakPutus = (xmlFoto.match(/w:val="dashed"/g) ?? []).length;
-  cek("jumlah kotak tempel di document.xml sesuai dengan jumlah foto (5 kotak)", jumlahKotakPutus >= 5, jumlahKotakPutus);
-  cek("tiap foto berpasangan dengan kotaknya berlabel Bukti n dari N", /Bukti 3 dari 3/.test(teksFoto) && /Bukti 2 dari 2/.test(teksFoto));
+  cek("kotak tempel v06 bersih tanpa garis putus-putus atau label (ruang asli dicadangkan secara geometri)", jumlahKotakPutus === 0 && !teksFoto.includes("TEMPEL"), jumlahKotakPutus);
+  cek("tiap foto berpasangan dengan label Bukti n dari N", /Bukti 3 dari 3/.test(teksFoto) && /Bukti 2 dari 2/.test(teksFoto));
   cek("ringkasan penyelesaian: pita judul, total diakui, status, dan rumus", /RINGKASAN PENYELESAIAN DANA KEGIATAN/.test(teksFoto) && /Total pengeluaran yang diakui/.test(teksFoto) && /SISA DANA YANG HARUS DIKEMBALIKAN/i.test(teksFoto) && /Dana awal Rp\s?3\.000\.000 − total pengeluaran yang diakui/.test(teksFoto));
   cek("ringkasan tanpa garis titik-titik", !/\.{6,}/.test(teksFoto));
 

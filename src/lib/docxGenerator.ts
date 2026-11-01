@@ -37,6 +37,12 @@ import {
   warnaPenyelesaian,
 } from "./susunanLaporan";
 
+export interface MountStyleOptions {
+  label?: boolean;
+  border?: boolean;
+  fill?: boolean;
+}
+
 export interface OpsiLaporanDocx {
   transaksi: Transaksi[];
   kegiatan: DataKegiatan;
@@ -46,6 +52,8 @@ export interface OpsiLaporanDocx {
   urutanTransaksiIds?: string[];
   sertakanDaftarPeriksa?: boolean;
   googleToken?: string;
+  mountStyle?: MountStyleOptions;
+  tampilkanTabelRingkasanKategori?: boolean;
 }
 
 /** Foto bukti atau foto pendukung siap disisipkan (format dan ukuran asli dikenali), atau null bila tidak bisa dimuat. */
@@ -190,7 +198,8 @@ function buatRingkasanPenyelesaian(p: RingkasanPenyelesaian): Table {
 function buatKotakTempel(
   teksUtama: string,
   subTeks: string,
-  tinggiMm: number = 65
+  tinggiMm: number = 65,
+  mountStyle?: MountStyleOptions
 ): Table {
   const tinggiTwip = convertMillimetersToTwip(tinggiMm);
   const dashedBorder = {
@@ -198,6 +207,55 @@ function buatKotakTempel(
     size: 6,
     color: "888888",
   };
+  const tanpaBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "FFFFFF",
+  };
+
+  const borders = mountStyle?.border
+    ? {
+        top: dashedBorder,
+        bottom: dashedBorder,
+        left: dashedBorder,
+        right: dashedBorder,
+      }
+    : {
+        top: tanpaBorder,
+        bottom: tanpaBorder,
+        left: tanpaBorder,
+        right: tanpaBorder,
+      };
+
+  const children = mountStyle?.label
+    ? [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 80, after: 40 },
+          children: [
+            new TextRun({
+              text: teksUtama,
+              bold: true,
+              font: "Arial",
+              size: 20, // 10pt
+              color: "777777",
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 },
+          children: [
+            new TextRun({
+              text: subTeks,
+              font: "Arial",
+              size: 18, // 9pt
+              color: "999999",
+            }),
+          ],
+        }),
+      ]
+    : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })];
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -208,43 +266,9 @@ function buatKotakTempel(
         children: [
           new TableCell({
             verticalAlign: VerticalAlign.CENTER,
-            borders: {
-              top: dashedBorder,
-              bottom: dashedBorder,
-              left: dashedBorder,
-              right: dashedBorder,
-            },
-            shading: {
-              type: ShadingType.CLEAR,
-              fill: "FAFAFA",
-            },
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 80, after: 40 },
-                children: [
-                  new TextRun({
-                    text: teksUtama,
-                    bold: true,
-                    font: "Arial",
-                    size: 20, // 10pt
-                    color: "777777",
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 80 },
-                children: [
-                  new TextRun({
-                    text: subTeks,
-                    font: "Arial",
-                    size: 18, // 9pt
-                    color: "999999",
-                  }),
-                ],
-              }),
-            ],
+            borders,
+            shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+            children,
           }),
         ],
       }),
@@ -410,13 +434,19 @@ function buatKotakStrukThermal(
  */
 function buatTabelPasanganSamping(
   p: PasanganBuktiLaporan,
-  foto?: GambarDokumen | null
+  foto?: GambarDokumen | null,
+  mountStyle?: MountStyleOptions
 ): Table {
   const tinggiTwip = convertMillimetersToTwip(p.kotak.tinggiMm);
   const dashedBorder = {
     style: BorderStyle.DASHED,
     size: 6,
     color: "888888",
+  };
+  const tanpaBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "FFFFFF",
   };
   const solidBorder = {
     style: BorderStyle.SINGLE,
@@ -473,21 +503,32 @@ function buatTabelPasanganSamping(
     );
   }
 
+  const bordersKotak = mountStyle?.border
+    ? {
+        top: dashedBorder,
+        bottom: dashedBorder,
+        left: dashedBorder,
+        right: dashedBorder,
+      }
+    : {
+        top: tanpaBorder,
+        bottom: tanpaBorder,
+        left: tanpaBorder,
+        right: tanpaBorder,
+      };
+
   const selKotak = new TableCell({
     width: { size: lebarKotakPersen, type: WidthType.PERCENTAGE },
     verticalAlign: VerticalAlign.CENTER,
-    borders: {
-      top: dashedBorder,
-      bottom: dashedBorder,
-      left: dashedBorder,
-      right: dashedBorder,
-    },
-    shading: { type: ShadingType.CLEAR, fill: "FAFAFA" },
-    margins: { top: 60, bottom: 60, left: 60, right: 60 },
-    children: anakKotak,
+    borders: bordersKotak,
+    shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+    margins: { top: 0, bottom: 0, left: 0, right: 0 },
+    children: mountStyle?.label
+      ? anakKotak
+      : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
   });
 
-  const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label.toUpperCase()})` : "FOTO BUKTI DIGITAL";
+  const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label})` : "FOTO BUKTI DIGITAL";
   const anakFoto: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
@@ -576,13 +617,19 @@ function buatTabelPasanganSamping(
  */
 function buatTabelPasanganBawah(
   p: PasanganBuktiLaporan,
-  foto?: GambarDokumen | null
+  foto?: GambarDokumen | null,
+  mountStyle?: MountStyleOptions
 ): Table {
   const tinggiTwip = convertMillimetersToTwip(p.kotak.tinggiMm);
   const dashedBorder = {
     style: BorderStyle.DASHED,
     size: 6,
     color: "888888",
+  };
+  const tanpaBorder = {
+    style: BorderStyle.NONE,
+    size: 0,
+    color: "FFFFFF",
   };
   const solidBorder = {
     style: BorderStyle.SINGLE,
@@ -640,7 +687,7 @@ function buatTabelPasanganBawah(
 
   // Jika ada foto, tampilkan di atas kotak (lanskap: maks lebar 170 mm ~ 580 px, maks tinggi ~70 mm ~ 260 px)
   if (foto) {
-    const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label.toUpperCase()})` : "FOTO BUKTI DIGITAL";
+    const judulFoto = p.label ? `FOTO BUKTI DIGITAL (${p.label})` : "FOTO BUKTI DIGITAL";
     const anakFoto: Paragraph[] = [
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -697,6 +744,20 @@ function buatTabelPasanganBawah(
     );
   }
 
+  const bordersKotak = mountStyle?.border
+    ? {
+        top: dashedBorder,
+        bottom: dashedBorder,
+        left: dashedBorder,
+        right: dashedBorder,
+      }
+    : {
+        top: tanpaBorder,
+        bottom: tanpaBorder,
+        left: tanpaBorder,
+        right: tanpaBorder,
+      };
+
   // Baris kotak tempel
   baris.push(
     new TableRow({
@@ -706,15 +767,12 @@ function buatTabelPasanganBawah(
         new TableCell({
           width: { size: 100, type: WidthType.PERCENTAGE },
           verticalAlign: VerticalAlign.CENTER,
-          borders: {
-            top: dashedBorder,
-            bottom: dashedBorder,
-            left: dashedBorder,
-            right: dashedBorder,
-          },
-          shading: { type: ShadingType.CLEAR, fill: "FAFAFA" },
-          margins: { top: 60, bottom: 60, left: 60, right: 60 },
-          children: anakKotak,
+          borders: bordersKotak,
+          shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+          children: mountStyle?.label
+            ? anakKotak
+            : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
         }),
       ],
     })
@@ -722,12 +780,105 @@ function buatTabelPasanganBawah(
 
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: tanpaBorder,
+      bottom: tanpaBorder,
+      left: tanpaBorder,
+      right: tanpaBorder,
+      insideHorizontal: tanpaBorder,
+      insideVertical: tanpaBorder,
+    },
     rows: baris,
   });
 }
 
+/**
+ * Dua struk potret (tata letak bawah) dalam dua kolom pada satu halaman (contoh: dua struk snack No. 8).
+ */
+function buatTabelPasanganDuaKolom(
+  p1: PasanganBuktiLaporan,
+  foto1: GambarDokumen | null,
+  p2: PasanganBuktiLaporan,
+  foto2: GambarDokumen | null,
+  mountStyle?: MountStyleOptions
+): Table {
+  const tinggiTwip1 = convertMillimetersToTwip(p1.kotak.tinggiMm);
+  const tinggiTwip2 = convertMillimetersToTwip(p2.kotak.tinggiMm);
+  const tinggiTwip = Math.max(tinggiTwip1, tinggiTwip2);
+  const dashedBorder = { style: BorderStyle.DASHED, size: 6, color: "888888" };
+  const tanpaBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const solidBorder = { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" };
+
+  const bikinSelFoto = (p: PasanganBuktiLaporan, f: GambarDokumen | null) => {
+    const judul = p.label ? `FOTO BUKTI DIGITAL (${p.label})` : "FOTO BUKTI DIGITAL";
+    const anak: Paragraph[] = [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 40, after: 40 },
+        children: [new TextRun({ text: judul, bold: true, font: "Arial", size: 17, color: "666666" })],
+      }),
+    ];
+    if (f) {
+      try {
+        anak.push(paragrafGambar(f, 260, 260));
+      } catch {
+        anak.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "[Foto tidak dapat ditampilkan]", italics: true, font: "Arial", size: 17, color: "888888" })] }));
+      }
+    } else {
+      anak.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "[Belum ada foto digital]", italics: true, font: "Arial", size: 17, color: "888888" })] }));
+    }
+    return new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: { top: solidBorder, bottom: solidBorder, left: solidBorder, right: solidBorder },
+      shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
+      margins: { top: 40, bottom: 40, left: 40, right: 40 },
+      children: anak,
+    });
+  };
+
+  const bikinSelKotak = (p: PasanganBuktiLaporan) => {
+    return new TableCell({
+      width: { size: 50, type: WidthType.PERCENTAGE },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: mountStyle?.border
+        ? { top: dashedBorder, bottom: dashedBorder, left: dashedBorder, right: dashedBorder }
+        : { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder },
+      shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 },
+      children: mountStyle?.label
+        ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: p.kotak.judul, font: "Arial", size: 18, color: "888888" })] })]
+        : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
+    });
+  };
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: tanpaBorder,
+      bottom: tanpaBorder,
+      left: tanpaBorder,
+      right: tanpaBorder,
+      insideHorizontal: tanpaBorder,
+      insideVertical: tanpaBorder,
+    },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [bikinSelFoto(p1, foto1), bikinSelFoto(p2, foto2)],
+      }),
+      new TableRow({
+        cantSplit: true,
+        height: { value: tinggiTwip, rule: HeightRule.ATLEAST },
+        children: [bikinSelKotak(p1), bikinSelKotak(p2)],
+      }),
+    ],
+  });
+}
+
 /** Proporsi kolom timesheet (persen): No, Tanggal, Keterangan, Lokasi, Jumlah. Sama dengan tabel di dokumen siap cetak (style.css). */
-export const LEBAR_KOLOM_TIMESHEET = [4, 12, 46, 25, 13];
+export const LEBAR_KOLOM_TIMESHEET = [4.08, 11.43, 48.98, 23.27, 12.24];
+export const LEBAR_KOLOM_TIMESHEET_MM = [10, 28, 120, 57, 30];
 /** Tinggi baris timesheet (twip): ruang tabel pada halaman lanskap A4 (170 mm dikurangi kop, data, total, tanda tangan) dibagi jumlah hari. */
 const RUANG_BARIS_TIMESHEET = 3900;
 const TINGGI_BARIS_MIN_TIMESHEET = 340;
@@ -953,18 +1104,19 @@ export async function buatDokumenLaporanKegiatanDocx(
   // tidak berhimpit, bagian lain tetap potret. `childrenSections` selalu menunjuk isi bagian yang sedang diisi.
   // Urutan dokumen: timesheet uang harian (lanskap) paling depan, lalu identitas, penerimaan dana, dan tiap kategori (tabel lalu
   // bukti dan kotak tempelnya, potret), ditutup rekapitulasi penyelesaian dana.
+  const mountStyle: MountStyleOptions = opsi.mountStyle ?? { label: false, border: false, fill: false };
   const daftarPerdiemUtama = susunan.daftarPerdiem;
-  const bagianWord: { lanskap: boolean; isi: (Paragraph | Table)[] }[] = daftarPerdiemUtama
+  const bagianWord: { lanskap: boolean; marginKhususMm?: number; isi: (Paragraph | Table)[] }[] = daftarPerdiemUtama
     ? [
-        { lanskap: true, isi: buatBagianPerdiemTimesheet(daftarPerdiemUtama) },
+        { lanskap: true, marginKhususMm: 25, isi: buatBagianPerdiemTimesheet(daftarPerdiemUtama) },
         { lanskap: false, isi: [] },
       ]
     : [{ lanskap: false, isi: [] }];
   let childrenSections = bagianWord[bagianWord.length - 1].isi;
   /** Pindah ke bagian baru (mulai di halaman baru) bila orientasinya berbeda; true bila bagian baru dibuat. */
-  const pindahOrientasi = (lanskap: boolean): boolean => {
+  const pindahOrientasi = (lanskap: boolean, marginKhususMm?: number): boolean => {
     if (bagianWord[bagianWord.length - 1].lanskap === lanskap) return false;
-    const baru = { lanskap, isi: [] as (Paragraph | Table)[] };
+    const baru = { lanskap, marginKhususMm, isi: [] as (Paragraph | Table)[] };
     bagianWord.push(baru);
     childrenSections = baru.isi;
     return true;
@@ -1197,8 +1349,8 @@ export async function buatDokumenLaporanKegiatanDocx(
   // foto bukti digital (semua foto, dua per baris), keterangan, kotak tambahan, dan foto pendukung
   // =========================================================
   for (const kel of susunan.kelompok) {
-    // Bagian potret baru sudah mulai di halaman baru, jadi judulnya tidak diberi pemisah halaman lagi (tanpa halaman kosong).
-    const bagianBaruKelompok = pindahOrientasi(false);
+    const lanskapAkomodasi = kel.kategori === "Akomodasi";
+    const bagianBaruKelompok = pindahOrientasi(lanskapAkomodasi, lanskapAkomodasi ? 15 : undefined);
     childrenSections.push(
       new Paragraph({
         pageBreakBefore: !bagianBaruKelompok,
@@ -1230,7 +1382,7 @@ export async function buatDokumenLaporanKegiatanDocx(
           pageBreakBefore: blok.halamanBaru,
           keepNext: true,
           spacing: { before: blok.halamanBaru ? 80 : 180, after: 60 },
-          tabStops: [{ type: AlignmentType.RIGHT, position: convertMillimetersToTwip(170) }],
+          tabStops: [{ type: AlignmentType.RIGHT, position: convertMillimetersToTwip(lanskapAkomodasi ? 240 : 170) }],
           children: [
             new TextRun({ text: `No. ${blok.nomor}   ${trx.deskripsi}`, bold: true, underline: {}, font: "Arial", size: 22, color: "111111" }),
             new TextRun({ text: `\t${formatRupiah(trx.jumlah)}`, bold: true, underline: {}, font: "Arial", size: 22, color: "111111" }),
@@ -1239,24 +1391,44 @@ export async function buatDokumenLaporanKegiatanDocx(
       );
 
       // 1. Pasangan bukti asli dan foto bukti digital (satu kotak per foto bukan PDF)
-      for (const [idxPasangan, p] of blok.pasangan.entries()) {
-        if (idxPasangan > 0) {
-          // Jarak antarpasangan minimal 4 mm
-          childrenSections.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
+      const duaKolom =
+        blok.pasangan.length === 2 &&
+        blok.pasangan.every((p) => p.tataLetak === "bawah" && p.kotak.lebarMm <= 90);
+
+      if (duaKolom) {
+        const p1 = blok.pasangan[0];
+        const p2 = blok.pasangan[1];
+        let foto1: GambarDokumen | null = null;
+        let foto2: GambarDokumen | null = null;
+        if (p1.foto) {
+          foto1 = gambarCache.get(p1.foto.id) ?? (await muatGambar(p1.foto, googleToken));
+          if (foto1) gambarCache.set(p1.foto.id, foto1);
         }
-        let foto: GambarDokumen | null = null;
-        if (p.foto) {
-          if (gambarCache.has(p.foto.id)) {
-            foto = gambarCache.get(p.foto.id) ?? null;
-          } else {
-            foto = await muatGambar(p.foto, googleToken);
-            gambarCache.set(p.foto.id, foto);
+        if (p2.foto) {
+          foto2 = gambarCache.get(p2.foto.id) ?? (await muatGambar(p2.foto, googleToken));
+          if (foto2) gambarCache.set(p2.foto.id, foto2);
+        }
+        childrenSections.push(buatTabelPasanganDuaKolom(p1, foto1, p2, foto2, mountStyle));
+      } else {
+        for (const [idxPasangan, p] of blok.pasangan.entries()) {
+          if (idxPasangan > 0) {
+            // Jarak antarpasangan minimal 4 mm
+            childrenSections.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
           }
-        }
-        if (p.tataLetak === "samping") {
-          childrenSections.push(buatTabelPasanganSamping(p, foto));
-        } else {
-          childrenSections.push(buatTabelPasanganBawah(p, foto));
+          let foto: GambarDokumen | null = null;
+          if (p.foto) {
+            if (gambarCache.has(p.foto.id)) {
+              foto = gambarCache.get(p.foto.id) ?? null;
+            } else {
+              foto = await muatGambar(p.foto, googleToken);
+              gambarCache.set(p.foto.id, foto);
+            }
+          }
+          if (p.tataLetak === "samping") {
+            childrenSections.push(buatTabelPasanganSamping(p, foto, mountStyle));
+          } else {
+            childrenSections.push(buatTabelPasanganBawah(p, foto, mountStyle));
+          }
         }
       }
 
@@ -1275,7 +1447,7 @@ export async function buatDokumenLaporanKegiatanDocx(
 
       // 4. Kotak tempel tambahan sesuai kelompok (boarding pass, STNK, KTP, NPWP)
       for (const tambahan of blok.kotakTambahan) {
-        childrenSections.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }), buatKotakTempel(tambahan.judul, tambahan.keterangan, tambahan.tinggiMm));
+        childrenSections.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }), buatKotakTempel(tambahan.judul, tambahan.keterangan, tambahan.tinggiMm, mountStyle));
       }
 
       // 5. Foto pendukung transaksi (lebar maks. 12 cm, keterangan miring)
@@ -1480,39 +1652,53 @@ export async function buatDokumenLaporanKegiatanDocx(
       })
     );
 
-    const daftarKetentuanItems = (susunan.daftarPeriksa ?? []).map((g) => ({ kelompok: g.judul, butir: g.butir }));
-
     const barisChecklist: TableRow[] = [
       new TableRow({
         cantSplit: true,
         children: [
           new TableCell({
-            width: { size: 8, type: WidthType.PERCENTAGE },
+            width: { size: 6, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
             borders: tableBordersStandard,
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Cek", bold: true, font: "Arial", size: 19 })],
+                children: [new TextRun({ text: "No", bold: true, font: "Arial", size: 19 })],
               }),
             ],
           }),
           new TableCell({
-            width: { size: 92, type: WidthType.PERCENTAGE },
+            width: { size: 24, type: WidthType.PERCENTAGE },
             shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
             borders: tableBordersStandard,
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
-                children: [
-                  new TextRun({
-                    text: "Persyaratan & Dokumen Kelengkapan",
-                    bold: true,
-                    font: "Arial",
-                    size: 19,
-                  }),
-                ],
+                children: [new TextRun({ text: "Jenis", bold: true, font: "Arial", size: 19 })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 64, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
+            borders: tableBordersStandard,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: "Dokumen pendukung", bold: true, font: "Arial", size: 19 })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 6, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: "F0F0F0" },
+            borders: tableBordersStandard,
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: "cek", bold: true, font: "Arial", size: 19 })],
               }),
             ],
           }),
@@ -1520,27 +1706,65 @@ export async function buatDokumenLaporanKegiatanDocx(
       }),
     ];
 
-    for (const group of daftarKetentuanItems) {
-      // Subheader kelompok ketentuan
+    (susunan.daftarPeriksa ?? []).forEach((item, idx) => {
       barisChecklist.push(
         new TableRow({
           cantSplit: true,
           children: [
             new TableCell({
-              columnSpan: 2,
-              shading: { type: ShadingType.CLEAR, fill: "F8F8F8" },
+              width: { size: 6, type: WidthType.PERCENTAGE },
               borders: tableBordersStandard,
-              verticalAlign: VerticalAlign.CENTER,
+              verticalAlign: VerticalAlign.TOP,
               children: [
                 new Paragraph({
-                  spacing: { before: 40, after: 40 },
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 30, after: 30 },
+                  children: [new TextRun({ text: String(item.nomor ?? idx + 1), font: "Arial", size: 19 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 24, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: [
+                new Paragraph({
+                  spacing: { before: 30, after: 30 },
+                  children: [new TextRun({ text: item.jenis || item.judul, bold: true, font: "Arial", size: 19 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 64, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: item.butir.map((b, bi) =>
+                new Paragraph({
+                  spacing: { before: 20, after: 20 },
                   children: [
                     new TextRun({
-                      text: group.kelompok,
-                      bold: true,
+                      text: item.butir.length > 1 ? `${bi + 1}. ${b}` : b,
                       font: "Arial",
-                      size: 20,
-                      color: "222222",
+                      size: 19,
+                    }),
+                  ],
+                })
+              ),
+            }),
+            new TableCell({
+              width: { size: 6, type: WidthType.PERCENTAGE },
+              borders: tableBordersStandard,
+              verticalAlign: VerticalAlign.TOP,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { before: 30, after: 30 },
+                  children: [
+                    new TextRun({
+                      text: "☐",
+                      font: "Arial",
+                      size: 22,
+                      color: "555555",
                     }),
                   ],
                 }),
@@ -1549,50 +1773,7 @@ export async function buatDokumenLaporanKegiatanDocx(
           ],
         })
       );
-
-      group.butir.forEach((item) => {
-        barisChecklist.push(
-          new TableRow({
-            cantSplit: true,
-            children: [
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: "☐",
-                        font: "Arial",
-                        size: 24, // Kotak centang
-                        color: "555555",
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                borders: tableBordersStandard,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 20, after: 20 },
-                    children: [
-                      new TextRun({
-                        text: item,
-                        font: "Arial",
-                        size: 19,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
-          })
-        );
-      });
-    }
+    });
 
     childrenSections.push(
       new Table({
@@ -1630,12 +1811,19 @@ export async function buatDokumenLaporanKegiatanDocx(
               // Lanskap: docx menukar lebar dan tinggi sendiri (297 x 210 mm).
               orientation: b.lanskap ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
             },
-            margin: {
-              top: convertMillimetersToTwip(20), // 2 cm
-              bottom: convertMillimetersToTwip(20), // 2 cm
-              left: convertMillimetersToTwip(20), // 2 cm
-              right: convertMillimetersToTwip(20), // 2 cm
-            },
+            margin: b.lanskap
+              ? {
+                  top: convertMillimetersToTwip(18),
+                  bottom: convertMillimetersToTwip(18),
+                  left: convertMillimetersToTwip(b.marginKhususMm ?? 25),
+                  right: convertMillimetersToTwip(b.marginKhususMm ?? 25),
+                }
+              : {
+                  top: convertMillimetersToTwip(18),
+                  bottom: convertMillimetersToTwip(18),
+                  left: convertMillimetersToTwip(15),
+                  right: convertMillimetersToTwip(15),
+                },
           },
         },
         headers: {
