@@ -210,7 +210,7 @@ export function ekstrakKandidatNominal(
   }
 
   // Kata kunci pengecualian ketat (bukan nominal belanja utama)
-  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*FEE|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*TRANSAKSI|NOMOR\s*IM3|TOTAL\s*PESANAN|JUMLAH\s*PESANAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|TELP|TELEPON|HP|PHONE|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
+  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*BANK|ADMIN\s*FEE|BIAYA\s*TRANSAKSI|BIAYA\s*LAYANAN|BIAYA\s*JASA|SERVICE\s*CHARGE|PAJAK\s*RESTO|PB1|PPN|PPN\s*11%|ONGKOS\s*KIRIM|ONGKIR|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*TRANSAKSI|NOMOR\s*IM3|STROOM|TOKEN|NO\.?\s*METER|IDPEL|ID\s*PELANGGAN|KWH|NO\s*SAMBUNGAN|TOTAL\s*PESANAN|JUMLAH\s*PESANAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|TELP|TELEPON|HP|PHONE|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
 
   // Kata kunci prioritas tinggi (Grand Total, Total Akhir, Pembayaran Sebenarnya)
   const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|TOTAL\s*HARGA|PEMBAYARAN\s*SEBENARNYA|PEMBAYARAN\s*SEBENAR|NOMINAL\s*PENDAPATAN|JUMLAH\s*DIBAYAR|NOMINAL\s*TRANSFER|TOTAL\s*TRANSAKSI|TOTAL\s*AKHIR|JUMLAH\s*TOTAL|TAGIHAN\s*TOTAL|BILL\s*TOTAL|TOTAL\s*TAGIHAN|TOTAL\s*NETTO|NET\s*TOTAL|TOTAL\s*ALL|SEBENARNYA|SERGNSINYA)\b/i;
@@ -248,6 +248,15 @@ export function ekstrakKandidatNominal(
     if (
       /\b(NIK|N\.I\.K|KTP|KABUPATEN|PROVINSI|KECAMATAN|KELURAHAN|DESA|RTRW|RT\/RW|LAHIR|AGAMA|KAWIN|GOL\.?\s*DARAH|KEWARGANEGARAAN|PEKERJAAN|BERLAKU\s*HINGGA)\b/i.test(barisAtas) ||
       (barisSebelum && /\b(NIK|N\.I\.K|KTP|TEMPAT|LAHIR|RTRW|KECAMATAN|KEWARGANEGARAAN)\b/i.test(barisSebelum))
+    ) {
+      continue;
+    }
+
+    // Abaikan jika baris memuat nomor rekening bank atau nomor akun kartu
+    if (
+      /(?:REK(?:ENING)?|ACC(?:OUNT)?|NO\.?\s*REK|NO\s*AKUN)\b/i.test(baris) ||
+      /\b\d{3,}[-\s]\d{2,}[-\s]\d{3,}/.test(baris) ||
+      /\b(?:BRI|BCA|BNI|MANDIRI|BSI)\s+[0-9\-]{8,}/i.test(baris)
     ) {
       continue;
     }
@@ -326,18 +335,26 @@ export function ekstrakKandidatNominal(
       const barisSebelumMurniLabel = Boolean(barisSebelum && !/\d/.test(barisSebelum));
       const barisDuaSebelumMurniLabel = Boolean(barisDuaSebelum && !/\d/.test(barisDuaSebelum));
 
-      const adalahTunai = polaTunaiBayar.test(barisAtas);
-
       const adalahTotalUtama =
-        !adalahTunai &&
-        (polaTotalUtama.test(barisAtas) ||
-          (barisSebelumMurniLabel && polaTotalUtama.test(barisSebelum)) ||
-          (barisDuaSebelumMurniLabel && polaTotalUtama.test(barisDuaSebelum)));
+        polaTotalUtama.test(barisAtas) ||
+        (barisSebelumMurniLabel && polaTotalUtama.test(barisSebelum)) ||
+        (barisDuaSebelumMurniLabel && polaTotalUtama.test(barisDuaSebelum));
 
       const adalahTotalBiasa =
-        !adalahTunai &&
+        !adalahTotalUtama &&
         (polaTotalBiasa.test(barisAtas) ||
           (barisSebelumMurniLabel && polaTotalBiasa.test(barisSebelum)));
+
+      const adalahSubtotal =
+        !adalahTotalUtama &&
+        !adalahTotalBiasa &&
+        (polaSubtotal.test(barisAtas) || (barisSebelumMurniLabel && polaSubtotal.test(barisSebelum)));
+
+      const adalahTunai =
+        !adalahTotalUtama &&
+        !adalahTotalBiasa &&
+        !adalahSubtotal &&
+        polaTunaiBayar.test(barisAtas);
 
       if (adalahTotalUtama) {
         bobot = 160;
@@ -345,7 +362,7 @@ export function ekstrakKandidatNominal(
       } else if (adalahTotalBiasa) {
         bobot = 100;
         label = "Total Belanja";
-      } else if (polaSubtotal.test(barisAtas) || (barisSebelumMurniLabel && polaSubtotal.test(barisSebelum))) {
+      } else if (adalahSubtotal) {
         bobot = 50;
         label = "Subtotal";
       } else if (adalahTunai) {
@@ -749,6 +766,11 @@ export function deteksiTiketTransportAir(teksMentah: string, barisDaftar: string
 } {
   const t = teksMentah.toUpperCase();
 
+  // Tolak jika jelas merupakan tiket angkutan darat (bus / travel)
+  if (/\b(ANGKUTAN\s*DARAT|BUS\b|PO\.?\s+[A-Z]|PO\.\s*BORNEO|TRAVEL\b|TERMINAL\b)\b/i.test(t) && !/SPEEDBOAT|AIR\b|PELABUHAN|DERMAGA/i.test(t)) {
+    return { isTiketAir: false };
+  }
+
   const polaArmada = /\b(RA\s*NIKLAS|NIKLAS\s*EXPRESS|MENARA\s*AS|MENARA\s*NIKLAS|MENARA\s*STHOL|SB\.?\s*MENARA|MERANA|TRISNA\s*EXPRESS|GULA-GULA|MALINAU\s*EXPRESS|SADADEWA|INDAH\s*JAYA|KALTARA\s*EXPRESS|NONI\s*EXPRESS|HARAPAN\s*BARU|TRI\s*PUTRI|SPEEDBOAT|SPEED\s*BOAT)\b/i;
   const polaRute = /\b(TARAKAN|TANJUNG\s*SELOR|TG\.?\s*SELOR|NUNUKAN|MALINAU|SEBATIK|BUNYU|SUNGAI\s*NYAMUK|TIDENG\s*PALE)\b/i;
   const polaTiket = /\b(PENUMPANG\s*LOKET|PASSENGER\s*TICKET|HARGA\s*TIKET|HARGATIKET|TIKET\s*SUDAH|JASA\s*RAHARJA|CARTERAN|KEBERANGKATAN|KEDATANGAN|KEDATA|ARRIVA|ARRIVAL|DEPARTURE|DERMAGA|PELABUHAN)\b/i;
@@ -860,6 +882,52 @@ export function deteksiTiketPesawat(teksMentah: string, barisDaftar: string[]): 
 }
 
 /**
+ * Deteksi Tiket Transportasi Darat (Bus AKAP/AKDP, Travel Antarkota, Shuttle).
+ */
+export function deteksiTiketDarat(teksMentah: string, barisDaftar: string[]): {
+  isTiketDarat: boolean;
+  operator?: string;
+  rute?: string;
+  penumpang?: string;
+} {
+  const t = teksMentah.toUpperCase();
+  const polaDarat = /\b(ANGKUTAN\s*DARAT|BUS\b|PO\.?\s+[A-Z]|PO\.\s*BORNEO|TRAVEL\b|MINIBUS|SHUTTLE|LOKET\s*BUS|TERMINAL|DAMRI|BORNEO\s*TRANS|SINAR\s*JAYA|PAHALA|LORENA|SUMBER\s*ALAM|ROSALIA)\b/i;
+  const isTiketDarat = polaDarat.test(t) && !/SPEEDBOAT|AIRPORT|BANDARA|PESAWAT|FLIGHT|DERMAGA|PELABUHAN/i.test(t);
+  if (!isTiketDarat) return { isTiketDarat: false };
+
+  let operator: string | undefined;
+  for (let i = 0; i < Math.min(4, barisDaftar.length); i++) {
+    const b = barisDaftar[i];
+    if (/\b(?:PO\.?|TRANS|TRAVEL|BUS|DAMRI)\b/i.test(b) && !apakahBarisSampah(b)) {
+      operator = bersihkanNamaToko(b);
+      break;
+    }
+  }
+
+  let rute: string | undefined;
+  const mRute = teksMentah.match(/(?:RUTE|JURUSAN|DARI|KE)[:\s]*([^\r\n]{4,40})/i);
+  if (mRute && mRute[1].trim()) {
+    rute = bersihkanNamaToko(mRute[1].replace(/KURSI.*$/i, ""));
+  }
+
+  let penumpang: string | undefined;
+  const mPen = teksMentah.match(/(?:NAMA\s*PENUMPANG|PENUMPANG|NAMA)[:\s]*([^\r\n]{3,35})/i);
+  if (mPen && mPen[1].trim()) {
+    const raw = mPen[1].split(/[\r\n]/)[0].replace(/KURSI.*$/i, "").trim();
+    if (raw && !/^(?:RUTE|KURSI|BUS|TARIF|TGL)/i.test(raw)) {
+      penumpang = bersihkanNamaToko(raw);
+    }
+  }
+
+  return {
+    isTiketDarat: true,
+    operator: operator || "Angkutan Bus/Travel",
+    rute,
+    penumpang,
+  };
+}
+
+/**
  * Parser utama deterministik untuk teks OCR.
  */
 export function uraiTeksOcrTransaksi(
@@ -903,6 +971,7 @@ export function uraiTeksOcrTransaksi(
   const ktp = deteksiDokumenKtp(teksMentah, baris);
   const tiketAir = !ktp.isKtp ? deteksiTiketTransportAir(teksMentah, baris) : { isTiketAir: false };
   const tiketPesawat = !ktp.isKtp && !tiketAir.isTiketAir ? deteksiTiketPesawat(teksMentah, baris) : { isPesawat: false };
+  const tiketDarat = !ktp.isKtp && !tiketAir.isTiketAir && !tiketPesawat.isPesawat ? deteksiTiketDarat(teksMentah, baris) : { isTiketDarat: false };
 
   // KASUS 0: Dokumen KTP / Identitas Warga (Lampiran SPJ Honorarium/Perdiem/Fasilitasi)
   if (ktp.isKtp) {
@@ -934,6 +1003,18 @@ export function uraiTeksOcrTransaksi(
     kataKunciDeskripsi = "Tiket Pesawat";
     deskripsiKustom = `Tiket Pesawat / Boarding Pass${tiketPesawat.penumpang ? ` - ${tiketPesawat.penumpang}` : ""}`;
     keteranganLaporanKustom = `Biaya tiket pesawat / boarding pass untuk transportasi dinas kegiatan${tiketPesawat.penumpang ? ` atas nama ${tiketPesawat.penumpang}` : ""}.`;
+  }
+  // KASUS 0D: Tiket Bus / Travel / Angkutan Darat
+  else if (tiketDarat.isTiketDarat) {
+    jenisBukti = "Tiket";
+    kategoriPribadi = "Transportasi";
+    kategoriKegiatan = "Transportasi";
+    namaPenjualPenyedia = tiketDarat.operator || "Angkutan Bus/Travel";
+    kataKunciDeskripsi = "Tiket Bus & Travel";
+    const ruteTeks = tiketDarat.rute ? ` (${tiketDarat.rute})` : "";
+    const penTeks = tiketDarat.penumpang ? ` - a/n ${tiketDarat.penumpang}` : "";
+    deskripsiKustom = `${namaPenjualPenyedia} - Tiket Transportasi Darat${ruteTeks}`;
+    keteranganLaporanKustom = `Biaya tiket transportasi perjalanan darat ${namaPenjualPenyedia}${ruteTeks}${penTeks} untuk operasional kegiatan.`;
   }
 
   // A. Operator Telekomunikasi & Paket Data / Internet / Pulsa
@@ -989,7 +1070,7 @@ export function uraiTeksOcrTransaksi(
     keteranganLaporanKustom = `Pembelian ${namaPaket.toLowerCase()} ${operator}${noHp ? ` nomor ${noHp}` : ""} untuk kebutuhan komunikasi dan koordinasi tim kegiatan.`;
   }
 
-  // B. Listrik PLN / PDAM
+  // B. Listrik PLN / PDAM (Air Bersih)
   else if (
     teksBesar.includes("TOKEN LISTRIK") ||
     teksBesar.includes("PLN PREPAID") ||
@@ -998,15 +1079,60 @@ export function uraiTeksOcrTransaksi(
     teksBesar.includes("STROOM/TOKEN") ||
     teksBesar.includes("STROOM") ||
     teksBesar.includes("ID PELANGGAN") ||
-    teksBesar.includes("NOMOR METER")
+    teksBesar.includes("NOMOR METER") ||
+    teksBesar.includes("PDAM") ||
+    teksBesar.includes("AIR MINUM") ||
+    teksBesar.includes("TIRTA") ||
+    teksBesar.includes("TAGIHAN AIR")
   ) {
     jenisBukti = "Nota";
     kategoriPribadi = "Tagihan & Sewa";
     kategoriKegiatan = "Komunikasi, Listrik & Kurir";
-    namaPenjualPenyedia = "PLN";
-    kataKunciDeskripsi = "Token Listrik PLN";
-    deskripsiKustom = "PLN - Pembelian Token Listrik";
-    keteranganLaporanKustom = "Pembelian token listrik PLN untuk operasional kegiatan.";
+
+    const isPdam = /PDAM|AIR\s*MINUM|TIRTA|TAGIHAN\s*AIR/i.test(teksBesar);
+    if (isPdam) {
+      let namaPdam = "PDAM";
+      for (const b of baris) {
+        if (/PERUMDA|PDAM|TIRTA/i.test(b) && !apakahBarisSampah(b)) {
+          namaPdam = bersihkanNamaToko(b);
+          break;
+        }
+      }
+      namaPenjualPenyedia = namaPdam;
+      kataKunciDeskripsi = "Tagihan Air Bersih";
+      deskripsiKustom = `${namaPdam} - Tagihan Rekening Air`;
+      keteranganLaporanKustom = `Pembayaran tagihan rekening air bersih ${namaPdam} untuk operasional kegiatan.`;
+    } else {
+      namaPenjualPenyedia = "PLN";
+      kataKunciDeskripsi = "Token Listrik PLN";
+      deskripsiKustom = "PLN - Pembelian Token Listrik";
+      keteranganLaporanKustom = "Pembelian token listrik PLN untuk operasional kegiatan.";
+    }
+  }
+
+  // B2. Layanan Pesan Antar Makanan (GoFood, GrabFood, ShopeeFood)
+  else if (
+    teksBesar.includes("GOFOOD") ||
+    teksBesar.includes("GRABFOOD") ||
+    teksBesar.includes("SHOPEEFOOD")
+  ) {
+    jenisBukti = "Struk thermal (minimarket/SPBU)";
+    kategoriPribadi = "Makan & Minum";
+    kategoriKegiatan = "Konsumsi";
+    kataKunciDeskripsi = "Konsumsi Makanan & Minuman";
+
+    let namaResto = "";
+    for (let i = 0; i < Math.min(4, baris.length); i++) {
+      const b = baris[i];
+      if (!/GOFOOD|GRABFOOD|SHOPEEFOOD|DETAIL|RINCIAN|PESANAN|ORDER/i.test(b) && !apakahBarisSampah(b)) {
+        namaResto = bersihkanNamaToko(b);
+        break;
+      }
+    }
+    const platform = teksBesar.includes("GOFOOD") ? "GoFood" : (teksBesar.includes("GRABFOOD") ? "GrabFood" : "ShopeeFood");
+    namaPenjualPenyedia = namaResto ? `${namaResto} (${platform})` : platform;
+    deskripsiKustom = `${namaPenjualPenyedia} - Konsumsi Makanan`;
+    keteranganLaporanKustom = `Pembayaran konsumsi makanan/minuman melalui ${namaPenjualPenyedia} untuk peserta kegiatan.`;
   }
 
   // C. SPBU Pertamina / Shell / BP
@@ -1272,6 +1398,7 @@ export function uraiTeksOcrTransaksi(
     teksBesar.includes("BUKTI TRANSFER") ||
     teksBesar.includes("TRANSFER BERHASIL") ||
     teksBesar.includes("TRANSAKSI BERHASIL") ||
+    teksBesar.includes("M-TRANSFER") ||
     teksBesar.includes("M-BCA") ||
     teksBesar.includes("LIVIN") ||
     teksBesar.includes("BRIMO") ||
@@ -1281,9 +1408,81 @@ export function uraiTeksOcrTransaksi(
     jenisBukti = "Invoice + kuitansi";
     kataKunciDeskripsi = "Transfer Bank";
 
-    const mPen = teksMentah.match(/(?:Nama\s*Penerima|Ke\s*Rekening|Tujuan)[:\s]*([A-Za-z\s\.,]{3,35})/i);
-    if (mPen && mPen[1].trim()) {
-      namaPenjualPenyedia = bersihkanNamaToko(mPen[1]);
+    // Ekstraksi nama penerima yang akurat
+    let namaPenerima = "";
+
+    // Pola 1: Baris memuat 'PENERIMA' / 'NAMA PENERIMA' (sebaris atau baris berikutnya)
+    const idxPenerima = baris.findIndex((b) => /^(?:PENERIMA|NAMA\s*PENERIMA)\b/i.test(b));
+    if (idxPenerima >= 0) {
+      const bPenerima = baris[idxPenerima];
+      const mSama = bPenerima.match(/^(?:PENERIMA|NAMA\s*PENERIMA)[:\s]+([^\r\n]{2,35})/i);
+      if (mSama && mSama[1].trim() && !/^\d+$/.test(mSama[1].trim())) {
+        namaPenerima = bersihkanNamaToko(mSama[1]);
+      } else if (idxPenerima + 1 < baris.length) {
+        namaPenerima = bersihkanNamaToko(baris[idxPenerima + 1]);
+      }
+    }
+
+    // Pola 2: Baris setelah 'REKENING TUJUAN'
+    if (!namaPenerima) {
+      const idxTujuan = baris.findIndex((b) => /^(?:REKENING\s*TUJUAN|TUJUAN)\b/i.test(b));
+      if (idxTujuan >= 0) {
+        for (let j = idxTujuan + 1; j <= Math.min(idxTujuan + 3, baris.length - 1); j++) {
+          const b = baris[j];
+          if (/^\d{6,}|\(\s*(?:MANDIRI|BCA|BRI|BNI|BSI|PERMATA|CIMB)\s*\)/i.test(b)) continue;
+          if (!apakahBarisSampah(b) && !/JENIS|TRANSFER|NOMINAL|JUMLAH/i.test(b)) {
+            namaPenerima = bersihkanNamaToko(b);
+            break;
+          }
+        }
+      }
+    }
+
+    // Pola 3: Regex match inline
+    if (!namaPenerima) {
+      const mPen = teksMentah.match(/(?:Nama\s*Penerima|Ke\s*Rekening|Tujuan)[:\s]*([A-Za-z\s\.,]{3,35})/i);
+      if (mPen && mPen[1].trim()) {
+        namaPenerima = bersihkanNamaToko(mPen[1].split(/[\r\n]/)[0]);
+      }
+    }
+
+    // Bersihkan nama penerima dari pecahan newline atau nama bank tambahan
+    if (namaPenerima) {
+      namaPenerima = namaPenerima.split(/[\r\n]/)[0].replace(/\b(?:Bank\s*[A-Z]+|Rekening.*)$/i, "").trim();
+    }
+
+    namaPenjualPenyedia = namaPenerima || "Transfer Bank";
+
+    // Deteksi Kategori Kegiatan & Pribadi secara dinamis dari catatan transfer
+    if (/\b(HONOR|NARASUMBER|FASILITATOR|GANTI\s*HARI|UPAH|LEMBUR|PEMBICARA)\b/i.test(teksBesar)) {
+      kategoriKegiatan = "Honorarium & Ganti Hari";
+      kategoriPribadi = "Lain-lain";
+      kataKunciDeskripsi = "Honorarium / Jasa Narasumber";
+      deskripsiKustom = `${namaPenjualPenyedia} - Honorarium / Jasa Narasumber`;
+      keteranganLaporanKustom = `Pembayaran honorarium/jasa narasumber/fasilitator kegiatan kepada ${namaPenjualPenyedia} via transfer bank.`;
+    } else if (/\b(SEWA|RENTAL|MOBIL|MOTOR|KENDARAAN)\b/i.test(teksBesar)) {
+      kategoriKegiatan = "Rental Kendaraan";
+      kategoriPribadi = "Transportasi";
+      kataKunciDeskripsi = "Rental Kendaraan";
+      deskripsiKustom = `${namaPenjualPenyedia} - Rental Kendaraan`;
+      keteranganLaporanKustom = `Pembayaran sewa/rental kendaraan kegiatan kepada ${namaPenjualPenyedia} via transfer bank.`;
+    } else if (/\b(HOTEL|PENGINAPAN|WISMA|KAMAR)\b/i.test(teksBesar)) {
+      kategoriKegiatan = "Akomodasi";
+      kategoriPribadi = "Tagihan & Sewa";
+      kataKunciDeskripsi = "Akomodasi Penginapan";
+      deskripsiKustom = `${namaPenjualPenyedia} - Akomodasi Penginapan`;
+      keteranganLaporanKustom = `Pembayaran akomodasi penginapan kegiatan di ${namaPenjualPenyedia} via transfer bank.`;
+    } else if (/\b(MAKAN|KONSUMSI|SNACK|CATERING|KATERING)\b/i.test(teksBesar)) {
+      kategoriKegiatan = "Konsumsi";
+      kategoriPribadi = "Makan & Minum";
+      kataKunciDeskripsi = "Konsumsi Kegiatan";
+      deskripsiKustom = `${namaPenjualPenyedia} - Konsumsi Kegiatan`;
+      keteranganLaporanKustom = `Pembayaran konsumsi makanan/minuman kepada ${namaPenjualPenyedia} via transfer bank.`;
+    } else {
+      kategoriKegiatan = "Lain-lain";
+      kategoriPribadi = "Lain-lain";
+      deskripsiKustom = `${namaPenjualPenyedia} - Transfer Bank`;
+      keteranganLaporanKustom = `Pengeluaran via transfer bank kepada ${namaPenjualPenyedia} untuk keperluan operasional kegiatan.`;
     }
   }
 
