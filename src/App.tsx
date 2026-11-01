@@ -2033,7 +2033,7 @@ export default function App() {
                 <span className="pilihan-ikon">📸</span>
                 <div className="pilihan-teks">
                   <strong>Ambil Foto Struk (Kamera)</strong>
-                  <span>Foto struk kasir, dibaca &amp; diinput otomatis oleh Gemini AI</span>
+                  <span>Foto struk kasir, dibaca &amp; diinput otomatis oleh OCR lokal tanpa kuota</span>
                 </div>
                 <span className="pilihan-panah">→</span>
               </button>
