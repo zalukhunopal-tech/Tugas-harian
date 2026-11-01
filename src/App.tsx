@@ -201,7 +201,17 @@ export default function App() {
   const [modalPilihanTambahBuka, setModalPilihanTambahBuka] = useState(false);
   const [initialScanMode, setInitialScanMode] = useState<"kamera" | "galeri" | "latihan" | null>(null);
 
-  // Geser jari ke kiri/kanan untuk pindah menu (urutan sama dengan navigasi bawah, tanpa tombol tambah).
+  // Sediakan helper global untuk membuka latihan OCR tanpa harus menampilkan tombolnya di UI
+  useEffect(() => {
+    (window as any).bukaLatihanOcr = () => {
+      setInitialScanMode("latihan");
+      setEditTransaksi(null);
+      setCurrentView("tambah");
+    };
+    if (window.location.search.includes("latihan=1")) {
+      (window as any).bukaLatihanOcr();
+    }
+  }, []);
   useGesekMenu(currentView !== "tambah" && !modalPilihanTambahBuka, (arah) => {
     const urutan: ViewTab[] = ["riwayat", "aset", "grafik", "saya"];
     const tujuan = urutan[urutan.indexOf(currentView) + arah];
@@ -2052,24 +2062,6 @@ export default function App() {
                 <div className="pilihan-teks">
                   <strong>Unggah Foto Struk (Galeri)</strong>
                   <span>Pilih foto struk belanja yang ada di galeri ponsel Anda</span>
-                </div>
-                <span className="pilihan-panah">→</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-pilihan-tambah"
-                onClick={() => {
-                  setModalPilihanTambahBuka(false);
-                  setInitialScanMode("latihan");
-                  setEditTransaksi(null);
-                  setCurrentView("tambah");
-                }}
-              >
-                <span className="pilihan-ikon">🧪</span>
-                <div className="pilihan-teks">
-                  <strong>Latihan Scan OCR (100 Struk)</strong>
-                  <span>Pilih sampel 100 struk dummy (Alfamart, SPBU, Kafe, Tiket, Transfer)</span>
                 </div>
                 <span className="pilihan-panah">→</span>
               </button>
