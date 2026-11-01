@@ -517,48 +517,6 @@ export const RiwayatView: React.FC<RiwayatViewProps> = ({
         </section>
       )}
 
-      {syncStatus && syncStatus.status !== "idle" && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-          <p
-            className="sync-pill"
-            data-keadaan={syncStatus.status === "sukses" ? "ok" : syncStatus.status}
-            id="sync-status"
-            style={{
-              margin: 0,
-              cursor: syncStatus.status === "gagal" && onPerbaruiAksesDrive ? "pointer" : "default",
-            }}
-            onClick={() => {
-              if (syncStatus.status === "gagal" && onPerbaruiAksesDrive) {
-                void onPerbaruiAksesDrive();
-              }
-            }}
-            title={syncStatus.status === "gagal" && onPerbaruiAksesDrive ? "Ketuk untuk memperbarui akses Drive" : undefined}
-          >
-            {syncStatus.pesan}
-          </p>
-          {syncStatus.status === "gagal" && onPerbaruiAksesDrive && (
-            <button
-              type="button"
-              className="btn-small btn-primary"
-              style={{
-                fontSize: "0.75rem",
-                padding: "3px 10px",
-                borderRadius: "999px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                background: "color-mix(in srgb, var(--accent) 25%, var(--surface))",
-                borderColor: "var(--accent)",
-                color: "var(--accent)",
-              }}
-              onClick={() => void onPerbaruiAksesDrive()}
-            >
-              <span>🔄</span> Perbarui Akses
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Saringan Cepat Dana */}
       <div className="filter-chips" role="radiogroup" aria-label="Saring dana">
         <button
