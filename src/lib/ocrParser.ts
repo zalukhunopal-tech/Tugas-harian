@@ -103,24 +103,32 @@ export function uraikanNominalRupiah(teks: string): number | null {
     return null;
   }
 
-  // Deteksi apakah teks asli mengandung prefiks mata uang Rp / IDR
-  const adaPrefiksMataUang = /^(?:RP|IDR|\$)/i.test(bersih);
+  // Deteksi apakah teks asli mengandung prefiks mata uang Rp / IDR atau varian tulisan tangan OCR (Ry, Kp, Pp, Bp, dsb.)
+  const adaPrefiksMataUang = /^(?:RP|IDR|\$|RYP|RY|KP|PP|HP|BP|FP|IP|RE|IB|1B|TB|IBP|TIP)/i.test(bersih);
 
   // Deteksi apakah teks asli mengandung pemisah ribuan (. atau ,)
   const adaPemisahRibuan = /[0-9]{1,3}[.,][0-9]{3}/.test(bersih);
 
-  // Hapus prefiks Rp, RP, IDR, lambang mata uang
-  bersih = bersih.replace(/^(?:RP|IDR|\$)\.?\s*/i, "");
+  // Hapus prefiks Rp, RP, IDR, lambang mata uang dan variasi OCR tulisan tangan
+  bersih = bersih.replace(/^(?:RP|IDR|\$|RYP|RY|KP|PP|HP|BP|FP|IP|RE|IB|1B|TB|IBP|TIP)\.?\s*/i, "");
 
-  // Koreksi OCR: jika terdapat angka dan huruf O/o, ganti O/o dengan 0
-  if (/\d/.test(bersih) && /^[0-9Oo\.,\s\-]+$/.test(bersih)) {
-    bersih = bersih.replace(/[Oo]/g, "0");
+  // Buang karakter pembungkus khas tulisan tangan kwitansi/bon: #, =, /
+  bersih = bersih.replace(/^#+|#+$/g, "").replace(/^[=-]+|[=-]+$/g, "");
+
+  // Koreksi OCR tulisan tangan & cetak: jika terdapat angka dan huruf misread umum (O, l, I, S, B, Z)
+  if (/\d/.test(bersih) && /^[0-9lISOoBZ\.,\s\-\/=#]+$/.test(bersih)) {
+    bersih = bersih
+      .replace(/[Oo]/g, "0")
+      .replace(/[lI]/g, "1")
+      .replace(/[S]/g, "5")
+      .replace(/[B]/g, "8")
+      .replace(/[Z]/g, "2");
   } else {
     bersih = bersih.replace(/([0-9\.,\s])[Oo]([0-9\.,\s]|$)/g, "$10$2");
   }
 
-  // Buang sufiks ,- atau .-
-  bersih = bersih.replace(/[,\.]\s*-+$/, "");
+  // Buang sufiks tulisan tangan: ,- atau .- atau /= atau =/
+  bersih = bersih.replace(/[,\.]\s*[-=\/]+$/, "");
 
   // Kasus Khusus Tiket/Struk Indonesia: Format desimal 2 digit dengan prefiks Rp (mis. "Rp. 280.01" atau "Rp. 280.00" atau "Rp. 145.00")
   // Pada tiket speedboat/transportasi fisik, angka ribuan sering terpotong atau digit terakhir pudar (.00 / .01).
@@ -206,6 +214,18 @@ export function ekstrakKandidatNominal(
       label: "Total Pembayaran QRIS (Terverifikasi)",
       baris: `QRIS Tag 54: Rp ${nominalQrisTerverifikasi.toLocaleString("id-ID")}`,
       bobot: 300,
+    });
+  }
+
+  // Periksa apakah terdapat kalimat nilai terbilang (khas kwitansi/tanda terima tulisan tangan)
+  const teksGabung = barisDaftar.join(" \n ");
+  const nominalTerbilang = uraikanTerbilangRupiah(teksGabung);
+  if (nominalTerbilang && nominalTerbilang > 0) {
+    hasilKandidat.push({
+      nominal: nominalTerbilang,
+      label: "Nilai Terbilang (Kuitansi / Tanda Terima)",
+      baris: `Terbilang: Rp ${nominalTerbilang.toLocaleString("id-ID")}`,
+      bobot: 185, // Bobot sangat tinggi: terbilang adalah nilai sah pada kuitansi/surat bukti
     });
   }
 
@@ -494,74 +514,210 @@ export function ekstrakTanggalTransaksi(teks: string): { tanggal?: string; ditem
 }
 
 /**
- * Ekstraksi metode pembayaran dari teks struk.
+ * Mengonversi kata terbilang bahasa Indonesia (khas kuitansi, tanda terima, dan nota tulisan tangan) menjadi angka nominal.
+ * Contoh: "Satu Juta Lima Ratus Ribu Rupiah" -> 1500000
+ * Contoh: "Tujuh Ratus Lima Puluh Ribu" -> 750000
+ * Contoh: "Dua Juta Tujuh Ratus Lima Puluh Ribu" -> 2750000
+ * Contoh: "Tiga Puluh Lima Ribu" -> 35000
+ */
+export function uraikanTerbilangRupiah(teks: string): number | null {
+  if (!teks || typeof teks !== "string") return null;
+
+  // Cari cuplikan kalimat terbilang setelah kata kunci seperti 'terbilang', 'uang sejumlah', 'banyaknya uang'
+  const matchTerbilang = teks.match(
+    /(?:terbilang|sejumlah|banyaknya\s*uang|banyak\s*uang|jumlah\s*uang)\s*[:=]?\s*([a-zA-Z\s\-]+?)(?:rupiah|rp|[#.,\n\r]|$)/i
+  );
+  const targetTeks = matchTerbilang ? matchTerbilang[1] : teks;
+
+  const kataPeta: Record<string, number> = {
+    nol: 0,
+    kosong: 0,
+    satu: 1,
+    se: 1,
+    dua: 2,
+    tiga: 3,
+    empat: 4,
+    lima: 5,
+    enam: 6,
+    tujuh: 7,
+    delapan: 8,
+    sembilan: 9,
+    sepuluh: 10,
+    sebelas: 11,
+    seratus: 100,
+    seribu: 1000,
+    sejuta: 1000000,
+  };
+
+  const kataList = targetTeks
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (kataList.length === 0) return null;
+
+  const adaKataKunci = kataList.some(
+    (k) =>
+      kataPeta[k] !== undefined ||
+      ["belas", "puluh", "ratus", "ribu", "juta", "miliar", "milyar"].includes(k)
+  );
+  if (!adaKataKunci) return null;
+
+  let total = 0;
+  let currentGroup = 0;
+  let currentNum = 0;
+
+  for (let i = 0; i < kataList.length; i++) {
+    const k = kataList[i];
+    if (k === "rupiah" || k === "rp" || k === "uang" || k === "dan") continue;
+
+    if (kataPeta[k] !== undefined) {
+      if (k === "seratus") {
+        currentGroup += 100;
+        currentNum = 0;
+      } else if (k === "seribu") {
+        total += (currentGroup + (currentNum || 0) || 1) * 1000;
+        currentGroup = 0;
+        currentNum = 0;
+      } else if (k === "sejuta") {
+        total += (currentGroup + (currentNum || 0) || 1) * 1000000;
+        currentGroup = 0;
+        currentNum = 0;
+      } else if (k === "sepuluh") {
+        currentGroup += 10;
+        currentNum = 0;
+      } else if (k === "sebelas") {
+        currentGroup += 11;
+        currentNum = 0;
+      } else {
+        currentNum = kataPeta[k];
+      }
+    } else if (k === "belas") {
+      currentGroup += (currentNum || 1) + 10;
+      currentNum = 0;
+    } else if (k === "puluh") {
+      currentGroup += (currentNum || 1) * 10;
+      currentNum = 0;
+    } else if (k === "ratus") {
+      currentGroup += (currentNum || 1) * 100;
+      currentNum = 0;
+    } else if (k === "ribu") {
+      currentGroup += currentNum;
+      total += (currentGroup || 1) * 1000;
+      currentGroup = 0;
+      currentNum = 0;
+    } else if (k === "juta") {
+      currentGroup += currentNum;
+      total += (currentGroup || 1) * 1000000;
+      currentGroup = 0;
+      currentNum = 0;
+    } else if (k === "miliar" || k === "milyar") {
+      currentGroup += currentNum;
+      total += (currentGroup || 1) * 1000000000;
+      currentGroup = 0;
+      currentNum = 0;
+    }
+  }
+
+  total += currentGroup + currentNum;
+  return total > 0 ? total : null;
+}
+
+/**
+ * Ekstraksi metode pembayaran dari teks struk dengan akurasi tinggi:
+ * - Meneliti baris metode pembayaran eksplisit terlebih dahulu.
+ * - Menangani bukti transaksi dengan uang tunai & kembalian (Cash Tender & Change).
+ * - Membedakan Kartu Debit (GPN, EDC Debit, Debit Chip, dsb) secara tepat dari QRIS / Kredit.
+ * - Membedakan Transfer Bank, Virtual Account, dan BI-FAST.
+ * - Mendeteksi tulisan tangan kuitansi (Lunas Cash, Sudah Transfer Rek, dsb).
  */
 export function ekstrakMetodePembayaran(teks: string): string {
+  if (!teks) return "Tunai";
+  const barisDaftar = teks.split(/\r?\n/).map((b) => b.trim()).filter(Boolean);
   const t = teks.toUpperCase();
 
-  // 1. Deteksi QRIS & QR Code & Dompet Digital
-  // Mengakomodasi kesalahan OCR umum: "BRIS", "GRIS", "ORIS", "Q-RIS", "wR" untuk "QR"
-  if (
-    /\b(?:Q|O|G|B)R[I1l]S\b/i.test(teks) ||
-    /\b(QRIS|GRIS|BRIS|ORIS|Q-RIS)\b/i.test(teks) ||
-    /METODE\s*P[EO]NB?AYARAN[^\r\n]*(?:QR|WR|QRIS|ORIS|GRIS|BRIS)/i.test(teks) ||
-    /\bQR\b/.test(t) ||
-    t.includes("STANDAR PEMBAYARAN") ||
-    t.includes("GPN") ||
-    t.includes("NMID") ||
-    t.includes("GOPAY") ||
-    t.includes("GO-PAY") ||
-    t.includes("OVO") ||
-    t.includes("DANA") ||
-    t.includes("SHOPEEPAY") ||
-    t.includes("SHOPEE PAY") ||
-    t.includes("LINKAJA") ||
-    t.includes("ASTRAPAY") ||
-    t.includes("ISAKU")
-  ) {
+  // 1. Prioritas Tertinggi: Cari baris metode pembayaran eksplisit
+  const barisMetode = barisDaftar.find(
+    (b) =>
+      /^[^\w\s]*(?:METODE|CARA|TIPE|STATUS|JENIS)?\s*(?:BAYAR|P[EO][MN]B?AYARAN|PAYMENT)\s*[:=]/i.test(b) ||
+      /^[^\w\s]*(?:DIBAYAR|PAID)\s*(?:DENGAN|VIA|MEMAKAI|PAKAI|WITH)?\s*[:=]/i.test(b)
+  );
+
+  if (barisMetode) {
+    const bm = barisMetode.toUpperCase();
+    if (/\b(?:QRIS|QR|WR|GRIS|BRIS|ORIS|NMID|GOPAY|OVO|DANA|SHOPEEPAY|LINKAJA|ASTRAPAY|ISAKU)\b/.test(bm)) {
+      return "QRIS";
+    }
+    if (/\b(?:TRANSFER|TRF|VA|VIRTUAL\s*ACCOUNT|BI-FAST|M-BCA|LIVIN|BRIMO|OCTO|BSI|BANK)\b/.test(bm)) {
+      return "Transfer";
+    }
+    if (/\b(?:KREDIT|CREDIT|VISA|MASTERCARD|JCB|AMEX|PAYLATER|SPAYLATER|KREDIVO|AKULAKU)\b/.test(bm)) {
+      return "Kredit";
+    }
+    if (/\b(?:DEBIT|GPN|EDC\s*DEBIT|KARTU\s*DEBIT|ATM)\b/.test(bm)) {
+      return "Debit";
+    }
+    if (/\b(?:TUNAI|CASH|KONTAN|LUNAS|UANG\s*PAS)\b/.test(bm)) {
+      return "Tunai";
+    }
+  }
+
+  // Baris metode pembayaran dengan kesalahan OCR umum
+  if (/METODE\s*P[EO][MN]B?AYARAN[^\r\n]*(?:QR|WR|QRIS|ORIS|GRIS|BRIS)/i.test(teks)) {
     return "QRIS";
   }
 
-  // 2. Deteksi Transfer Bank
+  // 2. Deteksi bukti transaksi kasir dengan uang tunai & kembalian (Cash Tendered & Change)
+  // Ini menghindari salah deteksi jika di bagian footer struk ada tulisan promosi "Menerima QRIS/Debit/Transfer"
+  const adaTunaiKasir =
+    /\b(?:TUNAI|CASH|BAYAR\s*TUNAI|CASH\s*TENDERED)\b/.test(t) &&
+    /\b(?:KEMBALI|KEMBALIAN|CHANGE|UANG\s*KEMBALI|UANG\s*DITERIMA)\b/.test(t);
+  if (adaTunaiKasir) {
+    return "Tunai";
+  }
+
+  // 3. Deteksi Transfer Bank (M-Banking, Internet Banking, VA, BI-FAST, Resi Bank)
   if (
-    t.includes("TRANSFER") ||
-    t.includes("BI-FAST") ||
-    t.includes("BI FAST") ||
-    t.includes("M-BCA") ||
-    t.includes("MBCA") ||
-    t.includes("LIVIN") ||
-    t.includes("BRIMO") ||
-    t.includes("OCTO") ||
-    t.includes("BSI MOBILE") ||
-    t.includes("NEOBANK") ||
-    t.includes("SEABANK") ||
-    t.includes("JENIUS") ||
-    t.includes("VIRTUAL ACCOUNT") ||
-    /\bVA\b/.test(t)
+    /\b(?:TRANSFER\s*(?:BANK|DANA|SALDO|ANTAR\s*BANK|KE)|BUKTI\s*TRANSFER|NOMOR\s*REFERENSI|REF\s*NO|NO\.?\s*REF)\b/.test(t) ||
+    /\b(?:BI-FAST|BI\s*FAST|RTGS|SKN|KLIRING|VIRTUAL\s*ACCOUNT|BRIVA|BCA\s*VA|MANDIRI\s*VA|BNI\s*VA)\b/.test(t) ||
+    /\b(?:M-BCA|MBCA|BCA\s*MOBILE|KLIKBCA|LIVIN\s*(?:BY\s*MANDIRI)?|BRIMO|BNI\s*MOBILE|BSI\s*MOBILE|OCTO\s*(?:MOBILE)?|NEOBANK|SEABANK|JENIUS|BANK\s*JAGO|FLIP)\b/.test(t) ||
+    /\b(?:DARI\s*REKENING|REKENING\s*TUJUAN|REK\s*TUJUAN|NOMOR\s*REKENING|NO\.?\s*REK)\b/.test(t) ||
+    /\b(?:SUDAH\s*DI\s*TRANSFER|SUDAH\s*TF|TRF\s*KE\s*REK|TRANSFER\s*REK)\b/.test(t)
   ) {
     return "Transfer";
   }
 
-  // 3. Deteksi Kartu Debit
-  if (t.includes("DEBIT") || t.includes("EDC DEBIT") || t.includes("KARTU DEBIT") || /\bEDC\b/.test(t)) {
+  // 4. Deteksi QRIS & E-Wallet
+  if (
+    /\b(?:Q|O|G|B)R[I1l]S\b/i.test(teks) ||
+    /\b(?:QRIS|GRIS|BRIS|ORIS|Q-RIS|NMID|QR\s*CODE|SCAN\s*QR|BAYAR\s*QRIS|QRIS\s*DINAMIS|QRIS\s*STATIS)\b/i.test(teks) ||
+    /\b(?:GOPAY|GO-PAY|OVO|DANA|SHOPEEPAY|SHOPEE\s*PAY|LINKAJA|ASTRAPAY|ISAKU|DOKU)\b/i.test(teks) ||
+    (/\b(?:MERCHANT\s*ID|TERMINAL\s*ID)\b/.test(t) && /\b(?:QRIS|QR|NMID)\b/.test(t))
+  ) {
+    return "QRIS";
+  }
+
+  // 5. Deteksi Kartu Debit (GPN, EDC Debit, Debit Chip, Debit BCA/Mandiri/BRI/BNI)
+  if (
+    /\b(?:DEBIT|KARTU\s*DEBIT|DEBIT\s*CARD|DEBIT\s*BCA|DEBIT\s*BRI|DEBIT\s*MANDIRI|DEBIT\s*BNI|DEBIT\s*CHIP|EDC\s*DEBIT|GPN\s*DEBIT|KARTU\s*GPN)\b/.test(t) ||
+    (/\b(?:GPN|EDC|MAESTRO)\b/.test(t) && !/\b(?:QRIS|KREDIT|CREDIT|VISA|MASTERCARD)\b/.test(t))
+  ) {
     return "Debit";
   }
 
-  // 4. Deteksi Kartu Kredit & Paylater
+  // 6. Deteksi Kartu Kredit & Layanan PayLater / Cicilan
   if (
-    t.includes("KREDIT") ||
-    t.includes("CREDIT") ||
-    t.includes("VISA") ||
-    t.includes("MASTERCARD") ||
-    t.includes("JCB") ||
-    t.includes("PAYLATER") ||
-    t.includes("SPAYLATER")
+    /\b(?:KREDIT|CREDIT|KARTU\s*KREDIT|CREDIT\s*CARD|VISA|MASTERCARD|JCB|AMEX|AMERICAN\s*EXPRESS)\b/.test(t) ||
+    /\b(?:PAYLATER|SPAYLATER|GOPAY\s*PAYLATER|KREDIVO|AKULAKU|INDODANA|CICILAN|TEMPO|HUTANG|BON\s*TEMPO)\b/.test(t)
   ) {
     return "Kredit";
   }
 
-  // 5. Deteksi Tunai
-  if (t.includes("TUNAI") || t.includes("CASH")) {
+  // 7. Deteksi Tunai / Kwitansi Tulisan Tangan
+  if (
+    /\b(?:TUNAI|CASH|KONTAN|LUNAS|UANG\s*PAS|BAYAR\s*CASH|LUNAS\s*CASH|UANG\s*TUNAI|DITERIMA\s*TUNAI|TANDA\s*TERIMA\s*TUNAI)\b/.test(t)
+  ) {
     return "Tunai";
   }
 

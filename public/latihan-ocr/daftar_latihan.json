@@ -580,7 +580,7 @@
     "berkas": "73_transfer_mandiri_livin.png",
     "judul": "Livin by Mandiri Resi Transfer",
     "tag": "Transfer Bank",
-    "nominalTeks": "Rp 500.000",
+    "nominalTeks": "Rp 502.500",
     "url": "latihan-ocr/73_transfer_mandiri_livin.png"
   },
   {
@@ -798,5 +798,1205 @@
     "tag": "Honorarium",
     "nominalTeks": "Rp 600.000",
     "url": "latihan-ocr/100_kuitansi_jasa_kebersihan.png"
+  },
+  {
+    "nomor": 101,
+    "berkas": "101_kwitansi_tangan_sewa_sound.png",
+    "judul": "Kwitansi Sewa Sound System dan Tenda Acara",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 1.750.000",
+    "url": "latihan-ocr/101_kwitansi_tangan_sewa_sound.png"
+  },
+  {
+    "nomor": 102,
+    "berkas": "102_kwitansi_tangan_honor_narasumber.png",
+    "judul": "Kwitansi Honorarium Narasumber Pelatihan Pemetaan",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 2.500.000",
+    "url": "latihan-ocr/102_kwitansi_tangan_honor_narasumber.png"
+  },
+  {
+    "nomor": 103,
+    "berkas": "103_kwitansi_tangan_sewa_perahu.png",
+    "judul": "Kwitansi Sewa Perahu Ketinting Sungai Kayan",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 850.000",
+    "url": "latihan-ocr/103_kwitansi_tangan_sewa_perahu.png"
+  },
+  {
+    "nomor": 104,
+    "berkas": "104_kwitansi_tangan_konsumsi_prasmanan.png",
+    "judul": "Kwitansi Konsumsi Prasmanan Rapat Warga",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 1.250.000",
+    "url": "latihan-ocr/104_kwitansi_tangan_konsumsi_prasmanan.png"
+  },
+  {
+    "nomor": 105,
+    "berkas": "105_kwitansi_tangan_upah_tukang.png",
+    "judul": "Kwitansi Upah Tukang Pembuatan Papan Informasi",
+    "tag": "Upah Tenaga",
+    "nominalTeks": "Rp 600.000",
+    "url": "latihan-ocr/105_kwitansi_tangan_upah_tukang.png"
+  },
+  {
+    "nomor": 106,
+    "berkas": "106_kwitansi_tangan_sewa_posko.png",
+    "judul": "Kwitansi Sewa Rumah Singgah / Posko Lapangan",
+    "tag": "Akomodasi",
+    "nominalTeks": "Rp 1.500.000",
+    "url": "latihan-ocr/106_kwitansi_tangan_sewa_posko.png"
+  },
+  {
+    "nomor": 107,
+    "berkas": "107_kwitansi_tangan_jasa_angkut.png",
+    "judul": "Kwitansi Jasa Angkut Truk Pasir dan Material",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 700.000",
+    "url": "latihan-ocr/107_kwitansi_tangan_jasa_angkut.png"
+  },
+  {
+    "nomor": 108,
+    "berkas": "108_kwitansi_tangan_snack_kopi.png",
+    "judul": "Kwitansi Snack Kue Tradisional dan Kopi Musyawarah",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 350.000",
+    "url": "latihan-ocr/108_kwitansi_tangan_snack_kopi.png"
+  },
+  {
+    "nomor": 109,
+    "berkas": "109_kwitansi_tangan_beli_bibit.png",
+    "judul": "Kwitansi Pembelian Bibit Pohon Penghijauan",
+    "tag": "Pengadaan",
+    "nominalTeks": "Rp 950.000",
+    "url": "latihan-ocr/109_kwitansi_tangan_beli_bibit.png"
+  },
+  {
+    "nomor": 110,
+    "berkas": "110_kwitansi_tangan_sewa_proyektor.png",
+    "judul": "Kwitansi Sewa Proyektor dan Layar Presentasi",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 400.000",
+    "url": "latihan-ocr/110_kwitansi_tangan_sewa_proyektor.png"
+  },
+  {
+    "nomor": 111,
+    "berkas": "111_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Pendamping Lapangan 1",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.800.000",
+    "url": "latihan-ocr/111_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 112,
+    "berkas": "112_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Pendamping Lapangan 2",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.800.000",
+    "url": "latihan-ocr/112_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 113,
+    "berkas": "113_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Genset Penerangan",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 550.000",
+    "url": "latihan-ocr/113_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 114,
+    "berkas": "114_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Bantuan Konsumsi Gotong Royong",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 450.000",
+    "url": "latihan-ocr/114_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 115,
+    "berkas": "115_kwitansi_tangan_pengadaan.png",
+    "judul": "Kwitansi Pembuatan Plang Peringatan",
+    "tag": "Pengadaan",
+    "nominalTeks": "Rp 800.000",
+    "url": "latihan-ocr/115_kwitansi_tangan_pengadaan.png"
+  },
+  {
+    "nomor": 116,
+    "berkas": "116_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Drone Dokumentasi Udara",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 1.200.000",
+    "url": "latihan-ocr/116_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 117,
+    "berkas": "117_kwitansi_tangan_bbm.png",
+    "judul": "Kwitansi BBM Solar Perahu Ketinting",
+    "tag": "BBM",
+    "nominalTeks": "Rp 480.000",
+    "url": "latihan-ocr/117_kwitansi_tangan_bbm.png"
+  },
+  {
+    "nomor": 118,
+    "berkas": "118_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Petugas Kebersihan Gedung",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 300.000",
+    "url": "latihan-ocr/118_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 119,
+    "berkas": "119_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Pembelian Terpal dan Tali",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 275.000",
+    "url": "latihan-ocr/119_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 120,
+    "berkas": "120_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Konsumsi Nasi Kotak Tamu",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 625.000",
+    "url": "latihan-ocr/120_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 121,
+    "berkas": "121_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Jasa Penerjemah Bahasa Dayak",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 750.000",
+    "url": "latihan-ocr/121_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 122,
+    "berkas": "122_kwitansi_tangan_operasional.png",
+    "judul": "Kwitansi Penggantian Biaya Parkir & Retribusi",
+    "tag": "Operasional",
+    "nominalTeks": "Rp 150.000",
+    "url": "latihan-ocr/122_kwitansi_tangan_operasional.png"
+  },
+  {
+    "nomor": 123,
+    "berkas": "123_kwitansi_tangan_upah_tenaga.png",
+    "judul": "Kwitansi Jasa Pembersihan Lahan Percontohan",
+    "tag": "Upah Tenaga",
+    "nominalTeks": "Rp 900.000",
+    "url": "latihan-ocr/123_kwitansi_tangan_upah_tenaga.png"
+  },
+  {
+    "nomor": 124,
+    "berkas": "124_kwitansi_tangan_kesehatan.png",
+    "judul": "Kwitansi Beli Perlengkapan P3K Lapangan",
+    "tag": "Kesehatan",
+    "nominalTeks": "Rp 320.000",
+    "url": "latihan-ocr/124_kwitansi_tangan_kesehatan.png"
+  },
+  {
+    "nomor": 125,
+    "berkas": "125_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Kursi Lipat Acara",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 250.000",
+    "url": "latihan-ocr/125_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 126,
+    "berkas": "126_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Pembelian Galon Air Minum & Dispenser",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 210.000",
+    "url": "latihan-ocr/126_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 127,
+    "berkas": "127_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Notulen dan Dokumentator",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 500.000",
+    "url": "latihan-ocr/127_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 128,
+    "berkas": "128_kwitansi_tangan_akomodasi.png",
+    "judul": "Kwitansi Penginapan Homestay Warga",
+    "tag": "Akomodasi",
+    "nominalTeks": "Rp 700.000",
+    "url": "latihan-ocr/128_kwitansi_tangan_akomodasi.png"
+  },
+  {
+    "nomor": 129,
+    "berkas": "129_kwitansi_tangan_pengadaan.png",
+    "judul": "Kwitansi Pembelian Patok Semen Batas",
+    "tag": "Pengadaan",
+    "nominalTeks": "Rp 1.100.000",
+    "url": "latihan-ocr/129_kwitansi_tangan_pengadaan.png"
+  },
+  {
+    "nomor": 130,
+    "berkas": "130_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Jasa Guide Penunjuk Jalan Hutan",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 650.000",
+    "url": "latihan-ocr/130_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 131,
+    "berkas": "131_kwitansi_tangan_atk.png",
+    "judul": "Kwitansi Pembelian ATK Kertas Karton & Spidol",
+    "tag": "ATK",
+    "nominalTeks": "Rp 185.000",
+    "url": "latihan-ocr/131_kwitansi_tangan_atk.png"
+  },
+  {
+    "nomor": 132,
+    "berkas": "132_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Pengadaan Rompi Tim Lapangan",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 840.000",
+    "url": "latihan-ocr/132_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 133,
+    "berkas": "133_kwitansi_tangan_pemeliharaan.png",
+    "judul": "Kwitansi Jasa Service Ketinting Rusak",
+    "tag": "Pemeliharaan",
+    "nominalTeks": "Rp 375.000",
+    "url": "latihan-ocr/133_kwitansi_tangan_pemeliharaan.png"
+  },
+  {
+    "nomor": 134,
+    "berkas": "134_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Beli Buah-buahan Lokal Jamuan",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 230.000",
+    "url": "latihan-ocr/134_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 135,
+    "berkas": "135_kwitansi_tangan_transportasi.png",
+    "judul": "Kwitansi Sewa Mobil Pick Up Angkut Kayu",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 500.000",
+    "url": "latihan-ocr/135_kwitansi_tangan_transportasi.png"
+  },
+  {
+    "nomor": 136,
+    "berkas": "136_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Fasilitator Anak & Remaja",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 600.000",
+    "url": "latihan-ocr/136_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 137,
+    "berkas": "137_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Pembelian Baterai Cadangan GPS",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 160.000",
+    "url": "latihan-ocr/137_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 138,
+    "berkas": "138_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Konsumsi Bubur Kacang Ijo Pagi",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 175.000",
+    "url": "latihan-ocr/138_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 139,
+    "berkas": "139_kwitansi_tangan_pengadaan.png",
+    "judul": "Kwitansi Jasa Sablon Kaos Panitia",
+    "tag": "Pengadaan",
+    "nominalTeks": "Rp 960.000",
+    "url": "latihan-ocr/139_kwitansi_tangan_pengadaan.png"
+  },
+  {
+    "nomor": 140,
+    "berkas": "140_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Beli Jas Hujan & Sepatu Boot Lapangan",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 420.000",
+    "url": "latihan-ocr/140_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 141,
+    "berkas": "141_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Pembelian Kopi Bubuk Asli Kaltara",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 140.000",
+    "url": "latihan-ocr/141_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 142,
+    "berkas": "142_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Jasa Desain Peta Wilayah Adat",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.500.000",
+    "url": "latihan-ocr/142_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 143,
+    "berkas": "143_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Perangkat Mic Wireless",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 200.000",
+    "url": "latihan-ocr/143_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 144,
+    "berkas": "144_kwitansi_tangan_percetakan.png",
+    "judul": "Kwitansi Biaya Fotocopy Modul Pelatihan",
+    "tag": "Percetakan",
+    "nominalTeks": "Rp 285.000",
+    "url": "latihan-ocr/144_kwitansi_tangan_percetakan.png"
+  },
+  {
+    "nomor": 145,
+    "berkas": "145_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Pembelian Gembok & Rantai Pengaman",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 135.000",
+    "url": "latihan-ocr/145_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 146,
+    "berkas": "146_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Beli Ikan Segar Jamuan Warga",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 380.000",
+    "url": "latihan-ocr/146_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 147,
+    "berkas": "147_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Pengadaan Cat Tanda Batas Wilayah",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 260.000",
+    "url": "latihan-ocr/147_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 148,
+    "berkas": "148_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Kamera DSLR Dokumentasi",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 350.000",
+    "url": "latihan-ocr/148_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 149,
+    "berkas": "149_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Tetua Adat Pembuka Ritual",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.000.000",
+    "url": "latihan-ocr/149_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 150,
+    "berkas": "150_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Pembelian Beras Lokal Krayan",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 450.000",
+    "url": "latihan-ocr/150_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 151,
+    "berkas": "151_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Pengeras Suara Megaphone",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 100.000",
+    "url": "latihan-ocr/151_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 152,
+    "berkas": "152_kwitansi_tangan_perlengkapan.png",
+    "judul": "Kwitansi Beli Parang & Sarung Kerja Lapangan",
+    "tag": "Perlengkapan",
+    "nominalTeks": "Rp 240.000",
+    "url": "latihan-ocr/152_kwitansi_tangan_perlengkapan.png"
+  },
+  {
+    "nomor": 153,
+    "berkas": "153_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Tim Penyusun Laporan Akhir",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 2.000.000",
+    "url": "latihan-ocr/153_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 154,
+    "berkas": "154_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Pembelian Gula Pasir & Teh Celup",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 115.000",
+    "url": "latihan-ocr/154_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 155,
+    "berkas": "155_kwitansi_tangan_percetakan.png",
+    "judul": "Kwitansi Biaya Laminating Peta & Sertifikat",
+    "tag": "Percetakan",
+    "nominalTeks": "Rp 180.000",
+    "url": "latihan-ocr/155_kwitansi_tangan_percetakan.png"
+  },
+  {
+    "nomor": 156,
+    "berkas": "156_kwitansi_tangan_sewa_peralatan.png",
+    "judul": "Kwitansi Sewa Meja Panjang Pertemuan",
+    "tag": "Sewa Peralatan",
+    "nominalTeks": "Rp 200.000",
+    "url": "latihan-ocr/156_kwitansi_tangan_sewa_peralatan.png"
+  },
+  {
+    "nomor": 157,
+    "berkas": "157_kwitansi_tangan_konsumsi.png",
+    "judul": "Kwitansi Beli Minyak Goreng & Bumbu Dapur",
+    "tag": "Konsumsi",
+    "nominalTeks": "Rp 195.000",
+    "url": "latihan-ocr/157_kwitansi_tangan_konsumsi.png"
+  },
+  {
+    "nomor": 158,
+    "berkas": "158_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Uang Tali Asih Pemangku Wilayah",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 800.000",
+    "url": "latihan-ocr/158_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 159,
+    "berkas": "159_kwitansi_tangan_kesehatan.png",
+    "judul": "Kwitansi Beli Masker & Hand Sanitizer",
+    "tag": "Kesehatan",
+    "nominalTeks": "Rp 90.000",
+    "url": "latihan-ocr/159_kwitansi_tangan_kesehatan.png"
+  },
+  {
+    "nomor": 160,
+    "berkas": "160_kwitansi_tangan_honorarium.png",
+    "judul": "Kwitansi Honor Tim IT Penginput Data Web",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.250.000",
+    "url": "latihan-ocr/160_kwitansi_tangan_honorarium.png"
+  },
+  {
+    "nomor": 161,
+    "berkas": "161_nota_pasar_tangan_toko_berkah_sembak.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO BERKAH SEMBAKO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 992.000",
+    "url": "latihan-ocr/161_nota_pasar_tangan_toko_berkah_sembak.png"
+  },
+  {
+    "nomor": 162,
+    "berkas": "162_nota_pasar_tangan_warung_sayur_bu_en.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG SAYUR BU ENI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 153.500",
+    "url": "latihan-ocr/162_nota_pasar_tangan_warung_sayur_bu_en.png"
+  },
+  {
+    "nomor": 163,
+    "berkas": "163_nota_pasar_tangan_depot_masakan_pada.png",
+    "judul": "Nota Pasar Tulis Tangan: DEPOT MASAKAN PADANG MINANG SAUYO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 482.000",
+    "url": "latihan-ocr/163_nota_pasar_tangan_depot_masakan_pada.png"
+  },
+  {
+    "nomor": 164,
+    "berkas": "164_nota_pasar_tangan_bengkel_motor_kary.png",
+    "judul": "Nota Pasar Tulis Tangan: BENGKEL MOTOR KARYA MANDIRI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 168.500",
+    "url": "latihan-ocr/164_nota_pasar_tangan_bengkel_motor_kary.png"
+  },
+  {
+    "nomor": 165,
+    "berkas": "165_nota_pasar_tangan_tb__lancar_makmur.png",
+    "judul": "Nota Pasar Tulis Tangan: TB. LANCAR MAKMUR",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 718.000",
+    "url": "latihan-ocr/165_nota_pasar_tangan_tb__lancar_makmur.png"
+  },
+  {
+    "nomor": 166,
+    "berkas": "166_nota_pasar_tangan_fotocopy___atk_anu.png",
+    "judul": "Nota Pasar Tulis Tangan: FOTOCOPY & ATK ANUGERAH",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 230.500",
+    "url": "latihan-ocr/166_nota_pasar_tangan_fotocopy___atk_anu.png"
+  },
+  {
+    "nomor": 167,
+    "berkas": "167_nota_pasar_tangan_toko_elektronik_ja.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO ELEKTRONIK JAYA ABADI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 519.000",
+    "url": "latihan-ocr/167_nota_pasar_tangan_toko_elektronik_ja.png"
+  },
+  {
+    "nomor": 168,
+    "berkas": "168_nota_pasar_tangan_warung_kopi___mie_.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG KOPI & MIE MAK CIK",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 230.500",
+    "url": "latihan-ocr/168_nota_pasar_tangan_warung_kopi___mie_.png"
+  },
+  {
+    "nomor": 169,
+    "berkas": "169_nota_pasar_tangan_toko_berkah_sembak.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO BERKAH SEMBAKO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 1.020.000",
+    "url": "latihan-ocr/169_nota_pasar_tangan_toko_berkah_sembak.png"
+  },
+  {
+    "nomor": 170,
+    "berkas": "170_nota_pasar_tangan_warung_sayur_bu_en.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG SAYUR BU ENI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 181.500",
+    "url": "latihan-ocr/170_nota_pasar_tangan_warung_sayur_bu_en.png"
+  },
+  {
+    "nomor": 171,
+    "berkas": "171_nota_pasar_tangan_depot_masakan_pada.png",
+    "judul": "Nota Pasar Tulis Tangan: DEPOT MASAKAN PADANG MINANG SAUYO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 510.000",
+    "url": "latihan-ocr/171_nota_pasar_tangan_depot_masakan_pada.png"
+  },
+  {
+    "nomor": 172,
+    "berkas": "172_nota_pasar_tangan_bengkel_motor_kary.png",
+    "judul": "Nota Pasar Tulis Tangan: BENGKEL MOTOR KARYA MANDIRI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 196.500",
+    "url": "latihan-ocr/172_nota_pasar_tangan_bengkel_motor_kary.png"
+  },
+  {
+    "nomor": 173,
+    "berkas": "173_nota_pasar_tangan_tb__lancar_makmur.png",
+    "judul": "Nota Pasar Tulis Tangan: TB. LANCAR MAKMUR",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 746.000",
+    "url": "latihan-ocr/173_nota_pasar_tangan_tb__lancar_makmur.png"
+  },
+  {
+    "nomor": 174,
+    "berkas": "174_nota_pasar_tangan_fotocopy___atk_anu.png",
+    "judul": "Nota Pasar Tulis Tangan: FOTOCOPY & ATK ANUGERAH",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 258.500",
+    "url": "latihan-ocr/174_nota_pasar_tangan_fotocopy___atk_anu.png"
+  },
+  {
+    "nomor": 175,
+    "berkas": "175_nota_pasar_tangan_toko_elektronik_ja.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO ELEKTRONIK JAYA ABADI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 547.000",
+    "url": "latihan-ocr/175_nota_pasar_tangan_toko_elektronik_ja.png"
+  },
+  {
+    "nomor": 176,
+    "berkas": "176_nota_pasar_tangan_warung_kopi___mie_.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG KOPI & MIE MAK CIK",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 258.500",
+    "url": "latihan-ocr/176_nota_pasar_tangan_warung_kopi___mie_.png"
+  },
+  {
+    "nomor": 177,
+    "berkas": "177_nota_pasar_tangan_toko_berkah_sembak.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO BERKAH SEMBAKO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 1.048.000",
+    "url": "latihan-ocr/177_nota_pasar_tangan_toko_berkah_sembak.png"
+  },
+  {
+    "nomor": 178,
+    "berkas": "178_nota_pasar_tangan_warung_sayur_bu_en.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG SAYUR BU ENI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 209.500",
+    "url": "latihan-ocr/178_nota_pasar_tangan_warung_sayur_bu_en.png"
+  },
+  {
+    "nomor": 179,
+    "berkas": "179_nota_pasar_tangan_depot_masakan_pada.png",
+    "judul": "Nota Pasar Tulis Tangan: DEPOT MASAKAN PADANG MINANG SAUYO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 538.000",
+    "url": "latihan-ocr/179_nota_pasar_tangan_depot_masakan_pada.png"
+  },
+  {
+    "nomor": 180,
+    "berkas": "180_nota_pasar_tangan_bengkel_motor_kary.png",
+    "judul": "Nota Pasar Tulis Tangan: BENGKEL MOTOR KARYA MANDIRI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 224.500",
+    "url": "latihan-ocr/180_nota_pasar_tangan_bengkel_motor_kary.png"
+  },
+  {
+    "nomor": 181,
+    "berkas": "181_nota_pasar_tangan_tb__lancar_makmur.png",
+    "judul": "Nota Pasar Tulis Tangan: TB. LANCAR MAKMUR",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 774.000",
+    "url": "latihan-ocr/181_nota_pasar_tangan_tb__lancar_makmur.png"
+  },
+  {
+    "nomor": 182,
+    "berkas": "182_nota_pasar_tangan_fotocopy___atk_anu.png",
+    "judul": "Nota Pasar Tulis Tangan: FOTOCOPY & ATK ANUGERAH",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 286.500",
+    "url": "latihan-ocr/182_nota_pasar_tangan_fotocopy___atk_anu.png"
+  },
+  {
+    "nomor": 183,
+    "berkas": "183_nota_pasar_tangan_toko_elektronik_ja.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO ELEKTRONIK JAYA ABADI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 575.000",
+    "url": "latihan-ocr/183_nota_pasar_tangan_toko_elektronik_ja.png"
+  },
+  {
+    "nomor": 184,
+    "berkas": "184_nota_pasar_tangan_warung_kopi___mie_.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG KOPI & MIE MAK CIK",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 286.500",
+    "url": "latihan-ocr/184_nota_pasar_tangan_warung_kopi___mie_.png"
+  },
+  {
+    "nomor": 185,
+    "berkas": "185_nota_pasar_tangan_toko_berkah_sembak.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO BERKAH SEMBAKO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 1.076.000",
+    "url": "latihan-ocr/185_nota_pasar_tangan_toko_berkah_sembak.png"
+  },
+  {
+    "nomor": 186,
+    "berkas": "186_nota_pasar_tangan_warung_sayur_bu_en.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG SAYUR BU ENI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 237.500",
+    "url": "latihan-ocr/186_nota_pasar_tangan_warung_sayur_bu_en.png"
+  },
+  {
+    "nomor": 187,
+    "berkas": "187_nota_pasar_tangan_depot_masakan_pada.png",
+    "judul": "Nota Pasar Tulis Tangan: DEPOT MASAKAN PADANG MINANG SAUYO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 566.000",
+    "url": "latihan-ocr/187_nota_pasar_tangan_depot_masakan_pada.png"
+  },
+  {
+    "nomor": 188,
+    "berkas": "188_nota_pasar_tangan_bengkel_motor_kary.png",
+    "judul": "Nota Pasar Tulis Tangan: BENGKEL MOTOR KARYA MANDIRI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 252.500",
+    "url": "latihan-ocr/188_nota_pasar_tangan_bengkel_motor_kary.png"
+  },
+  {
+    "nomor": 189,
+    "berkas": "189_nota_pasar_tangan_tb__lancar_makmur.png",
+    "judul": "Nota Pasar Tulis Tangan: TB. LANCAR MAKMUR",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 802.000",
+    "url": "latihan-ocr/189_nota_pasar_tangan_tb__lancar_makmur.png"
+  },
+  {
+    "nomor": 190,
+    "berkas": "190_nota_pasar_tangan_fotocopy___atk_anu.png",
+    "judul": "Nota Pasar Tulis Tangan: FOTOCOPY & ATK ANUGERAH",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 314.500",
+    "url": "latihan-ocr/190_nota_pasar_tangan_fotocopy___atk_anu.png"
+  },
+  {
+    "nomor": 191,
+    "berkas": "191_nota_pasar_tangan_toko_elektronik_ja.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO ELEKTRONIK JAYA ABADI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 603.000",
+    "url": "latihan-ocr/191_nota_pasar_tangan_toko_elektronik_ja.png"
+  },
+  {
+    "nomor": 192,
+    "berkas": "192_nota_pasar_tangan_warung_kopi___mie_.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG KOPI & MIE MAK CIK",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 314.500",
+    "url": "latihan-ocr/192_nota_pasar_tangan_warung_kopi___mie_.png"
+  },
+  {
+    "nomor": 193,
+    "berkas": "193_nota_pasar_tangan_toko_berkah_sembak.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO BERKAH SEMBAKO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 1.104.000",
+    "url": "latihan-ocr/193_nota_pasar_tangan_toko_berkah_sembak.png"
+  },
+  {
+    "nomor": 194,
+    "berkas": "194_nota_pasar_tangan_warung_sayur_bu_en.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG SAYUR BU ENI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 265.500",
+    "url": "latihan-ocr/194_nota_pasar_tangan_warung_sayur_bu_en.png"
+  },
+  {
+    "nomor": 195,
+    "berkas": "195_nota_pasar_tangan_depot_masakan_pada.png",
+    "judul": "Nota Pasar Tulis Tangan: DEPOT MASAKAN PADANG MINANG SAUYO",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 594.000",
+    "url": "latihan-ocr/195_nota_pasar_tangan_depot_masakan_pada.png"
+  },
+  {
+    "nomor": 196,
+    "berkas": "196_nota_pasar_tangan_bengkel_motor_kary.png",
+    "judul": "Nota Pasar Tulis Tangan: BENGKEL MOTOR KARYA MANDIRI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 280.500",
+    "url": "latihan-ocr/196_nota_pasar_tangan_bengkel_motor_kary.png"
+  },
+  {
+    "nomor": 197,
+    "berkas": "197_nota_pasar_tangan_tb__lancar_makmur.png",
+    "judul": "Nota Pasar Tulis Tangan: TB. LANCAR MAKMUR",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 830.000",
+    "url": "latihan-ocr/197_nota_pasar_tangan_tb__lancar_makmur.png"
+  },
+  {
+    "nomor": 198,
+    "berkas": "198_nota_pasar_tangan_fotocopy___atk_anu.png",
+    "judul": "Nota Pasar Tulis Tangan: FOTOCOPY & ATK ANUGERAH",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 342.500",
+    "url": "latihan-ocr/198_nota_pasar_tangan_fotocopy___atk_anu.png"
+  },
+  {
+    "nomor": 199,
+    "berkas": "199_nota_pasar_tangan_toko_elektronik_ja.png",
+    "judul": "Nota Pasar Tulis Tangan: TOKO ELEKTRONIK JAYA ABADI",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 631.000",
+    "url": "latihan-ocr/199_nota_pasar_tangan_toko_elektronik_ja.png"
+  },
+  {
+    "nomor": 200,
+    "berkas": "200_nota_pasar_tangan_warung_kopi___mie_.png",
+    "judul": "Nota Pasar Tulis Tangan: WARUNG KOPI & MIE MAK CIK",
+    "tag": "Nota Pasar",
+    "nominalTeks": "Rp 342.500",
+    "url": "latihan-ocr/200_nota_pasar_tangan_warung_kopi___mie_.png"
+  },
+  {
+    "nomor": 201,
+    "berkas": "201_metode_debit_edc.png",
+    "judul": "Struk EDC BCA Kartu Debit GPN #201",
+    "tag": "Debit",
+    "nominalTeks": "Rp 425.000",
+    "url": "latihan-ocr/201_metode_debit_edc.png"
+  },
+  {
+    "nomor": 202,
+    "berkas": "202_metode_debit_edc.png",
+    "judul": "Struk EDC Bank Mandiri Debit Card #202",
+    "tag": "Debit",
+    "nominalTeks": "Rp 315.000",
+    "url": "latihan-ocr/202_metode_debit_edc.png"
+  },
+  {
+    "nomor": 203,
+    "berkas": "203_metode_debit_edc.png",
+    "judul": "Struk EDC Bank BRI Debit GPN #203",
+    "tag": "Debit",
+    "nominalTeks": "Rp 195.000",
+    "url": "latihan-ocr/203_metode_debit_edc.png"
+  },
+  {
+    "nomor": 204,
+    "berkas": "204_metode_transfer_livinb.png",
+    "judul": "Resi Transfer BI-FAST Livin by Mandiri #204",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 767.500",
+    "url": "latihan-ocr/204_metode_transfer_livinb.png"
+  },
+  {
+    "nomor": 205,
+    "berkas": "205_metode_transfer_bcamobi.png",
+    "judul": "Resi m-Transfer BCA Mobile Antar Rekening #205",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 1.220.000",
+    "url": "latihan-ocr/205_metode_transfer_bcamobi.png"
+  },
+  {
+    "nomor": 206,
+    "berkas": "206_metode_transfer_brimo.png",
+    "judul": "Resi Pembayaran BRIVA di Aplikasi BRImo #206",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 375.000",
+    "url": "latihan-ocr/206_metode_transfer_brimo.png"
+  },
+  {
+    "nomor": 207,
+    "berkas": "207_metode_transfer_bsimobi.png",
+    "judul": "Resi BSI Mobile Transfer Antar Rekening Syariah #207",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 530.000",
+    "url": "latihan-ocr/207_metode_transfer_bsimobi.png"
+  },
+  {
+    "nomor": 208,
+    "berkas": "208_metode_transfer_seabank.png",
+    "judul": "Resi SeaBank Transfer Bebas Biaya Admin #208",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 715.000",
+    "url": "latihan-ocr/208_metode_transfer_seabank.png"
+  },
+  {
+    "nomor": 209,
+    "berkas": "209_metode_transfer_bankjag.png",
+    "judul": "Resi Bank Jago Transfer dari Kantong Bersama #209",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 490.000",
+    "url": "latihan-ocr/209_metode_transfer_bankjag.png"
+  },
+  {
+    "nomor": 210,
+    "berkas": "210_metode_qris_qrissta.png",
+    "judul": "Struk QRIS Dinamis Merchant Kopi Kayan #210",
+    "tag": "QRIS",
+    "nominalTeks": "Rp 133.000",
+    "url": "latihan-ocr/210_metode_qris_qrissta.png"
+  },
+  {
+    "nomor": 211,
+    "berkas": "211_metode_kredit_shopeepa.png",
+    "judul": "Bukti Transaksi ShopeePay / SPayLater #211",
+    "tag": "Kredit",
+    "nominalTeks": "Rp 590.000",
+    "url": "latihan-ocr/211_metode_kredit_shopeepa.png"
+  },
+  {
+    "nomor": 212,
+    "berkas": "212_metode_kredit_kredivo.png",
+    "judul": "Bukti Pembayaran Kredivo 30 Hari #212",
+    "tag": "Kredit",
+    "nominalTeks": "Rp 375.000",
+    "url": "latihan-ocr/212_metode_kredit_kredivo.png"
+  },
+  {
+    "nomor": 213,
+    "berkas": "213_metode_debit_edc.png",
+    "judul": "Struk EDC BCA Kartu Debit GPN #213",
+    "tag": "Debit",
+    "nominalTeks": "Rp 485.000",
+    "url": "latihan-ocr/213_metode_debit_edc.png"
+  },
+  {
+    "nomor": 214,
+    "berkas": "214_metode_debit_edc.png",
+    "judul": "Struk EDC Bank Mandiri Debit Card #214",
+    "tag": "Debit",
+    "nominalTeks": "Rp 375.000",
+    "url": "latihan-ocr/214_metode_debit_edc.png"
+  },
+  {
+    "nomor": 215,
+    "berkas": "215_metode_debit_edc.png",
+    "judul": "Struk EDC Bank BRI Debit GPN #215",
+    "tag": "Debit",
+    "nominalTeks": "Rp 255.000",
+    "url": "latihan-ocr/215_metode_debit_edc.png"
+  },
+  {
+    "nomor": 216,
+    "berkas": "216_metode_transfer_livinb.png",
+    "judul": "Resi Transfer BI-FAST Livin by Mandiri #216",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 827.500",
+    "url": "latihan-ocr/216_metode_transfer_livinb.png"
+  },
+  {
+    "nomor": 217,
+    "berkas": "217_metode_transfer_bcamobi.png",
+    "judul": "Resi m-Transfer BCA Mobile Antar Rekening #217",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 1.280.000",
+    "url": "latihan-ocr/217_metode_transfer_bcamobi.png"
+  },
+  {
+    "nomor": 218,
+    "berkas": "218_metode_transfer_brimo.png",
+    "judul": "Resi Pembayaran BRIVA di Aplikasi BRImo #218",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 435.000",
+    "url": "latihan-ocr/218_metode_transfer_brimo.png"
+  },
+  {
+    "nomor": 219,
+    "berkas": "219_metode_transfer_bsimobi.png",
+    "judul": "Resi BSI Mobile Transfer Antar Rekening Syariah #219",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 590.000",
+    "url": "latihan-ocr/219_metode_transfer_bsimobi.png"
+  },
+  {
+    "nomor": 220,
+    "berkas": "220_metode_transfer_seabank.png",
+    "judul": "Resi SeaBank Transfer Bebas Biaya Admin #220",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 775.000",
+    "url": "latihan-ocr/220_metode_transfer_seabank.png"
+  },
+  {
+    "nomor": 221,
+    "berkas": "221_metode_transfer_bankjag.png",
+    "judul": "Resi Bank Jago Transfer dari Kantong Bersama #221",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 550.000",
+    "url": "latihan-ocr/221_metode_transfer_bankjag.png"
+  },
+  {
+    "nomor": 222,
+    "berkas": "222_metode_qris_qrissta.png",
+    "judul": "Struk QRIS Dinamis Merchant Kopi Kayan #222",
+    "tag": "QRIS",
+    "nominalTeks": "Rp 193.000",
+    "url": "latihan-ocr/222_metode_qris_qrissta.png"
+  },
+  {
+    "nomor": 223,
+    "berkas": "223_metode_kredit_shopeepa.png",
+    "judul": "Bukti Transaksi ShopeePay / SPayLater #223",
+    "tag": "Kredit",
+    "nominalTeks": "Rp 650.000",
+    "url": "latihan-ocr/223_metode_kredit_shopeepa.png"
+  },
+  {
+    "nomor": 224,
+    "berkas": "224_metode_kredit_kredivo.png",
+    "judul": "Bukti Pembayaran Kredivo 30 Hari #224",
+    "tag": "Kredit",
+    "nominalTeks": "Rp 435.000",
+    "url": "latihan-ocr/224_metode_kredit_kredivo.png"
+  },
+  {
+    "nomor": 225,
+    "berkas": "225_metode_debit_edc.png",
+    "judul": "Struk EDC BCA Kartu Debit GPN #225",
+    "tag": "Debit",
+    "nominalTeks": "Rp 545.000",
+    "url": "latihan-ocr/225_metode_debit_edc.png"
+  },
+  {
+    "nomor": 226,
+    "berkas": "226_metode_debit_edc.png",
+    "judul": "Struk EDC Bank Mandiri Debit Card #226",
+    "tag": "Debit",
+    "nominalTeks": "Rp 435.000",
+    "url": "latihan-ocr/226_metode_debit_edc.png"
+  },
+  {
+    "nomor": 227,
+    "berkas": "227_metode_debit_edc.png",
+    "judul": "Struk EDC Bank BRI Debit GPN #227",
+    "tag": "Debit",
+    "nominalTeks": "Rp 315.000",
+    "url": "latihan-ocr/227_metode_debit_edc.png"
+  },
+  {
+    "nomor": 228,
+    "berkas": "228_metode_transfer_livinb.png",
+    "judul": "Resi Transfer BI-FAST Livin by Mandiri #228",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 887.500",
+    "url": "latihan-ocr/228_metode_transfer_livinb.png"
+  },
+  {
+    "nomor": 229,
+    "berkas": "229_metode_transfer_bcamobi.png",
+    "judul": "Resi m-Transfer BCA Mobile Antar Rekening #229",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 1.340.000",
+    "url": "latihan-ocr/229_metode_transfer_bcamobi.png"
+  },
+  {
+    "nomor": 230,
+    "berkas": "230_metode_transfer_brimo.png",
+    "judul": "Resi Pembayaran BRIVA di Aplikasi BRImo #230",
+    "tag": "Transfer",
+    "nominalTeks": "Rp 495.000",
+    "url": "latihan-ocr/230_metode_transfer_brimo.png"
+  },
+  {
+    "nomor": 231,
+    "berkas": "231_utilitas_jne_express.png",
+    "judul": "JNE EXPRESS - BUKTI #231",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 70.000",
+    "url": "latihan-ocr/231_utilitas_jne_express.png"
+  },
+  {
+    "nomor": 232,
+    "berkas": "232_utilitas_j_t_express.png",
+    "judul": "J&T EXPRESS - OFFICIAL #232",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 59.000",
+    "url": "latihan-ocr/232_utilitas_j_t_express.png"
+  },
+  {
+    "nomor": 233,
+    "berkas": "233_utilitas_sicepat_ekspres.png",
+    "judul": "SICEPAT EKSPRES - RESI #233",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 158.000",
+    "url": "latihan-ocr/233_utilitas_sicepat_ekspres.png"
+  },
+  {
+    "nomor": 234,
+    "berkas": "234_utilitas_pos_indonesia.png",
+    "judul": "POS INDONESIA - RESI #234",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 47.000",
+    "url": "latihan-ocr/234_utilitas_pos_indonesia.png"
+  },
+  {
+    "nomor": 235,
+    "berkas": "235_utilitas_perumda_pdam_dan.png",
+    "judul": "PERUMDA PDAM DANUM BENUANTA - STRUK #235",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 131.000",
+    "url": "latihan-ocr/235_utilitas_perumda_pdam_dan.png"
+  },
+  {
+    "nomor": 236,
+    "berkas": "236_utilitas_bpjs_kesehatan.png",
+    "judul": "BPJS KESEHATAN - BUKTI #236",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 122.500",
+    "url": "latihan-ocr/236_utilitas_bpjs_kesehatan.png"
+  },
+  {
+    "nomor": 237,
+    "berkas": "237_utilitas_bapenda_kabupate.png",
+    "judul": "BAPENDA KABUPATEN BULUNGAN - BUKTI #237",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 212.000",
+    "url": "latihan-ocr/237_utilitas_bapenda_kabupate.png"
+  },
+  {
+    "nomor": 238,
+    "berkas": "238_utilitas_pt_pelayaran_nas.png",
+    "judul": "PT PELAYARAN NASIONAL INDONESIA (PELNI) - TIKET #238",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 313.000",
+    "url": "latihan-ocr/238_utilitas_pt_pelayaran_nas.png"
+  },
+  {
+    "nomor": 239,
+    "berkas": "239_utilitas_kai_access__kere.png",
+    "judul": "KAI ACCESS (KERETA API INDONESIA) - BOARDING #239",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 136.000",
+    "url": "latihan-ocr/239_utilitas_kai_access__kere.png"
+  },
+  {
+    "nomor": 240,
+    "berkas": "240_utilitas_pln_persero.png",
+    "judul": "PLN PERSERO - STRUK #240",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 238.500",
+    "url": "latihan-ocr/240_utilitas_pln_persero.png"
+  },
+  {
+    "nomor": 241,
+    "berkas": "241_utilitas_jne_express.png",
+    "judul": "JNE EXPRESS - BUKTI #241",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 110.000",
+    "url": "latihan-ocr/241_utilitas_jne_express.png"
+  },
+  {
+    "nomor": 242,
+    "berkas": "242_utilitas_j_t_express.png",
+    "judul": "J&T EXPRESS - OFFICIAL #242",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 99.000",
+    "url": "latihan-ocr/242_utilitas_j_t_express.png"
+  },
+  {
+    "nomor": 243,
+    "berkas": "243_utilitas_sicepat_ekspres.png",
+    "judul": "SICEPAT EKSPRES - RESI #243",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 198.000",
+    "url": "latihan-ocr/243_utilitas_sicepat_ekspres.png"
+  },
+  {
+    "nomor": 244,
+    "berkas": "244_utilitas_pos_indonesia.png",
+    "judul": "POS INDONESIA - RESI #244",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 87.000",
+    "url": "latihan-ocr/244_utilitas_pos_indonesia.png"
+  },
+  {
+    "nomor": 245,
+    "berkas": "245_utilitas_perumda_pdam_dan.png",
+    "judul": "PERUMDA PDAM DANUM BENUANTA - STRUK #245",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 171.000",
+    "url": "latihan-ocr/245_utilitas_perumda_pdam_dan.png"
+  },
+  {
+    "nomor": 246,
+    "berkas": "246_utilitas_bpjs_kesehatan.png",
+    "judul": "BPJS KESEHATAN - BUKTI #246",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 162.500",
+    "url": "latihan-ocr/246_utilitas_bpjs_kesehatan.png"
+  },
+  {
+    "nomor": 247,
+    "berkas": "247_utilitas_bapenda_kabupate.png",
+    "judul": "BAPENDA KABUPATEN BULUNGAN - BUKTI #247",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 252.000",
+    "url": "latihan-ocr/247_utilitas_bapenda_kabupate.png"
+  },
+  {
+    "nomor": 248,
+    "berkas": "248_utilitas_pt_pelayaran_nas.png",
+    "judul": "PT PELAYARAN NASIONAL INDONESIA (PELNI) - TIKET #248",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 353.000",
+    "url": "latihan-ocr/248_utilitas_pt_pelayaran_nas.png"
+  },
+  {
+    "nomor": 249,
+    "berkas": "249_utilitas_kai_access__kere.png",
+    "judul": "KAI ACCESS (KERETA API INDONESIA) - BOARDING #249",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 176.000",
+    "url": "latihan-ocr/249_utilitas_kai_access__kere.png"
+  },
+  {
+    "nomor": 250,
+    "berkas": "250_utilitas_pln_persero.png",
+    "judul": "PLN PERSERO - STRUK #250",
+    "tag": "Tagihan & Utilitas",
+    "nominalTeks": "Rp 278.500",
+    "url": "latihan-ocr/250_utilitas_pln_persero.png"
   }
 ]
