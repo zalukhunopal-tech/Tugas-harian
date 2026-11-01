@@ -1820,7 +1820,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
         </div>
 
-      {/* Indikator Status Scan Struk OCR yang Ringkas & Minimalis (Tanpa card tebal agar wallpaper tetap bersih) */}
+      {/* Indikator Status Scan Struk OCR yang Ringkas & Minimalis */}
       {!editTransaksi && memuatScan && (
         <div
           style={{
@@ -1845,6 +1845,215 @@ export const TambahView: React.FC<TambahViewProps> = ({
         >
           <span style={{ fontSize: "1rem" }}>⚡</span>
           <span>{statusProgressScan || "OCR lokal sedang membaca dan menganalisis struk belanja…"}</span>
+        </div>
+      )}
+
+      {/* Ringkasan Hasil Scan OCR yang Rapi & Responsif Mobile (Tanpa teks menggantung/pecah ke bawah) */}
+      {!editTransaksi && hasilScan && !memuatScan && (
+        <div
+          className="struk-hasil-sukses"
+          style={{
+            margin: "0 0 16px 0",
+            padding: "12px 14px",
+            borderRadius: "14px",
+            background: "rgba(16, 24, 40, 0.8)",
+            backdropFilter: "blur(12px)",
+            border: "1.5px solid rgba(16, 185, 129, 0.45)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.3)",
+          }}
+        >
+          {/* Header Baris Tunggal: Status & Tombol Simbol Ganti */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px",
+              paddingBottom: "8px",
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                minWidth: 0,
+                color: "var(--masuk, #10b981)",
+                fontWeight: 700,
+                fontSize: "0.86rem",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              <span>✓</span>
+              <span>Struk Terbaca (OCR)</span>
+            </div>
+
+            {/* Tombol Simbol Ganti Foto (Ringkas, Berisi Simbol, Bebas Teks Menggantung) */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setKameraPanduanBuka(true)}
+                title="Ambil foto ulang"
+                aria-label="Ambil foto ulang"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "4px 10px",
+                  borderRadius: "8px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                  background: "rgba(255, 255, 255, 0.12)",
+                  color: "#ffffff",
+                  border: "1px solid rgba(255, 255, 255, 0.22)",
+                  cursor: "pointer",
+                  lineHeight: 1.2,
+                }}
+              >
+                <span aria-hidden="true">🔄</span>
+                <span>Ganti</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleResetScan}
+                title="Tutup kartu ringkasan scan"
+                aria-label="Tutup"
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "50%",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  border: "none",
+                  color: "rgba(255, 255, 255, 0.7)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.85rem",
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Ringkasan Satu Kalimat */}
+          {hasilScan.ringkasan && (
+            <p
+              style={{
+                margin: "8px 0 6px",
+                fontSize: "0.82rem",
+                color: "#e2e8f0",
+                lineHeight: 1.4,
+                wordBreak: "break-word",
+              }}
+            >
+              {hasilScan.ringkasan}
+            </p>
+          )}
+
+          {/* Rincian Data Terbaca */}
+          <div
+            className="struk-hasil-rincian"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: "6px 8px",
+              fontSize: "0.78rem",
+              color: "#cbd5e1",
+              margin: "6px 0",
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>🏬 {hasilScan.deskripsi}</span>
+            <span style={{ opacity: 0.35 }}>•</span>
+            <span style={{ fontWeight: 700, color: "var(--keluar, #ef4444)" }}>
+              💰 {formatRupiah(hasilScan.jumlah || 0)}
+            </span>
+            <span style={{ opacity: 0.35 }}>•</span>
+            <span>📅 {hasilScan.tanggal}</span>
+            <span style={{ opacity: 0.35 }}>•</span>
+            <span>🏷️ {labelKategori(hasilScan.kategori)}</span>
+            <span style={{ opacity: 0.35 }}>•</span>
+            <span>💳 {hasilScan.metode}</span>
+          </div>
+
+          {/* Pilihan Nominal Alternatif */}
+          {hasilScan.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
+            <div
+              style={{
+                marginTop: "8px",
+                padding: "8px 10px",
+                background: "rgba(0, 0, 0, 0.28)",
+                borderRadius: "8px",
+                border: "1px dashed rgba(255, 255, 255, 0.18)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.73rem",
+                  color: "#94a3b8",
+                  marginBottom: "6px",
+                  fontWeight: 600,
+                }}
+              >
+                Angka lain terdeteksi pada struk (klik untuk ganti nominal):
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {hasilScan.kandidatJumlah.map((k, idx) => {
+                  const isActive = jumlah === String(k.nominal);
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setJumlah(String(k.nominal));
+                        setHasilScan((prev) => (prev ? { ...prev, jumlah: k.nominal } : null));
+                      }}
+                      style={{
+                        fontSize: "0.73rem",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        border: isActive ? "1.5px solid var(--accent, #00d2ff)" : "1px solid rgba(255, 255, 255, 0.16)",
+                        background: isActive ? "rgba(0, 210, 255, 0.22)" : "rgba(255, 255, 255, 0.08)",
+                        color: isActive ? "var(--accent, #00d2ff)" : "#e2e8f0",
+                        cursor: "pointer",
+                        fontWeight: isActive ? 700 : 500,
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {formatRupiah(k.nominal)} ({k.label})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Peringatan faktual jika ada */}
+          {hasilScan.peringatan && hasilScan.peringatan.length > 0 && (
+            <div style={{ marginTop: "6px", fontSize: "0.73rem", color: "#fbbf24" }}>
+              {hasilScan.peringatan.map((p, pIdx) => (
+                <div key={pIdx}>ℹ️ {p}</div>
+              ))}
+            </div>
+          )}
+
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontSize: "0.73rem",
+              color: "var(--accent, #00d2ff)",
+            }}
+          >
+            ↓ Silakan periksa detail pada formulir di bawah sebelum menyimpan.
+          </p>
         </div>
       )}
 
