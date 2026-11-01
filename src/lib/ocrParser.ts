@@ -55,6 +55,11 @@ export function uraikanNominalRupiah(teks: string): number | null {
   // Bersihkan teks di sekitarnya
   let bersih = teks.trim();
 
+  // Abaikan format jam-menit digital jika tidak ada imbuhan Rp/IDR: misal 10.27, 09:25, 14.30
+  if (/^(?:[01]?[0-9]|2[0-3])[\.:][0-5][0-9]$/.test(bersih) && !/(?:rp|idr)/i.test(teks)) {
+    return null;
+  }
+
   // Hapus prefiks Rp, RP, IDR, lambang mata uang
   bersih = bersih.replace(/^(?:RP|IDR|\$)\.?\s*/i, "");
 
@@ -89,8 +94,19 @@ export function uraikanNominalRupiah(teks: string): number | null {
 
   // Batas kewajaran: hindari nomor HP (0812...), nomor rekening, tanggal (20261025), atau angka raksasa > 1 milyar
   if (hanyaDigit.startsWith("08") && hanyaDigit.length >= 10) return null; // No HP
+  if (/^0\d{3,}/.test(hanyaDigit)) return null; // Kode/Nomor berawalan 0
   if (hanyaDigit.length >= 15) return null; // Nomor kartu/rekening/NMID
   if (nilai > 1_000_000_000) return null; // Nominal tak wajar > 1 Milyar untuk struk harian
+
+  // Jika angka 4 digit berada dalam rentang tahun wajar (2020 - 2035) tanpa tanda nominal Rp/IDR
+  if (nilai >= 2020 && nilai <= 2035 && !/(?:rp|idr)/i.test(teks)) {
+    return null;
+  }
+
+  // Tolak jika angka diapit atau diakhiri satuan kuota atau ukuran non-uang (GB, MB, KB, Liter, Pcs, dsb.)
+  if (/(?:gb|mb|kb|kwh|va|watt|liter|ltr|pcs|kg|gr)\b/i.test(teks)) {
+    return null;
+  }
 
   return nilai;
 }
@@ -105,7 +121,7 @@ export function ekstrakKandidatNominal(barisDaftar: string[]): {
   const hasilKandidat: KandidatNominal[] = [];
 
   // Kata kunci pengecualian ketat (bukan nominal belanja utama)
-  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*FEE|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|STAN|APPROVAL|TRACE|TELP|NPWP|NMID|KODE\s*POS|JAM|TGL|TANGGAL)\b/i;
+  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*FEE|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|STAN|APPROVAL|TRACE|TELP|NPWP|NMID|KODE\s*POS|JAM|TGL|TANGGAL|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*PESANAN|NOMOR\s*(?:IM3|HP|TELKOMSEL|XL|AXIS|SMARTFREN|TRI|PELANGGAN|METER|REKENING|KARTU)|KODE\s*PEMESANAN)\b/i;
 
   // Kata kunci prioritas tinggi (Grand Total, Total Akhir)
   const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|JUMLAH\s*DIBAYAR|NOMINAL\s*TRANSFER|TOTAL\s*TRANSAKSI|TOTAL\s*AKHIR|JUMLAH\s*TOTAL|TAGIHAN\s*TOTAL|BILL\s*TOTAL)\b/i;
@@ -126,8 +142,21 @@ export function ekstrakKandidatNominal(barisDaftar: string[]): {
 
     const barisAtas = baris.toUpperCase();
 
-    // Jika baris memuat kata kunci pengecualian, jangan jadikan kandidat utama
-    if (polaAbaikan.test(barisAtas)) {
+    // Jika baris memuat kata kunci pengecualian atau ID/Nomor/Jam status bar, jangan jadikan kandidat
+    if (
+      polaAbaikan.test(barisAtas) ||
+      /^(?:ID\s*TRANSAKSI|ORDER\s*ID|TRANSACTION\s*ID|NO\.?\s*PESANAN|NOMOR\s*(?:IM3|HP|PELANGGAN|REKENING)|REKENING\s*TUJUAN)/i.test(baris) ||
+      /^\d{1,4}\b.*(?:4G|5G|LTE|WIFI|ED|\bAM\b|\bPM\b)/i.test(baris)
+    ) {
+      continue;
+    }
+
+    // Abaikan baris tanggal & waktu tanpa indikator nominal belanja (misal: "27 Okt 2026 - 09:25 AM")
+    const adaIndikatorUang = /(?:Rp|IDR|Total|Bayar|Tagihan|Jumlah|Harga)/i.test(baris);
+    const adaPolaBulan = /\b(?:Jan|Feb|Mar|Apr|Mei|May|Jun|Jul|Agu|Aug|Sep|Okt|Oct|Nov|Des|Dec)[a-z]*\b/i.test(baris);
+    const adaPolaTanggal = /\b\d{1,2}[\/\.\-]\d{1,2}[\/\.\-](?:20\d\d|\d{2})\b/.test(baris);
+    const adaPolaWaktu = /\b\d{1,2}[:\.]\d{2}(?::\d{2})?\s*(?:AM|PM|WIB|WITA|WIT)?\b/i.test(baris);
+    if ((adaPolaBulan || adaPolaTanggal || adaPolaWaktu) && !adaIndikatorUang) {
       continue;
     }
 
@@ -268,7 +297,18 @@ export function ekstrakTanggalTransaksi(teks: string): { tanggal?: string; ditem
  */
 export function ekstrakMetodePembayaran(teks: string): string {
   const t = teks.toUpperCase();
-  if (t.includes("QRIS") || t.includes("GOPAY") || t.includes("OVO") || t.includes("DANA") || t.includes("SHOPEEPAY") || t.includes("LINKAJA")) {
+  // QRIS: Deteksi logo dan variasi teks OCR (QRIS, ORIS, GRIS, Q-RIS, QR1S, QRI5, atau di baris METODE PEMBAYARAN)
+  if (
+    /\b(?:Q|O|G)R[I1l]S\b/i.test(teks) ||
+    /METODE\s*PEMBAYARAN[^\r\n]*(?:ORIS|QRIS|GRIS|Q-RIS)/i.test(teks) ||
+    t.includes("QRIS") ||
+    t.includes("ORIS") ||
+    t.includes("GOPAY") ||
+    t.includes("OVO") ||
+    t.includes("DANA") ||
+    t.includes("SHOPEEPAY") ||
+    t.includes("LINKAJA")
+  ) {
     return "QRIS";
   }
   if (t.includes("TRANSFER") || t.includes("BI-FAST") || t.includes("M-BCA") || t.includes("LIVIN") || t.includes("BRIMO") || t.includes("VIRTUAL ACCOUNT")) {
@@ -359,11 +399,86 @@ export function uraiTeksOcrTransaksi(
   let kategoriPribadi = "Belanja Harian";
   let kategoriKegiatan = "Konsumsi";
   let kataKunciDeskripsi = "Belanja";
+  let deskripsiKustom: string | undefined = undefined;
+  let keteranganLaporanKustom: string | undefined = undefined;
   let spbuTerdeteksi = false;
   let jenisBBM = "";
 
-  // A. SPBU Pertamina / Shell / BP
-  if (teksBesar.includes("SPBU") || teksBesar.includes("PERTAMINA") || teksBesar.includes("PASTI PAS") || teksBesar.includes("SHELL") || teksBesar.includes("BP-AKR")) {
+  // A. Operator Telekomunikasi & Paket Data / Internet / Pulsa
+  if (
+    teksBesar.includes("PACKAGE PURCHASE") ||
+    teksBesar.includes("PAKET DATA") ||
+    teksBesar.includes("NAMA PAKET") ||
+    teksBesar.includes("INTERNET 100GB") ||
+    /INTERNET\s*[0-9]+\s*(?:GB|MB)?/i.test(teksBesar) ||
+    teksBesar.includes("NOMOR IM3") ||
+    teksBesar.includes("IM3") ||
+    teksBesar.includes("INDOSAT") ||
+    teksBesar.includes("TELKOMSEL") ||
+    teksBesar.includes("MYTELKOMSEL") ||
+    teksBesar.includes("BY.U") ||
+    teksBesar.includes("XL AXIATA") ||
+    teksBesar.includes("MYXL") ||
+    teksBesar.includes("AXIS") ||
+    teksBesar.includes("SMARTFREN") ||
+    teksBesar.includes("BIMA+") ||
+    (teksBesar.includes("PULSA") && !teksBesar.includes("KAPAL"))
+  ) {
+    jenisBukti = "Nota";
+    kategoriPribadi = "Pulsa & Internet";
+    kategoriKegiatan = "Komunikasi, Listrik & Kurir";
+
+    let operator = "Layanan Internet";
+    if (teksBesar.includes("IM3") || teksBesar.includes("INDOSAT")) operator = "IM3 (Indosat)";
+    else if (teksBesar.includes("TELKOMSEL") || teksBesar.includes("MYTELKOMSEL") || teksBesar.includes("BY.U")) operator = "Telkomsel";
+    else if (teksBesar.includes("XL")) operator = "XL Axiata";
+    else if (teksBesar.includes("AXIS")) operator = "AXIS";
+    else if (teksBesar.includes("SMARTFREN")) operator = "Smartfren";
+    else if (teksBesar.includes("TRI") || teksBesar.includes("BIMA")) operator = "Tri (3)";
+
+    namaPenjualPenyedia = operator;
+
+    // Nama Paket / Layanan
+    const mPaket = teksMentah.match(/(?:Nama\s*Paket|Paket|Produk)[:\s]*([^\r\n]{3,40})/i);
+    const mKuota = teksMentah.match(/(?:Internet|Kuota|Paket\s*Data)\s*([0-9]+\s*(?:GB|MB)?)/i);
+    const namaPaket = mPaket ? mPaket[1].trim() : (mKuota ? mKuota[0].trim() : "Paket Data Internet");
+
+    // Nomor HP / Pelanggan
+    const mHp = teksMentah.match(/(?:Nomor\s*(?:IM3|HP|Telepon|Pelanggan)?|No\.?\s*HP)[:\s]*(08[0-9]{8,12})/i);
+    const noHp = mHp ? mHp[1] : "";
+
+    kataKunciDeskripsi = namaPaket;
+    if (noHp) {
+      deskripsiKustom = `${operator} - ${namaPaket} (${noHp})`;
+    } else {
+      deskripsiKustom = `${operator} - ${namaPaket}`;
+    }
+
+    keteranganLaporanKustom = `Pembelian ${namaPaket.toLowerCase()} ${operator}${noHp ? ` nomor ${noHp}` : ""} untuk kebutuhan komunikasi dan koordinasi tim kegiatan.`;
+  }
+
+  // B. Listrik PLN / PDAM
+  else if (
+    teksBesar.includes("TOKEN LISTRIK") ||
+    teksBesar.includes("PLN PREPAID") ||
+    teksBesar.includes("PLN POSTPAID") ||
+    teksBesar.includes("TOKEN PLN") ||
+    teksBesar.includes("STROOM/TOKEN") ||
+    teksBesar.includes("STROOM") ||
+    teksBesar.includes("ID PELANGGAN") ||
+    teksBesar.includes("NOMOR METER")
+  ) {
+    jenisBukti = "Nota";
+    kategoriPribadi = "Tagihan & Sewa";
+    kategoriKegiatan = "Komunikasi, Listrik & Kurir";
+    namaPenjualPenyedia = "PLN";
+    kataKunciDeskripsi = "Token Listrik PLN";
+    deskripsiKustom = "PLN - Pembelian Token Listrik";
+    keteranganLaporanKustom = "Pembelian token listrik PLN untuk operasional kegiatan.";
+  }
+
+  // C. SPBU Pertamina / Shell / BP
+  else if (teksBesar.includes("SPBU") || teksBesar.includes("PERTAMINA") || teksBesar.includes("PASTI PAS") || teksBesar.includes("SHELL") || teksBesar.includes("BP-AKR")) {
     spbuTerdeteksi = true;
     jenisBukti = "Struk thermal (minimarket/SPBU)";
     kategoriPribadi = "Transportasi";
@@ -605,9 +720,14 @@ export function uraiTeksOcrTransaksi(
 
   // Fallback: Jika belum terdeteksi nama penyedia, ambil baris pertama yang masuk akal
   if (!namaPenjualPenyedia && baris.length > 0) {
-    for (let i = 0; i < Math.min(3, baris.length); i++) {
-      const b = baris[i];
-      if (b.length >= 3 && b.length <= 40 && !/^(STRUK|NOTA|BUKTI|SELAMAT|TANGGAL|NO|INVOICE)/i.test(b)) {
+    for (let i = 0; i < Math.min(5, baris.length); i++) {
+      const b = baris[i].trim();
+      const bAtas = b.toUpperCase();
+      // Lewati status bar ponsel (jam, 4G, baterai)
+      if (/^\d{1,4}\s*(?:\d{1,2}:|[A-Za-z0-9\.\s]*4G|LTE|WIFI|ED|\bAM\b|\bPM\b)/i.test(b)) continue;
+      // Lewati judul layar dan label status transaksi
+      if (/^(DETAIL|RINCIAN|STATUS|INFORMASI|BUKTI|RIWAYAT|PACKAGE|ORDER|TRANSACTION|STRUK|NOTA|SELAMAT|TANGGAL|TOTAL|SUBTOTAL|METODE|BERHASIL|SUCCESS|SELESAI)/i.test(bAtas)) continue;
+      if (b.length >= 3 && b.length <= 40) {
         namaPenjualPenyedia = b;
         break;
       }
@@ -648,13 +768,17 @@ export function uraiTeksOcrTransaksi(
 
   // 7. Penyusunan Deskripsi & Narasi Keterangan Laporan Faktual
   const merchantLabel = namaPenjualPenyedia ? namaPenjualPenyedia : "Penyedia";
-  const deskripsi = `${merchantLabel} - ${kataKunciDeskripsi}`;
+  const deskripsi = deskripsiKustom || `${merchantLabel} - ${kataKunciDeskripsi}`;
 
   let keteranganLaporan = "";
-  if (kategoriKegiatan === "BBM") {
+  if (keteranganLaporanKustom) {
+    keteranganLaporan = keteranganLaporanKustom;
+  } else if (kategoriKegiatan === "BBM") {
     const volTeks = rincian?.banyaknya ? ` sebanyak ${rincian.banyaknya} liter` : "";
     const bbmTeks = jenisBBM ? ` jenis ${jenisBBM}` : "";
     keteranganLaporan = `Pembelian bahan bakar minyak${bbmTeks}${volTeks} di ${merchantLabel} untuk operasional kegiatan.`;
+  } else if (kategoriKegiatan === "Komunikasi, Listrik & Kurir") {
+    keteranganLaporan = `Biaya komunikasi, internet, dan utilitas di ${merchantLabel} untuk operasional kegiatan.`;
   } else if (kategoriKegiatan === "Konsumsi") {
     keteranganLaporan = `Pembayaran konsumsi makanan/minuman di ${merchantLabel} untuk peserta kegiatan.`;
   } else if (kategoriKegiatan === "Pengadaan Barang & Perlengkapan") {

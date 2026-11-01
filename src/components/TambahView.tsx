@@ -1871,25 +1871,29 @@ export const TambahView: React.FC<TambahViewProps> = ({
                     Angka lain terdeteksi pada struk (klik untuk ganti nominal):
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                    {hasilScan.kandidatJumlah.map((k, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setJumlah(String(k.nominal))}
-                        style={{
-                          fontSize: "0.74rem",
-                          padding: "3px 8px",
-                          borderRadius: "6px",
-                          border: jumlah === String(k.nominal) ? "1px solid var(--accent)" : "1px solid var(--border)",
-                          background: jumlah === String(k.nominal) ? "var(--accent-alpha)" : "var(--card-bg, #fff)",
-                          color: jumlah === String(k.nominal) ? "var(--accent)" : "var(--text)",
-                          cursor: "pointer",
-                          fontWeight: jumlah === String(k.nominal) ? 700 : 500,
-                        }}
-                      >
-                        {formatRupiah(k.nominal)} ({k.label})
-                      </button>
-                    ))}
+                    {hasilScan.kandidatJumlah.map((k, idx) => {
+                      const isActive = jumlah === String(k.nominal);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setJumlah(String(k.nominal))}
+                          style={{
+                            fontSize: "0.74rem",
+                            padding: "4px 10px",
+                            borderRadius: "6px",
+                            border: isActive ? "1px solid var(--accent)" : "1px solid var(--border)",
+                            background: isActive ? "var(--highlight)" : "var(--surface)",
+                            color: isActive ? "var(--accent)" : "var(--text)",
+                            cursor: "pointer",
+                            fontWeight: isActive ? 700 : 500,
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {formatRupiah(k.nominal)} ({k.label})
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
