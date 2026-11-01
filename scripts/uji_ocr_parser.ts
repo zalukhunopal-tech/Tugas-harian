@@ -3,7 +3,12 @@
  * Menguji 10 format bukti transaksi Indonesia beserta kasus batas (edge cases).
  */
 
-import { uraiTeksOcrTransaksi, uraikanNominalRupiah } from "../src/lib/ocrParser";
+import {
+  uraiTeksOcrTransaksi,
+  uraikanNominalRupiah,
+  uraikanTerbilangRupiah,
+  ekstrakMetodePembayaran,
+} from "../src/lib/ocrParser";
 
 let gagal = 0;
 function cek(nama: string, kondisi: boolean, info?: unknown) {
@@ -384,10 +389,55 @@ cek("Boarding Pass: jenis bukti Tiket pesawat/e-ticket", hBp.jenisBukti === "Tik
 cek("Boarding Pass: kategori kegiatan Transportasi", hBp.kategoriDanaKegiatan === "Transportasi");
 cek("Boarding Pass: deskripsi memuat nama penumpang IPR VAN", hBp.deskripsi?.includes("IPR VAN") === true, hBp.deskripsi);
 
+console.log("\n== 22. Penguraian Terbilang Bahasa Indonesia (Kwitansi & Nota Tulis Tangan)");
+cek("Terbilang: Satu Juta Lima Ratus Ribu Rupiah", uraikanTerbilangRupiah("Satu Juta Lima Ratus Ribu Rupiah") === 1500000);
+cek("Terbilang: Dua Ratus Tujuh Puluh Lima Ribu Rupiah", uraikanTerbilangRupiah("Dua Ratus Tujuh Puluh Lima Ribu Rupiah") === 275000);
+cek("Terbilang: Tiga Puluh Lima Ribu", uraikanTerbilangRupiah("Tiga Puluh Lima Ribu") === 35000);
+cek("Terbilang: Empat Juta Dua Ratus Ribu", uraikanTerbilangRupiah("Empat Juta Dua Ratus Ribu") === 4200000);
+cek("Terbilang: Telah terima uang sejumlah Delapan Ratus Ribu Rupiah", uraikanTerbilangRupiah("Kuitansi uang sejumlah Delapan Ratus Ribu Rupiah untuk sewa") === 800000);
+
+console.log("\n== 23. Pemulihan Variasi Simbol OCR Tulisan Tangan (Ry, Kp, Pp, Bp, dsb)");
+cek("Tulisan Tangan: Ry 250.000,-", uraikanNominalRupiah("Ry 250.000,-") === 250000);
+cek("Tulisan Tangan: Kp 75.000", uraikanNominalRupiah("Kp 75.000") === 75000);
+cek("Tulisan Tangan: =Rp. 1.200.000,-=", uraikanNominalRupiah("=Rp. 1.200.000,-=") === 1200000);
+cek("Tulisan Tangan: # 850.000 #", uraikanNominalRupiah("# 850.000 #") === 850000);
+cek("Tulisan Tangan: Pp 35.000,-", uraikanNominalRupiah("Pp 35.000,-") === 35000);
+cek("Tulisan Tangan: Bp 500.000", uraikanNominalRupiah("Bp 500.000") === 500000);
+
+console.log("\n== 24. Akurasi Klasifikasi Metode Pembayaran");
+cek("Metode: GPN Debit terdeteksi Debit", ekstrakMetodePembayaran("METODE BAYAR: GPN DEBIT") === "Debit");
+cek("Metode: EDC BCA Chip terdeteksi Debit", ekstrakMetodePembayaran("EDC BCA DEBIT CHIP") === "Debit");
+cek("Metode: BI-FAST terdeteksi Transfer", ekstrakMetodePembayaran("PEMBAYARAN VIA BI-FAST TRANSFER") === "Transfer");
+cek("Metode: Mandiri Virtual Account terdeteksi Transfer", ekstrakMetodePembayaran("PEMBAYARAN MANDIRI VIRTUAL ACCOUNT NO 8890123") === "Transfer");
+cek("Metode: QRIS Dinamis terdeteksi QRIS", ekstrakMetodePembayaran("STATUS PEMBAYARAN: QRIS DINAMIS BERHASIL") === "QRIS");
+cek("Metode: SpayLater terdeteksi Kredit", ekstrakMetodePembayaran("METODE: SPAYLATER CICILAN 3 BULAN") === "Kredit");
+cek("Metode: Kredivo terdeteksi Kredit", ekstrakMetodePembayaran("BAYAR DENGAN KREDIVO 30 HARI") === "Kredit");
+cek("Metode: Tunai dengan footer promosi QRIS tetap Tunai", ekstrakMetodePembayaran("TOTAL: 50.000\nTUNAI: 100.000\nKEMBALIAN: 50.000\nKami menerima pembayaran QRIS & Debit") === "Tunai");
+cek("Metode: Kwitansi tulisan tangan LUNAS CASH", ekstrakMetodePembayaran("Tanda terima lunas cash uang pas") === "Tunai");
+cek("Metode: Nota tulisan tangan SUDAH TF KE REKENING", ekstrakMetodePembayaran("Sudah tf ke rekening BRI a.n Toko Barokah") === "Transfer");
+
+console.log("\n== 25. Ekstraksi Kwitansi Tulisan Tangan Lengkap dengan Terbilang");
+const kwitansiTangan = `
+KWITANSI TANDA TERIMA
+No: 142/KW/XI/2026
+Telah diterima dari: Panitia Pelaksana
+Uang Sejumlah: Dua Juta Tujuh Ratus Lima Puluh Ribu Rupiah
+Untuk Pembayaran: Jasa Narasumber & Transportasi Lokal
+Terbilang: Ry 2.750.000,-
+Tanjung Selor, 01-11-2026
+LUNAS CASH
+`;
+const hKwitansiTangan = uraiTeksOcrTransaksi(kwitansiTangan);
+cek("Kwitansi Tangan: sukses", hKwitansiTangan.sukses === true);
+cek("Kwitansi Tangan: nominal 2.750.000", hKwitansiTangan.jumlah === 2750000, hKwitansiTangan.jumlah);
+cek("Kwitansi Tangan: tanggal 2026-11-01", hKwitansiTangan.tanggal === "2026-11-01", hKwitansiTangan.tanggal);
+cek("Kwitansi Tangan: metode Tunai", hKwitansiTangan.metode === "Tunai", hKwitansiTangan.metode);
+cek("Kwitansi Tangan: terbilang masuk kandidat", hKwitansiTangan.kandidatJumlah.some(k => k.nominal === 2750000));
+
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 21 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 25 pengujian parser OCR transaksi lolos dengan sempurna!");
 }
 

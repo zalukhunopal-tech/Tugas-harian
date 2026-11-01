@@ -2620,4 +2620,6 @@ async function buat100Dummy() {
   console.log(`✓ Selesai membuat 100 struk dummy! Metadata disimpan di ${jsonPath}`);
 }
 
-buat100Dummy().catch(console.error);
+if (process.argv[1] && process.argv[1].replace(/\\/g, "/").endsWith("buat_100_struk_dummy.ts")) {
+  buat100Dummy().catch(console.error);
+}
