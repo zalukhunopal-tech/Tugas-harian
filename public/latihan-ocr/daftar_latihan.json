@@ -17,146 +17,786 @@
   },
   {
     "nomor": 3,
-    "berkas": "03_spbu_pertamax.png",
-    "judul": "SPBU Pertamina Pertamax",
-    "tag": "BBM",
-    "nominalTeks": "Rp 323.750",
-    "url": "latihan-ocr/03_spbu_pertamax.png"
+    "berkas": "03_alfamidi_super.png",
+    "judul": "Alfamidi Super Sembako",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 142.500",
+    "url": "latihan-ocr/03_alfamidi_super.png"
   },
   {
     "nomor": 4,
-    "berkas": "04_spbu_dexlite.png",
-    "judul": "SPBU Pertamina Dexlite",
-    "tag": "BBM",
-    "nominalTeks": "Rp 426.000",
-    "url": "latihan-ocr/04_spbu_dexlite.png"
+    "berkas": "04_superindo_fresh.png",
+    "judul": "Super Indo Fresh Buah & Daging",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 187.300",
+    "url": "latihan-ocr/04_superindo_fresh.png"
   },
   {
     "nomor": 5,
-    "berkas": "05_kopi_kenangan.png",
-    "judul": "Kopi Kenangan Tarakan",
-    "tag": "Kafe & Kopi",
-    "nominalTeks": "Rp 63.800",
-    "url": "latihan-ocr/05_kopi_kenangan.png"
+    "berkas": "05_hypermart_paket.png",
+    "judul": "Hypermart Paket Bulanan",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 315.000",
+    "url": "latihan-ocr/05_hypermart_paket.png"
   },
   {
     "nomor": 6,
-    "berkas": "06_mie_gacoan.png",
-    "judul": "Mie Gacoan Bulungan",
-    "tag": "Restoran",
-    "nominalTeks": "Rp 53.500",
-    "url": "latihan-ocr/06_mie_gacoan.png"
+    "berkas": "06_familymart_lunch.png",
+    "judul": "FamilyMart Coffee & Snack",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 58.000",
+    "url": "latihan-ocr/06_familymart_lunch.png"
   },
   {
     "nomor": 7,
-    "berkas": "07_rm_padang_sauyo.png",
-    "judul": "RM Padang Sederhana",
-    "tag": "Restoran",
-    "nominalTeks": "Rp 184.800",
-    "url": "latihan-ocr/07_rm_padang_sauyo.png"
+    "berkas": "07_circlek_drinks.png",
+    "judul": "Circle K Isotonik & Sandwich",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 37.500",
+    "url": "latihan-ocr/07_circlek_drinks.png"
   },
   {
     "nomor": 8,
-    "berkas": "08_solaria_restoran.png",
-    "judul": "Solaria Restoran",
-    "tag": "Restoran",
-    "nominalTeks": "Rp 156.200",
-    "url": "latihan-ocr/08_solaria_restoran.png"
+    "berkas": "08_lawson_bento.png",
+    "judul": "Lawson Station Bento & Karaage",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 62.000",
+    "url": "latihan-ocr/08_lawson_bento.png"
   },
   {
     "nomor": 9,
-    "berkas": "09_kwitansi_sewa_mobil.png",
-    "judul": "Kwitansi Rental Mobil Lapangan",
-    "tag": "Rental Mobil",
-    "nominalTeks": "Rp 4.500.000",
-    "url": "latihan-ocr/09_kwitansi_sewa_mobil.png"
+    "berkas": "09_transmart_elektronik.png",
+    "judul": "Transmart Kipas & Baterai",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 239.000",
+    "url": "latihan-ocr/09_transmart_elektronik.png"
   },
   {
     "nomor": 10,
-    "berkas": "10_kwitansi_akomodasi_hotel.png",
-    "judul": "Kwitansi Hotel Tarakan Plaza",
-    "tag": "Akomodasi Hotel",
-    "nominalTeks": "Rp 950.000",
-    "url": "latihan-ocr/10_kwitansi_akomodasi_hotel.png"
+    "berkas": "10_indomaret_point_pastry.png",
+    "judul": "Point Coffee & Pastry",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 45.000",
+    "url": "latihan-ocr/10_indomaret_point_pastry.png"
   },
   {
     "nomor": 11,
-    "berkas": "11_transfer_m_bca.png",
-    "judul": "m-Transfer BCA BI-FAST",
-    "tag": "Transfer Bank",
-    "nominalTeks": "Rp 750.000",
-    "url": "latihan-ocr/11_transfer_m_bca.png"
+    "berkas": "11_spbu_pertamax_25l.png",
+    "judul": "SPBU Pertamina Pertamax 25L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 323.750",
+    "url": "latihan-ocr/11_spbu_pertamax_25l.png"
   },
   {
     "nomor": 12,
-    "berkas": "12_transfer_bri_brimo.png",
-    "judul": "BRImo Honorarium Narasumber",
-    "tag": "Transfer Bank",
-    "nominalTeks": "Rp 1.200.000",
-    "url": "latihan-ocr/12_transfer_bri_brimo.png"
+    "berkas": "12_spbu_dexlite_30l.png",
+    "judul": "SPBU Pertamina Dexlite 30L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 426.000",
+    "url": "latihan-ocr/12_spbu_dexlite_30l.png"
   },
   {
     "nomor": 13,
-    "berkas": "13_transfer_mandiri_livin.png",
-    "judul": "Livin by Mandiri Resi Transfer",
-    "tag": "Transfer Bank",
-    "nominalTeks": "Rp 502.500",
-    "url": "latihan-ocr/13_transfer_mandiri_livin.png"
+    "berkas": "13_spbu_pertalite_25l.png",
+    "judul": "SPBU Pertamina Pertalite 25L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 250.000",
+    "url": "latihan-ocr/13_spbu_pertalite_25l.png"
   },
   {
     "nomor": 14,
-    "berkas": "14_ewallet_gopay_gofood.png",
-    "judul": "GoFood Ayam Geprek Juara",
-    "tag": "E-Wallet GoPay",
-    "nominalTeks": "Rp 75.000",
-    "url": "latihan-ocr/14_ewallet_gopay_gofood.png"
+    "berkas": "14_spbu_pertamina_dex_30l.png",
+    "judul": "SPBU Pertamina Dex 30L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 456.000",
+    "url": "latihan-ocr/14_spbu_pertamina_dex_30l.png"
   },
   {
     "nomor": 15,
-    "berkas": "15_ewallet_dana_merchant.png",
-    "judul": "DANA Warung Kopi Oey",
-    "tag": "E-Wallet DANA",
-    "nominalTeks": "Rp 48.000",
-    "url": "latihan-ocr/15_ewallet_dana_merchant.png"
+    "berkas": "15_spbu_pertamax_turbo_20l.png",
+    "judul": "SPBU Pertamina Pertamax Turbo 20L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 288.000",
+    "url": "latihan-ocr/15_spbu_pertamax_turbo_20l.png"
   },
   {
     "nomor": 16,
-    "berkas": "16_token_listrik_pln.png",
-    "judul": "Struk Token Listrik PLN Prepaid",
-    "tag": "Token Listrik",
-    "nominalTeks": "Rp 103.000",
-    "url": "latihan-ocr/16_token_listrik_pln.png"
+    "berkas": "16_spbu_solar_truk_50l.png",
+    "judul": "SPBU Solar Logistik 50L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 340.000",
+    "url": "latihan-ocr/16_spbu_solar_truk_50l.png"
   },
   {
     "nomor": 17,
-    "berkas": "17_tagihan_air_pdam.png",
-    "judul": "Tagihan Air PDAM Tirta Bulungan",
-    "tag": "Tagihan Air",
-    "nominalTeks": "Rp 155.000",
-    "url": "latihan-ocr/17_tagihan_air_pdam.png"
+    "berkas": "17_shell_super_25l.png",
+    "judul": "Shell Super SPBU 25L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 348.750",
+    "url": "latihan-ocr/17_shell_super_25l.png"
   },
   {
     "nomor": 18,
-    "berkas": "18_toko_atk_fotocopy.png",
-    "judul": "Nota Toko ATK & Percetakan",
-    "tag": "Pengadaan ATK",
-    "nominalTeks": "Rp 630.000",
-    "url": "latihan-ocr/18_toko_atk_fotocopy.png"
+    "berkas": "18_shell_vpower_25l.png",
+    "judul": "Shell V-Power Nitro 25L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 382.500",
+    "url": "latihan-ocr/18_shell_vpower_25l.png"
   },
   {
     "nomor": 19,
-    "berkas": "19_toko_bangunan_hardware.png",
-    "judul": "Nota TB Usaha Mandiri Jaya",
-    "tag": "Bahan Bangunan",
-    "nominalTeks": "Rp 745.000",
-    "url": "latihan-ocr/19_toko_bangunan_hardware.png"
+    "berkas": "19_bp_akr_ultimate_24l.png",
+    "judul": "BP-AKR Ultimate 95 24L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 360.000",
+    "url": "latihan-ocr/19_bp_akr_ultimate_24l.png"
   },
   {
     "nomor": 20,
-    "berkas": "20_tiket_bus_travel.png",
-    "judul": "Tiket Bus Travel PO. Borneo Trans",
+    "berkas": "20_spbu_kompak_pedalaman_50l.png",
+    "judul": "SPBU Kompak Pedalaman 50L",
+    "tag": "BBM",
+    "nominalTeks": "Rp 550.000",
+    "url": "latihan-ocr/20_spbu_kompak_pedalaman_50l.png"
+  },
+  {
+    "nomor": 21,
+    "berkas": "21_kopi_kenangan_mantan.png",
+    "judul": "Kopi Kenangan Mantan",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 63.800",
+    "url": "latihan-ocr/21_kopi_kenangan_mantan.png"
+  },
+  {
+    "nomor": 22,
+    "berkas": "22_janji_jiwa_toast.png",
+    "judul": "Janji Jiwa Kopi & Toast",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 52.000",
+    "url": "latihan-ocr/22_janji_jiwa_toast.png"
+  },
+  {
+    "nomor": 23,
+    "berkas": "23_point_coffee_avocadofee.png",
+    "judul": "Point Coffee Avocadofee",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 48.000",
+    "url": "latihan-ocr/23_point_coffee_avocadofee.png"
+  },
+  {
+    "nomor": 24,
+    "berkas": "24_fore_coffee_latte.png",
+    "judul": "Fore Coffee Aren Latte",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 59.400",
+    "url": "latihan-ocr/24_fore_coffee_latte.png"
+  },
+  {
+    "nomor": 25,
+    "berkas": "25_chatime_milktea.png",
+    "judul": "Chatime Roasted Milk Tea",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 44.000",
+    "url": "latihan-ocr/25_chatime_milktea.png"
+  },
+  {
+    "nomor": 26,
+    "berkas": "26_haus_indonesia.png",
+    "judul": "Haus! Indonesia Choco Boba",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 32.000",
+    "url": "latihan-ocr/26_haus_indonesia.png"
+  },
+  {
+    "nomor": 27,
+    "berkas": "27_mixue_sundae.png",
+    "judul": "Mixue Ice Cream & Lemonade",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 28.000",
+    "url": "latihan-ocr/27_mixue_sundae.png"
+  },
+  {
+    "nomor": 28,
+    "berkas": "28_momoyo_boba.png",
+    "judul": "Momoyo Tj Selor Boba Milk Tea",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 41.000",
+    "url": "latihan-ocr/28_momoyo_boba.png"
+  },
+  {
+    "nomor": 29,
+    "berkas": "29_tomoro_coffee.png",
+    "judul": "Tomoro Coffee Oat Latte",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 46.000",
+    "url": "latihan-ocr/29_tomoro_coffee.png"
+  },
+  {
+    "nomor": 30,
+    "berkas": "30_starbucks_macchiato.png",
+    "judul": "Starbucks Coffee Macchiato",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 96.800",
+    "url": "latihan-ocr/30_starbucks_macchiato.png"
+  },
+  {
+    "nomor": 31,
+    "berkas": "31_mie_gacoan_bulungan.png",
+    "judul": "Mie Gacoan Bulungan Sengkawit",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 53.500",
+    "url": "latihan-ocr/31_mie_gacoan_bulungan.png"
+  },
+  {
+    "nomor": 32,
+    "berkas": "32_rm_padang_sederhana.png",
+    "judul": "RM Padang Sederhana",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 184.800",
+    "url": "latihan-ocr/32_rm_padang_sederhana.png"
+  },
+  {
+    "nomor": 33,
+    "berkas": "33_solaria_restoran.png",
+    "judul": "Solaria Restoran Grand Mall",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 156.200",
+    "url": "latihan-ocr/33_solaria_restoran.png"
+  },
+  {
+    "nomor": 34,
+    "berkas": "34_kfc_super_besar.png",
+    "judul": "KFC Fast Food Super Besar",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 102.500",
+    "url": "latihan-ocr/34_kfc_super_besar.png"
+  },
+  {
+    "nomor": 35,
+    "berkas": "35_mcdonalds_panas.png",
+    "judul": "McDonald's PaNas Spesial",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 89.000",
+    "url": "latihan-ocr/35_mcdonalds_panas.png"
+  },
+  {
+    "nomor": 36,
+    "berkas": "36_richeese_fire_chicken.png",
+    "judul": "Richeese Factory Fire Chicken",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 74.000",
+    "url": "latihan-ocr/36_richeese_fire_chicken.png"
+  },
+  {
+    "nomor": 37,
+    "berkas": "37_hokben_bento.png",
+    "judul": "HokBen Bento Spesial",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 118.000",
+    "url": "latihan-ocr/37_hokben_bento.png"
+  },
+  {
+    "nomor": 38,
+    "berkas": "38_rm_padang_pagi_sore.png",
+    "judul": "RM Padang Pagi Sore",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 245.000",
+    "url": "latihan-ocr/38_rm_padang_pagi_sore.png"
+  },
+  {
+    "nomor": 39,
+    "berkas": "39_bebek_kaleyo.png",
+    "judul": "Warung Bebek Kaleyo",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 87.500",
+    "url": "latihan-ocr/39_bebek_kaleyo.png"
+  },
+  {
+    "nomor": 40,
+    "berkas": "40_dcost_seafood.png",
+    "judul": "D'Cost Seafood Makan Bersama",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 215.000",
+    "url": "latihan-ocr/40_dcost_seafood.png"
+  },
+  {
+    "nomor": 41,
+    "berkas": "41_kwitansi_sewa_hilux_4x4.png",
+    "judul": "Kwitansi Sewa Hilux 4x4 Lapangan",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 4.500.000",
+    "url": "latihan-ocr/41_kwitansi_sewa_hilux_4x4.png"
+  },
+  {
+    "nomor": 42,
+    "berkas": "42_kwitansi_sewa_avanza.png",
+    "judul": "Kwitansi Sewa Avanza Operasional",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 1.400.000",
+    "url": "latihan-ocr/42_kwitansi_sewa_avanza.png"
+  },
+  {
+    "nomor": 43,
+    "berkas": "43_kwitansi_sewa_innova.png",
+    "judul": "Kwitansi Sewa Innova Reborn Tamu",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 2.400.000",
+    "url": "latihan-ocr/43_kwitansi_sewa_innova.png"
+  },
+  {
+    "nomor": 44,
+    "berkas": "44_kwitansi_sewa_motor.png",
+    "judul": "Kwitansi Sewa Motor Beat Lapangan",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 450.000",
+    "url": "latihan-ocr/44_kwitansi_sewa_motor.png"
+  },
+  {
+    "nomor": 45,
+    "berkas": "45_kwitansi_sewa_hiace.png",
+    "judul": "Kwitansi Sewa Hiace 14 Seat",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 3.200.000",
+    "url": "latihan-ocr/45_kwitansi_sewa_hiace.png"
+  },
+  {
+    "nomor": 46,
+    "berkas": "46_kwitansi_ketinting_sungai.png",
+    "judul": "Kwitansi Carteran Perahu Ketinting",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 850.000",
+    "url": "latihan-ocr/46_kwitansi_ketinting_sungai.png"
+  },
+  {
+    "nomor": 47,
+    "berkas": "47_kwitansi_longboat_40pk.png",
+    "judul": "Kwitansi Longboat Mesin Tempel",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 1.800.000",
+    "url": "latihan-ocr/47_kwitansi_longboat_40pk.png"
+  },
+  {
+    "nomor": 48,
+    "berkas": "48_kwitansi_truk_logistik.png",
+    "judul": "Kwitansi Truk Angkut Logistik",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 1.250.000",
+    "url": "latihan-ocr/48_kwitansi_truk_logistik.png"
+  },
+  {
+    "nomor": 49,
+    "berkas": "49_kwitansi_sewa_pickup.png",
+    "judul": "Kwitansi Sewa Gran Max Pick-up",
+    "tag": "Rental Kendaraan",
+    "nominalTeks": "Rp 700.000",
+    "url": "latihan-ocr/49_kwitansi_sewa_pickup.png"
+  },
+  {
+    "nomor": 50,
+    "berkas": "50_kwitansi_speedboat_carter.png",
+    "judul": "Kwitansi Carteran Speedboat Tim",
+    "tag": "Transportasi",
+    "nominalTeks": "Rp 3.500.000",
+    "url": "latihan-ocr/50_kwitansi_speedboat_carter.png"
+  },
+  {
+    "nomor": 51,
+    "berkas": "51_hotel_tarakan_plaza.png",
+    "judul": "Kwitansi Hotel Tarakan Plaza",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 950.000",
+    "url": "latihan-ocr/51_hotel_tarakan_plaza.png"
+  },
+  {
+    "nomor": 52,
+    "berkas": "52_swiss_belhotel_tarakan.png",
+    "judul": "Kwitansi Swiss-Belhotel Tarakan",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 820.000",
+    "url": "latihan-ocr/52_swiss_belhotel_tarakan.png"
+  },
+  {
+    "nomor": 53,
+    "berkas": "53_hotel_luminor_bulungan.png",
+    "judul": "Kwitansi Hotel Luminor Tanjung Selor",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 650.000",
+    "url": "latihan-ocr/53_hotel_luminor_bulungan.png"
+  },
+  {
+    "nomor": 54,
+    "berkas": "54_hotel_grand_fortuna_nunukan.png",
+    "judul": "Kwitansi Hotel Grand Fortuna",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 780.000",
+    "url": "latihan-ocr/54_hotel_grand_fortuna_nunukan.png"
+  },
+  {
+    "nomor": 55,
+    "berkas": "55_wisma_pemda_bulungan.png",
+    "judul": "Kwitansi Wisma Tamu Bulungan",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 600.000",
+    "url": "latihan-ocr/55_wisma_pemda_bulungan.png"
+  },
+  {
+    "nomor": 56,
+    "berkas": "56_homestay_asri_malinau.png",
+    "judul": "Kwitansi Homestay Asri Malinau",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 800.000",
+    "url": "latihan-ocr/56_homestay_asri_malinau.png"
+  },
+  {
+    "nomor": 57,
+    "berkas": "57_guesthouse_borneo_sebatik.png",
+    "judul": "Kwitansi Guest House Sebatik",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 500.000",
+    "url": "latihan-ocr/57_guesthouse_borneo_sebatik.png"
+  },
+  {
+    "nomor": 58,
+    "berkas": "58_hotel_harmoni_tanjung_selor.png",
+    "judul": "Kwitansi Hotel Harmoni",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 550.000",
+    "url": "latihan-ocr/58_hotel_harmoni_tanjung_selor.png"
+  },
+  {
+    "nomor": 59,
+    "berkas": "59_penginapan_sungai_nyamuk.png",
+    "judul": "Kwitansi Penginapan Sungai Nyamuk",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 660.000",
+    "url": "latihan-ocr/59_penginapan_sungai_nyamuk.png"
+  },
+  {
+    "nomor": 60,
+    "berkas": "60_paket_meeting_wisma_atlet.png",
+    "judul": "Kwitansi Paket Ruang Rapat & Kamar",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 2.100.000",
+    "url": "latihan-ocr/60_paket_meeting_wisma_atlet.png"
+  },
+  {
+    "nomor": 61,
+    "berkas": "61_tiket_bus_borneo_trans.png",
+    "judul": "Tiket Bus PO Borneo Trans",
     "tag": "Tiket Bus",
     "nominalTeks": "Rp 180.000",
-    "url": "latihan-ocr/20_tiket_bus_travel.png"
+    "url": "latihan-ocr/61_tiket_bus_borneo_trans.png"
+  },
+  {
+    "nomor": 62,
+    "berkas": "62_tiket_damri_malinau.png",
+    "judul": "Tiket Bus DAMRI Perintis",
+    "tag": "Tiket Bus",
+    "nominalTeks": "Rp 160.000",
+    "url": "latihan-ocr/62_tiket_damri_malinau.png"
+  },
+  {
+    "nomor": 63,
+    "berkas": "63_tiket_speedboat_menara_niklas.png",
+    "judul": "Tiket Speedboat SB. Menara Niklas",
+    "tag": "Tiket Transportasi",
+    "nominalTeks": "Rp 280.000",
+    "url": "latihan-ocr/63_tiket_speedboat_menara_niklas.png"
+  },
+  {
+    "nomor": 64,
+    "berkas": "64_tiket_speedboat_trisna.png",
+    "judul": "Tiket Speedboat SB. Trisna Express",
+    "tag": "Tiket Transportasi",
+    "nominalTeks": "Rp 320.000",
+    "url": "latihan-ocr/64_tiket_speedboat_trisna.png"
+  },
+  {
+    "nomor": 65,
+    "berkas": "65_tiket_speedboat_menara_as.png",
+    "judul": "Tiket Speedboat SB. Menara AS",
+    "tag": "Tiket Transportasi",
+    "nominalTeks": "Rp 350.000",
+    "url": "latihan-ocr/65_tiket_speedboat_menara_as.png"
+  },
+  {
+    "nomor": 66,
+    "berkas": "66_boarding_pass_susi_air.png",
+    "judul": "Boarding Pass Susi Air Perintis",
+    "tag": "Tiket Pesawat",
+    "nominalTeks": "Rp 450.000",
+    "url": "latihan-ocr/66_boarding_pass_susi_air.png"
+  },
+  {
+    "nomor": 67,
+    "berkas": "67_boarding_pass_wings_air.png",
+    "judul": "Boarding Pass Wings Air ATR-72",
+    "tag": "Tiket Pesawat",
+    "nominalTeks": "Rp 1.450.000",
+    "url": "latihan-ocr/67_boarding_pass_wings_air.png"
+  },
+  {
+    "nomor": 68,
+    "berkas": "68_eticket_garuda_indonesia.png",
+    "judul": "E-Ticket Garuda Indonesia",
+    "tag": "Tiket Pesawat",
+    "nominalTeks": "Rp 2.380.000",
+    "url": "latihan-ocr/68_eticket_garuda_indonesia.png"
+  },
+  {
+    "nomor": 69,
+    "berkas": "69_tiket_kapal_ferry_asdp.png",
+    "judul": "Tiket Kapal Ferry ASDP",
+    "tag": "Tiket Transportasi",
+    "nominalTeks": "Rp 115.000",
+    "url": "latihan-ocr/69_tiket_kapal_ferry_asdp.png"
+  },
+  {
+    "nomor": 70,
+    "berkas": "70_karcis_parkir_dermaga.png",
+    "judul": "Karcis Parkir Inap Dermaga",
+    "tag": "Karcis Parkir",
+    "nominalTeks": "Rp 50.000",
+    "url": "latihan-ocr/70_karcis_parkir_dermaga.png"
+  },
+  {
+    "nomor": 71,
+    "berkas": "71_transfer_m_bca_bifast.png",
+    "judul": "m-Transfer BCA BI-FAST",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 750.000",
+    "url": "latihan-ocr/71_transfer_m_bca_bifast.png"
+  },
+  {
+    "nomor": 72,
+    "berkas": "72_transfer_bri_brimo_honor.png",
+    "judul": "BRImo Honorarium Narasumber",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 1.200.000",
+    "url": "latihan-ocr/72_transfer_bri_brimo_honor.png"
+  },
+  {
+    "nomor": 73,
+    "berkas": "73_transfer_mandiri_livin.png",
+    "judul": "Livin by Mandiri Resi Transfer",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 500.000",
+    "url": "latihan-ocr/73_transfer_mandiri_livin.png"
+  },
+  {
+    "nomor": 74,
+    "berkas": "74_transfer_bni_mobile_perdiem.png",
+    "judul": "BNI Mobile Uang Saku Perdiem",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 800.000",
+    "url": "latihan-ocr/74_transfer_bni_mobile_perdiem.png"
+  },
+  {
+    "nomor": 75,
+    "berkas": "75_transfer_bsi_mobile.png",
+    "judul": "BSI Mobile Transfer Ustadz",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 500.000",
+    "url": "latihan-ocr/75_transfer_bsi_mobile.png"
+  },
+  {
+    "nomor": 76,
+    "berkas": "76_transfer_cimb_octo.png",
+    "judul": "CIMB Octo Pembayaran Faktur",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 1.850.000",
+    "url": "latihan-ocr/76_transfer_cimb_octo.png"
+  },
+  {
+    "nomor": 77,
+    "berkas": "77_transfer_seabank.png",
+    "judul": "SeaBank Sewa Sound System",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 650.000",
+    "url": "latihan-ocr/77_transfer_seabank.png"
+  },
+  {
+    "nomor": 78,
+    "berkas": "78_transfer_bank_jago.png",
+    "judul": "Bank Jago Snack Peserta",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 420.000",
+    "url": "latihan-ocr/78_transfer_bank_jago.png"
+  },
+  {
+    "nomor": 79,
+    "berkas": "79_transfer_flip_koperasi.png",
+    "judul": "Flip Bebas Admin Koperasi",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 900.000",
+    "url": "latihan-ocr/79_transfer_flip_koperasi.png"
+  },
+  {
+    "nomor": 80,
+    "berkas": "80_transfer_jenius_zoom.png",
+    "judul": "Jenius Langganan Zoom Meeting",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 249.000",
+    "url": "latihan-ocr/80_transfer_jenius_zoom.png"
+  },
+  {
+    "nomor": 81,
+    "berkas": "81_gofood_ayam_geprek.png",
+    "judul": "GoFood Ayam Geprek Juara",
+    "tag": "E-Wallet GoPay",
+    "nominalTeks": "Rp 75.000",
+    "url": "latihan-ocr/81_gofood_ayam_geprek.png"
+  },
+  {
+    "nomor": 82,
+    "berkas": "82_grabfood_kfc_paket.png",
+    "judul": "GrabFood KFC Paket Ayam",
+    "tag": "E-Wallet OVO",
+    "nominalTeks": "Rp 92.000",
+    "url": "latihan-ocr/82_grabfood_kfc_paket.png"
+  },
+  {
+    "nomor": 83,
+    "berkas": "83_shopeefood_bakso_solo.png",
+    "judul": "ShopeeFood Bakso Solo Samrat",
+    "tag": "E-Wallet ShopeePay",
+    "nominalTeks": "Rp 68.000",
+    "url": "latihan-ocr/83_shopeefood_bakso_solo.png"
+  },
+  {
+    "nomor": 84,
+    "berkas": "84_dana_kopi_oey.png",
+    "judul": "DANA Warung Kopi Oey",
+    "tag": "E-Wallet DANA",
+    "nominalTeks": "Rp 48.000",
+    "url": "latihan-ocr/84_dana_kopi_oey.png"
+  },
+  {
+    "nomor": 85,
+    "berkas": "85_linkaja_nasgor.png",
+    "judul": "LinkAja Nasi Goreng Babat",
+    "tag": "E-Wallet LinkAja",
+    "nominalTeks": "Rp 55.000",
+    "url": "latihan-ocr/85_linkaja_nasgor.png"
+  },
+  {
+    "nomor": 86,
+    "berkas": "86_myim3_internet_100gb.png",
+    "judul": "myIM3 Indosat Internet 100GB",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 125.000",
+    "url": "latihan-ocr/86_myim3_internet_100gb.png"
+  },
+  {
+    "nomor": 87,
+    "berkas": "87_mytelkomsel_orbit_150gb.png",
+    "judul": "MyTelkomsel Orbit Max 150GB",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 250.000",
+    "url": "latihan-ocr/87_mytelkomsel_orbit_150gb.png"
+  },
+  {
+    "nomor": 88,
+    "berkas": "88_myxl_combo_flex_90gb.png",
+    "judul": "myXL Xtra Combo Flex 90GB",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 140.000",
+    "url": "latihan-ocr/88_myxl_combo_flex_90gb.png"
+  },
+  {
+    "nomor": 89,
+    "berkas": "89_smartfren_unlimited.png",
+    "judul": "Smartfren Unlimited Modem",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 100.000",
+    "url": "latihan-ocr/89_smartfren_unlimited.png"
+  },
+  {
+    "nomor": 90,
+    "berkas": "90_byu_kuota_50gb.png",
+    "judul": "by.U Kuota 50GB Bulanan",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 95.000",
+    "url": "latihan-ocr/90_byu_kuota_50gb.png"
+  },
+  {
+    "nomor": 91,
+    "berkas": "91_token_listrik_pln.png",
+    "judul": "Struk Token Listrik PLN Prepaid",
+    "tag": "Token Listrik",
+    "nominalTeks": "Rp 103.000",
+    "url": "latihan-ocr/91_token_listrik_pln.png"
+  },
+  {
+    "nomor": 92,
+    "berkas": "92_pln_pascabayar.png",
+    "judul": "Tagihan Listrik PLN Pascabayar",
+    "tag": "Token Listrik",
+    "nominalTeks": "Rp 385.000",
+    "url": "latihan-ocr/92_pln_pascabayar.png"
+  },
+  {
+    "nomor": 93,
+    "berkas": "93_tagihan_air_pdam.png",
+    "judul": "Tagihan Air PDAM Tirta Bulungan",
+    "tag": "Tagihan Air",
+    "nominalTeks": "Rp 155.000",
+    "url": "latihan-ocr/93_tagihan_air_pdam.png"
+  },
+  {
+    "nomor": 94,
+    "berkas": "94_indihome_internet_telkom.png",
+    "judul": "Tagihan Internet Telkom IndiHome",
+    "tag": "Pulsa & Internet",
+    "nominalTeks": "Rp 399.000",
+    "url": "latihan-ocr/94_indihome_internet_telkom.png"
+  },
+  {
+    "nomor": 95,
+    "berkas": "95_toko_atk_sinar_terang.png",
+    "judul": "Nota Toko ATK & Percetakan",
+    "tag": "Pengadaan ATK",
+    "nominalTeks": "Rp 630.000",
+    "url": "latihan-ocr/95_toko_atk_sinar_terang.png"
+  },
+  {
+    "nomor": 96,
+    "berkas": "96_toko_bangunan_usaha_mandiri.png",
+    "judul": "Nota TB Usaha Mandiri Jaya",
+    "tag": "Bahan Bangunan",
+    "nominalTeks": "Rp 745.000",
+    "url": "latihan-ocr/96_toko_bangunan_usaha_mandiri.png"
+  },
+  {
+    "nomor": 97,
+    "berkas": "97_apotek_kimia_farma.png",
+    "judul": "Nota Apotek Kimia Farma P3K",
+    "tag": "Pengadaan Obat",
+    "nominalTeks": "Rp 185.000",
+    "url": "latihan-ocr/97_apotek_kimia_farma.png"
+  },
+  {
+    "nomor": 98,
+    "berkas": "98_kuitansi_honor_narasumber.png",
+    "judul": "Kwitansi Honorarium Narasumber Ahli",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 2.500.000",
+    "url": "latihan-ocr/98_kuitansi_honor_narasumber.png"
+  },
+  {
+    "nomor": 99,
+    "berkas": "99_kuitansi_perdiem_fasilitator.png",
+    "judul": "Kwitansi Uang Harian Perdiem Lapangan",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 1.050.000",
+    "url": "latihan-ocr/99_kuitansi_perdiem_fasilitator.png"
+  },
+  {
+    "nomor": 100,
+    "berkas": "100_kuitansi_jasa_kebersihan.png",
+    "judul": "Kwitansi Jasa Tenaga Kebersihan",
+    "tag": "Honorarium",
+    "nominalTeks": "Rp 600.000",
+    "url": "latihan-ocr/100_kuitansi_jasa_kebersihan.png"
   }
 ]

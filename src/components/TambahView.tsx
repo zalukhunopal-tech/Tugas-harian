@@ -1827,9 +1827,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 borderColor: "rgba(139, 92, 246, 0.4)",
                 color: "#e2e8f0",
               }}
-              title="Coba scan dengan 20 ragam bukti transaksi dummy (Alfamart, SPBU, Kafe, Kuitansi, Transfer, PLN, PDAM, Tiket)"
+              title="Coba scan dengan 100 ragam bukti transaksi dummy (Minimarket, SPBU, Kafe, Resto, Rental, Hotel, Tiket, Transfer, E-Wallet, Utilitas)"
             >
-              <span aria-hidden="true">🧪</span> Latihan Scan (20 Struk Dummy)
+              <span aria-hidden="true">🧪</span> Latihan Scan (100 Struk)
             </button>
           </div>
 

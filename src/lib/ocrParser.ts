@@ -212,8 +212,8 @@ export function ekstrakKandidatNominal(
   // Kata kunci pengecualian ketat (bukan nominal belanja utama)
   const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*BANK|ADMIN\s*FEE|BIAYA\s*TRANSAKSI|BIAYA\s*LAYANAN|BIAYA\s*JASA|SERVICE\s*CHARGE|PAJAK\s*RESTO|PB1|PPN|PPN\s*11%|ONGKOS\s*KIRIM|ONGKIR|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*TRANSAKSI|NOMOR\s*IM3|STROOM|TOKEN|NO\.?\s*METER|IDPEL|ID\s*PELANGGAN|KWH|NO\s*SAMBUNGAN|TOTAL\s*PESANAN|JUMLAH\s*PESANAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|TELP|TELEPON|HP|PHONE|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
 
-  // Kata kunci prioritas tinggi (Grand Total, Total Akhir, Pembayaran Sebenarnya)
-  const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|TOTAL\s*HARGA|PEMBAYARAN\s*SEBENARNYA|PEMBAYARAN\s*SEBENAR|NOMINAL\s*PENDAPATAN|JUMLAH\s*DIBAYAR|NOMINAL\s*TRANSFER|TOTAL\s*TRANSAKSI|TOTAL\s*AKHIR|JUMLAH\s*TOTAL|TAGIHAN\s*TOTAL|BILL\s*TOTAL|TOTAL\s*TAGIHAN|TOTAL\s*NETTO|NET\s*TOTAL|TOTAL\s*ALL|SEBENARNYA|SERGNSINYA)\b/i;
+  // Kata kunci prioritas tinggi (Grand Total, Total Akhir, Pembayaran Sebenarnya, Jumlah Transfer)
+  const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|TOTAL\s*HARGA|PEMBAYARAN\s*SEBENARNYA|PEMBAYARAN\s*SEBENAR|NOMINAL\s*PENDAPATAN|JUMLAH\s*DIBAYAR|NOMINAL\s*TRANSFER|JUMLAH\s*TRANSFER|TOTAL\s*TRANSAKSI|TOTAL\s*AKHIR|JUMLAH\s*TOTAL|TAGIHAN\s*TOTAL|BILL\s*TOTAL|TOTAL\s*TAGIHAN|TOTAL\s*NETTO|NET\s*TOTAL|TOTAL\s*ALL|SEBENARNYA|SERGNSINYA)\b/i;
 
   // Kata kunci prioritas menengah (Total, Jumlah yang bukan total pesanan/item)
   const polaTotalBiasa = /\b(TOTAL(?!\s*PESANAN|\s*ITEM|\s*QTY)|JUMLAH(?!\s*PESANAN|\s*ITEM|\s*QTY)|HARGA\s*TOTAL|TOTAL\s*RP)\b/i;
@@ -359,6 +359,10 @@ export function ekstrakKandidatNominal(
       if (adalahTotalUtama) {
         bobot = 160;
         label = "Total Akhir (Grand Total)";
+        if (/\b(?:JUMLAH|NOMINAL)\s*TRANSFER\b/i.test(barisAtas) || /\b(?:JUMLAH|NOMINAL)\s*TRANSFER\b/i.test(barisSebelum)) {
+          bobot = 195;
+          label = "Jumlah Transfer";
+        }
       } else if (adalahTotalBiasa) {
         bobot = 100;
         label = "Total Belanja";
@@ -613,13 +617,18 @@ function apakahBarisSampah(b: string): boolean {
   const rasioSampah = (b.length - huruf.length) / b.length;
   if (rasioSampah > 0.5) return true;
 
+  // Baris yang hanya berisi mata uang atau nilai nominal
+  if (/^(?:RP|IDR|\$)\.?\s*[\d\.,\-\s]*$/i.test(b.trim())) {
+    return true;
+  }
+
   // Baris header/logo/noise QRIS
   if (/^(?:[BGMQ]?RIS|QR\s*CODE|STANDAR\s*PEMBAYARAN|PEMBAYARAN\s*NASIONAL|GPN|BANK\s*INDONESIA|ASPI|NMID)/i.test(b)) {
     return true;
   }
 
-  // Label transaksi / header struk umum
-  if (/\b(?:STRUK|NOTA|BUKTI|SELAMAT\s*DATANG|THANK\s*YOU|TERIMA\s*KASIH|INVOICE|FAKTUR|TAGIHAN|RECEIPT|BILL|DETAIL\s*TRANSAKSI|RINCIAN\s*TRANSAKSI|PACKAGE\s*PURCHASE|STATUS|INFORMASI|BERHASIL|SUCCESS|SELESAI|ID\s*TRANSAKSI)\b/i.test(b)) {
+  // Label transaksi / header struk umum / kwitansi / karcis
+  if (/\b(?:STRUK|NOTA|BUKTI|SELAMAT\s*DATANG|THANK\s*YOU|TERIMA\s*KASIH|INVOICE|FAKTUR|TAGIHAN|RECEIPT|BILL|DETAIL\s*TRANSAKSI|RINCIAN\s*TRANSAKSI|PACKAGE\s*PURCHASE|STATUS|INFORMASI|BERHASIL|SUCCESS|SELESAI|ID\s*TRANSAKSI|KUITANSI|KWITANSI|TANDA\s*TERIMA|TANDA\s*BUKTI|KARCIS|KARCIS\s*RETRIBUSI|RETRIBUSI)\b/i.test(b)) {
     return true;
   }
 
@@ -628,8 +637,8 @@ function apakahBarisSampah(b: string): boolean {
     return true;
   }
 
-  // Status pesanan / antrean
-  if (/^(?:BAWA\s*PULANG|TAKE\s*AWAY|DINE\s*IN|MAKAN\s*DI\s*TEMPAT|DELIVERY|ANTREAN|NOMOR\s*ANTRIAN|ORDER\s*TYPE)/i.test(b)) {
+  // Status pesanan / antrean / peran penandatangan
+  if (/^(?:BAWA\s*PULANG|TAKE\s*AWAY|DINE\s*IN|MAKAN\s*DI\s*TEMPAT|DELIVERY|ANTREAN|NOMOR\s*ANTRIAN|ORDER\s*TYPE|YANG\s*MENERIMA|DITERIMA\s*OLEH|BENDAHARA|MENGETAHUI|PENERIMA)/i.test(b)) {
     return true;
   }
 
@@ -1122,9 +1131,13 @@ export function uraiTeksOcrTransaksi(
     kataKunciDeskripsi = "Konsumsi Makanan & Minuman";
 
     let namaResto = "";
-    for (let i = 0; i < Math.min(4, baris.length); i++) {
-      const b = baris[i];
-      if (!/GOFOOD|GRABFOOD|SHOPEEFOOD|DETAIL|RINCIAN|PESANAN|ORDER/i.test(b) && !apakahBarisSampah(b)) {
+    for (let i = 0; i < Math.min(5, baris.length); i++) {
+      let b = baris[i];
+      // Bersihkan imbuhan platform jika menempel di baris
+      b = b.replace(/\(?\b(?:GoFood|GrabFood|ShopeeFood)\b\)?/gi, "").trim();
+      // Lewati baris item pesanan (mis. "3x Paket Geprek...", "2x Burger...")
+      if (/^\d+\s*x\b/i.test(b)) continue;
+      if (b.length >= 3 && !/DETAIL|RINCIAN|PESANAN|ORDER|STATUS|BERHASIL|PEMESANAN/i.test(b) && !apakahBarisSampah(b)) {
         namaResto = bersihkanNamaToko(b);
         break;
       }
@@ -1135,8 +1148,8 @@ export function uraiTeksOcrTransaksi(
     keteranganLaporanKustom = `Pembayaran konsumsi makanan/minuman melalui ${namaPenjualPenyedia} untuk peserta kegiatan.`;
   }
 
-  // C. SPBU Pertamina / Shell / BP
-  else if (teksBesar.includes("SPBU") || teksBesar.includes("PERTAMINA") || teksBesar.includes("PASTI PAS") || teksBesar.includes("SHELL") || teksBesar.includes("BP-AKR")) {
+  // C. SPBU Pertamina / Shell / BP-AKR
+  else if (teksBesar.includes("SPBU") || teksBesar.includes("PERTAMINA") || teksBesar.includes("PASTI PAS") || teksBesar.includes("SHELL") || teksBesar.includes("BP-AKR") || /\bBP\b/i.test(teksBesar)) {
     spbuTerdeteksi = true;
     jenisBukti = "Struk thermal (minimarket/SPBU)";
     kategoriPribadi = "Transportasi";
@@ -1150,10 +1163,19 @@ export function uraiTeksOcrTransaksi(
     else if (teksBesar.includes("SOLAR") || teksBesar.includes("BIOSOLAR")) jenisBBM = "Solar";
     else if (teksBesar.includes("SHELL SUPER")) jenisBBM = "Shell Super";
     else if (teksBesar.includes("V-POWER")) jenisBBM = "Shell V-Power";
+    else if (teksBesar.includes("BP ULTIMATE")) jenisBBM = "BP Ultimate";
 
-    const mSpbu = teksMentah.match(/(?:SPBU\s*)?([0-9]{2}[\.\-][0-9]{3,5})/i);
-    const noSpbu = mSpbu ? ` ${mSpbu[1]}` : "";
-    namaPenjualPenyedia = `SPBU Pertamina${noSpbu}`;
+    let brandSpbu = "SPBU Pertamina";
+    if (teksBesar.includes("SHELL")) {
+      brandSpbu = "SPBU Shell";
+    } else if (teksBesar.includes("BP-AKR") || /\bBP\s*(?:ULTIMATE|92|95)?\b/i.test(teksBesar)) {
+      brandSpbu = "SPBU BP-AKR";
+    }
+
+    // Format nomor SPBU Pertamina Indonesia: 2 digit kode wilayah (31, 34, 54, 61, 64, dsb.) titik 5-6 digit kode SPBU
+    const mSpbu = teksMentah.match(/\b(?:SPBU\s*)?([1-9][0-9][\.\-][0-9]{4,6})\b/i);
+    const noSpbu = mSpbu && brandSpbu === "SPBU Pertamina" ? ` ${mSpbu[1]}` : "";
+    namaPenjualPenyedia = `${brandSpbu}${noSpbu}`;
     kataKunciDeskripsi = jenisBBM ? `BBM ${jenisBBM}` : "BBM";
   }
 
@@ -1353,9 +1375,32 @@ export function uraiTeksOcrTransaksi(
       kategoriPribadi = "Lain-lain";
     }
 
-    const mPenerima = teksMentah.match(/(?:Diterima\s*Oleh|Tanda\s*Tangan\s*Penerima|Yang\s*Menerima)[:\s]*([A-Za-z\s\.,]{3,35})/i);
-    if (mPenerima && mPenerima[1].trim()) {
-      namaPenjualPenyedia = bersihkanNamaToko(mPenerima[1]);
+    let namaKuitansi = "";
+    const idxPenerima = baris.findIndex((b) => /(?:Diterima\s*Oleh|Tanda\s*Tangan\s*Penerima|Yang\s*Menerima)/i.test(b));
+    if (idxPenerima >= 0) {
+      const bP = baris[idxPenerima];
+      const mP = bP.match(/(?:Diterima\s*Oleh|Tanda\s*Tangan\s*Penerima|Yang\s*Menerima)[:\s]*([A-Za-z\s\.,]{3,35})/i);
+      if (mP && mP[1].replace(/[,.\-\s]/g, "").length >= 3) {
+        namaKuitansi = bersihkanNamaToko(mP[1]);
+      } else {
+        // Cari pada 1-3 baris berikutnya jika baris label tidak memuat nama
+        for (let j = idxPenerima + 1; j <= Math.min(idxPenerima + 3, baris.length - 1); j++) {
+          const bNext = baris[j];
+          if (!apakahBarisSampah(bNext) && !/^(?:TANDA|TANGAN|MATERAI|RP|IDR)/i.test(bNext) && bNext.replace(/[^a-zA-Z]/g, "").length >= 3) {
+            namaKuitansi = bersihkanNamaToko(bNext);
+            break;
+          }
+        }
+      }
+    }
+    if (!namaKuitansi) {
+      const mPenerima = teksMentah.match(/(?:Diterima\s*Oleh|Tanda\s*Tangan\s*Penerima|Yang\s*Menerima)[:\s]*([A-Za-z\s\.,]{3,35})/i);
+      if (mPenerima && mPenerima[1].replace(/[,.\-\s]/g, "").length >= 3) {
+        namaKuitansi = bersihkanNamaToko(mPenerima[1]);
+      }
+    }
+    if (namaKuitansi) {
+      namaPenjualPenyedia = namaKuitansi;
     }
   }
 
@@ -1385,8 +1430,8 @@ export function uraiTeksOcrTransaksi(
     kategoriKegiatan = "Transportasi";
     kataKunciDeskripsi = isPesawat ? "Tiket Pesawat" : "Tiket Transportasi";
 
-    for (let i = 0; i < Math.min(3, baris.length); i++) {
-      if (!apakahBarisSampah(baris[i]) && !/BOARDING|PASSENGER|TIKET/i.test(baris[i])) {
+    for (let i = 0; i < Math.min(4, baris.length); i++) {
+      if (!apakahBarisSampah(baris[i]) && !/BOARDING|PASSENGER|TIKET|KARCIS|RETRIBUSI/i.test(baris[i])) {
         namaPenjualPenyedia = bersihkanNamaToko(baris[i]);
         break;
       }
