@@ -228,11 +228,65 @@ const hGopay = uraiTeksOcrTransaksi(teksEwallet);
 cek("GoPay: sukses", hGopay.sukses === true);
 cek("GoPay: jumlah 38.000", hGopay.jumlah === 38000);
 cek("GoPay: metode QRIS", hGopay.metode === "QRIS");
-cek("GoPay: merchant Kopi Kenangan", hGopay.namaPenjualPenyedia?.includes("KOPI KENANGAN") === true);
+cek("GoPay: merchant Kopi Kenangan", hGopay.namaPenjualPenyedia?.toUpperCase().includes("KOPI KENANGAN") === true);
+
+console.log("\n== 14. Kasus Nyata: Struk Kafe/Minuman (Momoyo Tj Selor)");
+const teksMomoyo = `
+© Ng G3)
+DeTT SELOR
+JI. Duku, Tj. Selor Hilir, Kec. Tj. Selor
+Kabupaten Bulungan North Kalimantan :: 
+Bawa pulang 54
+Nomor Pesanan: 12116027601234890753
+Waktu Pesanan: 2026-10-30 12:41:08
+= Waktu Print: 2026-10-30 12:41:30
+<< © Operator Kasir: Hesti pravitasari .
+© Saluran: Toko Fisik
+1 BCu aa - ioe = en =
+Nama Produk Harga Jumlah Subtotal == 
+Milk Tea Boom == aa 
+| /Normal Sugar/Normal Ice =
+ry 22.000 1 2.00 =
+. Ba Gula Aren Milk Tea RAR =
+| = L/Normal Sugar/Normal Ice =
+: 19.000 1 19.000 En
+Total Pesanan: BE
+Total Harga: 41.000 E=———
+Nominal Pendapatan: 41.000 &==——= ——
+“Metode Penbayaran: wR =
+oy “ALAN. SERGNSINYA: 41.000
+| Le. BEET BT TTT
+fd I CF aNl Ingat pent Ing bi 91 kami
+`;
+const hMomoyo = uraiTeksOcrTransaksi(teksMomoyo);
+cek("Momoyo: sukses", hMomoyo.sukses === true);
+cek("Momoyo: nama toko Momoyo Tj Selor", hMomoyo.namaPenjualPenyedia === "Momoyo Tj Selor");
+cek("Momoyo: jumlah utama adalah 41.000 (bukan sub-item 19.000)", hMomoyo.jumlah === 41000, hMomoyo.jumlah);
+cek("Momoyo: metode pembayaran QRIS/QR", hMomoyo.metode === "QRIS", hMomoyo.metode);
+cek("Momoyo: tidak ada nomor pesanan 121.160.278 atau tahun 2026 di kandidat", !hMomoyo.kandidatJumlah.some(k => k.nominal > 1000000 || k.nominal === 2026));
+
+console.log("\n== 15. Kasus Nyata: Layar Pembayaran Dinamis QRIS (Mie Gacoan)");
+const teksMieGacoan = `
+BRIS Ser. 3
+Mie Gacoan Bulungan
+- Sengkawit
+[=] fa [=]
+"HE a rte TE
+ah Ed ry A: Si AT 3
+Bn HEELORR tm: |
+Total Pembayaran
+Rp53.500
+`;
+const hGacoan = uraiTeksOcrTransaksi(teksMieGacoan);
+cek("Gacoan: sukses", hGacoan.sukses === true);
+cek("Gacoan: nama merchant Mie Gacoan Bulungan - Sengkawit (bukan BRIS Ser. 3)", hGacoan.namaPenjualPenyedia === "Mie Gacoan Bulungan - Sengkawit", hGacoan.namaPenjualPenyedia);
+cek("Gacoan: jumlah Rp 53.500", hGacoan.jumlah === 53500, hGacoan.jumlah);
+cek("Gacoan: metode QRIS", hGacoan.metode === "QRIS", hGacoan.metode);
 
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 13 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 15 pengujian parser OCR transaksi lolos dengan sempurna!");
 }
+
