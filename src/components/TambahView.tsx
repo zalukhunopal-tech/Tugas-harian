@@ -442,9 +442,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           );
           if (matchM) setMetode(matchM);
         }
-        if (hasil.catatan) {
-          setCatatan(hasil.catatan);
-        }
+        // Kolom catatan dibiarkan kosong agar pengguna dapat mengisi manual bila diperlukan
 
         // Isian Khusus Dana Kegiatan dari OCR
         if (hasil.jenisBukti) {
