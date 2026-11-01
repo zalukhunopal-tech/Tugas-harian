@@ -199,7 +199,7 @@ export default function App() {
 
   const [memuatHarga, setMemuatHarga] = useState(false);
   const [modalPilihanTambahBuka, setModalPilihanTambahBuka] = useState(false);
-  const [initialScanMode, setInitialScanMode] = useState<"kamera" | "galeri" | null>(null);
+  const [initialScanMode, setInitialScanMode] = useState<"kamera" | "galeri" | "latihan" | null>(null);
 
   // Geser jari ke kiri/kanan untuk pindah menu (urutan sama dengan navigasi bawah, tanpa tombol tambah).
   useGesekMenu(currentView !== "tambah" && !modalPilihanTambahBuka, (arah) => {
@@ -2052,6 +2052,24 @@ export default function App() {
                 <div className="pilihan-teks">
                   <strong>Unggah Foto Struk (Galeri)</strong>
                   <span>Pilih foto struk belanja yang ada di galeri ponsel Anda</span>
+                </div>
+                <span className="pilihan-panah">→</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-pilihan-tambah"
+                onClick={() => {
+                  setModalPilihanTambahBuka(false);
+                  setInitialScanMode("latihan");
+                  setEditTransaksi(null);
+                  setCurrentView("tambah");
+                }}
+              >
+                <span className="pilihan-ikon">🧪</span>
+                <div className="pilihan-teks">
+                  <strong>Latihan Scan OCR (100 Struk)</strong>
+                  <span>Pilih sampel 100 struk dummy (Alfamart, SPBU, Kafe, Tiket, Transfer)</span>
                 </div>
                 <span className="pilihan-panah">→</span>
               </button>

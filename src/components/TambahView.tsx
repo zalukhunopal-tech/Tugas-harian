@@ -83,7 +83,7 @@ interface TambahViewProps {
   dialihkanDariPerdiemPribadi?: boolean;
   initialScanFile?: File | null;
   onResetInitialScan?: () => void;
-  initialScanMode?: "kamera" | "galeri" | null;
+  initialScanMode?: "kamera" | "galeri" | "latihan" | null;
   onResetInitialScanMode?: () => void;
   daftarTransaksi?: Transaksi[];
   daftarTargetTabungan?: TargetTabunganItem[];
@@ -550,7 +550,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
     }
   }, [initialScanFile]);
 
-  // Otomatis picu kamera atau galeri jika pengguna memilih lewat tombol plus di Navbar
+  // Otomatis picu kamera, galeri, atau modal latihan jika pengguna memilih lewat tombol plus di Navbar
   useEffect(() => {
     if (initialScanMode === "kamera") {
       setTimeout(() => {
@@ -560,6 +560,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
     } else if (initialScanMode === "galeri") {
       setTimeout(() => {
         galeriInputRef.current?.click();
+      }, 150);
+      if (onResetInitialScanMode) onResetInitialScanMode();
+    } else if (initialScanMode === "latihan") {
+      setTimeout(() => {
+        setModalLatihanBuka(true);
       }, 150);
       if (onResetInitialScanMode) onResetInitialScanMode();
     }
@@ -1785,54 +1790,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
         </div>
 
-      {/* Bagian Scan Struk Belanja dengan OCR Lokal (Tesseract.js) */}
-      {!editTransaksi && (
-        <section className="card-struk-scanner" aria-label="Scan Struk Belanja dengan OCR Lokal">
-          <div className="struk-scanner-header">
-            <div className="struk-scanner-judul">
-              <span className="struk-scanner-ikon" aria-hidden="true">
-                🧾
-              </span>
-              <div>
-                <h3 className="struk-scanner-nama">Scan Struk Belanja Otomatis (OCR Lokal)</h3>
-                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi formulir pengeluaran tanpa kuota/internet</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="struk-scanner-actions" style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={memuatScan}
-              onClick={() => setKameraPanduanBuka(true)}
-            >
-              <span aria-hidden="true">📸</span> Ambil Foto Kamera
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={memuatScan}
-              onClick={() => galeriInputRef.current?.click()}
-            >
-              <span aria-hidden="true">🖼️</span> Pilih dari Galeri
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={memuatScan}
-              onClick={() => setModalLatihanBuka(true)}
-              style={{
-                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(99, 102, 241, 0.25))",
-                borderColor: "rgba(139, 92, 246, 0.4)",
-                color: "#e2e8f0",
-              }}
-              title="Coba scan dengan 100 ragam bukti transaksi dummy (Minimarket, SPBU, Kafe, Resto, Rental, Hotel, Tiket, Transfer, E-Wallet, Utilitas)"
-            >
-              <span aria-hidden="true">🧪</span> Latihan Scan (100 Struk)
-            </button>
-          </div>
-
+      {/* Bagian Status & Hasil Scan Struk Belanja dengan OCR Lokal (Hanya muncul saat proses / ada hasil scan) */}
+      {!editTransaksi && (memuatScan || hasilScan || errorScan) && (
+        <section className="card-struk-scanner" aria-label="Hasil Scan Struk Belanja">
           {/* Animasi Preview & Laser Scanning */}
           {memuatScan && previewFoto && (
             <div className="struk-preview-box">
