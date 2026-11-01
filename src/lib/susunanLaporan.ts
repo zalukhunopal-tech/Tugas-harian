@@ -204,6 +204,8 @@ export interface OpsiSusunanLaporan {
   profilPelapor: ProfilPelapor;
   urutanTransaksiIds?: string[];
   sertakanDaftarPeriksa?: boolean;
+  tampilkanTabelRingkasanKategori?: boolean;
+  mountStyle?: { label?: boolean; border?: boolean; fill?: boolean };
   ukuranFoto?: Map<string, { lebar: number; tinggi: number }>;
 }
 
@@ -314,6 +316,7 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
   baris.push([
     { teks: `Pelapor: ${profil.nama}`, tebal: true },
     { teks: `  |  Tanggal: ${formatTanggalIndo(t.tanggal)}`, warna: "abu" },
+    { teks: `  |  Metode: ${t.metode || "Tunai"}`, warna: "abu" },
     ...(d.namaPenjualPenyedia ? [{ teks: `  |  Penyedia/Toko: ${d.namaPenjualPenyedia}`, warna: "abu" as const }] : []),
   ]);
   if (d.keteranganLaporan || t.catatan) baris.push([{ teks: "Keterangan: ", tebal: true }, { teks: d.keteranganLaporan || t.catatan || "-" }]);

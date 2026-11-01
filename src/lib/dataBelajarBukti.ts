@@ -74,6 +74,9 @@ export interface ManifesPasanganBukti {
     padding_mm: { left: number; right: number; top: number; bottom: number };
     width_mm: number;
     height_mm: number;
+    render_label: boolean;
+    render_border: boolean;
+    render_fill: boolean;
   };
   digital: {
     width_mm: number;
@@ -87,6 +90,7 @@ export interface ManifesPasanganBukti {
     internal_gap_mm: 0;
     layout: "samping" | "bawah";
   };
+  print_internal_checks?: boolean;
 }
 
 const KUNCI_STORAGE_BELAJAR = "antigravity_data_belajar_bukti_v2";
@@ -648,6 +652,9 @@ export function susunManifesPasangan(
       padding_mm: { left: pad, right: pad, top: pad, bottom: pad },
       width_mm: hasil.lebarMm,
       height_mm: hasil.tinggiMm,
+      render_label: false,
+      render_border: false,
+      render_fill: false,
     },
     digital: {
       width_mm: hasil.tataLetak === "samping" ? hasil.lebarMm : hasil.lebarMm,
@@ -661,5 +668,6 @@ export function susunManifesPasangan(
       internal_gap_mm: 0,
       layout: hasil.tataLetak,
     },
+    print_internal_checks: false,
   };
 }
