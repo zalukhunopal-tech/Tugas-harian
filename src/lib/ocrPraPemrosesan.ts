@@ -168,7 +168,21 @@ export async function praProsesGambarStruk(
   }
 
   const img = await muatElemenGambar(file);
-  const { lebar, tinggi } = hitungDimensiAdaptif(img.naturalWidth || img.width, img.naturalHeight || img.height, opsi.maxDimensi || 1800);
+  const lebarAsli = img.naturalWidth || img.width;
+  const tinggiAsli = img.naturalHeight || img.height;
+  const aspekRasio = tinggiAsli / lebarAsli;
+
+  // Deteksi tangkapan layar smartphone (rasio aspek >= 1.85, misal rasio 9:19 s/d 9:22)
+  // Pangkas bilah status atas (jam 10:27, baterai, sinyal 4G) dan navigasi bawah agar tidak mengotori OCR
+  let cropTopPct = 0;
+  let cropBottomPct = 0;
+  if (aspekRasio >= 1.85) {
+    cropTopPct = 0.04; // Pangkas 4% status bar atas
+    cropBottomPct = 0.045; // Pangkas 4.5% navigasi virtual bawah
+  }
+
+  const tinggiEfektif = Math.round(tinggiAsli * (1 - cropTopPct - cropBottomPct));
+  const { lebar, tinggi } = hitungDimensiAdaptif(lebarAsli, tinggiEfektif, opsi.maxDimensi || 1800);
 
   const canvas = document.createElement("canvas");
   canvas.width = lebar;
@@ -182,7 +196,13 @@ export async function praProsesGambarStruk(
   // Gambar dengan penghalusan gambar berkualitas tinggi
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, lebar, tinggi);
+
+  const sx = 0;
+  const sy = Math.round(tinggiAsli * cropTopPct);
+  const sw = lebarAsli;
+  const sh = tinggiEfektif;
+
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, lebar, tinggi);
 
   // Ambil piksel dan terapkan filter perjelas teks
   try {
