@@ -6,7 +6,8 @@
 
 import type { HasilBacaStruk } from "./geminiStruk";
 import { praProsesGambarStruk, validasiBerkasGambar } from "./ocrPraPemrosesan";
-import { uraiTeksOcrTransaksi, KandidatNominal } from "./ocrParser";
+import { uraiTeksOcrTransaksi, uraikanQrisEMVCo, KandidatNominal } from "./ocrParser";
+import { dekodeQRDariPiksel } from "./qr";
 import type { NamaDana, JenisTransaksi } from "../types";
 
 export interface ProgressOcrInfo {
@@ -172,12 +173,34 @@ export async function prosesStrukLokal(
     });
     canvasDipakai = pra.canvas;
 
+    // 2. Dekode kode QR jika ada di struk/layar (khususnya bukti QRIS dinamis)
+    let nominalQris: number | undefined;
+    let merchantQris: string | undefined;
+    try {
+      const ctx = pra.canvas.getContext("2d", { willReadFrequently: true });
+      if (ctx) {
+        const imgData = ctx.getImageData(0, 0, pra.canvas.width, pra.canvas.height);
+        const teksQR = dekodeQRDariPiksel(imgData.data, pra.canvas.width, pra.canvas.height);
+        if (teksQR) {
+          const infoQris = uraikanQrisEMVCo(teksQR);
+          if (infoQris?.amount) {
+            nominalQris = infoQris.amount;
+          }
+          if (infoQris?.merchantName) {
+            merchantQris = infoQris.merchantName;
+          }
+        }
+      }
+    } catch (e) {
+      // Dekode QR bersifat progressive enhancement
+    }
+
     opsi.onProgress?.({
       status: "Menghubungkan mesin OCR lokal...",
       progres: 0.3,
     });
 
-    // 2. Dapatkan worker OCR (lazy load)
+    // 3. Dapatkan worker OCR (lazy load)
     const worker = await dapatkanWorkerOcr("ind+eng", opsi.onProgress);
 
     opsi.onProgress?.({
@@ -185,7 +208,7 @@ export async function prosesStrukLokal(
       progres: 0.6,
     });
 
-    // 3. Jalankan pengenalan teks pada canvas hasil pra-pemrosesan
+    // 4. Jalankan pengenalan teks pada canvas hasil pra-pemrosesan
     const res = await worker.recognize(pra.canvas);
     const teksMentah = res?.data?.text || "";
 
@@ -194,10 +217,12 @@ export async function prosesStrukLokal(
       progres: 0.95,
     });
 
-    // 4. Parse teks menjadi transaksi terstruktur
+    // 5. Parse teks menjadi transaksi terstruktur
     const hasilParse = uraiTeksOcrTransaksi(teksMentah, {
       dana: opsi.dana,
       jenisTransaksi: opsi.jenisTransaksi,
+      nominalQrisTerverifikasi: nominalQris,
+      merchantQrisTerverifikasi: merchantQris,
     });
 
     opsi.onProgress?.({

@@ -43,6 +43,44 @@ export interface HasilOcrTransaksi {
 export interface OpsiParserOcr {
   dana?: NamaDana;
   jenisTransaksi?: JenisTransaksi;
+  nominalQrisTerverifikasi?: number;
+  merchantQrisTerverifikasi?: string;
+}
+
+/**
+ * Parsing payload QRIS EMVCo (Standar QRIS Nasional Bank Indonesia)
+ * Membaca tag 54 (Transaction Amount) dan tag 59 (Merchant Name) secara presisi.
+ */
+export function uraikanQrisEMVCo(qrText: string): { amount?: number; merchantName?: string } | null {
+  if (!qrText || typeof qrText !== "string") return null;
+  if (!qrText.startsWith("000201")) return null;
+
+  let i = 0;
+  let amount: number | undefined;
+  let merchantName: string | undefined;
+
+  while (i + 4 <= qrText.length) {
+    const tag = qrText.substring(i, i + 2);
+    const lenStr = qrText.substring(i + 2, i + 4);
+    const len = parseInt(lenStr, 10);
+    if (isNaN(len) || len < 0 || i + 4 + len > qrText.length) break;
+    const val = qrText.substring(i + 4, i + 4 + len);
+    i += 4 + len;
+
+    // Tag 54: Nilai transaksi (Transaction Amount)
+    if (tag === "54") {
+      const num = parseFloat(val);
+      if (!isNaN(num) && num > 0) {
+        amount = Math.round(num);
+      }
+    }
+    // Tag 59: Nama merchant / toko penyedia
+    if (tag === "59" && val.trim()) {
+      merchantName = val.trim();
+    }
+  }
+
+  return { amount, merchantName };
 }
 
 /**
@@ -54,6 +92,12 @@ export function uraikanNominalRupiah(teks: string): number | null {
 
   // Bersihkan teks di sekitarnya
   let bersih = teks.trim();
+
+  // Deteksi apakah teks asli mengandung prefiks mata uang Rp / IDR
+  const adaPrefiksMataUang = /^(?:RP|IDR|\$)/i.test(bersih);
+
+  // Deteksi apakah teks asli mengandung pemisah ribuan (. atau ,)
+  const adaPemisahRibuan = /[0-9]{1,3}[.,][0-9]{3}/.test(bersih);
 
   // Hapus prefiks Rp, RP, IDR, lambang mata uang
   bersih = bersih.replace(/^(?:RP|IDR|\$)\.?\s*/i, "");
@@ -83,16 +127,29 @@ export function uraikanNominalRupiah(teks: string): number | null {
   const hanyaDigit = bersih.replace(/[^0-9]/g, "");
   if (!hanyaDigit) return null;
 
-  const nilai = parseInt(hanyaDigit, 10);
-  if (isNaN(nilai) || nilai <= 0) return null;
-
   // Batas kewajaran:
   // 1. Nomor HP (0812...)
   if (hanyaDigit.startsWith("08") && hanyaDigit.length >= 10) return null;
-  // 2. Barcode, nomor pesanan panjang, nomor rekening, atau NMID (>= 10 digit tanpa titik mata uang)
-  if (hanyaDigit.length >= 10) return null;
-  // 3. Nominal tak wajar > 1 Milyar untuk struk belanja harian
-  if (nilai > 1_000_000_000) return null;
+
+  // 2. Angka berurutan 8 digit atau lebih tanpa pemisah ribuan dan tanpa Rp:
+  //    Contoh: 211802160, 121160278, 17348007 -> Ini nomor pesanan, barcode, nomor referensi, atau noise QR!
+  if (hanyaDigit.length >= 8 && !adaPemisahRibuan && !adaPrefiksMataUang) {
+    return null;
+  }
+
+  // 3. Nomor pesanan/rekening/barcode panjang >= 10 digit
+  if (hanyaDigit.length >= 10 && !adaPemisahRibuan) return null;
+
+  const nilai = parseInt(hanyaDigit, 10);
+  if (isNaN(nilai) || nilai <= 0) return null;
+
+  // 4. Jika nilai >= 5.000.000 tapi tidak ada pemisah ribuan dan tidak ada prefiks Rp
+  if (nilai >= 5_000_000 && !adaPemisahRibuan && !adaPrefiksMataUang) {
+    return null;
+  }
+
+  // 5. Nominal tak wajar > 500 Juta untuk struk belanja harian
+  if (nilai > 500_000_000) return null;
 
   return nilai;
 }
@@ -100,11 +157,24 @@ export function uraikanNominalRupiah(teks: string): number | null {
 /**
  * Mencari semua kandidat nominal dari baris-baris teks struk.
  */
-export function ekstrakKandidatNominal(barisDaftar: string[]): {
+export function ekstrakKandidatNominal(
+  barisDaftar: string[],
+  nominalQrisTerverifikasi?: number
+): {
   utama: number | null;
   kandidat: KandidatNominal[];
 } {
   const hasilKandidat: KandidatNominal[] = [];
+
+  // Jika ada nominal QRIS terverifikasi dari dekode kode QR, jadikan prioritas tertinggi mutlak
+  if (nominalQrisTerverifikasi && nominalQrisTerverifikasi > 0) {
+    hasilKandidat.push({
+      nominal: nominalQrisTerverifikasi,
+      label: "Total Pembayaran QRIS (Terverifikasi)",
+      baris: `QRIS Tag 54: Rp ${nominalQrisTerverifikasi.toLocaleString("id-ID")}`,
+      bobot: 300,
+    });
+  }
 
   // Kata kunci pengecualian ketat (bukan nominal belanja utama)
   const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*FEE|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|TOTAL\s*PESANAN|JUMLAH\s*PESANAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|TELP|TELEPON|HP|PHONE|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
@@ -128,32 +198,38 @@ export function ekstrakKandidatNominal(barisDaftar: string[]): {
 
     const barisAtas = baris.toUpperCase();
 
-    // Jika baris memuat rangkaian digit panjang >= 10 (seperti nomor pesanan, barcode, nomor referensi) tanpa prefiks Rp
-    if (/\d{10,}/.test(baris) && !/Rp|IDR/i.test(baris)) {
+    // Periksa baris sebelumnya (konteks multi-baris)
+    const barisSebelum = idx > 0 ? barisDaftar[idx - 1].trim().toUpperCase() : "";
+    const barisDuaSebelum = idx > 1 ? barisDaftar[idx - 2].trim().toUpperCase() : "";
+
+    // Abaikan jika baris atau baris sebelumnya mengindikasikan nomor pesanan, telepon, barcode, atau info CS
+    if (
+      polaAbaikan.test(barisAtas) ||
+      (barisSebelum && /\b(NOMOR\s*PESANAN|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)|NO\.?\s*REF|REF\s*NO|NMID|TELP|HP|PHONE|HUBUNGI)\b/i.test(barisSebelum))
+    ) {
       continue;
     }
 
-    // Jika baris adalah nomor kontak / nomor HP
+    // Jika baris memuat nomor telepon format Indonesia (08...)
     if (/08\d{2}[-\s]?\d{4}[-\s]?\d{3,5}/.test(baris)) {
       continue;
     }
 
-    // Jika baris memuat kata kunci pengecualian ketat, jangan jadikan kandidat utama
-    if (polaAbaikan.test(barisAtas)) {
+    // Jika baris memuat rangkaian digit panjang >= 8 tanpa titik dan tanpa Rp
+    if (/\b\d{8,}\b/.test(baris) && !/Rp|IDR/i.test(baris)) {
       continue;
     }
 
     // Cari pola angka uang di dalam baris
-    // Cocokkan pola seperti: Rp. 150.000, Rp150.000, 150.000, 1.500.000
-    const matches = baris.match(/(?:Rp\.?|IDR)?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,9})/gi);
+    // Hanya izinkan 4-7 digit jika tanpa pemisah, atau berapapun jika berformat pemisah ribuan
+    const matches = baris.match(/(?:Rp\.?|IDR)?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,7})/gi);
     if (!matches) continue;
 
     for (const rawCocok of matches) {
       const nominal = uraikanNominalRupiah(rawCocok);
       if (!nominal) continue;
 
-      // Filter tahun masehi (mis. 2020 s.d. 2035):
-      // Jika bernilai tahun dan berada pada baris berindikasi tanggal/waktu atau tanpa prefiks mata uang Rp
+      // Filter tahun masehi (mis. 2020 s.d. 2035)
       if (nominal >= 2020 && nominal <= 2035) {
         if (/[-\/:]/.test(baris) || /WAKTU|TGL|TANGGAL|DATE|JAM|PRINT|PESANAN|TAHUN/i.test(baris) || !/Rp|IDR/i.test(rawCocok)) {
           continue;
@@ -165,29 +241,61 @@ export function ekstrakKandidatNominal(barisDaftar: string[]): {
         continue;
       }
 
+      // Filter angka > 5 Juta yang tidak memiliki format pemisah ribuan dan tanpa kata kunci Total
+      if (nominal > 5_000_000 && !/[.,]/.test(rawCocok) && !polaTotalUtama.test(barisAtas) && !polaTotalUtama.test(barisSebelum)) {
+        continue;
+      }
+
       let bobot = 10; // Nilai dasar
       let label = "Nominal";
 
-      if (polaTotalUtama.test(barisAtas)) {
-        bobot = 120;
+      // 1. Dukungan multi-baris: hanya berlaku jika baris sebelumnya murni teks label tanpa angka
+      const barisSebelumMurniLabel = Boolean(barisSebelum && !/\d/.test(barisSebelum));
+      const barisDuaSebelumMurniLabel = Boolean(barisDuaSebelum && !/\d/.test(barisDuaSebelum));
+
+      const adalahTunai = polaTunaiBayar.test(barisAtas);
+
+      const adalahTotalUtama =
+        !adalahTunai &&
+        (polaTotalUtama.test(barisAtas) ||
+          (barisSebelumMurniLabel && polaTotalUtama.test(barisSebelum)) ||
+          (barisDuaSebelumMurniLabel && polaTotalUtama.test(barisDuaSebelum)));
+
+      const adalahTotalBiasa =
+        !adalahTunai &&
+        (polaTotalBiasa.test(barisAtas) ||
+          (barisSebelumMurniLabel && polaTotalBiasa.test(barisSebelum)));
+
+      if (adalahTotalUtama) {
+        bobot = 160;
         label = "Total Akhir (Grand Total)";
-      } else if (polaTotalBiasa.test(barisAtas)) {
-        bobot = 85;
+      } else if (adalahTotalBiasa) {
+        bobot = 100;
         label = "Total Belanja";
-      } else if (polaSubtotal.test(barisAtas)) {
+      } else if (polaSubtotal.test(barisAtas) || (barisSebelumMurniLabel && polaSubtotal.test(barisSebelum))) {
         bobot = 50;
         label = "Subtotal";
-      } else if (polaTunaiBayar.test(barisAtas)) {
+      } else if (adalahTunai) {
         bobot = 30;
         label = "Uang Diserahkan";
       } else if (/Rp|IDR/i.test(rawCocok) || /Rp|IDR/i.test(baris)) {
-        bobot = 45;
+        bobot = 55;
         label = "Rupiah Tertera";
+      }
+
+      // Bonus jika nominal memiliki awalan mata uang eksplisit Rp/IDR
+      if (/Rp|IDR/i.test(rawCocok)) {
+        bobot += 20;
+      }
+
+      // Bonus jika nominal memiliki format ribuan standar (titik)
+      if (/[0-9]{1,3}\.[0-9]{3}/.test(rawCocok)) {
+        bobot += 15;
       }
 
       // Bonus posisi: struk belanja biasanya menaruh Total di bagian tengah ke bawah (> 40% baris)
       if (idx > barisDaftar.length * 0.4) {
-        bobot += 15;
+        bobot += 10;
       }
       if (idx > barisDaftar.length * 0.7) {
         bobot += 10;
@@ -858,7 +966,12 @@ export function uraiTeksOcrTransaksi(
   }
 
   // 2. Ekstraksi Nominal
-  const { utama: nominalUtama, kandidat } = ekstrakKandidatNominal(baris);
+  const { utama: nominalUtama, kandidat } = ekstrakKandidatNominal(baris, opsi.nominalQrisTerverifikasi);
+
+  // Jika QRIS terverifikasi mendeteksi merchant dan belum ada nama penjual:
+  if (!namaPenjualPenyedia && opsi.merchantQrisTerverifikasi) {
+    namaPenjualPenyedia = opsi.merchantQrisTerverifikasi;
+  }
 
   if (!nominalUtama) {
     peringatan.push("Nominal transaksi tidak terdeteksi otomatis. Harap isi jumlah pada formulir secara manual.");

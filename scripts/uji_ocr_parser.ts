@@ -272,6 +272,7 @@ Mie Gacoan Bulungan
 - Sengkawit
 [=] fa [=]
 "HE a rte TE
+211802160
 ah Ed ry A: Si AT 3
 Bn HEELORR tm: |
 Total Pembayaran
@@ -280,13 +281,28 @@ Rp53.500
 const hGacoan = uraiTeksOcrTransaksi(teksMieGacoan);
 cek("Gacoan: sukses", hGacoan.sukses === true);
 cek("Gacoan: nama merchant Mie Gacoan Bulungan - Sengkawit (bukan BRIS Ser. 3)", hGacoan.namaPenjualPenyedia === "Mie Gacoan Bulungan - Sengkawit", hGacoan.namaPenjualPenyedia);
-cek("Gacoan: jumlah Rp 53.500", hGacoan.jumlah === 53500, hGacoan.jumlah);
+cek("Gacoan: jumlah Rp 53.500 (menolak noise QR 211802160)", hGacoan.jumlah === 53500, hGacoan.jumlah);
+cek("Gacoan: kandidat tidak memuat 211802160", !hGacoan.kandidatJumlah.some(k => k.nominal === 211802160));
 cek("Gacoan: metode QRIS", hGacoan.metode === "QRIS", hGacoan.metode);
+
+console.log("\n== 16. Parser Standar QRIS EMVCo Nasional (Tag 54 & Tag 59)");
+import { uraikanQrisEMVCo } from "../src/lib/ocrParser";
+const qrisPayload = "00020101021226590013ID.CO.BNI.WWW011893600009150423557102096123999980303UMI51450015ID.OR.GPNQR.WWW0215ID10254219199090303UMI520458175303360540853500.005802ID5925ESB RESTAURANT TECHNOLOGY6013JAKARTA BARAT61051148062210110S1260CG6GP0703A016304313F";
+const hasilQris = uraikanQrisEMVCo(qrisPayload);
+cek("QRIS EMVCo: nominal tag 54 tepat 53.500", hasilQris?.amount === 53500, hasilQris?.amount);
+cek("QRIS EMVCo: merchant tag 59 ESB RESTAURANT TECHNOLOGY", hasilQris?.merchantName === "ESB RESTAURANT TECHNOLOGY", hasilQris?.merchantName);
+
+console.log("\n== 17. Penolakan Angka Noise / Barcode Tanpa Pemisah");
+cek("Abaikan 211802160 (bare 9 digit tanpa Rp)", uraikanNominalRupiah("211802160") === null);
+cek("Abaikan 121160278 (bare 9 digit)", uraikanNominalRupiah("121160278") === null);
+cek("Abaikan 17348007 (bare 8 digit)", uraikanNominalRupiah("17348007") === null);
+cek("Terima Rp 53.500 (format rupiah titik)", uraikanNominalRupiah("Rp 53.500") === 53500);
+cek("Terima 41.000 (format titik ribuan)", uraikanNominalRupiah("41.000") === 41000);
 
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 15 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 17 pengujian parser OCR transaksi lolos dengan sempurna!");
 }
 

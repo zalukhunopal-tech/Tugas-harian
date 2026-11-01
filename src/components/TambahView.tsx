@@ -418,15 +418,13 @@ export const TambahView: React.FC<TambahViewProps> = ({
         setJenis("pengeluaran");
         if (hasil.deskripsi) setDeskripsi(hasil.deskripsi);
 
-        // Hanya isi nominal jika formulir belum diisi manual oleh pengguna
-        const sudahIsiJumlah = Boolean(jumlah && jumlah.trim() !== "" && jumlah !== "0");
-        if (!sudahIsiJumlah && hasil.jumlah && hasil.jumlah > 0) {
+        // Selalu isi nominal dari hasil pembacaan struk yang baru dipindai
+        if (hasil.jumlah && hasil.jumlah > 0) {
           setJumlah(String(hasil.jumlah));
         }
 
-        // Hanya isi tanggal jika pengguna belum memasukkan tanggal kustom
-        const sudahIsiTanggal = Boolean(tanggal && tanggal.trim() !== "" && tanggal !== hariIni());
-        if (!sudahIsiTanggal && hasil.tanggal) {
+        // Isi tanggal jika terdeteksi dari struk
+        if (hasil.tanggal) {
           setTanggal(hasil.tanggal);
         }
 
@@ -500,6 +498,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
     setHasilScan(null);
     setErrorScan(null);
     setStatusProgressScan("");
+    setJumlah("");
+    setDeskripsi("");
     if (kameraInputRef.current) kameraInputRef.current.value = "";
     if (galeriInputRef.current) galeriInputRef.current.value = "";
     if (onResetInitialScan) onResetInitialScan();
@@ -1875,7 +1875,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setJumlah(String(k.nominal))}
+                        onClick={() => {
+                          setJumlah(String(k.nominal));
+                          setHasilScan((prev) => (prev ? { ...prev, jumlah: k.nominal } : null));
+                        }}
                         style={{
                           fontSize: "0.74rem",
                           padding: "3px 8px",
