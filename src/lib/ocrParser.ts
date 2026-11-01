@@ -13,11 +13,81 @@
 import { JenisBukti, RincianBarangJasa, NamaDana, JenisTransaksi } from "../types";
 import { KATEGORI } from "./constants";
 
+export type PeranNominal =
+  | "harga_satuan"
+  | "kuantitas"
+  | "total_baris_barang"
+  | "subtotal"
+  | "pajak"
+  | "diskon"
+  | "total_transaksi"
+  | "tunai"
+  | "kembalian"
+  | "nilai_transfer"
+  | "admin"
+  | "total_debit"
+  | "bruto"
+  | "netto"
+  | "hasil_hitung"
+  | "lainnya";
+
+export type StatusKeyakinan =
+  | "terbaca"
+  | "perlu_diperiksa"
+  | "tidak_ditemukan"
+  | "dikonfirmasi";
+
+export interface JejakKoreksiNominal {
+  teksAsli: string;
+  teksNormalisasi: string;
+  perubahan?: string;
+}
+
 export interface KandidatNominal {
   nominal: number;
   label: string;
   baris: string;
   bobot: number; // Semakin besar, semakin tinggi prioritas (mis. Grand Total > Subtotal > Tunai)
+  peran?: PeranNominal;
+  asal?: "tercetak" | "hasil_hitung" | "terbilang" | "qris";
+  jejakKoreksi?: JejakKoreksiNominal;
+  statusKeyakinan?: StatusKeyakinan;
+}
+
+export interface RincianTransferBank {
+  nilaiTransfer?: number;
+  biayaAdmin?: number;
+  totalDebit?: number;
+  nomorReferensi?: string;
+  rekeningTujuan?: string;
+  namaPenerima?: string;
+}
+
+export interface KotakPembatasOcr {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface KataOcrTerstruktur {
+  teks: string;
+  confidence: number;
+  bbox: KotakPembatasOcr;
+}
+
+export interface BarisOcrTerstruktur {
+  teks: string;
+  confidence: number;
+  bbox: KotakPembatasOcr;
+  words?: KataOcrTerstruktur[];
+}
+
+export interface DataOcrTerstruktur {
+  teks: string;
+  lines?: BarisOcrTerstruktur[];
+  words?: KataOcrTerstruktur[];
+  confidence?: number;
 }
 
 export interface HasilOcrTransaksi {
@@ -38,6 +108,18 @@ export interface HasilOcrTransaksi {
   catatan?: string;
   ringkasan?: string;
   peringatan: string[];
+  rincianTransfer?: RincianTransferBank;
+  statusKeyakinan?: {
+    jumlah: StatusKeyakinan;
+    tanggal: StatusKeyakinan;
+    namaPenyedia: StatusKeyakinan;
+    metode: StatusKeyakinan;
+  };
+  pemeriksaanAritmetika?: {
+    konsisten: boolean;
+    selisih?: number;
+    keterangan: string;
+  };
 }
 
 export interface OpsiParserOcr {
@@ -45,6 +127,8 @@ export interface OpsiParserOcr {
   jenisTransaksi?: JenisTransaksi;
   nominalQrisTerverifikasi?: number;
   merchantQrisTerverifikasi?: string;
+  kebijakanNominalTransfer?: "total_debit" | "nilai_transfer";
+  dataOcr?: DataOcrTerstruktur;
 }
 
 /**
@@ -87,7 +171,10 @@ export function uraikanQrisEMVCo(qrText: string): { amount?: number; merchantNam
  * Normalisasi teks angka Rupiah:
  * Mengubah "Rp 150.000,00", "Rp150.000", "150.000", "15O.OOO" (huruf O) menjadi number 150000.
  */
-export function uraikanNominalRupiah(teks: string): number | null {
+export function uraikanNominalRupiah(
+  teks: string,
+  opsi?: { adaKonteksTotal?: boolean; konteksBaris?: string }
+): number | null {
   if (!teks || typeof teks !== "string") return null;
 
   // Bersihkan teks di sekitarnya
@@ -130,29 +217,24 @@ export function uraikanNominalRupiah(teks: string): number | null {
   // Buang sufiks tulisan tangan: ,- atau .- atau /= atau =/
   bersih = bersih.replace(/[,\.]\s*[-=\/]+$/, "");
 
-  // Kasus Khusus Tiket/Struk Indonesia: Format desimal 2 digit dengan prefiks Rp (mis. "Rp. 280.01" atau "Rp. 280.00" atau "Rp. 145.00")
-  // Pada tiket speedboat/transportasi fisik, angka ribuan sering terpotong atau digit terakhir pudar (.00 / .01).
-  // Dalam Rupiah Indonesia tidak ada pecahan sen untuk transaksi fisik transportasi/retail.
-  if (adaPrefiksMataUang && /^\d{2,3}[\.,]0[0-9]$/.test(bersih)) {
-    const bagianUtama = parseInt(bersih.replace(/[\.,].*$/, ""), 10);
+  // Pola desimal Indonesia: 150.000,00 atau 100,00 -> buang ,00 (format desimal sen yang sah tidak boleh dikali seribu)
+  if (/,\d{2}$/.test(bersih)) {
+    bersih = bersih.replace(/,\d{2}$/, "");
+  } else if (/\.00$/.test(bersih) && (bersih.match(/\./g) || []).length === 1 && !bersih.includes(",")) {
+    // Format sen standar dengan titik: mis. 100.00 -> 100
+    bersih = bersih.replace(/\.00$/, "");
+  } else if (
+    adaPrefiksMataUang &&
+    /^\d{2,3}\.0[1-9]$/.test(bersih)
+  ) {
+    // Kasus Khusus Tiket Speedboat / Dot-Matrix pudar: "Rp. 280.01" (bukan .00 sen standar)
+    const bagianUtama = parseInt(bersih.replace(/\..*$/, ""), 10);
     if (!isNaN(bagianUtama) && bagianUtama >= 20 && bagianUtama <= 999) {
       return bagianUtama * 1000;
     }
-  }
-
-  // Pola desimal Indonesia: 150.000,00 -> buang ,00
-  if (/,\d{2}$/.test(bersih)) {
-    bersih = bersih.replace(/,\d{2}$/, "");
   } else if (/\.\d{2}$/.test(bersih) && (bersih.match(/\./g) || []).length === 1 && !bersih.includes(",")) {
-    // Pola desimal standar: jika ada prefiks Rp dan 2 digit akhir
     const bagian = bersih.split(".");
-    if (bagian[0].length <= 3) {
-      const bagian0Num = parseInt(bagian[0], 10);
-      if (adaPrefiksMataUang && bagian0Num >= 20 && bagian0Num <= 999 && bagian[1] === "00") {
-        return bagian0Num * 1000;
-      }
-      bersih = bagian[0];
-    }
+    bersih = bagian[0];
   }
 
   // Buang semua titik pemisah ribuan dan karakter non-digit
@@ -181,7 +263,11 @@ export function uraikanNominalRupiah(teks: string): number | null {
   // - Waktu jam:menit tanpa titik (misal 1027 dari 10:27 AM, 0925 dari 09:25 AM)
   if (!adaPrefiksMataUang && !adaPemisahRibuan && hanyaDigit.length === 4) {
     if (nilai >= 2020 && nilai <= 2035) return null; // Tahun
-    if (nilai >= 100 && nilai <= 2359) return null; // Pola jam digital status bar
+    const adaKonteksTotal =
+      Boolean(opsi?.adaKonteksTotal) ||
+      Boolean(opsi?.konteksBaris && /\b(?:TOTAL|BAYAR|TAGIHAN|JUMLAH|HARGA|RP|IDR)\b/i.test(opsi.konteksBaris)) ||
+      /\b(?:TOTAL|BAYAR|TAGIHAN|JUMLAH|HARGA)\b/i.test(teks);
+    if (!adaKonteksTotal && nilai >= 100 && nilai <= 2359) return null; // Pola jam digital status bar hanya jika tanpa konteks Total
   }
 
   // 4. Jika nilai >= 5.000.000 tapi tidak ada pemisah ribuan dan tidak ada prefiks Rp
@@ -200,10 +286,20 @@ export function uraikanNominalRupiah(teks: string): number | null {
  */
 export function ekstrakKandidatNominal(
   barisDaftar: string[],
-  nominalQrisTerverifikasi?: number
+  nominalQrisTerverifikasi?: number,
+  opsiEkstrak?: {
+    dataOcr?: DataOcrTerstruktur;
+    kebijakanNominalTransfer?: "total_debit" | "nilai_transfer";
+  }
 ): {
   utama: number | null;
   kandidat: KandidatNominal[];
+  rincianTransfer?: RincianTransferBank;
+  pemeriksaanAritmetika?: {
+    konsisten: boolean;
+    selisih?: number;
+    keterangan: string;
+  };
 } {
   const hasilKandidat: KandidatNominal[] = [];
 
@@ -214,6 +310,9 @@ export function ekstrakKandidatNominal(
       label: "Total Pembayaran QRIS (Terverifikasi)",
       baris: `QRIS Tag 54: Rp ${nominalQrisTerverifikasi.toLocaleString("id-ID")}`,
       bobot: 300,
+      peran: "total_transaksi",
+      asal: "qris",
+      statusKeyakinan: "terbaca",
     });
   }
 
@@ -226,26 +325,37 @@ export function ekstrakKandidatNominal(
       label: "Nilai Terbilang (Kuitansi / Tanda Terima)",
       baris: `Terbilang: Rp ${nominalTerbilang.toLocaleString("id-ID")}`,
       bobot: 235, // Bobot sangat tinggi: terbilang adalah nilai sah pada kuitansi/surat bukti
+      peran: "total_transaksi",
+      asal: "terbilang",
+      statusKeyakinan: "terbaca",
     });
   }
 
   // Kata kunci pengecualian ketat (bukan nominal belanja utama)
-  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*BANK|ADMIN\s*FEE|BIAYA\s*TRANSAKSI|BIAYA\s*LAYANAN|BIAYA\s*JASA|SERVICE\s*CHARGE|PAJAK\s*RESTO|PB1|PPN|PPN\s*11%|ONGKOS\s*KIRIM|ONGKIR|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*TRANSAKSI|NOMOR\s*IM3|STROOM|TOKEN|NO\.?\s*METER|IDPEL|ID\s*PELANGGAN|KWH|NO\s*SAMBUNGAN|TOTAL\s*PESANAN|JUMLAH\s*PESANAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|TELP|TELEPON|HP|PHONE|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
+  // CATATAN AUDIT: TOTAL PESANAN, TELP, dan HP TIDAK boleh membuang seluruh baris jika terdapat angka nominal uang
+  const polaAbaikan = /\b(KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|SALDO|SISA\s*SALDO|SALDO\s*AKHIR|BIAYA\s*ADMIN|ADMIN\s*BANK|ADMIN\s*FEE|BIAYA\s*TRANSAKSI|BIAYA\s*LAYANAN|BIAYA\s*JASA|SERVICE\s*CHARGE|PAJAK\s*RESTO|PB1|PPN|PPN\s*11%|ONGKOS\s*KIRIM|ONGKIR|BIAYA\s*TRANSFER|NO\.?\s*REF|REF\s*NO|NOMOR|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)?|ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NO\.?\s*TRANSAKSI|NOMOR\s*IM3|STROOM|TOKEN|NO\.?\s*METER|IDPEL|ID\s*PELANGGAN|KWH|NO\s*SAMBUNGAN|TOTAL\s*ITEM|JUMLAH\s*ITEM|TOTAL\s*QTY|STAN|APPROVAL|TRACE|BATCH|OPERATOR|KASIR|CASHIER|SALURAN|NPWP|NMID|KODE\s*POS|JAM|WAKTU|TIME|PRINT|TGL|TANGGAL|DATE|HUBUNGI|KRITIK|SARAN|CS|HOTLINE|KEMITRAAN|PARTNERSHIP)\b/i;
 
   // Kata kunci prioritas tertinggi (Grand Total Definitif, Total Transaksi, Netto Bersih, Jumlah Diterima, Jumlah Rp)
-  const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*TRANSAKSI|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|TOTAL\s*AKHIR|TAGIHAN\s*TOTAL|BILL\s*TOTAL|TOTAL\s*TAGIHAN|TOTAL\s*NETTO|NET\s*TOTAL|DITERIMA\s*BERSIH|JUMLAH\s*BERSIH|JUMLAH\s*DITERIMA|JUMLAH\s*RP\.?|JUMLAH\s*\(?RP\)?|JML\s*RP\.?|PEMBAYARAN\s*SEBENARNYA|PEMBAYARAN\s*SEBENAR|TOTAL\s*ALL|SERGNSINYA)\b/i;
+  const polaTotalUtama = /\b(GRAND\s*TOTAL|TOTAL\s*TRANSAKSI|TOTAL\s*BAYAR|TOTAL\s*PEMBAYARAN|TOTAL\s*AKHIR|TAGIHAN\s*TOTAL|BILL\s*TOTAL|TOTAL\s*TAGIHAN|TOTAL\s*NETTO|NET\s*TOTAL|DITERIMA\s*BERSIH|JUMLAH\s*BERSIH|JUMLAH\s*DITERIMA|JUMLAH\s*RP\.?|JUMLAH\s*\(?RP\)?|JML\s*RP\.?|PEMBAYARAN\s*SEBENARNYA|PEMBAYARAN\s*SEBENAR|TOTAL\s*ALL|SERGNSINYA|TOTAL\s*DEBET|TOTAL\s*DEBIT)\b/i;
 
   // Kata kunci prioritas kedua (Nominal Transfer, Jumlah Transfer, Nominal Belanja, Total Harga, Bruto)
   const polaNominalTransfer = /\b(NOMINAL\s*TRANSFER|JUMLAH\s*TRANSFER|NOMINAL\s*PENDAPATAN|TOTAL\s*HARGA|TOTAL\s*BRUTO|JUMLAH\s*KOTOR|JUMLAH\s*DIBAYAR)\b/i;
 
-  // Kata kunci prioritas menengah (Total, Jumlah yang bukan total pesanan/item)
-  const polaTotalBiasa = /\b(TOTAL(?!\s*PESANAN|\s*ITEM|\s*QTY)|JUMLAH(?!\s*PESANAN|\s*ITEM|\s*QTY|\s*RP)|HARGA\s*TOTAL|TOTAL\s*RP)\b/i;
+  // Kata kunci prioritas menengah (Total, Total Pesanan bila berformat uang, Jumlah yang bukan total pesanan/item)
+  const polaTotalBiasa = /\b(TOTAL(?!\s*ITEM|\s*QTY)|TOTAL\s*PESANAN|JUMLAH(?!\s*PESANAN|\s*ITEM|\s*QTY|\s*RP)|HARGA\s*TOTAL|TOTAL\s*RP)\b/i;
 
   // Kata kunci subtotal
   const polaSubtotal = /\b(SUBTOTAL|SUB\s*TOTAL|TOTAL\s*SEBELUM)\b/i;
 
   // Kata kunci tunai / uang yang diserahkan konsumen
   const polaTunaiBayar = /\b(TUNAI|CASH|BAYAR|DITERIMA)\b/i;
+
+  // Deteksi khusus baris transfer bank (m-Transfer BCA, Livin, dsb.)
+  let transferDitemukan: {
+    nilaiTransfer?: number;
+    biayaAdmin?: number;
+    totalDebit?: number;
+  } = {};
 
   // Ekstrak tiap baris
   for (let idx = 0; idx < barisDaftar.length; idx++) {
@@ -258,12 +368,11 @@ export function ekstrakKandidatNominal(
     const barisSebelum = idx > 0 ? barisDaftar[idx - 1].trim().toUpperCase() : "";
     const barisDuaSebelum = idx > 1 ? barisDaftar[idx - 2].trim().toUpperCase() : "";
 
-    // Abaikan jika baris atau baris sebelumnya mengindikasikan nomor pesanan, telepon, barcode, atau info CS
-    if (
-      polaAbaikan.test(barisAtas) ||
-      /^(?:ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NOMOR\s*IM3|NO\.?\s*HP|REKENING\s*TUJUAN)/i.test(baris) ||
-      (barisSebelum && /\b(NOMOR\s*PESANAN|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)|NO\.?\s*REF|REF\s*NO|NMID|TELP|HP|PHONE|HUBUNGI)\b/i.test(barisSebelum))
-    ) {
+    // Prapemrosesan token baris: pisahkan nomor HP / nomor telepon agar tidak membatalkan baris yang memuat Total uang (Bug E)
+    const barisBersihHp = baris.replace(/(?:TELP|TELEPON|HP|PHONE|WA|CALL|CS|HOTLINE)?[:\s]*(?:08\d{2}[-\s]?\d{4}[-\s]?\d{3,5}|\+62[-\s]?8\d{2}[-\s]?\d{4}[-\s]?\d{3,5})/gi, " ").trim();
+
+    // Jika setelah nomor HP dihilangkan baris menjadi kosong, lewati
+    if (!barisBersihHp && /08\d{2}[-\s]?\d{4}[-\s]?\d{3,5}/.test(baris)) {
       continue;
     }
 
@@ -292,16 +401,6 @@ export function ekstrakKandidatNominal(
       continue;
     }
 
-    // Jika baris memuat nomor telepon format Indonesia (08...)
-    if (/08\d{2}[-\s]?\d{4}[-\s]?\d{3,5}/.test(baris)) {
-      continue;
-    }
-
-    // Jika baris memuat rangkaian digit panjang >= 8 tanpa titik dan tanpa Rp
-    if (/\b\d{8,}\b/.test(baris) && !/Rp|IDR/i.test(baris)) {
-      continue;
-    }
-
     // Abaikan baris tanggal & waktu tanpa indikator nominal belanja (misal: "27 Okt 2026 - 09:25 AM")
     const adaIndikatorUang = /(?:Rp|IDR|Total|Bayar|Tagihan|Jumlah|Harga)/i.test(baris);
     const adaPolaBulan = /\b(?:Jan|Feb|Mar|Apr|Mei|May|Jun|Jul|Agu|Aug|Sep|Okt|Oct|Nov|Des|Dec)[a-z]*\b/i.test(baris);
@@ -311,14 +410,59 @@ export function ekstrakKandidatNominal(
       continue;
     }
 
+    // Tangani baris Transfer Bank secara eksplisit (Transfer Pokok, Biaya Admin, Total Debit)
+    if (/\b(?:NOMINAL\s*TRANSFER|JUMLAH\s*TRANSFER)\b/i.test(barisAtas)) {
+      const valTf = uraikanNominalRupiah(barisBersihHp, { adaKonteksTotal: true, konteksBaris: baris });
+      if (valTf) transferDitemukan.nilaiTransfer = valTf;
+    }
+    if (/\b(?:BIAYA\s*ADMIN|ADMIN\s*BANK|ADMIN\s*FEE)\b/i.test(barisAtas)) {
+      const valAdm = uraikanNominalRupiah(barisBersihHp, { adaKonteksTotal: true, konteksBaris: baris });
+      if (valAdm !== null) transferDitemukan.biayaAdmin = valAdm;
+    }
+    if (/\b(?:TOTAL\s*DEBET|TOTAL\s*DEBIT|TOTAL\s*TRANSAKSI)\b/i.test(barisAtas)) {
+      const valDeb = uraikanNominalRupiah(barisBersihHp, { adaKonteksTotal: true, konteksBaris: baris });
+      if (valDeb) transferDitemukan.totalDebit = valDeb;
+    }
+
+    // Abaikan jika baris mengindikasikan nomor pesanan/referensi tanpa indikator total uang
+    const adalahBarisTotalUang =
+      polaTotalUtama.test(barisAtas) ||
+      polaNominalTransfer.test(barisAtas) ||
+      polaTotalBiasa.test(barisAtas) ||
+      /(?:Rp|IDR)\s*[0-9OolISsBZ]/i.test(barisBersihHp);
+
+    if (
+      !adalahBarisTotalUang &&
+      (polaAbaikan.test(barisAtas) ||
+        /^(?:ID\s*TRANSAKSI|TRANSACTION\s*ID|ORDER\s*ID|NOMOR\s*IM3|NO\.?\s*HP|REKENING\s*TUJUAN)/i.test(baris) ||
+        (barisSebelum && /\b(NOMOR\s*PESANAN|NO\.?\s*PESANAN|ORDER\s*(?:NO|ID|#)|NO\.?\s*REF|REF\s*NO|NMID|TELP|HP|PHONE|HUBUNGI)\b/i.test(barisSebelum)))
+    ) {
+      continue;
+    }
+
+    // Jika baris memuat rangkaian digit panjang >= 8 tanpa titik dan tanpa Rp
+    if (/\b\d{8,}\b/.test(barisBersihHp) && !/Rp|IDR/i.test(barisBersihHp)) {
+      continue;
+    }
+
     // Cari pola angka uang di dalam baris
-    // Mendukung ribuan standar (mis. 50.000 / 125.000), 4-7 digit murni (mis. 50000),
-    // serta pola khusus tiket fisik/dot-matrix (mis. "Rp. 280.01" atau "Rp. 280.00" atau "Rp 145.00")
-    const matches = baris.match(/(?:Rp\.?|IDR)?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,7})|(?:Rp\.?|IDR)\s*[0-9]{2,3}[.,][0-9]{2}\b/gi);
+    // Mendukung ribuan standar (mis. 50.000 / 125.000), 4-7 digit murni (mis. 50000 / 1500),
+    // koreksi karakter OCR (mis. "Rp 15O.OOO"), tanda kurung/braket (mis. "[1.020.000"), serta pola khusus tiket fisik/dot-matrix (mis. "Rp. 280.01")
+    const polaCocokNominal = /(?:^|[\s#=:>\-\[\({<|~_])(?:(?:Rp\.?|IDR|\$|RYP|RY|KP|PP|HP|BP|FP|IP|RE|IB|1B|TB|IBP|TIP)[.\s]*)?([0-9OolISsBZ]{1,3}(?:[.,\s][0-9OolISsBZ]{3})+(?:[.,][0-9OolISsBZ]{2})?|[0-9OolISsBZ]{3,7})(?=[,\s\-=/#\]\)}>|~_]|$)|(?:Rp\.?|IDR|\$|RYP|RY|KP|PP|HP|BP)[.\s]*[0-9OolISsBZ]{2,3}[.,][0-9OolISsBZ]{2}\b/gi;
+    const matches = barisBersihHp.match(polaCocokNominal);
     if (!matches) continue;
 
     for (const rawCocok of matches) {
-      const nominal = uraikanNominalRupiah(rawCocok);
+      const adaKonteksLabelTotal =
+        polaTotalUtama.test(barisAtas) ||
+        polaTotalBiasa.test(barisAtas) ||
+        polaNominalTransfer.test(barisAtas) ||
+        /\b(?:TOTAL|BAYAR|TAGIHAN|JUMLAH|HARGA)\b/i.test(barisAtas);
+
+      const nominal = uraikanNominalRupiah(rawCocok, {
+        adaKonteksTotal: adaKonteksLabelTotal,
+        konteksBaris: barisBersihHp,
+      });
       if (!nominal) continue;
 
       // Filter tahun masehi (mis. 2020 s.d. 2035)
@@ -329,7 +473,8 @@ export function ekstrakKandidatNominal(
       }
 
       // Filter angka terlalu kecil yang biasanya adalah kuantitas barang, nomor antrean, atau nomor meja
-      if (nominal < 500 && !/Rp|IDR/i.test(rawCocok)) {
+      // Namun pertahankan jika ada label TOTAL atau prefiks Rp
+      if (nominal < 500 && !/Rp|IDR/i.test(rawCocok) && !adaKonteksLabelTotal) {
         continue;
       }
 
@@ -339,8 +484,7 @@ export function ekstrakKandidatNominal(
         nominal < 10000 &&
         !/Rp|IDR/i.test(rawCocok) &&
         !/Rp|IDR/i.test(baris) &&
-        !polaTotalUtama.test(barisAtas) &&
-        !polaTotalBiasa.test(barisAtas) &&
+        !adaKonteksLabelTotal &&
         !/HARGA|TARIF|BIAYA/i.test(barisAtas)
       ) {
         continue;
@@ -353,6 +497,7 @@ export function ekstrakKandidatNominal(
 
       let bobot = 10; // Nilai dasar
       let label = "Nominal";
+      let peran: PeranNominal = "lainnya";
 
       // 1. Dukungan multi-baris: hanya berlaku jika baris sebelumnya murni teks label tanpa angka
       const barisSebelumMurniLabel = Boolean(barisSebelum && !/\d/.test(barisSebelum));
@@ -389,22 +534,28 @@ export function ekstrakKandidatNominal(
 
       if (adalahTotalUtama) {
         bobot = 210;
-        label = "Total Akhir (Grand Total)";
+        label = /DEBET|DEBIT/i.test(barisAtas) ? "Total Debet Rekening" : "Total Akhir (Grand Total)";
+        peran = /DEBET|DEBIT/i.test(barisAtas) ? "total_debit" : "total_transaksi";
       } else if (adalahNominalTransfer) {
         bobot = 175;
         label = "Jumlah Transfer / Tagihan";
+        peran = "nilai_transfer";
       } else if (adalahTotalBiasa) {
         bobot = 110;
-        label = "Total Belanja";
+        label = /TOTAL\s*PESANAN/i.test(barisAtas) ? "Total Nilai Pesanan" : "Total Belanja";
+        peran = "total_transaksi";
       } else if (adalahSubtotal) {
         bobot = 50;
         label = "Subtotal";
+        peran = "subtotal";
       } else if (adalahTunai) {
         bobot = 30;
         label = "Uang Diserahkan";
+        peran = "tunai";
       } else if (/Rp|IDR/i.test(rawCocok) || /Rp|IDR/i.test(baris)) {
         bobot = 55;
         label = "Rupiah Tertera";
+        peran = "lainnya";
       }
 
       // Bonus jika nominal memiliki awalan mata uang eksplisit Rp/IDR
@@ -425,6 +576,14 @@ export function ekstrakKandidatNominal(
         bobot += 10;
       }
 
+      // Jejak koreksi karakter
+      const teksNormal = String(nominal);
+      const jejakKoreksi: JejakKoreksiNominal = {
+        teksAsli: rawCocok.trim(),
+        teksNormalisasi: teksNormal,
+        perubahan: rawCocok.trim() !== teksNormal ? `Normalisasi format mata uang '${rawCocok.trim()}'` : undefined,
+      };
+
       // Jangan masukkan duplikasi persis nominal dan label yang sama
       const sudahAda = hasilKandidat.find((k) => k.nominal === nominal && k.label === label);
       if (!sudahAda) {
@@ -433,6 +592,10 @@ export function ekstrakKandidatNominal(
           label,
           baris,
           bobot,
+          peran,
+          asal: "tercetak",
+          jejakKoreksi,
+          statusKeyakinan: adalahTotalUtama || adalahNominalTransfer ? "terbaca" : "perlu_diperiksa",
         });
       }
     }
@@ -444,35 +607,99 @@ export function ekstrakKandidatNominal(
       if (k.nominal === nominalTerbilang && k.label !== "Nilai Terbilang (Kuitansi / Tanda Terima)") {
         k.bobot += 50;
         k.label = `${k.label} (Terkonfirmasi Terbilang)`;
+        k.statusKeyakinan = "terbaca";
       }
     }
   }
 
-  // Rekonsiliasi Rincian Belanja: jika nota pasar / bon memuat baris-baris rincian barang, hitung jumlah kumulatifnya
+  // Rekonsiliasi Rincian Belanja: hanya baris yang benar-benar rincian barang yang dijumlahkan
+  // CATATAN AUDIT: Baris SUBTOTAL, TUNAI, KEMBALIAN, PAJAK, BIAYA ADMIN TIDAK BOLEH dijumlahkan ke dalam subtotal belanja (Bug B)
+  const polaBukanRincianBarang = /\b(SUBTOTAL|SUB\s*TOTAL|TOTAL|GRAND\s*TOTAL|TUNAI|CASH|BAYAR|DITERIMA|KEMBALI|KEMBALIAN|CHANGE|DISKON|POTONGAN|HEMAT|PAJAK|PB1|PPN|BIAYA|ADMIN|ONGKIR|SERVICE|TARIF|BIAYA\s*ADMIN|TOTAL\s*PESANAN|TOTAL\s*ITEM|TOTAL\s*QTY)\b/i;
   let subtotalKoleksi = 0;
   let barisItemCount = 0;
   for (const b of barisDaftar) {
     const bAtas = b.toUpperCase();
-    if (polaTotalUtama.test(bAtas) || polaNominalTransfer.test(bAtas) || polaAbaikan.test(bAtas)) continue;
+    if (polaBukanRincianBarang.test(bAtas)) continue;
+
     // Deteksi angka di ujung baris rincian (mis. "Minyak Goreng 2L 34.000" atau "... 24.000 120.000")
     const mUjung = b.match(/(?:^|\s)([0-9]{1,3}(?:\.[0-9]{3})+)\s*$/);
     if (mUjung) {
-      const val = uraikanNominalRupiah(mUjung[1]);
+      const val = uraikanNominalRupiah(mUjung[1], { konteksBaris: b });
       if (val && val >= 1000 && val <= 10_000_000) {
         subtotalKoleksi += val;
         barisItemCount++;
       }
     }
   }
-  if (barisItemCount >= 2 && subtotalKoleksi >= 5000 && subtotalKoleksi <= 50_000_000) {
+
+  if (barisItemCount >= 2 && subtotalKoleksi >= 1000 && subtotalKoleksi <= 50_000_000) {
     const sudahAda = hasilKandidat.find((k) => k.nominal === subtotalKoleksi);
-    if (!sudahAda) {
+    if (sudahAda) {
+      sudahAda.bobot += 40;
+      sudahAda.label = `${sudahAda.label} (Terkonfirmasi Hasil Hitung Rincian)`;
+      sudahAda.statusKeyakinan = "terbaca";
+      sudahAda.asal = "hasil_hitung";
+    }
+    const sudahAdaLabel = hasilKandidat.find((k) => k.label === "Hasil Hitung Rincian Barang");
+    if (!sudahAdaLabel) {
       hasilKandidat.push({
         nominal: subtotalKoleksi,
-        label: "Rekonsiliasi Rincian Belanja (Hitung Subtotal)",
+        label: "Hasil Hitung Rincian Barang",
         baris: `Total Rincian (${barisItemCount} item): Rp ${subtotalKoleksi.toLocaleString("id-ID")}`,
-        bobot: 120, // Prioritas cukup tinggi jika total akhir tidak terbaca atau rusak
+        bobot: sudahAda ? sudahAda.bobot + 5 : 120,
+        peran: "hasil_hitung",
+        asal: "hasil_hitung",
+        statusKeyakinan: "terbaca",
       });
+    }
+  }
+
+  // Rekonsiliasi Aritmetika Transfer Bank (m-Transfer BCA)
+  let pemeriksaanAritmetika: { konsisten: boolean; selisih?: number; keterangan: string } | undefined;
+  if (
+    transferDitemukan.nilaiTransfer &&
+    transferDitemukan.biayaAdmin !== undefined &&
+    transferDitemukan.totalDebit
+  ) {
+    const hitungDebit = transferDitemukan.nilaiTransfer + transferDitemukan.biayaAdmin;
+    const konsisten = hitungDebit === transferDitemukan.totalDebit;
+    pemeriksaanAritmetika = {
+      konsisten,
+      selisih: Math.abs(hitungDebit - transferDitemukan.totalDebit),
+      keterangan: konsisten
+        ? `Transfer (Rp ${transferDitemukan.nilaiTransfer.toLocaleString("id-ID")}) + Admin (Rp ${transferDitemukan.biayaAdmin.toLocaleString("id-ID")}) = Total Debet (Rp ${transferDitemukan.totalDebit.toLocaleString("id-ID")}) diverifikasi konsisten.`
+        : `Terdapat selisih antara nilai transfer + admin dengan total debit tertera.`,
+    };
+  }
+
+  // Jika terdapat struktur bounding box OCR (koordinat kata / baris), berikan penguatan posisi geometris
+  if (opsiEkstrak?.dataOcr?.words && opsiEkstrak.dataOcr.words.length > 0) {
+    const words = opsiEkstrak.dataOcr.words;
+    for (const w of words) {
+      if (/\b(?:TOTAL|GRAND\s*TOTAL|JUMLAH)\b/i.test(w.teks)) {
+        // Cari angka di sebelah kanan atau di bawah kata label ini
+        for (const k of hasilKandidat) {
+          const wNum = words.find((wn) => {
+            const nVal = uraikanNominalRupiah(wn.teks);
+            return nVal === k.nominal;
+          });
+          if (wNum) {
+            const diSebelahKanan =
+              wNum.bbox.x0 >= w.bbox.x0 &&
+              Math.abs((wNum.bbox.y0 + wNum.bbox.y1) / 2 - (w.bbox.y0 + w.bbox.y1) / 2) < (w.bbox.y1 - w.bbox.y0) * 1.2;
+            const diBawahnya =
+              wNum.bbox.y0 >= w.bbox.y1 &&
+              wNum.bbox.y0 - w.bbox.y1 < (w.bbox.y1 - w.bbox.y0) * 2.0 &&
+              Math.abs(wNum.bbox.x0 - w.bbox.x0) < (w.bbox.x1 - w.bbox.x0) * 1.5;
+
+            if (diSebelahKanan || diBawahnya) {
+              k.bobot += 40;
+              k.statusKeyakinan = "terbaca";
+              k.label = `${k.label} (Terkonfirmasi Koordinat Posisi)`;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -489,11 +716,26 @@ export function ekstrakKandidatNominal(
     }
   }
 
-  const utama = kandidatUnik.length > 0 ? kandidatUnik[0].nominal : null;
+  // Penentuan nominal utama sesuai kebijakan aplikasi (khususnya transfer bank)
+  let utama: number | null = kandidatUnik.length > 0 ? kandidatUnik[0].nominal : null;
+
+  if (transferDitemukan.nilaiTransfer && transferDitemukan.totalDebit) {
+    if (opsiEkstrak?.kebijakanNominalTransfer === "nilai_transfer") {
+      utama = transferDitemukan.nilaiTransfer;
+    } else {
+      // Kebijakan default akuntansi SPJ: Total kas yang keluar dari rekening (Total Debet)
+      utama = transferDitemukan.totalDebit;
+    }
+  }
 
   return {
     utama,
-    kandidat: kandidatUnik.slice(0, 5), // Ambil maksimal 5 kandidat teratas
+    kandidat: kandidatUnik.slice(0, 6), // Ambil maksimal 6 kandidat teratas
+    rincianTransfer:
+      transferDitemukan.nilaiTransfer || transferDitemukan.totalDebit
+        ? transferDitemukan
+        : undefined,
+    pemeriksaanAritmetika,
   };
 }
 
@@ -1851,6 +2093,8 @@ export function uraiTeksOcrTransaksi(
   // 2. Ekstraksi Nominal
   let nominalUtama: number | null = null;
   let kandidat: KandidatNominal[] = [];
+  let rincianTransfer: RincianTransferBank | undefined = undefined;
+  let pemeriksaanAritmetika: { konsisten: boolean; selisih?: number; keterangan: string } | undefined = undefined;
 
   if (ktp.isKtp) {
     // Pada KTP, angka adalah NIK / tahun / RT RW dan BUKAN nominal transaksi!
@@ -1860,9 +2104,14 @@ export function uraiTeksOcrTransaksi(
       `Dokumen terdeteksi sebagai KTP/Identitas kependudukan (${ktp.namaLengkap || "Warga/Kader"}). Nominal transaksi tidak tertera pada KTP, silakan masukkan jumlah pembayaran/honorarium secara manual sesuai kuitansi/tanda terima.`
     );
   } else {
-    const hasilNominal = ekstrakKandidatNominal(baris, opsi.nominalQrisTerverifikasi);
+    const hasilNominal = ekstrakKandidatNominal(baris, opsi.nominalQrisTerverifikasi, {
+      dataOcr: opsi.dataOcr,
+      kebijakanNominalTransfer: opsi.kebijakanNominalTransfer,
+    });
     nominalUtama = hasilNominal.utama;
     kandidat = hasilNominal.kandidat;
+    rincianTransfer = hasilNominal.rincianTransfer;
+    pemeriksaanAritmetika = hasilNominal.pemeriksaanAritmetika;
 
     if (!nominalUtama) {
       peringatan.push("Nominal transaksi tidak terdeteksi otomatis. Harap isi jumlah pada formulir secara manual.");
@@ -1921,6 +2170,29 @@ export function uraiTeksOcrTransaksi(
     keteranganLaporan = `Pengeluaran ${kataKunciDeskripsi.toLowerCase()} di ${merchantLabel}.`;
   }
 
+  // Status keyakinan per bidang
+  const statusKeyakinan: {
+    jumlah: StatusKeyakinan;
+    tanggal: StatusKeyakinan;
+    namaPenyedia: StatusKeyakinan;
+    metode: StatusKeyakinan;
+  } = {
+    jumlah: nominalUtama
+      ? (pemeriksaanAritmetika?.konsisten || kandidat.some((k) => k.statusKeyakinan === "terbaca")
+        ? "terbaca"
+        : "perlu_diperiksa")
+      : "tidak_ditemukan",
+    tanggal: tanggalDitemukan ? "terbaca" : "perlu_diperiksa",
+    namaPenyedia:
+      namaPenjualPenyedia && !/^(?:Penyedia|Toko|Kasir)$/i.test(namaPenjualPenyedia)
+        ? "terbaca"
+        : "tidak_ditemukan",
+    metode:
+      metode && /^(?:QRIS|Transfer|Debit|Kredit|Tunai)$/.test(metode)
+        ? "terbaca"
+        : "perlu_diperiksa",
+  };
+
   // Ringkasan singkat faktual
   const nominalFormat = nominalUtama ? `Rp${nominalUtama.toLocaleString("id-ID")}` : "nominal belum terbaca";
   const ringkasan = `${deskripsi} (${nominalFormat}) pada ${tanggalFinal}.`;
@@ -1942,5 +2214,22 @@ export function uraiTeksOcrTransaksi(
     catatan: baris.slice(0, 15).join(" | "), // Kutipan baris faktual
     ringkasan,
     peringatan,
+    rincianTransfer,
+    statusKeyakinan,
+    pemeriksaanAritmetika,
   };
+}
+
+/**
+ * Parser berstruktur koordinat bounding box OCR:
+ * Memanfaatkan posisi fisik teks (kata di sebelah kanan atau bawah kata TOTAL).
+ */
+export function uraiStrukturOcrTransaksi(
+  dataOcr: DataOcrTerstruktur,
+  opsi: OpsiParserOcr = {}
+): HasilOcrTransaksi {
+  return uraiTeksOcrTransaksi(dataOcr.teks || "", {
+    ...opsi,
+    dataOcr,
+  });
 }

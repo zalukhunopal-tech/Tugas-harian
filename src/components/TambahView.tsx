@@ -1983,6 +1983,77 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <span>💳 {hasilScan.metode}</span>
           </div>
 
+          {/* Indikator Status Keyakinan OCR & Verifikasi Aritmetika */}
+          {hasilScan.statusKeyakinan && (
+            <div style={{ marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "6px", fontSize: "0.72rem" }}>
+              <span
+                style={{
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  background:
+                    hasilScan.statusKeyakinan.jumlah === "terbaca"
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(245, 158, 11, 0.15)",
+                  color:
+                    hasilScan.statusKeyakinan.jumlah === "terbaca"
+                      ? "#4ade80"
+                      : "#fbbf24",
+                  border: "1px solid currentColor",
+                }}
+              >
+                Nominal: {hasilScan.statusKeyakinan.jumlah === "terbaca" ? "✓ Terbaca" : "⚠️ Perlu Diperiksa"}
+              </span>
+              {hasilScan.pemeriksaanAritmetika && (
+                <span
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: hasilScan.pemeriksaanAritmetika.konsisten
+                      ? "rgba(34, 197, 94, 0.15)"
+                      : "rgba(239, 68, 68, 0.15)",
+                    color: hasilScan.pemeriksaanAritmetika.konsisten
+                      ? "#4ade80"
+                      : "#f87171",
+                    border: "1px solid currentColor",
+                  }}
+                  title={hasilScan.pemeriksaanAritmetika.keterangan}
+                >
+                  {hasilScan.pemeriksaanAritmetika.konsisten
+                    ? "✓ Aritmetika Terverifikasi"
+                    : "⚠️ Selisih Hitung"}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Rincian Khusus Bukti Transfer Bank */}
+          {hasilScan.rincianTransfer && (
+            <div
+              style={{
+                marginTop: "8px",
+                padding: "6px 10px",
+                background: "rgba(14, 165, 233, 0.12)",
+                border: "1px solid rgba(14, 165, 233, 0.3)",
+                borderRadius: "6px",
+                fontSize: "0.72rem",
+                color: "#7dd3fc",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
+            >
+              {hasilScan.rincianTransfer.nilaiTransfer && (
+                <span>Pokok Transfer: {formatRupiah(hasilScan.rincianTransfer.nilaiTransfer)}</span>
+              )}
+              {hasilScan.rincianTransfer.biayaAdmin !== undefined && (
+                <span>Admin Fee: {formatRupiah(hasilScan.rincianTransfer.biayaAdmin)}</span>
+              )}
+              {hasilScan.rincianTransfer.totalDebit && (
+                <span style={{ fontWeight: 700 }}>Total Debet: {formatRupiah(hasilScan.rincianTransfer.totalDebit)}</span>
+              )}
+            </div>
+          )}
+
           {/* Pilihan Nominal Alternatif */}
           {hasilScan.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
             <div

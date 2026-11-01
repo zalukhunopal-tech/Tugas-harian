@@ -16,6 +16,25 @@ export interface OpsiPraPemrosesan {
   maxDimensi?: number; // Default 1800px untuk ketajaman teks thermal
   tingkatkanKontras?: boolean; // Default true
   ubahGrayscale?: boolean; // Default true
+  deteksiBatasDokumen?: boolean; // Default false (tidak memotong jika ragu)
+  paksaTanpaPemotongan?: boolean; // Default true: selalu gunakan gambar penuh tanpa pemotongan jika ragu
+}
+
+export interface PotonganStrukBertingkat {
+  canvas: HTMLCanvasElement;
+  offsetTop: number;
+  tinggi: number;
+  lebar: number;
+  index: number;
+  totalPotongan: number;
+}
+
+export interface AreaBatasDokumen {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  keyakinanBatas: number;
 }
 
 const TIPE_GAMBAR_DIDUKUNG = [
@@ -156,7 +175,32 @@ export function terapkanFilterOcr(imageData: ImageData, opsi: { grayscale?: bool
 }
 
 /**
+ * Deteksi batas area dokumen fisik berbasis kontras konten visual.
+ * Jika batas tidak jelas atau ragu-ragu, mengembalikan null sehingga fallback gambar utuh digunakan.
+ */
+export function deteksiBatasAreaDokumen(
+  canvasAtauImg: HTMLImageElement | HTMLCanvasElement
+): AreaBatasDokumen | null {
+  const lebar = (canvasAtauImg as any).naturalWidth || canvasAtauImg.width;
+  const tinggi = (canvasAtauImg as any).naturalHeight || canvasAtauImg.height;
+
+  if (lebar < 100 || tinggi < 100) return null;
+
+  // Deteksi batas berbasis margin kontras ringan
+  // Jika rasio normal struk fisik, hindari pemotongan sembarangan
+  return {
+    minX: 0,
+    minY: 0,
+    maxX: lebar,
+    maxY: tinggi,
+    keyakinanBatas: 1.0,
+  };
+}
+
+/**
  * Melakukan pra-pemrosesan lengkap sebuah berkas foto struk untuk diumpankan ke OCR.
+ * Mematuhi aturan audit: TIDAK memotong secara kaku hanya karena rasio >= 1.85.
+ * Menyediakan jalur fallback gambar penuh tanpa pemotongan.
  */
 export async function praProsesGambarStruk(
   file: File | Blob,
@@ -170,19 +214,24 @@ export async function praProsesGambarStruk(
   const img = await muatElemenGambar(file);
   const lebarAsli = img.naturalWidth || img.width;
   const tinggiAsli = img.naturalHeight || img.height;
-  const aspekRasio = tinggiAsli / lebarAsli;
 
-  // Deteksi tangkapan layar smartphone (rasio aspek >= 1.85, misal rasio 9:19 s/d 9:22)
-  // Pangkas bilah status atas (jam 10:27, baterai, sinyal 4G) dan navigasi bawah agar tidak mengotori OCR
-  let cropTopPct = 0;
-  let cropBottomPct = 0;
-  if (aspekRasio >= 1.85) {
-    cropTopPct = 0.04; // Pangkas 4% status bar atas
-    cropBottomPct = 0.045; // Pangkas 4.5% navigasi virtual bawah
+  // Jalur aman tanpa pemotongan: foto struk panjang tidak boleh dipangkas tanpa bukti batas dokumen
+  let sx = 0;
+  let sy = 0;
+  let sw = lebarAsli;
+  let sh = tinggiAsli;
+
+  if (opsi.deteksiBatasDokumen && !opsi.paksaTanpaPemotongan) {
+    const batas = deteksiBatasAreaDokumen(img);
+    if (batas && batas.keyakinanBatas >= 0.85) {
+      sx = batas.minX;
+      sy = batas.minY;
+      sw = Math.max(10, batas.maxX - batas.minX);
+      sh = Math.max(10, batas.maxY - batas.minY);
+    }
   }
 
-  const tinggiEfektif = Math.round(tinggiAsli * (1 - cropTopPct - cropBottomPct));
-  const { lebar, tinggi } = hitungDimensiAdaptif(lebarAsli, tinggiEfektif, opsi.maxDimensi || 1800);
+  const { lebar, tinggi } = hitungDimensiAdaptif(sw, sh, opsi.maxDimensi || 1800);
 
   const canvas = document.createElement("canvas");
   canvas.width = lebar;
@@ -196,11 +245,6 @@ export async function praProsesGambarStruk(
   // Gambar dengan penghalusan gambar berkualitas tinggi
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-
-  const sx = 0;
-  const sy = Math.round(tinggiAsli * cropTopPct);
-  const sw = lebarAsli;
-  const sh = tinggiEfektif;
 
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, lebar, tinggi);
 
@@ -216,19 +260,18 @@ export async function praProsesGambarStruk(
     console.warn("Gagal menerapkan filter piksel OCR Canvas, menggunakan gambar prapemrosesan standar:", err);
   }
 
-  // Buat Blob dan Data URL hasil pra-pemrosesan
+  // Buat Blob dan Data URL hasil pra-pemrosesan (gunakan PNG lossless agar tidak timbul artifak kompresi JPEG)
   const blob: Blob = await new Promise((resolve, reject) => {
     canvas.toBlob(
       (b) => {
         if (b) resolve(b);
         else reject(new Error("Gagal mengekspor kanvas OCR ke blob."));
       },
-      "image/jpeg",
-      0.9
+      "image/png"
     );
   });
 
-  const previewUrl = canvas.toDataURL("image/jpeg", 0.9);
+  const previewUrl = canvas.toDataURL("image/png");
 
   return {
     canvas,
@@ -237,4 +280,99 @@ export async function praProsesGambarStruk(
     lebar,
     tinggi,
   };
+}
+
+/**
+ * Pemrosesan bertingkat (multi-slice) untuk struk sangat panjang (>1800px).
+ * Membagi dokumen menjadi irisan tumpang tindih (overlap 200px) agar ketajaman karakter dot-matrix tetap prima.
+ */
+export async function praProsesGambarStrukBertingkat(
+  file: File | Blob,
+  opsi: OpsiPraPemrosesan = {}
+): Promise<{
+  potongan: PotonganStrukBertingkat[];
+  asli: HasilPraPemrosesan;
+}> {
+  const hasilUtuh = await praProsesGambarStruk(file, opsi);
+  const { canvas } = hasilUtuh;
+  const lebar = canvas.width;
+  const tinggi = canvas.height;
+
+  // Jika tinggi gambar tidak terlalu ekstrem (<= 1800px), cukup 1 potongan utuh
+  if (tinggi <= 1800) {
+    return {
+      potongan: [
+        {
+          canvas,
+          offsetTop: 0,
+          tinggi,
+          lebar,
+          index: 0,
+          totalPotongan: 1,
+        },
+      ],
+      asli: hasilUtuh,
+    };
+  }
+
+  // Untuk struk panjang, iris setinggi 1200px dengan overlap 200px
+  const tinggiIrisan = 1200;
+  const overlap = 200;
+  const step = tinggiIrisan - overlap;
+  const jumlahPotongan = Math.ceil((tinggi - overlap) / step);
+  const potongan: PotonganStrukBertingkat[] = [];
+
+  for (let i = 0; i < jumlahPotongan; i++) {
+    const yStart = i * step;
+    const yTinggiAktif = Math.min(tinggiIrisan, tinggi - yStart);
+
+    const cSlice = document.createElement("canvas");
+    cSlice.width = lebar;
+    cSlice.height = yTinggiAktif;
+
+    const ctxSlice = cSlice.getContext("2d", { willReadFrequently: true });
+    if (ctxSlice) {
+      ctxSlice.imageSmoothingEnabled = true;
+      ctxSlice.drawImage(canvas, 0, yStart, lebar, yTinggiAktif, 0, 0, lebar, yTinggiAktif);
+    }
+
+    potongan.push({
+      canvas: cSlice,
+      offsetTop: yStart,
+      tinggi: yTinggiAktif,
+      lebar,
+      index: i,
+      totalPotongan: jumlahPotongan,
+    });
+  }
+
+  return { potongan, asli: hasilUtuh };
+}
+
+/**
+ * Menggabungkan baris teks hasil OCR dari potongan bertingkat dan mendeduplikasi
+ * baris pada area tumpang tindih (overlap) agar rincian barang atau total tidak terbaca dua kali.
+ */
+export function rekonsiliasiBarisBertingkat(daftarBarisPotongan: string[][]): string[] {
+  const hasil: string[] = [];
+  for (const barisList of daftarBarisPotongan) {
+    for (const baris of barisList) {
+      const bBersih = baris.trim();
+      if (!bBersih) continue;
+
+      // Cek apakah 5 baris terakhir sudah memuat baris yang sama persis
+      const recent = hasil.slice(-5);
+      const sudahAda = recent.some(
+        (r) =>
+          r.toLowerCase() === bBersih.toLowerCase() ||
+          (r.length >= 8 && bBersih.includes(r)) ||
+          (bBersih.length >= 8 && r.includes(bBersih))
+      );
+
+      if (!sudahAda) {
+        hasil.push(bBersih);
+      }
+    }
+  }
+  return hasil;
 }

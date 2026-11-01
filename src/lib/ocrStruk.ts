@@ -6,7 +6,14 @@
 
 import type { HasilBacaStruk } from "./geminiStruk";
 import { praProsesGambarStruk, validasiBerkasGambar } from "./ocrPraPemrosesan";
-import { uraiTeksOcrTransaksi, uraikanQrisEMVCo, KandidatNominal } from "./ocrParser";
+import {
+  uraiTeksOcrTransaksi,
+  uraiStrukturOcrTransaksi,
+  uraikanQrisEMVCo,
+  KandidatNominal,
+  StatusKeyakinan,
+  RincianTransferBank,
+} from "./ocrParser";
 import { dekodeQRDariPiksel } from "./qr";
 import type { NamaDana, JenisTransaksi } from "../types";
 
@@ -25,6 +32,18 @@ export interface HasilOcrLokal extends HasilBacaStruk {
   kandidatJumlah?: KandidatNominal[];
   peringatan?: string[];
   teksMentah?: string;
+  statusKeyakinan?: {
+    jumlah: StatusKeyakinan;
+    tanggal: StatusKeyakinan;
+    namaPenyedia: StatusKeyakinan;
+    metode: StatusKeyakinan;
+  };
+  rincianTransfer?: RincianTransferBank;
+  pemeriksaanAritmetika?: {
+    konsisten: boolean;
+    selisih?: number;
+    keterangan: string;
+  };
 }
 
 // Singleton Worker untuk efisiensi memori dan waktu inisialisasi
@@ -212,13 +231,37 @@ export async function prosesStrukLokal(
     const res = await worker.recognize(pra.canvas);
     const teksMentah = res?.data?.text || "";
 
+    const lines = res?.data?.lines?.map((l: any) => ({
+      teks: l.text || "",
+      confidence: l.confidence || 0,
+      bbox: l.bbox || { x0: 0, y0: 0, x1: 0, y1: 0 },
+      words: l.words?.map((w: any) => ({
+        teks: w.text || "",
+        confidence: w.confidence || 0,
+        bbox: w.bbox || { x0: 0, y0: 0, x1: 0, y1: 0 },
+      })),
+    }));
+
+    const words = res?.data?.words?.map((w: any) => ({
+      teks: w.text || "",
+      confidence: w.confidence || 0,
+      bbox: w.bbox || { x0: 0, y0: 0, x1: 0, y1: 0 },
+    }));
+
+    const dataOcr = {
+      teks: teksMentah,
+      lines,
+      words,
+      confidence: res?.data?.confidence,
+    };
+
     opsi.onProgress?.({
       status: "Menganalisis rincian transaksi...",
       progres: 0.95,
     });
 
-    // 5. Parse teks menjadi transaksi terstruktur
-    const hasilParse = uraiTeksOcrTransaksi(teksMentah, {
+    // 5. Parse teks & geometri menjadi transaksi terstruktur
+    const hasilParse = uraiStrukturOcrTransaksi(dataOcr, {
       dana: opsi.dana,
       jenisTransaksi: opsi.jenisTransaksi,
       nominalQrisTerverifikasi: nominalQris,
@@ -248,6 +291,9 @@ export async function prosesStrukLokal(
       kandidatJumlah: hasilParse.kandidatJumlah,
       peringatan: hasilParse.peringatan,
       teksMentah: hasilParse.teksMentah,
+      statusKeyakinan: hasilParse.statusKeyakinan,
+      rincianTransfer: hasilParse.rincianTransfer,
+      pemeriksaanAritmetika: hasilParse.pemeriksaanAritmetika,
     };
   } catch (err: any) {
     console.error("Kesalahan dalam proses OCR lokal:", err);
