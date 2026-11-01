@@ -6,12 +6,16 @@ import {
   Image as ImageIcon,
   Check,
   RotateCcw,
+  Sparkles,
+  Smartphone,
 } from "lucide-react";
 
 interface KameraStrukModalProps {
   onTutup: () => void;
   onFotoTerambil: (file: File) => void;
 }
+
+type ModeFilterDokumen = "asli" | "tajam" | "hitamputih";
 
 export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
   onTutup,
@@ -28,17 +32,22 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [sedangMenjepret, setSedangMenjepret] = useState(false);
+  const [efekFlash, setEfekFlash] = useState(false);
+
+  // Zoom hardware
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
 
   // Titik fokus saat layar diketuk
-  const [titikFokus, setTitikFokus] = useState<{ x: number; y: number } | null>(null);
+  const [titikFokus, setTitikFokus] = useState<{ x: number; y: number; terkunci?: boolean } | null>(null);
 
   // Preview hasil foto sebelum dikirim ke formulir & OCR
-  const [fotoPratinjau, setFotoPratinjau] = useState<{
-    file: File;
-    dataUrl: string;
-  } | null>(null);
+  const [fotoAsli, setFotoAsli] = useState<{ file: File; dataUrl: string } | null>(null);
+  const [fotoPratinjau, setFotoPratinjau] = useState<{ file: File; dataUrl: string } | null>(null);
+  const [modeFilter, setModeFilter] = useState<ModeFilterDokumen>("tajam");
+  const [sedangMemprosesFilter, setSedangMemprosesFilter] = useState(false);
 
-  // Inisialisasi Aliran Kamera Berkualitas Tinggi (HD / 4K)
+  // Inisialisasi Aliran Kamera Resolusi Tinggi
   useEffect(() => {
     let activeStream: MediaStream | null = null;
     let batal = false;
@@ -46,22 +55,24 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
     const startCamera = async () => {
       setKameraError(null);
       setKameraMenyala(false);
+      setZoomRange(null);
+      setZoomLevel(1);
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setKameraError(
-          "Kamera langsung tidak didukung di peramban ini. Anda dapat memilih foto dari galeri atau kamera bawaan ponsel."
+          "Kamera langsung tidak didukung di peramban ini. Anda dapat menggunakan kamera bawaan ponsel atau memilih dari galeri."
         );
         return;
       }
 
       try {
-        // Minta resolusi tertinggi yang didukung sensor perangkat (ideal 4K/2160p atau Full HD 1080p)
-        // Hindari pembatasan 'min' ketat yang sering memicu fallback ke VGA/720p pada HP portrait
+        // Minta resolusi sensor tertinggi (ideal 4K / Full HD) tanpa batasan minimum kaku
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facingMode },
             width: { ideal: 4096 },
             height: { ideal: 2160 },
+            aspectRatio: { ideal: 16 / 9 },
           },
           audio: false,
         });
@@ -79,7 +90,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
           await videoRef.current.play().catch(() => undefined);
         }
 
-        // Terapkan pengaturan perangkat keras kamera untuk ketajaman teks maksimal
+        // Terapkan konfigurasi hardware kamera untuk hasil paling tajam
         const videoTrack = mediaStream.getVideoTracks()[0];
         if (videoTrack) {
           const capabilities = (videoTrack.getCapabilities?.() as any) || {};
@@ -91,7 +102,16 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             setHasTorch(false);
           }
 
-          // Aktifkan continuous autofocus & auto exposure agar teks nota sangat tajam
+          // Cek dukungan Zoom hardware
+          if (capabilities.zoom) {
+            setZoomRange({
+              min: capabilities.zoom.min || 1,
+              max: capabilities.zoom.max || 5,
+              step: capabilities.zoom.step || 0.1,
+            });
+          }
+
+          // Aktifkan continuous autofocus, auto exposure & auto white-balance
           const advancedConstraints: any = {};
           if (capabilities.focusMode?.includes("continuous")) {
             advancedConstraints.focusMode = "continuous";
@@ -127,7 +147,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
     };
   }, [facingMode]);
 
-  // Toggle senter
+  // Toggle senter / torch
   const handleToggleTorch = async () => {
     if (!stream) return;
     const track = stream.getVideoTracks()[0];
@@ -153,7 +173,24 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
-  // Tap-to-focus interaktif saat layar disentuh
+  // Terapkan Zoom kamera (Optical/Digital Zoom bawaan HP)
+  const handleUbahZoom = async (level: number) => {
+    if (!stream) return;
+    const track = stream.getVideoTracks()[0];
+    if (track && zoomRange) {
+      const clamped = Math.min(zoomRange.max, Math.max(zoomRange.min, level));
+      try {
+        await (track as any).applyConstraints({
+          advanced: [{ zoom: clamped }],
+        });
+        setZoomLevel(clamped);
+      } catch (err) {
+        console.warn("Gagal mengatur zoom:", err);
+      }
+    }
+  };
+
+  // Tap-to-focus: memicu siklus autofokus aktif ke objek nota/struk
   const handleTapToFocus = useCallback(
     async (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
       if (!containerRef.current || !stream) return;
@@ -172,107 +209,249 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
 
       const x = clientX - rect.left;
       const y = clientY - rect.top;
-      setTitikFokus({ x, y });
-
-      // Hilangkan cincin fokus setelah 1.2 detik
-      setTimeout(() => {
-        setTitikFokus((prev) => (prev?.x === x && prev?.y === y ? null : prev));
-      }, 1200);
+      setTitikFokus({ x, y, terkunci: false });
 
       const track = stream.getVideoTracks()[0];
       if (track) {
         try {
           const capabilities = (track.getCapabilities?.() as any) || {};
-          if (capabilities.focusMode?.includes("continuous")) {
+
+          // Pemicu siklus pemfokusan ulang (trigger single-shot lalu kembali ke continuous)
+          if (capabilities.focusMode?.includes("single-shot")) {
+            await (track as any).applyConstraints({
+              advanced: [{ focusMode: "single-shot" }],
+            });
+            setTimeout(async () => {
+              await (track as any)
+                .applyConstraints({ advanced: [{ focusMode: "continuous" }] })
+                .catch(() => {});
+            }, 600);
+          } else if (capabilities.focusMode?.includes("continuous")) {
             await (track as any).applyConstraints({
               advanced: [{ focusMode: "continuous" }],
             });
           }
+
+          // Tandai fokus terkunci secara visual
+          setTimeout(() => {
+            setTitikFokus((prev) => (prev?.x === x && prev?.y === y ? { ...prev, terkunci: true } : prev));
+          }, 400);
         } catch {
           // ignore
         }
       }
+
+      // Hilangkan cincin fokus setelah 1.5 detik
+      setTimeout(() => {
+        setTitikFokus((prev) => (prev?.x === x && prev?.y === y ? null : prev));
+      }, 1500);
     },
     [stream]
   );
 
-  // Jepret foto berkualitas tinggi (ImageCapture native sensor atau Kanvas HD tanpa pemotongan)
+  // Filter pengoptimal teks dokumen (memperjelas struk thermal pudar & menggelapkan teks nota)
+  const prosesFilterDokumen = (
+    fileInput: File,
+    targetMode: ModeFilterDokumen
+  ): Promise<{ file: File; dataUrl: string }> => {
+    if (targetMode === "asli") {
+      const dataUrl = URL.createObjectURL(fileInput);
+      return Promise.resolve({ file: fileInput, dataUrl });
+    }
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(fileInput);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          const fallbackUrl = URL.createObjectURL(fileInput);
+          resolve({ file: fileInput, dataUrl: fallbackUrl });
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+        const len = d.length;
+
+        if (targetMode === "tajam") {
+          // Hitung distribusi kecerahan
+          let minLum = 255;
+          let maxLum = 0;
+          for (let i = 0; i < len; i += 4) {
+            const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            if (lum < minLum) minLum = lum;
+            if (lum > maxLum) maxLum = lum;
+          }
+          const range = Math.max(30, maxLum - minLum);
+
+          for (let i = 0; i < len; i += 4) {
+            const r = d[i];
+            const g = d[i + 1];
+            const b = d[i + 2];
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            let stretched = ((lum - minLum) / range) * 255;
+
+            // Kurva S: pertegas teks tinta hitam, terangkan latar kertas putih
+            if (stretched < 125) {
+              stretched = Math.max(0, stretched * 0.72); // Pergelap teks tinta
+            } else if (stretched > 145) {
+              stretched = Math.min(255, 255 - (255 - stretched) * 0.45); // Putihkan kertas
+            }
+
+            const diff = stretched - lum;
+            d[i] = Math.min(255, Math.max(0, Math.round(r + diff)));
+            d[i + 1] = Math.min(255, Math.max(0, Math.round(g + diff)));
+            d[i + 2] = Math.min(255, Math.max(0, Math.round(b + diff)));
+          }
+          ctx.putImageData(imgData, 0, 0);
+        } else if (targetMode === "hitamputih") {
+          // Binarisasi kontras dokumen hitam putih
+          for (let i = 0; i < len; i += 4) {
+            const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            const val = lum < 142 ? 0 : 255;
+            d[i] = val;
+            d[i + 1] = val;
+            d[i + 2] = val;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              const fallbackUrl = URL.createObjectURL(fileInput);
+              resolve({ file: fileInput, dataUrl: fallbackUrl });
+              return;
+            }
+            const enhancedFile = new File([blob], fileInput.name || `struk_${Date.now()}.jpg`, {
+              type: "image/jpeg",
+            });
+            const enhancedUrl = URL.createObjectURL(blob);
+            resolve({ file: enhancedFile, dataUrl: enhancedUrl });
+          },
+          "image/jpeg",
+          0.95
+        );
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        const fallbackUrl = URL.createObjectURL(fileInput);
+        resolve({ file: fileInput, dataUrl: fallbackUrl });
+      };
+      img.src = url;
+    });
+  };
+
+  // Jepret foto berkualitas tinggi (ImageCapture native sensor atau Kanvas HD)
   const handleJepret = async () => {
     if (sedangMenjepret || !stream || !videoRef.current) return;
     setSedangMenjepret(true);
 
+    // Animasi kilatan rana (visual shutter feedback)
+    setEfekFlash(true);
+    setTimeout(() => setEfekFlash(false), 120);
+
     try {
       const videoTrack = stream.getVideoTracks()[0];
+      let hasilFile: File | null = null;
 
-      // METODE 1 (TERBAIK): ImageCapture API hardware sensor bawaan ponsel
-      // Mengambil foto asli dari sensor kamera HP (12MP–50MP+) dengan ISP autofocus perangkat
+      // METODE 1: ImageCapture API hardware sensor asli ponsel (12MP–50MP+)
       if (typeof window !== "undefined" && "ImageCapture" in window && videoTrack) {
         try {
           const imageCapture = new (window as any).ImageCapture(videoTrack);
-          const photoCapabilities = await imageCapture.getPhotoCapabilities().catch(() => null);
-          const photoSettings: any = {};
+          let photoBlob: Blob | null = null;
 
-          if (photoCapabilities?.imageWidth?.max) {
-            photoSettings.imageWidth = photoCapabilities.imageWidth.max;
-          }
-          if (photoCapabilities?.imageHeight?.max) {
-            photoSettings.imageHeight = photoCapabilities.imageHeight.max;
-          }
-          if (torchOn && photoCapabilities?.fillLightMode?.includes("flash")) {
-            photoSettings.fillLightMode = "flash";
+          // Ambil foto dengan flash jika senter aktif
+          try {
+            photoBlob = await imageCapture.takePhoto(torchOn ? { fillLightMode: "flash" } : {});
+          } catch {
+            photoBlob = await imageCapture.takePhoto().catch(() => null);
           }
 
-          const photoBlob = await imageCapture.takePhoto(photoSettings);
           if (photoBlob && photoBlob.size > 0) {
-            const file = new File([photoBlob], `struk_hd_${Date.now()}.jpg`, {
+            hasilFile = new File([photoBlob], `struk_hd_${Date.now()}.jpg`, {
               type: "image/jpeg",
             });
-            const dataUrl = URL.createObjectURL(photoBlob);
-            setFotoPratinjau({ file, dataUrl });
-            setSedangMenjepret(false);
-            return;
           }
         } catch (errImageCapture) {
-          console.warn("ImageCapture tidak berhasil, beralih ke perekaman Kanvas HD:", errImageCapture);
+          console.warn("Perekaman ImageCapture beralih ke Kanvas HD:", errImageCapture);
         }
       }
 
-      // METODE 2 (FALLBACK): Kanvas resolusi penuh langsung dari video element tanpa pemotongan/downscale
-      const video = videoRef.current;
-      const vWidth = video.videoWidth || 1920;
-      const vHeight = video.videoHeight || 1080;
+      // METODE 2: Kanvas resolusi penuh langsung dari video element tanpa pemotongan
+      if (!hasilFile) {
+        const video = videoRef.current;
+        const vWidth = video.videoWidth || 1920;
+        const vHeight = video.videoHeight || 1080;
 
-      const canvas = document.createElement("canvas");
-      canvas.width = vWidth;
-      canvas.height = vHeight;
-      const ctx = canvas.getContext("2d", { alpha: false });
+        const canvas = document.createElement("canvas");
+        canvas.width = vWidth;
+        canvas.height = vHeight;
+        const ctx = canvas.getContext("2d", { alpha: false });
 
-      if (!ctx) throw new Error("Gagal membuat konteks kanvas");
+        if (!ctx) throw new Error("Gagal membuat konteks kanvas");
 
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(video, 0, 0, vWidth, vHeight);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(video, 0, 0, vWidth, vHeight);
 
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            setSedangMenjepret(false);
-            return;
-          }
-          const file = new File([blob], `struk_hd_${Date.now()}.jpg`, {
-            type: "image/jpeg",
-          });
-          const dataUrl = URL.createObjectURL(blob);
-          setFotoPratinjau({ file, dataUrl });
-          setSedangMenjepret(false);
-        },
-        "image/jpeg",
-        0.95
-      );
+        hasilFile = await new Promise<File | null>((resolve) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) return resolve(null);
+              resolve(new File([blob], `struk_hd_${Date.now()}.jpg`, { type: "image/jpeg" }));
+            },
+            "image/jpeg",
+            0.95
+          );
+        });
+      }
+
+      if (hasilFile) {
+        const rawUrl = URL.createObjectURL(hasilFile);
+        setFotoAsli({ file: hasilFile, dataUrl: rawUrl });
+
+        // Terapkan penajam teks dokumen default (mode tajam)
+        setSedangMemprosesFilter(true);
+        const filtered = await prosesFilterDokumen(hasilFile, "tajam");
+        setFotoPratinjau(filtered);
+        setModeFilter("tajam");
+        setSedangMemprosesFilter(false);
+      }
     } catch (err) {
-      console.error("Gagal menjepret foto kamera HD:", err);
+      console.error("Gagal menjepret foto:", err);
+    } finally {
       setSedangMenjepret(false);
     }
+  };
+
+  // Ganti filter penajam dokumen pada layar preview
+  const handlePilihFilter = async (targetMode: ModeFilterDokumen) => {
+    if (!fotoAsli || sedangMemprosesFilter) return;
+    setSedangMemprosesFilter(true);
+    setModeFilter(targetMode);
+
+    if (fotoPratinjau?.dataUrl && fotoPratinjau.dataUrl !== fotoAsli.dataUrl && fotoPratinjau.dataUrl.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(fotoPratinjau.dataUrl);
+      } catch {}
+    }
+
+    const filtered = await prosesFilterDokumen(fotoAsli.file, targetMode);
+    setFotoPratinjau(filtered);
+    setSedangMemprosesFilter(false);
   };
 
   // Konfirmasi foto yang sudah diambil
@@ -292,7 +471,13 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
         URL.revokeObjectURL(fotoPratinjau.dataUrl);
       } catch {}
     }
+    if (fotoAsli?.dataUrl && fotoAsli.dataUrl.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(fotoAsli.dataUrl);
+      } catch {}
+    }
     setFotoPratinjau(null);
+    setFotoAsli(null);
   };
 
   // Fallback: dari file picker / galeri / kamera bawaan
@@ -325,7 +510,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
         inset: 0,
       }}
     >
-      {/* Input Fallback Tersembunyi */}
+      {/* Input Fallback untuk Kamera Sistem HP & Galeri */}
       <input
         type="file"
         ref={fallbackInputRef}
@@ -335,21 +520,21 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
         onChange={handlePilihFileFallback}
       />
 
-      {/* HEADER BAR MINIMALIS */}
+      {/* HEADER BAR */}
       <header
         style={{
           width: "100%",
-          padding: "14px 16px",
+          padding: "12px 16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           color: "#ffffff",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)",
           zIndex: 10,
           boxSizing: "border-box",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
           <button
             type="button"
             className="pemindai-tutup"
@@ -357,10 +542,10 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             aria-label="Tutup kamera"
             title="Tutup kamera"
             style={{
-              width: "38px",
-              height: "38px",
-              minWidth: "38px",
-              minHeight: "38px",
+              width: "36px",
+              height: "36px",
+              minWidth: "36px",
+              minHeight: "36px",
               borderRadius: "50%",
               background: "rgba(255, 255, 255, 0.2)",
               border: "1px solid rgba(255, 255, 255, 0.35)",
@@ -374,8 +559,8 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             }}
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="#ffffff"
@@ -392,7 +577,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             <h3
               style={{
                 margin: 0,
-                fontSize: "0.96rem",
+                fontSize: "0.94rem",
                 fontWeight: 700,
                 color: "#ffffff",
                 lineHeight: 1.25,
@@ -401,12 +586,12 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 textOverflow: "ellipsis",
               }}
             >
-              Kamera Struk HD
+              Kamera Dokumen HD
             </h3>
             <p
               style={{
-                margin: "2px 0 0",
-                fontSize: "0.74rem",
+                margin: "1px 0 0",
+                fontSize: "0.72rem",
                 color: "rgba(255, 255, 255, 0.8)",
                 lineHeight: 1.2,
                 whiteSpace: "nowrap",
@@ -419,17 +604,44 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
           </div>
         </div>
 
-        {/* Tombol Kontrol: Senter & Switch Kamera */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+        {/* Tombol Kontrol: Shortcut Kamera Bawaan HP, Senter, & Putar Kamera */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+          {/* Tombol Buka Kamera Asli Sistem HP Langsung */}
+          {!fotoPratinjau && (
+            <button
+              type="button"
+              onClick={() => fallbackInputRef.current?.click()}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "6px 10px",
+                borderRadius: "20px",
+                background: "rgba(255, 255, 255, 0.2)",
+                color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.35)",
+                fontSize: "0.74rem",
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              title="Gunakan aplikasi kamera sistem bawaan HP (Resolusi Penuh 50MP+)"
+              aria-label="Kamera Asli HP"
+            >
+              <Smartphone size={14} />
+              <span>Kamera Asli HP</span>
+            </button>
+          )}
+
           {hasTorch && kameraMenyala && !fotoPratinjau && (
             <button
               type="button"
               onClick={handleToggleTorch}
               style={{
-                width: "38px",
-                height: "38px",
-                minWidth: "38px",
-                minHeight: "38px",
+                width: "36px",
+                height: "36px",
+                minWidth: "36px",
+                minHeight: "36px",
                 borderRadius: "50%",
                 background: torchOn ? "#FBBF24" : "rgba(255, 255, 255, 0.2)",
                 color: torchOn ? "#000000" : "#ffffff",
@@ -444,7 +656,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               aria-label="Lampu kilat"
               title="Lampu kilat"
             >
-              <Zap size={18} />
+              <Zap size={17} />
             </button>
           )}
 
@@ -453,10 +665,10 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               type="button"
               onClick={handleSwitchCamera}
               style={{
-                width: "38px",
-                height: "38px",
-                minWidth: "38px",
-                minHeight: "38px",
+                width: "36px",
+                height: "36px",
+                minWidth: "36px",
+                minHeight: "36px",
                 borderRadius: "50%",
                 background: "rgba(255, 255, 255, 0.2)",
                 color: "#ffffff",
@@ -471,13 +683,13 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               aria-label="Ganti kamera"
               title="Ganti kamera"
             >
-              <RefreshCw size={17} />
+              <RefreshCw size={16} />
             </button>
           )}
         </div>
       </header>
 
-      {/* VIEWPORT KAMERA PENUH (TANPA BINGKAI & TANPA PEMOTONGAN) */}
+      {/* VIEWPORT KAMERA */}
       <div
         ref={containerRef}
         onClick={handleTapToFocus}
@@ -508,6 +720,19 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
           }}
         />
 
+        {/* Efek Rana Kilatan Putih saat menjepret */}
+        {efekFlash && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#ffffff",
+              zIndex: 15,
+              pointerEvents: "none",
+            }}
+          />
+        )}
+
         {/* Indikator Animasi Titik Fokus (Tap to Focus) */}
         {titikFokus && !fotoPratinjau && (
           <div
@@ -516,16 +741,66 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               left: `${titikFokus.x}px`,
               top: `${titikFokus.y}px`,
               transform: "translate(-50%, -50%)",
-              width: "60px",
-              height: "60px",
+              width: "56px",
+              height: "56px",
               borderRadius: "50%",
-              border: "2px solid #00e5ff",
-              boxShadow: "0 0 12px rgba(0, 229, 255, 0.8)",
+              border: titikFokus.terkunci ? "2.5px solid #10b981" : "2px solid #00e5ff",
+              boxShadow: titikFokus.terkunci
+                ? "0 0 14px rgba(16, 185, 129, 0.9)"
+                : "0 0 14px rgba(0, 229, 255, 0.8)",
               pointerEvents: "none",
               animation: "focusRing 0.35s ease-out forwards",
               zIndex: 9,
+              transition: "border 0.2s ease, box-shadow 0.2s ease",
             }}
           />
+        )}
+
+        {/* Tombol Kontrol Zoom Cepat (1x, 1.5x, 2x) */}
+        {kameraMenyala && !fotoPratinjau && zoomRange && zoomRange.max > 1 && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "rgba(0, 0, 0, 0.65)",
+              backdropFilter: "blur(8px)",
+              padding: "4px 8px",
+              borderRadius: "20px",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              zIndex: 8,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {[1, 1.5, 2].map((lvl) => {
+              if (lvl > (zoomRange?.max || 5)) return null;
+              const isActive = Math.abs(zoomLevel - lvl) < 0.2;
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => handleUbahZoom(lvl)}
+                  style={{
+                    padding: "3px 10px",
+                    borderRadius: "14px",
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    border: "none",
+                    background: isActive ? "var(--accent, #00e5ff)" : "transparent",
+                    color: isActive ? "#000000" : "#ffffff",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {lvl}x
+                </button>
+              );
+            })}
+          </div>
         )}
 
         {/* Tampilan Galat Izin Kamera */}
@@ -538,7 +813,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               textAlign: "center",
               maxWidth: "340px",
               color: "#ffffff",
-              background: "rgba(30, 30, 40, 0.92)",
+              background: "rgba(30, 30, 40, 0.94)",
               borderRadius: "16px",
               border: "1px solid rgba(255, 255, 255, 0.15)",
             }}
@@ -555,7 +830,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 onClick={() => fallbackInputRef.current?.click()}
                 style={{ fontSize: "0.85rem", padding: "10px 16px" }}
               >
-                📸 Ambil dengan Kamera Bawaan HP
+                📱 Buka Kamera Bawaan HP
               </button>
               <button
                 type="button"
@@ -580,7 +855,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
               alignItems: "center",
               justifyContent: "center",
               background: "#000000",
-              padding: "12px",
+              padding: "10px",
               boxSizing: "border-box",
             }}
           >
@@ -591,35 +866,108 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
                 maxWidth: "100%",
                 maxHeight: "100%",
                 objectFit: "contain",
-                borderRadius: "10px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
-                border: "2px solid var(--accent, #00d2ff)",
+                borderRadius: "8px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.85)",
+                border: "2px solid var(--accent, #00e5ff)",
+                opacity: sedangMemprosesFilter ? 0.5 : 1,
+                transition: "opacity 0.2s ease",
               }}
             />
           </div>
         )}
       </div>
 
-      {/* FOOTER KONTROL SHUTTER & OPSI */}
+      {/* FOOTER KONTROL SHUTTER & PREVIEW */}
       <footer
         style={{
           width: "100%",
-          padding: "16px 20px 24px",
-          background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.8) 70%, rgba(0,0,0,0) 100%)",
+          padding: "14px 18px 22px",
+          background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.85) 75%, rgba(0,0,0,0) 100%)",
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
+          gap: "10px",
           zIndex: 10,
           boxSizing: "border-box",
         }}
       >
-        {/* MODE PREVIEW: KONFIRMASI FOTO */}
+        {/* MODE PREVIEW: PILIHAN FILTER PENAJAM TEKS & KONFIRMASI */}
         {fotoPratinjau ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
-            <div style={{ color: "#ffffff", fontSize: "0.86rem", fontWeight: 600, textAlign: "center" }}>
-              Foto struk berhasil diambil dalam kualitas HD. Lanjutkan analisis OCR?
+            {/* Pilihan Filter Penajam Dokumen */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                background: "rgba(255, 255, 255, 0.1)",
+                padding: "4px 8px",
+                borderRadius: "20px",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => handlePilihFilter("tajam")}
+                disabled={sedangMemprosesFilter}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "5px 12px",
+                  borderRadius: "16px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  border: "none",
+                  background: modeFilter === "tajam" ? "var(--accent, #00e5ff)" : "transparent",
+                  color: modeFilter === "tajam" ? "#000000" : "#ffffff",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <Sparkles size={13} />
+                <span>Teks Tajam HD</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePilihFilter("asli")}
+                disabled={sedangMemprosesFilter}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "16px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  border: "none",
+                  background: modeFilter === "asli" ? "rgba(255, 255, 255, 0.35)" : "transparent",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Warna Asli
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePilihFilter("hitamputih")}
+                disabled={sedangMemprosesFilter}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "16px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  border: "none",
+                  background: modeFilter === "hitamputih" ? "rgba(255, 255, 255, 0.35)" : "transparent",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Hitam Putih
+              </button>
             </div>
-            <div style={{ display: "flex", gap: "12px", width: "100%", maxWidth: "360px" }}>
+
+            <div style={{ display: "flex", gap: "10px", width: "100%", maxWidth: "360px" }}>
               <button
                 type="button"
                 className="btn-secondary"
@@ -657,7 +1005,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             </div>
           </div>
         ) : kameraMenyala && !kameraError ? (
-          /* MODE KAMERA AKTIF: TAMPILAN BERSIH SEPERTI KAMERA BAWAAN */
+          /* MODE KAMERA AKTIF: LAYAR PENUH & SHUTTER BESAR */
           <>
             <div
               style={{
@@ -761,12 +1109,12 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
             <div
               style={{
                 textAlign: "center",
-                fontSize: "0.74rem",
+                fontSize: "0.72rem",
                 color: "rgba(255, 255, 255, 0.7)",
                 marginTop: "2px",
               }}
             >
-              📸 Kualitas HD Maksimal · Layar Penuh Tanpa Bingkai
+              💡 Tips: Ketuk layar untuk fokus · Gunakan tombol 1.5x / 2x agar tulisan nota makin besar &amp; jelas
             </div>
           </>
         ) : null}
