@@ -1,0 +1,862 @@
+[
+  {
+    "nomor": 1,
+    "berkas": "01_alfamart_harian.png",
+    "waktuMs": 543,
+    "teksMentah": "ALFAMART SENGKAWIT\n\nPT SUMBER ALFARIA TRIJAYA TBK\n\nJL. SENGKAWIT NO. 14 BULUNGAN\nBON : 1802-9912-1810 KASIR : RINA\nToL : 18-10-2026 10:15\nMINYAK GORENG 2L 34.000\nTELUR AYAM 1KG 28.500\nROTI TAWAR SARI ROTI 16.000\nSUBTOTAL 78.500\nDISKON MEMBER -4.500\nPPN 11% 8.140\nTOTAL BELANJA Rp 82.140\nTUNAI 100.000\nKEMBALIAN 17.860\n\nLAYANAN KONSUMEN SMS 08111099999\n\nTERIMA KASIH ATAS KUNJUNGAN ANDA\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "ALFAMART SENGKAWIT\n\nPT SUMBER ALFARIA TRIJAYA TBK\n\nJL. SENGKAWIT NO. 14 BULUNGAN\nBON : 1802-9912-1810 KASIR : RINA\nToL : 18-10-2026 10:15\nMINYAK GORENG 2L 34.000\nTELUR AYAM 1KG 28.500\nROTI TAWAR SARI ROTI 16.000\nSUBTOTAL 78.500\nDISKON MEMBER -4.500\nPPN 11% 8.140\nTOTAL BELANJA Rp 82.140\nTUNAI 100.000\nKEMBALIAN 17.860\n\nLAYANAN KONSUMEN SMS 08111099999\n\nTERIMA KASIH ATAS KUNJUNGAN ANDA\n",
+      "deskripsi": "Alfamart - Belanja Snack & Konsumsi",
+      "namaPenjualPenyedia": "Alfamart",
+      "jumlah": 82140,
+      "kandidatJumlah": [
+        {
+          "nominal": 82140,
+          "label": "Total Belanja",
+          "baris": "TOTAL BELANJA Rp 82.140",
+          "bobot": 145
+        },
+        {
+          "nominal": 78500,
+          "label": "Subtotal",
+          "baris": "SUBTOTAL 78.500",
+          "bobot": 75
+        },
+        {
+          "nominal": 100000,
+          "label": "Uang Diserahkan",
+          "baris": "TUNAI 100.000",
+          "bobot": 65
+        },
+        {
+          "nominal": 16000,
+          "label": "Nominal",
+          "baris": "ROTI TAWAR SARI ROTI 16.000",
+          "bobot": 35
+        },
+        {
+          "nominal": 34000,
+          "label": "Nominal",
+          "baris": "MINYAK GORENG 2L 34.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-18",
+      "kategori": "Belanja Harian",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di Alfamart untuk peserta kegiatan.",
+      "metode": "Tunai",
+      "catatan": "ALFAMART SENGKAWIT | PT SUMBER ALFARIA TRIJAYA TBK | JL. SENGKAWIT NO. 14 BULUNGAN | BON : 1802-9912-1810 KASIR : RINA | ToL : 18-10-2026 10:15 | MINYAK GORENG 2L 34.000 | TELUR AYAM 1KG 28.500 | ROTI TAWAR SARI ROTI 16.000 | SUBTOTAL 78.500 | DISKON MEMBER -4.500 | PPN 11% 8.140 | TOTAL BELANJA Rp 82.140 | TUNAI 100.000 | KEMBALIAN 17.860 | LAYANAN KONSUMEN SMS 08111099999",
+      "ringkasan": "Alfamart - Belanja Snack & Konsumsi (Rp82.140) pada 2026-10-18.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 2,
+    "berkas": "02_indomaret_snack.png",
+    "waktuMs": 484,
+    "teksMentah": "INDOMARET\nPT INDOMARCO PRISMATAMA\nJL. KOLONEL SOETADJI NO. 88\n19.10.2026 - 14:30 KASIR : ANDI\nKOPI BOTOL NESCAFE 220ML 11.500\nAQUA AIR MINERAL 1500ML (2) 14.000\nBISKUIT OREO 120GR (2) 19.000\nTISU PASEO 250 SHEETS 20.000\nTOTAL ITEM : 4\nTOTAL BELANJA Rp 64.500\nMETODE BAYAR : ORIS GOPAY\nNMID : ID1020088192831\nSTATUS : BERHASIL\nKRITIK & SARAN: 1500280\nTERIMA KASIH - BELANJA PUAS\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "INDOMARET\nPT INDOMARCO PRISMATAMA\nJL. KOLONEL SOETADJI NO. 88\n19.10.2026 - 14:30 KASIR : ANDI\nKOPI BOTOL NESCAFE 220ML 11.500\nAQUA AIR MINERAL 1500ML (2) 14.000\nBISKUIT OREO 120GR (2) 19.000\nTISU PASEO 250 SHEETS 20.000\nTOTAL ITEM : 4\nTOTAL BELANJA Rp 64.500\nMETODE BAYAR : ORIS GOPAY\nNMID : ID1020088192831\nSTATUS : BERHASIL\nKRITIK & SARAN: 1500280\nTERIMA KASIH - BELANJA PUAS\n",
+      "deskripsi": "Indomaret - Belanja Snack & Konsumsi",
+      "namaPenjualPenyedia": "Indomaret",
+      "jumlah": 64500,
+      "kandidatJumlah": [
+        {
+          "nominal": 64500,
+          "label": "Total Belanja",
+          "baris": "TOTAL BELANJA Rp 64.500",
+          "bobot": 145
+        },
+        {
+          "nominal": 20000,
+          "label": "Nominal",
+          "baris": "TISU PASEO 250 SHEETS 20.000",
+          "bobot": 35
+        },
+        {
+          "nominal": 11500,
+          "label": "Nominal",
+          "baris": "KOPI BOTOL NESCAFE 220ML 11.500",
+          "bobot": 25
+        },
+        {
+          "nominal": 14000,
+          "label": "Nominal",
+          "baris": "AQUA AIR MINERAL 1500ML (2) 14.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 19000,
+          "label": "Nominal",
+          "baris": "BISKUIT OREO 120GR (2) 19.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-19",
+      "kategori": "Belanja Harian",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di Indomaret untuk peserta kegiatan.",
+      "metode": "QRIS",
+      "catatan": "INDOMARET | PT INDOMARCO PRISMATAMA | JL. KOLONEL SOETADJI NO. 88 | 19.10.2026 - 14:30 KASIR : ANDI | KOPI BOTOL NESCAFE 220ML 11.500 | AQUA AIR MINERAL 1500ML (2) 14.000 | BISKUIT OREO 120GR (2) 19.000 | TISU PASEO 250 SHEETS 20.000 | TOTAL ITEM : 4 | TOTAL BELANJA Rp 64.500 | METODE BAYAR : ORIS GOPAY | NMID : ID1020088192831 | STATUS : BERHASIL | KRITIK & SARAN: 1500280 | TERIMA KASIH - BELANJA PUAS",
+      "ringkasan": "Indomaret - Belanja Snack & Konsumsi (Rp64.500) pada 2026-10-19.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 3,
+    "berkas": "03_spbu_pertamax.png",
+    "waktuMs": 351,
+    "teksMentah": "SPBU PERTAMINA 64.77102\nJL. RAYA TANJUNG SELOR KM. 4\nPASTI PAS!\nTGL : 20/10/2026 JAM: 08:45\nPOMPA : 02 NO POL: KU 1234 AB\nPRODUK : PERTAMAX\nHARGA / LITER : Rp 12.950\nVOLUME (LITER) : 25.00 L\nTOTAL PEMBAYARAN Rp 323.750\nMETODE: DEBIT MANDIRI\nNO APPROVAL: 849201\nPERTAMINA CONTACT CENTER: 135\nTERIMA KASIH DAN SELAMAT JALAN\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "SPBU PERTAMINA 64.77102\nJL. RAYA TANJUNG SELOR KM. 4\nPASTI PAS!\nTGL : 20/10/2026 JAM: 08:45\nPOMPA : 02 NO POL: KU 1234 AB\nPRODUK : PERTAMAX\nHARGA / LITER : Rp 12.950\nVOLUME (LITER) : 25.00 L\nTOTAL PEMBAYARAN Rp 323.750\nMETODE: DEBIT MANDIRI\nNO APPROVAL: 849201\nPERTAMINA CONTACT CENTER: 135\nTERIMA KASIH DAN SELAMAT JALAN\n",
+      "deskripsi": "SPBU Pertamina 64.77102 - BBM Pertamax",
+      "namaPenjualPenyedia": "SPBU Pertamina 64.77102",
+      "jumlah": 323750,
+      "kandidatJumlah": [
+        {
+          "nominal": 323750,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL PEMBAYARAN Rp 323.750",
+          "bobot": 205
+        },
+        {
+          "nominal": 12950,
+          "label": "Rupiah Tertera",
+          "baris": "HARGA / LITER : Rp 12.950",
+          "bobot": 100
+        },
+        {
+          "nominal": 64771,
+          "label": "Nominal",
+          "baris": "SPBU PERTAMINA 64.77102",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-20",
+      "kategori": "Transportasi",
+      "kategoriDanaKegiatan": "BBM",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "rincian": {
+        "banyaknya": 25,
+        "satuan": "liter",
+        "hargaSatuan": 12950,
+        "total": 323750,
+        "keteranganItem": "BBM"
+      },
+      "keteranganLaporan": "Pembelian bahan bakar minyak jenis Pertamax sebanyak 25 liter di SPBU Pertamina 64.77102 untuk operasional kegiatan.",
+      "metode": "Debit",
+      "catatan": "SPBU PERTAMINA 64.77102 | JL. RAYA TANJUNG SELOR KM. 4 | PASTI PAS! | TGL : 20/10/2026 JAM: 08:45 | POMPA : 02 NO POL: KU 1234 AB | PRODUK : PERTAMAX | HARGA / LITER : Rp 12.950 | VOLUME (LITER) : 25.00 L | TOTAL PEMBAYARAN Rp 323.750 | METODE: DEBIT MANDIRI | NO APPROVAL: 849201 | PERTAMINA CONTACT CENTER: 135 | TERIMA KASIH DAN SELAMAT JALAN",
+      "ringkasan": "SPBU Pertamina 64.77102 - BBM Pertamax (Rp323.750) pada 2026-10-20.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 4,
+    "berkas": "04_spbu_dexlite.png",
+    "waktuMs": 299,
+    "teksMentah": "SPBU PERTAMINA 64.77201\nKABUPATEN NUNUKAN\n\nTANGGAL : 22/10/2026 WAKTU : 11:10\nPRODUK : DEXLITE\nHARGA / LITER : Rp 14.200\nJUMLAH LITER : 30.00 LTR\nTOTAL RP Rp 426.000\nBAYAR (TUNAI) : Rp 450.000\nKEMBALI : Rp 24.000\n\nPASTI PAS - BAHAN BAKAR BERKUALITAS\n\nTERIMA KASIH\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "SPBU PERTAMINA 64.77201\nKABUPATEN NUNUKAN\n\nTANGGAL : 22/10/2026 WAKTU : 11:10\nPRODUK : DEXLITE\nHARGA / LITER : Rp 14.200\nJUMLAH LITER : 30.00 LTR\nTOTAL RP Rp 426.000\nBAYAR (TUNAI) : Rp 450.000\nKEMBALI : Rp 24.000\n\nPASTI PAS - BAHAN BAKAR BERKUALITAS\n\nTERIMA KASIH\n",
+      "deskripsi": "SPBU Pertamina 64.77201 - BBM Dexlite",
+      "namaPenjualPenyedia": "SPBU Pertamina 64.77201",
+      "jumlah": 426000,
+      "kandidatJumlah": [
+        {
+          "nominal": 426000,
+          "label": "Total Belanja",
+          "baris": "TOTAL RP Rp 426.000",
+          "bobot": 145
+        },
+        {
+          "nominal": 14200,
+          "label": "Rupiah Tertera",
+          "baris": "HARGA / LITER : Rp 14.200",
+          "bobot": 90
+        },
+        {
+          "nominal": 450000,
+          "label": "Uang Diserahkan",
+          "baris": "BAYAR (TUNAI) : Rp 450.000",
+          "bobot": 75
+        },
+        {
+          "nominal": 64772,
+          "label": "Nominal",
+          "baris": "SPBU PERTAMINA 64.77201",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-22",
+      "kategori": "Transportasi",
+      "kategoriDanaKegiatan": "BBM",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "rincian": {
+        "banyaknya": 30,
+        "satuan": "liter",
+        "hargaSatuan": 14200,
+        "total": 426000,
+        "keteranganItem": "BBM"
+      },
+      "keteranganLaporan": "Pembelian bahan bakar minyak jenis Dexlite sebanyak 30 liter di SPBU Pertamina 64.77201 untuk operasional kegiatan.",
+      "metode": "Tunai",
+      "catatan": "SPBU PERTAMINA 64.77201 | KABUPATEN NUNUKAN | TANGGAL : 22/10/2026 WAKTU : 11:10 | PRODUK : DEXLITE | HARGA / LITER : Rp 14.200 | JUMLAH LITER : 30.00 LTR | TOTAL RP Rp 426.000 | BAYAR (TUNAI) : Rp 450.000 | KEMBALI : Rp 24.000 | PASTI PAS - BAHAN BAKAR BERKUALITAS | TERIMA KASIH",
+      "ringkasan": "SPBU Pertamina 64.77201 - BBM Dexlite (Rp426.000) pada 2026-10-22.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 5,
+    "berkas": "05_kopi_kenangan.png",
+    "waktuMs": 335,
+    "teksMentah": "KOPI KENANGAN\nOUTLET TARAKAN GRAND MALL\nORDER: ORD-9921471 21 Okt 2026 15:20\n2x Kopi Kenangan Mantan (L) 42.000\nLess Sugar, Normal Ice\n2x Roti Coklat Klasik 16.000\nSubtotal 58.000\nPB1 (Pajak 10%) 5.800\nTOTAL BAYAR Rp 63.800\nMetode Pembayaran: QRIS ShopeePay\nStatus: Pembayaran Berhasil\nFollow 1G: @kopikenangan.id\nTerima Kasih Banyak!\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "KOPI KENANGAN\nOUTLET TARAKAN GRAND MALL\nORDER: ORD-9921471 21 Okt 2026 15:20\n2x Kopi Kenangan Mantan (L) 42.000\nLess Sugar, Normal Ice\n2x Roti Coklat Klasik 16.000\nSubtotal 58.000\nPB1 (Pajak 10%) 5.800\nTOTAL BAYAR Rp 63.800\nMetode Pembayaran: QRIS ShopeePay\nStatus: Pembayaran Berhasil\nFollow 1G: @kopikenangan.id\nTerima Kasih Banyak!\n",
+      "deskripsi": "Kopi Kenangan - Konsumsi Kopi & Minuman",
+      "namaPenjualPenyedia": "Kopi Kenangan",
+      "jumlah": 63800,
+      "kandidatJumlah": [
+        {
+          "nominal": 63800,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL BAYAR Rp 63.800",
+          "bobot": 205
+        },
+        {
+          "nominal": 58000,
+          "label": "Subtotal",
+          "baris": "Subtotal 58.000",
+          "bobot": 75
+        },
+        {
+          "nominal": 42000,
+          "label": "Nominal",
+          "baris": "2x Kopi Kenangan Mantan (L) 42.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 16000,
+          "label": "Nominal",
+          "baris": "2x Roti Coklat Klasik 16.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-21",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di Kopi Kenangan untuk peserta kegiatan.",
+      "metode": "QRIS",
+      "catatan": "KOPI KENANGAN | OUTLET TARAKAN GRAND MALL | ORDER: ORD-9921471 21 Okt 2026 15:20 | 2x Kopi Kenangan Mantan (L) 42.000 | Less Sugar, Normal Ice | 2x Roti Coklat Klasik 16.000 | Subtotal 58.000 | PB1 (Pajak 10%) 5.800 | TOTAL BAYAR Rp 63.800 | Metode Pembayaran: QRIS ShopeePay | Status: Pembayaran Berhasil | Follow 1G: @kopikenangan.id | Terima Kasih Banyak!",
+      "ringkasan": "Kopi Kenangan - Konsumsi Kopi & Minuman (Rp63.800) pada 2026-10-21.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 6,
+    "berkas": "06_mie_gacoan.png",
+    "waktuMs": 362,
+    "teksMentah": "MIE GACOAN\n\nCABANG BULUNGAN - SENGKAWIT\nTABLE: 15 (DINE IN) 23/10/2026 19:40\nMIE IBLIS LEVEL 2 (3) 36.000\nDIMSUM UDANG KEJU (2) 23.000\nES GOBAK SODOR (3) 28.000\nSUBTOTAL 87.000\nPAJAK RESTO PB1 10% 8.700\nTOTAL PEMBAYARAN Rp 95.700\nMETODE: ORIS BCA\nREFF: 99182746102\n\nMATUR NUWUN - PEDASNYA JUARA\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "MIE GACOAN\n\nCABANG BULUNGAN - SENGKAWIT\nTABLE: 15 (DINE IN) 23/10/2026 19:40\nMIE IBLIS LEVEL 2 (3) 36.000\nDIMSUM UDANG KEJU (2) 23.000\nES GOBAK SODOR (3) 28.000\nSUBTOTAL 87.000\nPAJAK RESTO PB1 10% 8.700\nTOTAL PEMBAYARAN Rp 95.700\nMETODE: ORIS BCA\nREFF: 99182746102\n\nMATUR NUWUN - PEDASNYA JUARA\n",
+      "deskripsi": "MIE GACOAN - Konsumsi Makanan & Minuman",
+      "namaPenjualPenyedia": "MIE GACOAN",
+      "jumlah": 95700,
+      "kandidatJumlah": [
+        {
+          "nominal": 95700,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL PEMBAYARAN Rp 95.700",
+          "bobot": 205
+        },
+        {
+          "nominal": 87000,
+          "label": "Subtotal",
+          "baris": "SUBTOTAL 87.000",
+          "bobot": 75
+        },
+        {
+          "nominal": 28000,
+          "label": "Nominal",
+          "baris": "ES GOBAK SODOR (3) 28.000",
+          "bobot": 35
+        },
+        {
+          "nominal": 36000,
+          "label": "Nominal",
+          "baris": "MIE IBLIS LEVEL 2 (3) 36.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 23000,
+          "label": "Nominal",
+          "baris": "DIMSUM UDANG KEJU (2) 23.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-23",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di MIE GACOAN untuk peserta kegiatan.",
+      "metode": "QRIS",
+      "catatan": "MIE GACOAN | CABANG BULUNGAN - SENGKAWIT | TABLE: 15 (DINE IN) 23/10/2026 19:40 | MIE IBLIS LEVEL 2 (3) 36.000 | DIMSUM UDANG KEJU (2) 23.000 | ES GOBAK SODOR (3) 28.000 | SUBTOTAL 87.000 | PAJAK RESTO PB1 10% 8.700 | TOTAL PEMBAYARAN Rp 95.700 | METODE: ORIS BCA | REFF: 99182746102 | MATUR NUWUN - PEDASNYA JUARA",
+      "ringkasan": "MIE GACOAN - Konsumsi Makanan & Minuman (Rp95.700) pada 2026-10-23.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 7,
+    "berkas": "07_rm_padang_sauyo.png",
+    "waktuMs": 461,
+    "teksMentah": "RM PADANG SEDERHANA RAYA\nMASAKAN MINANG ASLI\nJl. JENDERAL SUDIRMAN NO. 10\nTangga 24.10.2026 Meja: 00\nSx Nasi Rendang Daging 130000\nxsi Ayam Pop s0000\n2x Sayur Nangka + Sambal Ijo 14.000\nxs Jeruk Manis 32000\nJUMLAH TOTAL Rp 245.000\nJ\nPEMBAYARAN: TUNAI J\n|\nLunas |\nmas\nDD\nTERIMA KASIH - SALAM ONDEH MANDEH\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "RM PADANG SEDERHANA RAYA\nMASAKAN MINANG ASLI\nJl. JENDERAL SUDIRMAN NO. 10\nTangga 24.10.2026 Meja: 00\nSx Nasi Rendang Daging 130000\nxsi Ayam Pop s0000\n2x Sayur Nangka + Sambal Ijo 14.000\nxs Jeruk Manis 32000\nJUMLAH TOTAL Rp 245.000\nJ\nPEMBAYARAN: TUNAI J\n|\nLunas |\nmas\nDD\nTERIMA KASIH - SALAM ONDEH MANDEH\n",
+      "deskripsi": "RM PADANG SEDERHANA RAYA - Konsumsi Makan & Minum",
+      "namaPenjualPenyedia": "RM PADANG SEDERHANA RAYA",
+      "jumlah": 245000,
+      "kandidatJumlah": [
+        {
+          "nominal": 245000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "JUMLAH TOTAL Rp 245.000",
+          "bobot": 205
+        },
+        {
+          "nominal": 14000,
+          "label": "Nominal",
+          "baris": "2x Sayur Nangka + Sambal Ijo 14.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 32000,
+          "label": "Nominal",
+          "baris": "xs Jeruk Manis 32000",
+          "bobot": 20
+        },
+        {
+          "nominal": 130000,
+          "label": "Nominal",
+          "baris": "Sx Nasi Rendang Daging 130000",
+          "bobot": 10
+        }
+      ],
+      "tanggal": "2026-10-24",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di RM PADANG SEDERHANA RAYA untuk peserta kegiatan.",
+      "metode": "Tunai",
+      "catatan": "RM PADANG SEDERHANA RAYA | MASAKAN MINANG ASLI | Jl. JENDERAL SUDIRMAN NO. 10 | Tangga 24.10.2026 Meja: 00 | Sx Nasi Rendang Daging 130000 | xsi Ayam Pop s0000 | 2x Sayur Nangka + Sambal Ijo 14.000 | xs Jeruk Manis 32000 | JUMLAH TOTAL Rp 245.000 | J | PEMBAYARAN: TUNAI J | | | Lunas | | mas | DD",
+      "ringkasan": "RM PADANG SEDERHANA RAYA - Konsumsi Makan & Minum (Rp245.000) pada 2026-10-24.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 8,
+    "berkas": "08_solaria_restoran.png",
+    "waktuMs": 270,
+    "teksMentah": "SOLARIA\n\nBANDARA JUWATA TARAKAN\nCHECK: 009214 25/10/2026 13:10\nNASI GORENG SPESIAL 45.000\nCHICKEN CORDON BLEU 52.000\nICE LEMON TEA (1) 15.000\nSUBTOTAL, 112.000\nSERVICE CHARGE (5%) 5.600\nPBL (10%) 11.760\nGRAND TOTAL Rp 129.360\nCARD: KARTU KREDIT BCA\nAPPROVAL: 712034\n\nTHANK YOU FOR COMING\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "SOLARIA\n\nBANDARA JUWATA TARAKAN\nCHECK: 009214 25/10/2026 13:10\nNASI GORENG SPESIAL 45.000\nCHICKEN CORDON BLEU 52.000\nICE LEMON TEA (1) 15.000\nSUBTOTAL, 112.000\nSERVICE CHARGE (5%) 5.600\nPBL (10%) 11.760\nGRAND TOTAL Rp 129.360\nCARD: KARTU KREDIT BCA\nAPPROVAL: 712034\n\nTHANK YOU FOR COMING\n",
+      "deskripsi": "Solaria - Konsumsi Makanan",
+      "namaPenjualPenyedia": "Solaria",
+      "jumlah": 129360,
+      "kandidatJumlah": [
+        {
+          "nominal": 129360,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "GRAND TOTAL Rp 129.360",
+          "bobot": 205
+        },
+        {
+          "nominal": 112000,
+          "label": "Subtotal",
+          "baris": "SUBTOTAL, 112.000",
+          "bobot": 75
+        },
+        {
+          "nominal": 11760,
+          "label": "Nominal",
+          "baris": "PBL (10%) 11.760",
+          "bobot": 35
+        },
+        {
+          "nominal": 45000,
+          "label": "Nominal",
+          "baris": "NASI GORENG SPESIAL 45.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 52000,
+          "label": "Nominal",
+          "baris": "CHICKEN CORDON BLEU 52.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-25",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di Solaria untuk peserta kegiatan.",
+      "metode": "Kredit",
+      "catatan": "SOLARIA | BANDARA JUWATA TARAKAN | CHECK: 009214 25/10/2026 13:10 | NASI GORENG SPESIAL 45.000 | CHICKEN CORDON BLEU 52.000 | ICE LEMON TEA (1) 15.000 | SUBTOTAL, 112.000 | SERVICE CHARGE (5%) 5.600 | PBL (10%) 11.760 | GRAND TOTAL Rp 129.360 | CARD: KARTU KREDIT BCA | APPROVAL: 712034 | THANK YOU FOR COMING",
+      "ringkasan": "Solaria - Konsumsi Makanan (Rp129.360) pada 2026-10-25.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 9,
+    "berkas": "09_kwitansi_sewa_mobil.png",
+    "waktuMs": 315,
+    "teksMentah": "KUITANSI PEMBAYARAN\nNO: 042/KW-BRC/X/2026\n\nTelah Diterima Dari ~~: Tim Fasilitasi Kegiatan Lapangan\n\nUang Sejumlah Empat Juta Lima Ratus Ribu Rupiah\n\nUntuk Pembayaran : Sewa Mobil Toyota Hilux 4x4 + Driver (3 Hari)\n\nRp 4.500.000,- Tarakan, 25 Oktober 2026\n\nYang Menerima,\nCV. BORNEO RENT CAR\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "KUITANSI PEMBAYARAN\nNO: 042/KW-BRC/X/2026\n\nTelah Diterima Dari ~~: Tim Fasilitasi Kegiatan Lapangan\n\nUang Sejumlah Empat Juta Lima Ratus Ribu Rupiah\n\nUntuk Pembayaran : Sewa Mobil Toyota Hilux 4x4 + Driver (3 Hari)\n\nRp 4.500.000,- Tarakan, 25 Oktober 2026\n\nYang Menerima,\nCV. BORNEO RENT CAR\n",
+      "deskripsi": "CV. BORNEO RENT CAR - Sewa / Rental Kendaraan",
+      "namaPenjualPenyedia": "CV. BORNEO RENT CAR",
+      "jumlah": 4500000,
+      "kandidatJumlah": [
+        {
+          "nominal": 4500000,
+          "label": "Rupiah Tertera",
+          "baris": "Rp 4.500.000,- Tarakan, 25 Oktober 2026",
+          "bobot": 100
+        }
+      ],
+      "tanggal": "2026-10-25",
+      "kategori": "Transportasi",
+      "kategoriDanaKegiatan": "Rental Kendaraan",
+      "jenisBukti": "Kuitansi",
+      "keteranganLaporan": "Biaya sewa / rental kendaraan operasional dari CV. BORNEO RENT CAR.",
+      "metode": "Tunai",
+      "catatan": "KUITANSI PEMBAYARAN | NO: 042/KW-BRC/X/2026 | Telah Diterima Dari ~~: Tim Fasilitasi Kegiatan Lapangan | Uang Sejumlah Empat Juta Lima Ratus Ribu Rupiah | Untuk Pembayaran : Sewa Mobil Toyota Hilux 4x4 + Driver (3 Hari) | Rp 4.500.000,- Tarakan, 25 Oktober 2026 | Yang Menerima, | CV. BORNEO RENT CAR",
+      "ringkasan": "CV. BORNEO RENT CAR - Sewa / Rental Kendaraan (Rp4.500.000) pada 2026-10-25.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 10,
+    "berkas": "10_kwitansi_akomodasi_hotel.png",
+    "waktuMs": 273,
+    "teksMentah": "HOTEL TARAKAN PLAZA\n\nJL. YOS SUDARSO NO. 1 TARAKAN\nBUKTI KUITANSI PEMBAYARAN HOTEL No: INV-HTP-2026-881\nDiterima dari : Bapak Ahmad (Fasilitator Lapangan)\nKeperluan : Menginap Deluxe Room 2 Malam\n(Checkin: 24/10/2026, Check-out: 26/10/2026)\n\nTarakan, 26-10-2026\nRp 950.000,-\nKASIR HOTEL TARAKAN PLA\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "HOTEL TARAKAN PLAZA\n\nJL. YOS SUDARSO NO. 1 TARAKAN\nBUKTI KUITANSI PEMBAYARAN HOTEL No: INV-HTP-2026-881\nDiterima dari : Bapak Ahmad (Fasilitator Lapangan)\nKeperluan : Menginap Deluxe Room 2 Malam\n(Checkin: 24/10/2026, Check-out: 26/10/2026)\n\nTarakan, 26-10-2026\nRp 950.000,-\nKASIR HOTEL TARAKAN PLA\n",
+      "deskripsi": "HOTEL TARAKAN PLAZA - Akomodasi Penginapan",
+      "namaPenjualPenyedia": "HOTEL TARAKAN PLAZA",
+      "jumlah": 950000,
+      "kandidatJumlah": [
+        {
+          "nominal": 950000,
+          "label": "Rupiah Tertera",
+          "baris": "Rp 950.000,-",
+          "bobot": 110
+        }
+      ],
+      "tanggal": "2026-10-24",
+      "kategori": "Tagihan & Sewa",
+      "kategoriDanaKegiatan": "Akomodasi",
+      "jenisBukti": "Kuitansi",
+      "keteranganLaporan": "Biaya akomodasi penginapan di HOTEL TARAKAN PLAZA.",
+      "metode": "Tunai",
+      "catatan": "HOTEL TARAKAN PLAZA | JL. YOS SUDARSO NO. 1 TARAKAN | BUKTI KUITANSI PEMBAYARAN HOTEL No: INV-HTP-2026-881 | Diterima dari : Bapak Ahmad (Fasilitator Lapangan) | Keperluan : Menginap Deluxe Room 2 Malam | (Checkin: 24/10/2026, Check-out: 26/10/2026) | Tarakan, 26-10-2026 | Rp 950.000,- | KASIR HOTEL TARAKAN PLA",
+      "ringkasan": "HOTEL TARAKAN PLAZA - Akomodasi Penginapan (Rp950.000) pada 2026-10-24.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 11,
+    "berkas": "11_transfer_m_bca.png",
+    "waktuMs": 324,
+    "teksMentah": "m-Transfer\nBERHASIL\n26/10/2026 11:20:15 WIB\nNO. REFERENSI\n2026102600881239\nDARI REKENING\n1234567890 - YULIUS ZALUKHU\nREKENING TUJUAN\n9876543210 (MANDIRI)\nJOKO SUSANTO\nJENIS TRANSFER\nBI-FAST\nJUMLAH TRANSFER Rp 750.000\nBIAYAADMIN Rp 2.500\nTOTAL DEBET Rp 752.500\nSimpan bul transaksi ini sebagai bukti pembayaran sah.\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "m-Transfer\nBERHASIL\n26/10/2026 11:20:15 WIB\nNO. REFERENSI\n2026102600881239\nDARI REKENING\n1234567890 - YULIUS ZALUKHU\nREKENING TUJUAN\n9876543210 (MANDIRI)\nJOKO SUSANTO\nJENIS TRANSFER\nBI-FAST\nJUMLAH TRANSFER Rp 750.000\nBIAYAADMIN Rp 2.500\nTOTAL DEBET Rp 752.500\nSimpan bul transaksi ini sebagai bukti pembayaran sah.\n",
+      "deskripsi": "JOKO SUSANTO - Transfer Bank",
+      "namaPenjualPenyedia": "JOKO SUSANTO",
+      "jumlah": 750000,
+      "kandidatJumlah": [
+        {
+          "nominal": 750000,
+          "label": "Total Belanja",
+          "baris": "JUMLAH TRANSFER Rp 750.000",
+          "bobot": 155
+        },
+        {
+          "nominal": 752500,
+          "label": "Total Belanja",
+          "baris": "TOTAL DEBET Rp 752.500",
+          "bobot": 155
+        }
+      ],
+      "tanggal": "2026-10-26",
+      "kategori": "Lain-lain",
+      "kategoriDanaKegiatan": "Lain-lain",
+      "jenisBukti": "Invoice + kuitansi",
+      "keteranganLaporan": "Pengeluaran via transfer bank kepada JOKO SUSANTO untuk keperluan operasional kegiatan.",
+      "metode": "Transfer",
+      "catatan": "m-Transfer | BERHASIL | 26/10/2026 11:20:15 WIB | NO. REFERENSI | 2026102600881239 | DARI REKENING | 1234567890 - YULIUS ZALUKHU | REKENING TUJUAN | 9876543210 (MANDIRI) | JOKO SUSANTO | JENIS TRANSFER | BI-FAST | JUMLAH TRANSFER Rp 750.000 | BIAYAADMIN Rp 2.500 | TOTAL DEBET Rp 752.500",
+      "ringkasan": "JOKO SUSANTO - Transfer Bank (Rp750.000) pada 2026-10-26.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 12,
+    "berkas": "12_transfer_bri_brimo.png",
+    "waktuMs": 341,
+    "teksMentah": "BRImo\nTransaksi Berhasil\n27 Okt 2026 16:45 WIB\nPENERIMA\nSITI RAHMAWATI\nBRI 0456-01-112233-53-8\nNOMINAL TRANSFER\nBIAYAADMIN : Rp 0\nTOTAL TRANSAKSI : Rp 1.200.000\nNO. REFERENSI : 882010481928\nCATATAN : Pembayaran Honorarium Narasumber\nSisa Saldo Rekening : Rp 8.450.000\nPT Bank Rakyat Indonesia (Persero) Tbk.\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "BRImo\nTransaksi Berhasil\n27 Okt 2026 16:45 WIB\nPENERIMA\nSITI RAHMAWATI\nBRI 0456-01-112233-53-8\nNOMINAL TRANSFER\nBIAYAADMIN : Rp 0\nTOTAL TRANSAKSI : Rp 1.200.000\nNO. REFERENSI : 882010481928\nCATATAN : Pembayaran Honorarium Narasumber\nSisa Saldo Rekening : Rp 8.450.000\nPT Bank Rakyat Indonesia (Persero) Tbk.\n",
+      "deskripsi": "SITI RAHMAWATI - Honorarium / Jasa Narasumber",
+      "namaPenjualPenyedia": "SITI RAHMAWATI",
+      "jumlah": 1200000,
+      "kandidatJumlah": [
+        {
+          "nominal": 1200000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL TRANSAKSI : Rp 1.200.000",
+          "bobot": 205
+        }
+      ],
+      "tanggal": "2026-10-27",
+      "kategori": "Lain-lain",
+      "kategoriDanaKegiatan": "Honorarium & Ganti Hari",
+      "jenisBukti": "Invoice + kuitansi",
+      "keteranganLaporan": "Pembayaran honorarium/jasa narasumber/fasilitator kegiatan kepada SITI RAHMAWATI via transfer bank.",
+      "metode": "Transfer",
+      "catatan": "BRImo | Transaksi Berhasil | 27 Okt 2026 16:45 WIB | PENERIMA | SITI RAHMAWATI | BRI 0456-01-112233-53-8 | NOMINAL TRANSFER | BIAYAADMIN : Rp 0 | TOTAL TRANSAKSI : Rp 1.200.000 | NO. REFERENSI : 882010481928 | CATATAN : Pembayaran Honorarium Narasumber | Sisa Saldo Rekening : Rp 8.450.000 | PT Bank Rakyat Indonesia (Persero) Tbk.",
+      "ringkasan": "SITI RAHMAWATI - Honorarium / Jasa Narasumber (Rp1.200.000) pada 2026-10-27.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 13,
+    "berkas": "13_transfer_mandiri_livin.png",
+    "waktuMs": 289,
+    "teksMentah": "Livin' by Mandiri\nTRANSFER BERHASIL\n27 Okt 2026, 08:30 WIB\nNAMA PENERIMA\nHERMANTO\nBank BNI - 1122334455\nJUMLAH TRANSFER Rp 500.000\nBIAYA TRANSAKSI Rp 2.500\nTOTAL PEMBAYARAN Rp 502.500\nNOMOR REFERENSI : 2026102719284710\nMETODE : BLEAST\nResi resmi transaksi elektronik Bank Mandiri\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "Livin' by Mandiri\nTRANSFER BERHASIL\n27 Okt 2026, 08:30 WIB\nNAMA PENERIMA\nHERMANTO\nBank BNI - 1122334455\nJUMLAH TRANSFER Rp 500.000\nBIAYA TRANSAKSI Rp 2.500\nTOTAL PEMBAYARAN Rp 502.500\nNOMOR REFERENSI : 2026102719284710\nMETODE : BLEAST\nResi resmi transaksi elektronik Bank Mandiri\n",
+      "deskripsi": "HERMANTO - Transfer Bank",
+      "namaPenjualPenyedia": "HERMANTO",
+      "jumlah": 502500,
+      "kandidatJumlah": [
+        {
+          "nominal": 502500,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL PEMBAYARAN Rp 502.500",
+          "bobot": 205
+        },
+        {
+          "nominal": 500000,
+          "label": "Total Belanja",
+          "baris": "JUMLAH TRANSFER Rp 500.000",
+          "bobot": 145
+        }
+      ],
+      "tanggal": "2026-10-27",
+      "kategori": "Lain-lain",
+      "kategoriDanaKegiatan": "Lain-lain",
+      "jenisBukti": "Invoice + kuitansi",
+      "keteranganLaporan": "Pengeluaran via transfer bank kepada HERMANTO untuk keperluan operasional kegiatan.",
+      "metode": "Transfer",
+      "catatan": "Livin' by Mandiri | TRANSFER BERHASIL | 27 Okt 2026, 08:30 WIB | NAMA PENERIMA | HERMANTO | Bank BNI - 1122334455 | JUMLAH TRANSFER Rp 500.000 | BIAYA TRANSAKSI Rp 2.500 | TOTAL PEMBAYARAN Rp 502.500 | NOMOR REFERENSI : 2026102719284710 | METODE : BLEAST | Resi resmi transaksi elektronik Bank Mandiri",
+      "ringkasan": "HERMANTO - Transfer Bank (Rp502.500) pada 2026-10-27.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 14,
+    "berkas": "14_ewallet_gopay_gofood.png",
+    "waktuMs": 337,
+    "teksMentah": "GoFood\nAYAM GEPREK JUARA TANJUNG SELOR\n28 Okt 2026 12:35 - ID: F-18204719283\n3x Paket Geprek Blenger Pedas 75.000\nOngkos Kirim 12.000\nBiaya Layanan & Jasa Aplikasi 3.000\nDiskon Promo GoFood 15.000\nTOTAL PEMBAYARAN Rp 75.000\nMetode Pembayaran: GoPay\nStatus Transaksi: Selesai\n\nTerima kasih telah memesan lewat GoFood!\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "GoFood\nAYAM GEPREK JUARA TANJUNG SELOR\n28 Okt 2026 12:35 - ID: F-18204719283\n3x Paket Geprek Blenger Pedas 75.000\nOngkos Kirim 12.000\nBiaya Layanan & Jasa Aplikasi 3.000\nDiskon Promo GoFood 15.000\nTOTAL PEMBAYARAN Rp 75.000\nMetode Pembayaran: GoPay\nStatus Transaksi: Selesai\n\nTerima kasih telah memesan lewat GoFood!\n",
+      "deskripsi": "AYAM GEPREK JUARA TANJUNG SELOR (GoFood) - Konsumsi Makanan",
+      "namaPenjualPenyedia": "AYAM GEPREK JUARA TANJUNG SELOR (GoFood)",
+      "jumlah": 75000,
+      "kandidatJumlah": [
+        {
+          "nominal": 75000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL PEMBAYARAN Rp 75.000",
+          "bobot": 205
+        }
+      ],
+      "tanggal": "2026-10-28",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman melalui AYAM GEPREK JUARA TANJUNG SELOR (GoFood) untuk peserta kegiatan.",
+      "metode": "QRIS",
+      "catatan": "GoFood | AYAM GEPREK JUARA TANJUNG SELOR | 28 Okt 2026 12:35 - ID: F-18204719283 | 3x Paket Geprek Blenger Pedas 75.000 | Ongkos Kirim 12.000 | Biaya Layanan & Jasa Aplikasi 3.000 | Diskon Promo GoFood 15.000 | TOTAL PEMBAYARAN Rp 75.000 | Metode Pembayaran: GoPay | Status Transaksi: Selesai | Terima kasih telah memesan lewat GoFood!",
+      "ringkasan": "AYAM GEPREK JUARA TANJUNG SELOR (GoFood) - Konsumsi Makanan (Rp75.000) pada 2026-10-28.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 15,
+    "berkas": "15_ewallet_dana_merchant.png",
+    "waktuMs": 204,
+    "teksMentah": "DANA\nPembayaran Berhasil\n28-10-2026 104530\nMERCHANT\n'WARUNG KOPI OEY\nTOTAL DIBAYAR\nRp 48.000\nMetode: Saldo DANA\nNo Akun: 085244556677\nID Transaksi: 2026102812003881023\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "DANA\nPembayaran Berhasil\n28-10-2026 104530\nMERCHANT\n'WARUNG KOPI OEY\nTOTAL DIBAYAR\nRp 48.000\nMetode: Saldo DANA\nNo Akun: 085244556677\nID Transaksi: 2026102812003881023\n",
+      "deskripsi": "WARUNG KOPI OEY - Konsumsi Makan & Minum",
+      "namaPenjualPenyedia": "WARUNG KOPI OEY",
+      "jumlah": 48000,
+      "kandidatJumlah": [
+        {
+          "nominal": 48000,
+          "label": "Total Belanja",
+          "baris": "Rp 48.000",
+          "bobot": 145
+        }
+      ],
+      "tanggal": "2026-10-28",
+      "kategori": "Makan & Minum",
+      "kategoriDanaKegiatan": "Konsumsi",
+      "jenisBukti": "Struk thermal (minimarket/SPBU)",
+      "keteranganLaporan": "Pembayaran konsumsi makanan/minuman di WARUNG KOPI OEY untuk peserta kegiatan.",
+      "metode": "QRIS",
+      "catatan": "DANA | Pembayaran Berhasil | 28-10-2026 104530 | MERCHANT | 'WARUNG KOPI OEY | TOTAL DIBAYAR | Rp 48.000 | Metode: Saldo DANA | No Akun: 085244556677 | ID Transaksi: 2026102812003881023",
+      "ringkasan": "WARUNG KOPI OEY - Konsumsi Makan & Minum (Rp48.000) pada 2026-10-28.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 16,
+    "berkas": "16_token_listrik_pln.png",
+    "waktuMs": 374,
+    "teksMentah": "STRUK PEMBELIAN LISTRIK PRABAYAR\nPLN PREPAID\nTANGGAL : 29/10/2026 09:12\nNO METER : 14235678901\nIDPEL : 541209876543\nNAMA : AHMAD FAUZI\nTARIF/DAYA : R1 / 1300 VA\nRP BAYAR : Rp 100.000\nADMIN BANK : Rp 3.000\nTOTAL BAYAR : Rp 103.000\nSTROOM / TOKEN :\n4829-1048-2849-1029-4710\nJL KWH : 66.8 kh\nINFORMASI HUBUNGI CONTACT CENTER PLN: 123\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "STRUK PEMBELIAN LISTRIK PRABAYAR\nPLN PREPAID\nTANGGAL : 29/10/2026 09:12\nNO METER : 14235678901\nIDPEL : 541209876543\nNAMA : AHMAD FAUZI\nTARIF/DAYA : R1 / 1300 VA\nRP BAYAR : Rp 100.000\nADMIN BANK : Rp 3.000\nTOTAL BAYAR : Rp 103.000\nSTROOM / TOKEN :\n4829-1048-2849-1029-4710\nJL KWH : 66.8 kh\nINFORMASI HUBUNGI CONTACT CENTER PLN: 123\n",
+      "deskripsi": "PLN - Pembelian Token Listrik",
+      "namaPenjualPenyedia": "PLN",
+      "jumlah": 103000,
+      "kandidatJumlah": [
+        {
+          "nominal": 103000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL BAYAR : Rp 103.000",
+          "bobot": 205
+        },
+        {
+          "nominal": 100000,
+          "label": "Uang Diserahkan",
+          "baris": "RP BAYAR : Rp 100.000",
+          "bobot": 75
+        }
+      ],
+      "tanggal": "2026-10-29",
+      "kategori": "Tagihan & Sewa",
+      "kategoriDanaKegiatan": "Komunikasi, Listrik & Kurir",
+      "jenisBukti": "Nota",
+      "keteranganLaporan": "Pembelian token listrik PLN untuk operasional kegiatan.",
+      "metode": "Transfer",
+      "catatan": "STRUK PEMBELIAN LISTRIK PRABAYAR | PLN PREPAID | TANGGAL : 29/10/2026 09:12 | NO METER : 14235678901 | IDPEL : 541209876543 | NAMA : AHMAD FAUZI | TARIF/DAYA : R1 / 1300 VA | RP BAYAR : Rp 100.000 | ADMIN BANK : Rp 3.000 | TOTAL BAYAR : Rp 103.000 | STROOM / TOKEN : | 4829-1048-2849-1029-4710 | JL KWH : 66.8 kh | INFORMASI HUBUNGI CONTACT CENTER PLN: 123",
+      "ringkasan": "PLN - Pembelian Token Listrik (Rp103.000) pada 2026-10-29.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 17,
+    "berkas": "17_tagihan_air_pdam.png",
+    "waktuMs": 277,
+    "teksMentah": "PERUMDA AIR MINUM TIRTA BULUNGAN\nBUKTI PEMBAYARAN TAGIHAN AIR\nNO SAMBUNGAN : 01020304\nNAMA : SEKRETARIAT TIM KEGIATAN\nPERIODE : OKTOBER 2026\nPEMAKAIAN : 28 M3\nTAGIHAN AIR : Rp 140.000\nPEMELIHARAAN : Rp 10.000\nRETRIBUSI : Rp 5.000\nTOTAL TAGIHAN Rp 155.000\nTGL BAYAR : 29-10-2026\nSTATUS : LUNAS\nHEMAT AIR UNTUK KELANGSUNGAN BERSAMA\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "PERUMDA AIR MINUM TIRTA BULUNGAN\nBUKTI PEMBAYARAN TAGIHAN AIR\nNO SAMBUNGAN : 01020304\nNAMA : SEKRETARIAT TIM KEGIATAN\nPERIODE : OKTOBER 2026\nPEMAKAIAN : 28 M3\nTAGIHAN AIR : Rp 140.000\nPEMELIHARAAN : Rp 10.000\nRETRIBUSI : Rp 5.000\nTOTAL TAGIHAN Rp 155.000\nTGL BAYAR : 29-10-2026\nSTATUS : LUNAS\nHEMAT AIR UNTUK KELANGSUNGAN BERSAMA\n",
+      "deskripsi": "PERUMDA AIR MINUM TIRTA BULUNGAN - Tagihan Rekening Air",
+      "namaPenjualPenyedia": "PERUMDA AIR MINUM TIRTA BULUNGAN",
+      "jumlah": 155000,
+      "kandidatJumlah": [
+        {
+          "nominal": 155000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL TAGIHAN Rp 155.000",
+          "bobot": 205
+        },
+        {
+          "nominal": 140000,
+          "label": "Rupiah Tertera",
+          "baris": "TAGIHAN AIR : Rp 140.000",
+          "bobot": 100
+        },
+        {
+          "nominal": 10000,
+          "label": "Rupiah Tertera",
+          "baris": "PEMELIHARAAN : Rp 10.000",
+          "bobot": 100
+        },
+        {
+          "nominal": 5000,
+          "label": "Rupiah Tertera",
+          "baris": "RETRIBUSI : Rp 5.000",
+          "bobot": 100
+        }
+      ],
+      "tanggal": "2026-10-29",
+      "kategori": "Tagihan & Sewa",
+      "kategoriDanaKegiatan": "Komunikasi, Listrik & Kurir",
+      "jenisBukti": "Nota",
+      "keteranganLaporan": "Pembayaran tagihan rekening air bersih PERUMDA AIR MINUM TIRTA BULUNGAN untuk operasional kegiatan.",
+      "metode": "Tunai",
+      "catatan": "PERUMDA AIR MINUM TIRTA BULUNGAN | BUKTI PEMBAYARAN TAGIHAN AIR | NO SAMBUNGAN : 01020304 | NAMA : SEKRETARIAT TIM KEGIATAN | PERIODE : OKTOBER 2026 | PEMAKAIAN : 28 M3 | TAGIHAN AIR : Rp 140.000 | PEMELIHARAAN : Rp 10.000 | RETRIBUSI : Rp 5.000 | TOTAL TAGIHAN Rp 155.000 | TGL BAYAR : 29-10-2026 | STATUS : LUNAS | HEMAT AIR UNTUK KELANGSUNGAN BERSAMA",
+      "ringkasan": "PERUMDA AIR MINUM TIRTA BULUNGAN - Tagihan Rekening Air (Rp155.000) pada 2026-10-29.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 18,
+    "berkas": "18_toko_atk_fotocopy.png",
+    "waktuMs": 425,
+    "teksMentah": "CV. SINAR TERANG ATK & PERCETAKAN\nJL. KATAMSO NO. 22 TANJUNG SELOR\nTELP : 0852-1234-5678\n\nNOTA NO : 089/ST/X/2026 TGL : 30 Oktober 2026\nKertas HVS F4 75gr (5 Rim @ Rp 55.000) 275.000\nSpidol Whiteboard Snowman (1 Lusin) 95.000\nJilid Spiral Laporan SPJ (10 Buku) 150.000\nMaterai 10000 (10 Lembar @ Rp 11.000) 110.000\nTOTAL HARGA Rp 630.000\nPEMBAYARAN : TUNAI LUNAS\n\nHormat Kami,\n\n(CV. SINAR TERANG )\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "CV. SINAR TERANG ATK & PERCETAKAN\nJL. KATAMSO NO. 22 TANJUNG SELOR\nTELP : 0852-1234-5678\n\nNOTA NO : 089/ST/X/2026 TGL : 30 Oktober 2026\nKertas HVS F4 75gr (5 Rim @ Rp 55.000) 275.000\nSpidol Whiteboard Snowman (1 Lusin) 95.000\nJilid Spiral Laporan SPJ (10 Buku) 150.000\nMaterai 10000 (10 Lembar @ Rp 11.000) 110.000\nTOTAL HARGA Rp 630.000\nPEMBAYARAN : TUNAI LUNAS\n\nHormat Kami,\n\n(CV. SINAR TERANG )\n",
+      "deskripsi": "CV. SINAR TERANG ATK & PERCETAKAN - Pengadaan Barang & Perlengkapan",
+      "namaPenjualPenyedia": "CV. SINAR TERANG ATK & PERCETAKAN",
+      "jumlah": 630000,
+      "kandidatJumlah": [
+        {
+          "nominal": 630000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL HARGA Rp 630.000",
+          "bobot": 205
+        },
+        {
+          "nominal": 11000,
+          "label": "Rupiah Tertera",
+          "baris": "Materai 10000 (10 Lembar @ Rp 11.000) 110.000",
+          "bobot": 100
+        },
+        {
+          "nominal": 55000,
+          "label": "Rupiah Tertera",
+          "baris": "Kertas HVS F4 75gr (5 Rim @ Rp 55.000) 275.000",
+          "bobot": 90
+        },
+        {
+          "nominal": 110000,
+          "label": "Rupiah Tertera",
+          "baris": "Materai 10000 (10 Lembar @ Rp 11.000) 110.000",
+          "bobot": 80
+        },
+        {
+          "nominal": 275000,
+          "label": "Rupiah Tertera",
+          "baris": "Kertas HVS F4 75gr (5 Rim @ Rp 55.000) 275.000",
+          "bobot": 70
+        }
+      ],
+      "tanggal": "2026-10-30",
+      "kategori": "Belanja Harian",
+      "kategoriDanaKegiatan": "Pengadaan Barang & Perlengkapan",
+      "jenisBukti": "Nota",
+      "keteranganLaporan": "Pengadaan perlengkapan dan ATK kegiatan di CV. SINAR TERANG ATK & PERCETAKAN.",
+      "metode": "Tunai",
+      "catatan": "CV. SINAR TERANG ATK & PERCETAKAN | JL. KATAMSO NO. 22 TANJUNG SELOR | TELP : 0852-1234-5678 | NOTA NO : 089/ST/X/2026 TGL : 30 Oktober 2026 | Kertas HVS F4 75gr (5 Rim @ Rp 55.000) 275.000 | Spidol Whiteboard Snowman (1 Lusin) 95.000 | Jilid Spiral Laporan SPJ (10 Buku) 150.000 | Materai 10000 (10 Lembar @ Rp 11.000) 110.000 | TOTAL HARGA Rp 630.000 | PEMBAYARAN : TUNAI LUNAS | Hormat Kami, | (CV. SINAR TERANG )",
+      "ringkasan": "CV. SINAR TERANG ATK & PERCETAKAN - Pengadaan Barang & Perlengkapan (Rp630.000) pada 2026-10-30.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 19,
+    "berkas": "19_toko_bangunan_hardware.png",
+    "waktuMs": 357,
+    "teksMentah": "TB. USAHA MANDIRI JAYA\nPENYEDIA BAHAN BANGUNAN & ALAT\nFAKTUR : FB-99120 TGL : 30/10/2026\n4 LBR TRIPLEK SMM 380.000\n1 BAIL CAT TEMBOK DULUX SKG 175.000\n2 KG PAKU CAMPUR 40.000\n2 ZAK SEMEN TONASA 50KG 150.000\nJUMLAH TOTAL Rp 745.000\nMETODE : TUNAI\nPENERIMA,\n( TB. USAHA MANDIRI )\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "TB. USAHA MANDIRI JAYA\nPENYEDIA BAHAN BANGUNAN & ALAT\nFAKTUR : FB-99120 TGL : 30/10/2026\n4 LBR TRIPLEK SMM 380.000\n1 BAIL CAT TEMBOK DULUX SKG 175.000\n2 KG PAKU CAMPUR 40.000\n2 ZAK SEMEN TONASA 50KG 150.000\nJUMLAH TOTAL Rp 745.000\nMETODE : TUNAI\nPENERIMA,\n( TB. USAHA MANDIRI )\n",
+      "deskripsi": "TB. USAHA MANDIRI JAYA - Pengadaan Barang & Perlengkapan",
+      "namaPenjualPenyedia": "TB. USAHA MANDIRI JAYA",
+      "jumlah": 745000,
+      "kandidatJumlah": [
+        {
+          "nominal": 745000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "JUMLAH TOTAL Rp 745.000",
+          "bobot": 205
+        },
+        {
+          "nominal": 40000,
+          "label": "Nominal",
+          "baris": "2 KG PAKU CAMPUR 40.000",
+          "bobot": 35
+        },
+        {
+          "nominal": 150000,
+          "label": "Nominal",
+          "baris": "2 ZAK SEMEN TONASA 50KG 150.000",
+          "bobot": 35
+        },
+        {
+          "nominal": 380000,
+          "label": "Nominal",
+          "baris": "4 LBR TRIPLEK SMM 380.000",
+          "bobot": 25
+        },
+        {
+          "nominal": 175000,
+          "label": "Nominal",
+          "baris": "1 BAIL CAT TEMBOK DULUX SKG 175.000",
+          "bobot": 25
+        }
+      ],
+      "tanggal": "2026-10-30",
+      "kategori": "Belanja Harian",
+      "kategoriDanaKegiatan": "Pengadaan Barang & Perlengkapan",
+      "jenisBukti": "Nota",
+      "keteranganLaporan": "Pengadaan perlengkapan dan ATK kegiatan di TB. USAHA MANDIRI JAYA.",
+      "metode": "Tunai",
+      "catatan": "TB. USAHA MANDIRI JAYA | PENYEDIA BAHAN BANGUNAN & ALAT | FAKTUR : FB-99120 TGL : 30/10/2026 | 4 LBR TRIPLEK SMM 380.000 | 1 BAIL CAT TEMBOK DULUX SKG 175.000 | 2 KG PAKU CAMPUR 40.000 | 2 ZAK SEMEN TONASA 50KG 150.000 | JUMLAH TOTAL Rp 745.000 | METODE : TUNAI | PENERIMA, | ( TB. USAHA MANDIRI )",
+      "ringkasan": "TB. USAHA MANDIRI JAYA - Pengadaan Barang & Perlengkapan (Rp745.000) pada 2026-10-30.",
+      "peringatan": []
+    }
+  },
+  {
+    "nomor": 20,
+    "berkas": "20_tiket_bus_travel.png",
+    "waktuMs": 374,
+    "teksMentah": "PO. BORNEO TRANS EKSEKUTIF\nTIKET PENUMPANG ANGKUTAN DARAT\nNO TIKET : BT-2026-X-0094 TGL: 31-10-2026 08:00\nNAMA PENUMPANG : BAMBANG SUPRIYADI\nRUTE : TANJUNG SELOR - BERAU KURSI: 38\nTARIF TIKET Rp 180.000\nTermasuk Asuransi Jasa Raharja\nTOTAL BAYAR Rp 180.000\nSTATUS : LUNAS (PEMBAYARAN LOKET)\nSELAMAT MENIKMATI PERJALANAN ANDA\n",
+    "parsed": {
+      "sukses": true,
+      "teksMentah": "PO. BORNEO TRANS EKSEKUTIF\nTIKET PENUMPANG ANGKUTAN DARAT\nNO TIKET : BT-2026-X-0094 TGL: 31-10-2026 08:00\nNAMA PENUMPANG : BAMBANG SUPRIYADI\nRUTE : TANJUNG SELOR - BERAU KURSI: 38\nTARIF TIKET Rp 180.000\nTermasuk Asuransi Jasa Raharja\nTOTAL BAYAR Rp 180.000\nSTATUS : LUNAS (PEMBAYARAN LOKET)\nSELAMAT MENIKMATI PERJALANAN ANDA\n",
+      "deskripsi": "PO. BORNEO TRANS EKSEKUTIF - Tiket Transportasi Darat (T PENUMPANG ANGKUTAN DARAT)",
+      "namaPenjualPenyedia": "PO. BORNEO TRANS EKSEKUTIF",
+      "jumlah": 180000,
+      "kandidatJumlah": [
+        {
+          "nominal": 180000,
+          "label": "Total Akhir (Grand Total)",
+          "baris": "TOTAL BAYAR Rp 180.000",
+          "bobot": 205
+        }
+      ],
+      "tanggal": "2026-10-31",
+      "kategori": "Transportasi",
+      "kategoriDanaKegiatan": "Transportasi",
+      "jenisBukti": "Tiket",
+      "keteranganLaporan": "Biaya tiket transportasi perjalanan darat PO. BORNEO TRANS EKSEKUTIF (T PENUMPANG ANGKUTAN DARAT) - a/n ANGKUTAN DARAT untuk operasional kegiatan.",
+      "metode": "Tunai",
+      "catatan": "PO. BORNEO TRANS EKSEKUTIF | TIKET PENUMPANG ANGKUTAN DARAT | NO TIKET : BT-2026-X-0094 TGL: 31-10-2026 08:00 | NAMA PENUMPANG : BAMBANG SUPRIYADI | RUTE : TANJUNG SELOR - BERAU KURSI: 38 | TARIF TIKET Rp 180.000 | Termasuk Asuransi Jasa Raharja | TOTAL BAYAR Rp 180.000 | STATUS : LUNAS (PEMBAYARAN LOKET) | SELAMAT MENIKMATI PERJALANAN ANDA",
+      "ringkasan": "PO. BORNEO TRANS EKSEKUTIF - Tiket Transportasi Darat (T PENUMPANG ANGKUTAN DARAT) (Rp180.000) pada 2026-10-31.",
+      "peringatan": []
+    }
+  }
+]

@@ -1,0 +1,162 @@
+[
+  {
+    "nomor": 1,
+    "berkas": "01_alfamart_harian.png",
+    "judul": "Alfamart Belanja Harian",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 82.140",
+    "url": "latihan-ocr/01_alfamart_harian.png"
+  },
+  {
+    "nomor": 2,
+    "berkas": "02_indomaret_snack.png",
+    "judul": "Indomaret Snack & Minuman",
+    "tag": "Minimarket",
+    "nominalTeks": "Rp 64.500",
+    "url": "latihan-ocr/02_indomaret_snack.png"
+  },
+  {
+    "nomor": 3,
+    "berkas": "03_spbu_pertamax.png",
+    "judul": "SPBU Pertamina Pertamax",
+    "tag": "BBM",
+    "nominalTeks": "Rp 323.750",
+    "url": "latihan-ocr/03_spbu_pertamax.png"
+  },
+  {
+    "nomor": 4,
+    "berkas": "04_spbu_dexlite.png",
+    "judul": "SPBU Pertamina Dexlite",
+    "tag": "BBM",
+    "nominalTeks": "Rp 426.000",
+    "url": "latihan-ocr/04_spbu_dexlite.png"
+  },
+  {
+    "nomor": 5,
+    "berkas": "05_kopi_kenangan.png",
+    "judul": "Kopi Kenangan Tarakan",
+    "tag": "Kafe & Kopi",
+    "nominalTeks": "Rp 63.800",
+    "url": "latihan-ocr/05_kopi_kenangan.png"
+  },
+  {
+    "nomor": 6,
+    "berkas": "06_mie_gacoan.png",
+    "judul": "Mie Gacoan Bulungan",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 53.500",
+    "url": "latihan-ocr/06_mie_gacoan.png"
+  },
+  {
+    "nomor": 7,
+    "berkas": "07_rm_padang_sauyo.png",
+    "judul": "RM Padang Sederhana",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 184.800",
+    "url": "latihan-ocr/07_rm_padang_sauyo.png"
+  },
+  {
+    "nomor": 8,
+    "berkas": "08_solaria_restoran.png",
+    "judul": "Solaria Restoran",
+    "tag": "Restoran",
+    "nominalTeks": "Rp 156.200",
+    "url": "latihan-ocr/08_solaria_restoran.png"
+  },
+  {
+    "nomor": 9,
+    "berkas": "09_kwitansi_sewa_mobil.png",
+    "judul": "Kwitansi Rental Mobil Lapangan",
+    "tag": "Rental Mobil",
+    "nominalTeks": "Rp 4.500.000",
+    "url": "latihan-ocr/09_kwitansi_sewa_mobil.png"
+  },
+  {
+    "nomor": 10,
+    "berkas": "10_kwitansi_akomodasi_hotel.png",
+    "judul": "Kwitansi Hotel Tarakan Plaza",
+    "tag": "Akomodasi Hotel",
+    "nominalTeks": "Rp 950.000",
+    "url": "latihan-ocr/10_kwitansi_akomodasi_hotel.png"
+  },
+  {
+    "nomor": 11,
+    "berkas": "11_transfer_m_bca.png",
+    "judul": "m-Transfer BCA BI-FAST",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 750.000",
+    "url": "latihan-ocr/11_transfer_m_bca.png"
+  },
+  {
+    "nomor": 12,
+    "berkas": "12_transfer_bri_brimo.png",
+    "judul": "BRImo Honorarium Narasumber",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 1.200.000",
+    "url": "latihan-ocr/12_transfer_bri_brimo.png"
+  },
+  {
+    "nomor": 13,
+    "berkas": "13_transfer_mandiri_livin.png",
+    "judul": "Livin by Mandiri Resi Transfer",
+    "tag": "Transfer Bank",
+    "nominalTeks": "Rp 502.500",
+    "url": "latihan-ocr/13_transfer_mandiri_livin.png"
+  },
+  {
+    "nomor": 14,
+    "berkas": "14_ewallet_gopay_gofood.png",
+    "judul": "GoFood Ayam Geprek Juara",
+    "tag": "E-Wallet GoPay",
+    "nominalTeks": "Rp 75.000",
+    "url": "latihan-ocr/14_ewallet_gopay_gofood.png"
+  },
+  {
+    "nomor": 15,
+    "berkas": "15_ewallet_dana_merchant.png",
+    "judul": "DANA Warung Kopi Oey",
+    "tag": "E-Wallet DANA",
+    "nominalTeks": "Rp 48.000",
+    "url": "latihan-ocr/15_ewallet_dana_merchant.png"
+  },
+  {
+    "nomor": 16,
+    "berkas": "16_token_listrik_pln.png",
+    "judul": "Struk Token Listrik PLN Prepaid",
+    "tag": "Token Listrik",
+    "nominalTeks": "Rp 103.000",
+    "url": "latihan-ocr/16_token_listrik_pln.png"
+  },
+  {
+    "nomor": 17,
+    "berkas": "17_tagihan_air_pdam.png",
+    "judul": "Tagihan Air PDAM Tirta Bulungan",
+    "tag": "Tagihan Air",
+    "nominalTeks": "Rp 155.000",
+    "url": "latihan-ocr/17_tagihan_air_pdam.png"
+  },
+  {
+    "nomor": 18,
+    "berkas": "18_toko_atk_fotocopy.png",
+    "judul": "Nota Toko ATK & Percetakan",
+    "tag": "Pengadaan ATK",
+    "nominalTeks": "Rp 630.000",
+    "url": "latihan-ocr/18_toko_atk_fotocopy.png"
+  },
+  {
+    "nomor": 19,
+    "berkas": "19_toko_bangunan_hardware.png",
+    "judul": "Nota TB Usaha Mandiri Jaya",
+    "tag": "Bahan Bangunan",
+    "nominalTeks": "Rp 745.000",
+    "url": "latihan-ocr/19_toko_bangunan_hardware.png"
+  },
+  {
+    "nomor": 20,
+    "berkas": "20_tiket_bus_travel.png",
+    "judul": "Tiket Bus Travel PO. Borneo Trans",
+    "tag": "Tiket Bus",
+    "nominalTeks": "Rp 180.000",
+    "url": "latihan-ocr/20_tiket_bus_travel.png"
+  }
+]

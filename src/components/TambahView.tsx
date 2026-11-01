@@ -29,6 +29,7 @@ import {
 } from "../lib/geminiStruk";
 import { prosesStrukLokal, HasilOcrLokal } from "../lib/ocrStruk";
 import { KameraStrukModal } from "./KameraStrukModal";
+import { ModalLatihanOcr } from "./ModalLatihanOcr";
 import { BagianFormKegiatan, DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 import {
   NavigasiLangkah,
@@ -195,6 +196,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [hasilScan, setHasilScan] = useState<HasilOcrLokal | null>(null);
   const [errorScan, setErrorScan] = useState<string | null>(null);
   const [kameraPanduanBuka, setKameraPanduanBuka] = useState(false);
+  const [modalLatihanBuka, setModalLatihanBuka] = useState(false);
 
   // Sync state when editing
   useEffect(() => {
@@ -428,12 +430,17 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setTanggal(hasil.tanggal);
         }
 
-        if (hasil.kategori) {
+        const targetKategori =
+          dana === "Dana Kegiatan" && hasil.kategoriDanaKegiatan
+            ? hasil.kategoriDanaKegiatan
+            : hasil.kategori;
+
+        if (targetKategori) {
           const list = KATEGORI[dana]?.pengeluaran || [];
           const match = list.find(
-            (k) => k.toLowerCase() === hasil.kategori?.toLowerCase()
+            (k) => k.toLowerCase() === targetKategori.toLowerCase()
           );
-          setKategori(match || hasil.kategori);
+          setKategori(match || targetKategori);
         }
         if (hasil.metode) {
           const mList = ["Tunai", "Transfer", "QRIS", "Debit", "Kredit", "Lainnya"];
@@ -1793,7 +1800,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
             </div>
           </div>
 
-          <div className="struk-scanner-actions">
+          <div className="struk-scanner-actions" style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
             <button
               type="button"
               className="btn-primary"
@@ -1809,6 +1816,20 @@ export const TambahView: React.FC<TambahViewProps> = ({
               onClick={() => galeriInputRef.current?.click()}
             >
               <span aria-hidden="true">🖼️</span> Pilih dari Galeri
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={memuatScan}
+              onClick={() => setModalLatihanBuka(true)}
+              style={{
+                background: "linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(99, 102, 241, 0.25))",
+                borderColor: "rgba(139, 92, 246, 0.4)",
+                color: "#e2e8f0",
+              }}
+              title="Coba scan dengan 20 ragam bukti transaksi dummy (Alfamart, SPBU, Kafe, Kuitansi, Transfer, PLN, PDAM, Tiket)"
+            >
+              <span aria-hidden="true">🧪</span> Latihan Scan (20 Struk Dummy)
             </button>
           </div>
 
@@ -2210,6 +2231,16 @@ export const TambahView: React.FC<TambahViewProps> = ({
         <KameraStrukModal
           onTutup={() => setKameraPanduanBuka(false)}
           onFotoTerambil={(file) => {
+            void handleProsesFileStruk(file);
+          }}
+        />
+      )}
+
+      {/* Modal Latihan Scan OCR (20 Struk Dummy) */}
+      {modalLatihanBuka && (
+        <ModalLatihanOcr
+          onTutup={() => setModalLatihanBuka(false)}
+          onPilihBerkas={(file) => {
             void handleProsesFileStruk(file);
           }}
         />
