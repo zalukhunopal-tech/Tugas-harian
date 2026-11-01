@@ -24,10 +24,10 @@ import { buatId, muatIdTerhapus } from "../lib/storage";
 import { kompresBukti } from "../lib/buktiStorage";
 import {
   optimalkanGambarStruk,
-  prosesStrukDenganGemini,
   HasilBacaStruk,
   ambilPengaturanGemini,
 } from "../lib/geminiStruk";
+import { prosesStrukLokal, HasilOcrLokal } from "../lib/ocrStruk";
 import { KameraStrukModal } from "./KameraStrukModal";
 import { BagianFormKegiatan, DanaKegiatanFormFields } from "./DanaKegiatanFormFields";
 import {
@@ -190,8 +190,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const formRef = useRef<HTMLFormElement>(null);
 
   const [memuatScan, setMemuatScan] = useState(false);
+  const [statusProgressScan, setStatusProgressScan] = useState<string>("");
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
-  const [hasilScan, setHasilScan] = useState<HasilBacaStruk | null>(null);
+  const [hasilScan, setHasilScan] = useState<HasilOcrLokal | null>(null);
   const [errorScan, setErrorScan] = useState<string | null>(null);
   const [kameraPanduanBuka, setKameraPanduanBuka] = useState(false);
 
@@ -374,10 +375,12 @@ export const TambahView: React.FC<TambahViewProps> = ({
     if (!file) return;
     try {
       setMemuatScan(true);
+      setStatusProgressScan("Menyiapkan OCR lokal...");
       setErrorScan(null);
       setHasilScan(null);
 
       // Foto struk belanja otomatis dijadikan bukti transaksi (Requirement A1 & A2)
+      // Bukti asli dipertahankan secara utuh dan dikompres untuk dokumen SPJ
       try {
         const kompres = await kompresBukti(file, file.name || "struk.jpg");
         setBukti((prev) => [
@@ -396,18 +399,37 @@ export const TambahView: React.FC<TambahViewProps> = ({
         console.warn("Gagal mengompres struk sebagai bukti:", errBukti);
       }
 
-      const { base64, mimeType, previewUrl } = await optimalkanGambarStruk(file);
+      // Gunakan object URL untuk pratinjau animasi laser scanner
+      const previewUrl = URL.createObjectURL(file);
       setPreviewFoto(previewUrl);
 
-      const hasil = await prosesStrukDenganGemini(base64, mimeType);
+      // Jalankan OCR lokal di browser (Web Worker Tesseract.js)
+      const hasil = await prosesStrukLokal(file, {
+        dana,
+        jenisTransaksi: jenis,
+        onProgress: (pInfo) => {
+          setStatusProgressScan(pInfo.status);
+        },
+      });
 
       if (hasil.sukses) {
         setHasilScan(hasil);
-        // Otomatis isi data pengeluaran dari hasil pembacaan Gemini
+        // Otomatis isi data pengeluaran dari hasil pembacaan OCR lokal
         setJenis("pengeluaran");
         if (hasil.deskripsi) setDeskripsi(hasil.deskripsi);
-        if (hasil.jumlah && hasil.jumlah > 0) setJumlah(String(hasil.jumlah));
-        if (hasil.tanggal) setTanggal(hasil.tanggal);
+
+        // Hanya isi nominal jika formulir belum diisi manual oleh pengguna
+        const sudahIsiJumlah = Boolean(jumlah && jumlah.trim() !== "" && jumlah !== "0");
+        if (!sudahIsiJumlah && hasil.jumlah && hasil.jumlah > 0) {
+          setJumlah(String(hasil.jumlah));
+        }
+
+        // Hanya isi tanggal jika pengguna belum memasukkan tanggal kustom
+        const sudahIsiTanggal = Boolean(tanggal && tanggal.trim() !== "" && tanggal !== hariIni());
+        if (!sudahIsiTanggal && hasil.tanggal) {
+          setTanggal(hasil.tanggal);
+        }
+
         if (hasil.kategori) {
           const list = KATEGORI[dana]?.pengeluaran || [];
           const match = list.find(
@@ -426,7 +448,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setCatatan(hasil.catatan);
         }
 
-        // Isian Khusus Dana Kegiatan dari Gemini
+        // Isian Khusus Dana Kegiatan dari OCR
         if (hasil.jenisBukti) {
           setJenisBukti(hasil.jenisBukti);
         }
@@ -452,23 +474,32 @@ export const TambahView: React.FC<TambahViewProps> = ({
       } else {
         setErrorScan(
           hasil.pesan ||
-            "Struk belanja tidak terbaca dengan jelas. Silakan coba dengan pencahayaan lebih terang atau isi manual."
+            "Struk belanja tidak terbaca dengan jelas oleh OCR lokal. Silakan coba dengan foto lebih terang atau isi manual."
         );
       }
     } catch (err: any) {
       setErrorScan(
         err.message ||
-          "Gagal memproses struk dengan Gemini. Pastikan perangkat terhubung ke internet."
+          "Gagal memproses struk dengan OCR lokal."
       );
     } finally {
       setMemuatScan(false);
+      setStatusProgressScan("");
     }
   };
 
   const handleResetScan = () => {
+    if (previewFoto && previewFoto.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(previewFoto);
+      } catch {
+        // ignore
+      }
+    }
     setPreviewFoto(null);
     setHasilScan(null);
     setErrorScan(null);
+    setStatusProgressScan("");
     if (kameraInputRef.current) kameraInputRef.current.value = "";
     if (galeriInputRef.current) galeriInputRef.current.value = "";
     if (onResetInitialScan) onResetInitialScan();
@@ -1749,17 +1780,17 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
         </div>
 
-      {/* Bagian Scan Struk Belanja dengan Gemini AI */}
+      {/* Bagian Scan Struk Belanja dengan OCR Lokal (Tesseract.js) */}
       {!editTransaksi && (
-        <section className="card-struk-scanner" aria-label="Scan Struk Belanja dengan Gemini AI">
+        <section className="card-struk-scanner" aria-label="Scan Struk Belanja dengan OCR Lokal">
           <div className="struk-scanner-header">
             <div className="struk-scanner-judul">
               <span className="struk-scanner-ikon" aria-hidden="true">
                 🧾
               </span>
               <div>
-                <h3 className="struk-scanner-nama">Scan Struk Belanja Otomatis (Gemini AI)</h3>
-                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi formulir pengeluaran</span>
+                <h3 className="struk-scanner-nama">Scan Struk Belanja Otomatis (OCR Lokal)</h3>
+                <span className="help struk-scanner-ket">Foto struk kasir atau unggah gambar untuk otomatis mengisi formulir pengeluaran tanpa kuota/internet</span>
               </div>
             </div>
           </div>
@@ -1794,7 +1825,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
           {memuatScan && (
             <div className="struk-scan-loading-text">
               <span>⚡</span>
-              <span>Gemini AI sedang membaca dan menganalisis struk belanja Anda…</span>
+              <span>{statusProgressScan || "OCR lokal sedang membaca dan menganalisis struk belanja Anda…"}</span>
             </div>
           )}
 
@@ -1803,7 +1834,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <div className="struk-hasil-sukses">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                 <strong style={{ color: "var(--masuk)", fontSize: "0.88rem", display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span>✓</span> Struk Berhasil Dibaca oleh Gemini AI!
+                  <span>✓</span> Struk Berhasil Dibaca (OCR Lokal)!
                 </strong>
                 <button
                   type="button"
@@ -1832,6 +1863,46 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
                 <span>💳 {hasilScan.metode}</span>
               </div>
+
+              {/* Kandidat Pilihan Nominal jika terdeteksi angka lain */}
+              {hasilScan.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
+                <div style={{ marginTop: "10px", padding: "8px 10px", background: "var(--bg)", borderRadius: "8px", border: "1px dashed var(--border)" }}>
+                  <div style={{ fontSize: "0.76rem", color: "var(--muted)", marginBottom: "6px", fontWeight: 600 }}>
+                    Angka lain terdeteksi pada struk (klik untuk ganti nominal):
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {hasilScan.kandidatJumlah.map((k, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setJumlah(String(k.nominal))}
+                        style={{
+                          fontSize: "0.74rem",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          border: jumlah === String(k.nominal) ? "1px solid var(--accent)" : "1px solid var(--border)",
+                          background: jumlah === String(k.nominal) ? "var(--accent-alpha)" : "var(--card-bg, #fff)",
+                          color: jumlah === String(k.nominal) ? "var(--accent)" : "var(--text)",
+                          cursor: "pointer",
+                          fontWeight: jumlah === String(k.nominal) ? 700 : 500,
+                        }}
+                      >
+                        {formatRupiah(k.nominal)} ({k.label})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Peringatan faktual */}
+              {hasilScan.peringatan && hasilScan.peringatan.length > 0 && (
+                <div style={{ marginTop: "8px", fontSize: "0.75rem", color: "var(--warning, #e67e22)" }}>
+                  {hasilScan.peringatan.map((p, pIdx) => (
+                    <div key={pIdx}>ℹ️ {p}</div>
+                  ))}
+                </div>
+              )}
+
               <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--accent)" }}>
                 ↓ Silakan periksa detail pada formulir di bawah sebelum menyimpan.
               </p>

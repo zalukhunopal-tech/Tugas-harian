@@ -678,7 +678,7 @@ export const KameraStrukModal: React.FC<KameraStrukModalProps> = ({
         {fotoPratinjau ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
             <div style={{ color: "#fff", fontSize: "0.85rem", fontWeight: 600, textAlign: "center" }}>
-              Foto terpotong pas sesuai kotak panduan. Kirim ke Gemini AI?
+              Foto terpotong pas sesuai kotak panduan. Proses dengan OCR lokal?
             </div>
             <div style={{ display: "flex", gap: "12px", width: "100%", maxWidth: "360px" }}>
               <button
