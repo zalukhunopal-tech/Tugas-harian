@@ -18,3 +18,4 @@ public/*.zip
 # Berkas kerja Google AI Studio (tangkapan layar dan media sementara). Bisa berisi data pribadi, jadi jangan dilacak di repo publik.
 .aistudio/
 public/assets/aistudio/
+uji_10_bukti/

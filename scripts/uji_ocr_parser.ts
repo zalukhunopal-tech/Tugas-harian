@@ -328,10 +328,66 @@ cek("myIM3: tidak ada jam 1027 di kandidat", !hIm3.kandidatJumlah.some((k) => k.
 cek("myIM3: tidak ada tahun 2026 di kandidat", !hIm3.kandidatJumlah.some((k) => k.nominal === 2026));
 cek("myIM3: kandidat hanya 1 yaitu 125.000", hIm3.kandidatJumlah.length === 1 && hIm3.kandidatJumlah[0].nominal === 125000, hIm3.kandidatJumlah);
 
+console.log("\n== 19. Kasus Nyata: Dokumen KTP / Identitas Warga (SPJ Honorarium)");
+const teksKtp = `
+PROVINSI KALIMANTAN UTARA
+KABUPATEN NUNUKAN
+NIK : BY405074612840002
+Nama JERINA 8
+Tempat/Tgl Lahir : BALIKU, 06-12-1984
+Jenis kelamin : PEREMPUAN Gol Darah : -
+Alamat : BALIKU
+RTRW 001/000
+Kecamatan : KRAYAN TENGAH
+Agama : KRISTEN
+Status Perkawinan: KAWIN
+Pekerjaan : MENGURUS RUMAH TANGGA
+`;
+const hKtp = uraiTeksOcrTransaksi(teksKtp);
+cek("KTP: sukses", hKtp.sukses === true);
+cek("KTP: nama penerima JERINA", hKtp.namaPenjualPenyedia === "JERINA", hKtp.namaPenjualPenyedia);
+cek("KTP: jenis bukti Bukti tidak lengkap", hKtp.jenisBukti === "Bukti tidak lengkap");
+cek("KTP: kategori kegiatan Honorarium & Ganti Hari", hKtp.kategoriDanaKegiatan === "Honorarium & Ganti Hari");
+cek("KTP: kategori pribadi Lain-lain", hKtp.kategori === "Lain-lain");
+cek("KTP: jumlah undefined (TIDAK mengekstrak NIK sebagai uang)", hKtp.jumlah === undefined, hKtp.jumlah);
+cek("KTP: kandidat jumlah kosong", hKtp.kandidatJumlah.length === 0, hKtp.kandidatJumlah);
+cek("KTP: deskripsi identitas penerima", hKtp.deskripsi?.includes("KTP - JERINA") === true, hKtp.deskripsi);
+cek("KTP: ada peringatan KTP", hKtp.peringatan.some((p) => p.includes("KTP/Identitas kependudukan")));
+
+console.log("\n== 20. Kasus Nyata: Tiket Speedboat Kalimantan Utara (Pemulihan Nominal Faint)");
+const teksSpeedboat = `
+SB. MENARA STHOL NIK}
+PENUMPANG LOKET NUNUKAN
+NUNUKAN - TARAKAN
+2. Rp. 280.01 ae al
+`;
+const hSb = uraiTeksOcrTransaksi(teksSpeedboat);
+cek("Speedboat: sukses", hSb.sukses === true);
+cek("Speedboat: armada SB. MENARA NIKLAS", hSb.namaPenjualPenyedia?.includes("MENARA NIKLAS") === true, hSb.namaPenjualPenyedia);
+cek("Speedboat: jenis bukti Tiket", hSb.jenisBukti === "Tiket");
+cek("Speedboat: kategori kegiatan Transportasi", hSb.kategoriDanaKegiatan === "Transportasi");
+cek("Speedboat: kategori pribadi Transportasi", hSb.kategori === "Transportasi");
+cek("Speedboat: nominal pulih ke 280.000 (dari Rp. 280.01)", hSb.jumlah === 280000, hSb.jumlah);
+
+console.log("\n== 21. Kasus Nyata: Boarding Pass Pesawat Udara");
+const teksBoardingPass = `
+Suc I
+Boarding P-
+Name
+IPR VAN
+Depart Time: 08:30
+Arrive Time: 09:15
+`;
+const hBp = uraiTeksOcrTransaksi(teksBoardingPass);
+cek("Boarding Pass: sukses", hBp.sukses === true);
+cek("Boarding Pass: jenis bukti Tiket pesawat/e-ticket", hBp.jenisBukti === "Tiket pesawat/e-ticket");
+cek("Boarding Pass: kategori kegiatan Transportasi", hBp.kategoriDanaKegiatan === "Transportasi");
+cek("Boarding Pass: deskripsi memuat nama penumpang IPR VAN", hBp.deskripsi?.includes("IPR VAN") === true, hBp.deskripsi);
+
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 18 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 21 pengujian parser OCR transaksi lolos dengan sempurna!");
 }
 
