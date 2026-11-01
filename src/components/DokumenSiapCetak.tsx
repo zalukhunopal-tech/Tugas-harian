@@ -9,6 +9,12 @@ import { susunLaporanKegiatan, tanggalSingkat } from "../lib/susunanLaporan";
 import { cetakDokumen } from "../lib/cetak";
 import { GambarLampiran } from "./GambarLampiran";
 import { DokumenLaporanKegiatan } from "./DokumenLaporanKegiatan";
+import {
+  muatPreferensiTataLetak,
+  simpanPreferensiTataLetak,
+  simpanUmpanBalikTataLetak,
+  PreferensiTataLetak,
+} from "../lib/preferensiTataLetak";
 
 interface DokumenSiapCetakProps {
   /** Transaksi yang sudah disaring dan diurutkan menurut tanggal oleh LaporanView. */
@@ -303,6 +309,36 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
     });
   }, []);
 
+  const [bukaPengaturan, setBukaPengaturan] = useState(false);
+  const [pref, setPref] = useState<PreferensiTataLetak>(() => muatPreferensiTataLetak());
+  const [skorRating, setSkorRating] = useState<number>(5);
+  const [kepuasanPosisi, setKepuasanPosisi] = useState<"puas" | "kurang_puas" | "perlu_perbaikan">("puas");
+  const [kecukupanRuang, setKecukupanRuang] = useState<"terlalu_sempit" | "pas" | "terlalu_longgar">("pas");
+  const [efisiensiRuang, setEfisiensiRuang] = useState<"optimal" | "terlalu_renggang" | "terpotong">("optimal");
+  const [catatanFeedback, setCatatanFeedback] = useState<string>("");
+  const [statusSimpan, setStatusSimpan] = useState<string>("");
+
+  const handleSimpanPreferensi = () => {
+    simpanPreferensiTataLetak(pref);
+    simpanUmpanBalikTataLetak({
+      rating: skorRating,
+      aspek: "keseluruhan",
+      catatan: [
+        `Kepuasan posisi: ${kepuasanPosisi}`,
+        `Kecukupan ruang tempel: ${kecukupanRuang}`,
+        `Efisiensi ruang halaman: ${efisiensiRuang}`,
+        catatanFeedback ? `Catatan: ${catatanFeedback}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    });
+    setStatusSimpan("Preferensi & masukan Anda berhasil disimpan!");
+    setTimeout(() => {
+      setStatusSimpan("");
+      setBukaPengaturan(false);
+    }, 1500);
+  };
+
   const totalMasuk = kelompok.filter((k) => k.jenis === "pemasukan").reduce((s, k) => s + k.total, 0);
   const totalKeluar = kelompok.filter((k) => k.jenis === "pengeluaran").reduce((s, k) => s + k.total, 0);
   // Uang harian tidak memerlukan bukti per hari (sudah berupa timesheet), jadi tidak dihitung "belum punya bukti".
@@ -356,6 +392,14 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
           <button
             type="button"
             className="btn-secondary"
+            onClick={() => setBukaPengaturan(true)}
+            title="Atur kelonggaran kotak tempel, jarak pasangan, dan simpan penilaian preferensi Anda"
+          >
+            ⚙️ Preferensi Tata Letak
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
             disabled={sedangMemuat.size > 0}
             onClick={() => cetakDokumen()}
             title={judulTombol(
@@ -376,6 +420,207 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
             </button>
           )}
         </div>
+
+        {bukaPengaturan && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: "16px",
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "#ffffff",
+                color: "#1e293b",
+                borderRadius: "8px",
+                maxWidth: "520px",
+                width: "100%",
+                maxHeight: "90vh",
+                overflowY: "auto",
+                padding: "24px",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>⚙️ Pengaturan &amp; Preferensi Tata Letak</h3>
+                <button
+                  type="button"
+                  onClick={() => setBukaPengaturan(false)}
+                  style={{ background: "transparent", border: "none", fontSize: "1.2rem", cursor: "pointer", color: "#64748b" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95rem", color: "#334155" }}>1. Kalibrasi Jarak &amp; Ukuran Fisik (mm)</h4>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "0.85rem" }}>
+                  <label>
+                    Kelonggaran Tempel (mm):
+                    <input
+                      type="number"
+                      min={0}
+                      max={15}
+                      step={0.5}
+                      value={pref.kelonggaranTempelMm}
+                      onChange={(e) => setPref({ ...pref, kelonggaranTempelMm: Number(e.target.value) || 0 })}
+                      style={{ width: "100%", padding: "6px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                    />
+                    <small style={{ color: "#64748b" }}>Bawaan: 3 mm setiap sisi</small>
+                  </label>
+                  <label>
+                    Jarak Pasangan Bukti (mm):
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      step={0.5}
+                      value={pref.jarakPasanganMm}
+                      onChange={(e) => setPref({ ...pref, jarakPasanganMm: Number(e.target.value) || 0 })}
+                      style={{ width: "100%", padding: "6px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                    />
+                    <small style={{ color: "#64748b" }}>Bawaan: 5 mm (foto ↔ tempel)</small>
+                  </label>
+                  <label>
+                    Jarak Antar Transaksi (mm):
+                    <input
+                      type="number"
+                      min={0}
+                      max={25}
+                      step={0.5}
+                      value={pref.jarakAntarBlokMm}
+                      onChange={(e) => setPref({ ...pref, jarakAntarBlokMm: Number(e.target.value) || 0 })}
+                      style={{ width: "100%", padding: "6px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                    />
+                    <small style={{ color: "#64748b" }}>Bawaan: 6 mm antarblok</small>
+                  </label>
+                  <label>
+                    Susunan Pasangan Bawaan:
+                    <select
+                      value={pref.posisiPasanganDefault}
+                      onChange={(e) => setPref({ ...pref, posisiPasanganDefault: e.target.value as any })}
+                      style={{ width: "100%", padding: "6px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                    >
+                      <option value="otomatis">Otomatis (Adaptif)</option>
+                      <option value="samping">Berdampingan (Kiri-Kanan)</option>
+                      <option value="bawah">Vertikal (Atas-Bawah)</option>
+                    </select>
+                    <small style={{ color: "#64748b" }}>Urutan baca: digital dahulu</small>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "16px", borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
+                <h4 style={{ margin: "0 0 8px 0", fontSize: "0.95rem", color: "#334155" }}>2. Umpan Balik Preferensi Nyata Anda</h4>
+                <p style={{ margin: "0 0 10px 0", fontSize: "0.8rem", color: "#64748b" }}>
+                  Penilaian nyata Anda digunakan untuk memperbarui preferensi secara persisten, bukan sekadar riwayat klik.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "0.85rem" }}>
+                  <div>
+                    <label style={{ display: "block", marginBottom: "4px" }}>Kepuasan Tata Letak:</label>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      {[1, 2, 3, 4, 5].map((bintang) => (
+                        <button
+                          key={bintang}
+                          type="button"
+                          onClick={() => setSkorRating(bintang)}
+                          style={{
+                            background: skorRating >= bintang ? "#fbbf24" : "#e2e8f0",
+                            border: "none",
+                            borderRadius: "4px",
+                            padding: "4px 8px",
+                            cursor: "pointer",
+                            fontSize: "1rem",
+                          }}
+                        >
+                          ★
+                        </button>
+                      ))}
+                      <span style={{ marginLeft: "8px", alignSelf: "center", color: "#475569" }}>
+                        {skorRating === 5 ? "Sangat Baik" : skorRating >= 4 ? "Baik" : skorRating >= 3 ? "Cukup" : "Perlu Koreksi"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <label>
+                      Posisi Pasangan:
+                      <select
+                        value={kepuasanPosisi}
+                        onChange={(e) => setKepuasanPosisi(e.target.value as any)}
+                        style={{ width: "100%", padding: "5px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                      >
+                        <option value="puas">Puas</option>
+                        <option value="kurang_puas">Kurang Pas</option>
+                        <option value="perlu_perbaikan">Perlu Perbaikan</option>
+                      </select>
+                    </label>
+                    <label>
+                      Ruang Tempel Fisik:
+                      <select
+                        value={kecukupanRuang}
+                        onChange={(e) => setKecukupanRuang(e.target.value as any)}
+                        style={{ width: "100%", padding: "5px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px" }}
+                      >
+                        <option value="pas">Pas &amp; Sesuai Kertas</option>
+                        <option value="terlalu_sempit">Terlalu Sempit</option>
+                        <option value="terlalu_longgar">Terlalu Longgar</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label>
+                    Catatan / Permintaan Khusus:
+                    <textarea
+                      rows={2}
+                      value={catatanFeedback}
+                      onChange={(e) => setCatatanFeedback(e.target.value)}
+                      placeholder="Contoh: Kuitansi penginapan lebih nyaman berdampingan bila orientasi lanskap..."
+                      style={{ width: "100%", padding: "6px", marginTop: "4px", border: "1px solid #cbd5e1", borderRadius: "4px", boxSizing: "border-box" }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {statusSimpan && (
+                <div style={{ background: "#f0fdf4", color: "#166534", padding: "8px 12px", borderRadius: "4px", fontSize: "0.85rem", marginBottom: "12px" }}>
+                  ✓ {statusSimpan}
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setBukaPengaturan(false)}
+                  style={{ padding: "8px 14px" }}
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleSimpanPreferensi}
+                  style={{ padding: "8px 14px", backgroundColor: "#2563eb", color: "#ffffff", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: 600 }}
+                >
+                  💾 Simpan Preferensi &amp; Umpan Balik
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {aksiWord?.pesan && (
           <div
             role="status"

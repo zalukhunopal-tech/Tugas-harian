@@ -50,7 +50,15 @@ const GayaHalamanCetak: React.FC<{ kepala: string }> = ({ kepala }) => {
     `@top-right { content: ${teksKontenCss(kepala)}; font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #777777; vertical-align: bottom; padding-bottom: 5mm; }`,
     `@bottom-center { content: "Halaman " counter(page) " dari " counter(pages); font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #777777; vertical-align: top; padding-top: 5mm; }`,
   ].join(" ");
-  return <style>{`@media print { @page laporan-kegiatan { ${kotak} } @page timesheet-page { ${kotak} } }`}</style>;
+  return (
+    <style>{`
+      @media print {
+        @page laporan-kegiatan { ${kotak} }
+        @page akomodasi-page { ${kotak} }
+        @page timesheet-page { ${kotak} }
+      }
+    `}</style>
+  );
 };
 
 /** Satu lembar A4 potret atau lanskap. Di layar kepala halaman tampil di margin atas; saat dicetak diganti kotak margin @page. */
@@ -273,62 +281,81 @@ const PasanganBukti: React.FC<{
   onStatus: UbahStatusMuat;
   onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }> = ({ pasangan, googleToken, onStatus, onUkuran }) => {
-  const { kotak, foto, tataLetak, urutan, total, label } = pasangan;
+  const { kotak, foto, tataLetak, urutan, total, label, memerlukanKeputusanPengguna, alasanKeputusan, jarakPasanganMm = 5 } = pasangan;
   const judulFoto = `FOTO BUKTI DIGITAL${total > 1 ? ` (${urutan} DARI ${total})` : ""}`;
+
+  const renderPeringatan = () => {
+    if (!memerlukanKeputusanPengguna) return null;
+    return (
+      <div className="dlk-peringatan-keputusan-pengguna" role="alert">
+        ⚠️ <strong>Memerlukan Keputusan Pengguna:</strong> {alasanKeputusan || "Ukuran fisik melebihi batas area cetak orientasi ini."}
+      </div>
+    );
+  };
 
   if (tataLetak === "samping") {
     return (
-      <div
-        className="dlk-struk dlk-pasangan--samping"
-        data-testid="pasangan-bukti"
-        data-urutan={urutan}
-        data-total={total}
-        data-tataletak="samping"
-        style={{
-          "--tinggi": kotak.tinggiMm,
-          "--lebar-kotak": kotak.lebarMm,
-          gridTemplateColumns: `minmax(0, 1fr) calc(${kotak.lebarMm} * var(--mm))`,
-          minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
-        } as CSSProperties}
-      >
-        <div className="dlk-struk__foto">
-          <div className="dlk-struk__judul-foto">{judulFoto}</div>
-          {foto ? (
-            <figure className="dlk-foto dlk-foto--struk" data-testid="foto-bukti">
-              <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
-              {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
-            </figure>
-          ) : (
-            <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
-          )}
+      <div className="dlk-pasangan-wadah">
+        {renderPeringatan()}
+        <div
+          className="dlk-struk dlk-pasangan--samping"
+          data-testid="pasangan-bukti"
+          data-urutan={urutan}
+          data-total={total}
+          data-tataletak="samping"
+          style={{
+            "--tinggi": kotak.tinggiMm,
+            "--lebar-kotak": kotak.lebarMm,
+            gridTemplateColumns: `minmax(0, 1fr) calc(${kotak.lebarMm} * var(--mm))`,
+            gap: `calc(${jarakPasanganMm} * var(--mm))`,
+            minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
+          } as CSSProperties}
+        >
+          <div className="dlk-struk__foto">
+            <div className="dlk-struk__judul-foto">{judulFoto}</div>
+            {foto ? (
+              <figure className="dlk-foto dlk-foto--struk" data-testid="foto-bukti">
+                <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+                {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
+              </figure>
+            ) : (
+              <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
+            )}
+          </div>
+          <KotakTempel kotak={kotak} catatan={kotak.catatan} />
         </div>
-        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
       </div>
     );
   }
 
   return (
-    <div
-      className="dlk-pasangan dlk-pasangan--bawah"
-      data-testid="pasangan-bukti"
-      data-urutan={urutan}
-      data-total={total}
-      data-tataletak="bawah"
-      style={{
-        "--tinggi": kotak.tinggiMm,
-      } as CSSProperties}
-    >
-      {foto && (
-        <div className="dlk-foto--atas" style={{ marginBottom: 0 }}>
-          <div className="dlk-foto-judul">{judulFoto}</div>
-          <figure className="dlk-foto" data-testid="foto-bukti">
-            <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
-            {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
-          </figure>
+    <div className="dlk-pasangan-wadah">
+      {renderPeringatan()}
+      <div
+        className="dlk-pasangan dlk-pasangan--bawah"
+        data-testid="pasangan-bukti"
+        data-urutan={urutan}
+        data-total={total}
+        data-tataletak="bawah"
+        style={{
+          "--tinggi": kotak.tinggiMm,
+          display: "flex",
+          flexDirection: "column",
+          gap: `calc(${jarakPasanganMm} * var(--mm))`,
+        } as CSSProperties}
+      >
+        {foto && (
+          <div className="dlk-foto--atas" style={{ marginBottom: 0 }}>
+            <div className="dlk-foto-judul">{judulFoto}</div>
+            <figure className="dlk-foto" data-testid="foto-bukti">
+              <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+              {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
+            </figure>
+          </div>
+        )}
+        <div className="dlk-kotak--bawah">
+          <KotakTempel kotak={kotak} catatan={kotak.catatan} />
         </div>
-      )}
-      <div className="dlk-kotak--bawah">
-        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
       </div>
     </div>
   );
@@ -370,6 +397,23 @@ const BlokTransaksi: React.FC<{
 
   return (
     <section className="dlk-blok" data-testid="blok-transaksi" data-nomor={blok.nomor}>
+      {/* 1. Header Subkategori (jika mulai subkategori baru atau lanjutan) */}
+      {blok.mulaiSubkategori && (
+        <div className="dlk-subkategori-header" data-testid="subkategori-header">
+          <h4 className="dlk-subkategori-judul">
+            {blok.subkategoriNomor}. {blok.subkategoriNama}
+          </h4>
+        </div>
+      )}
+      {blok.lanjutanSubkategori && !blok.mulaiSubkategori && (
+        <div className="dlk-subkategori-lanjutan" data-testid="subkategori-lanjutan">
+          <span className="dlk-subkategori-lanjutan-teks">
+            (Lanjutan {blok.subkategoriNomor}. {blok.subkategoriNama})
+          </span>
+        </div>
+      )}
+
+      {/* 2. Kepala transaksi */}
       <div className="dlk-blok__kepala">
         <span>
           No. {blok.nomor}
@@ -379,12 +423,27 @@ const BlokTransaksi: React.FC<{
         <span className="dsc-jumlah">{formatRupiah(t.jumlah)}</span>
       </div>
 
+      {/* 3. Keterangan transaksi WAJIB sebelum bukti digital */}
+      <div className="dlk-keterangan">
+        {blok.keterangan.map((b, i) => (
+          <BarisKet key={i} baris={b} />
+        ))}
+      </div>
+
+      {/* 4. Lampiran berkas PDF jika ada */}
+      {blok.lampiranPdf.map((b) => (
+        <p key={b.id} className="dlk-tautan">
+          Lampiran bukti (lihat berkas asli): {b.driveLink || b.nama}
+        </p>
+      ))}
+
+      {/* 5. Pasangan bukti digital lalu ruang tempel fisik */}
       <div
         className={`dlk-daftar-pasangan${duaKolom ? " dlk-daftar-pasangan--dua-kolom" : ""}`}
         style={
           duaKolom
-            ? { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "calc(4 * var(--mm))" }
-            : { display: "flex", flexDirection: "column", gap: "calc(4 * var(--mm))" }
+            ? { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "calc(5 * var(--mm))" }
+            : { display: "flex", flexDirection: "column", gap: "calc(5 * var(--mm))" }
         }
       >
         {blok.pasangan.map((p, idx) => (
@@ -398,24 +457,14 @@ const BlokTransaksi: React.FC<{
         ))}
       </div>
 
-      {blok.lampiranPdf.map((b) => (
-        <p key={b.id} className="dlk-tautan">
-          Lampiran bukti (lihat berkas asli): {b.driveLink || b.nama}
-        </p>
-      ))}
-
-      <div className="dlk-keterangan">
-        {blok.keterangan.map((b, i) => (
-          <BarisKet key={i} baris={b} />
-        ))}
-      </div>
-
+      {/* 6. Kotak tempel tambahan jika ada */}
       {blok.kotakTambahan.map((k, i) => (
         <div className="dlk-kotak-tambahan" key={i}>
           <KotakTempel kotak={k} />
         </div>
       ))}
 
+      {/* 7. Foto pendukung jika ada */}
       {blok.fotoPendukung.map((f) => (
         <figure key={f.id} className="dlk-foto dlk-foto--pendukung">
           <GambarLampiran bukti={sebagaiBukti(f)} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />

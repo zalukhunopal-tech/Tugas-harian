@@ -393,9 +393,26 @@ export interface DetailPerdiem {
   keterangan?: string; // mis. wilayah atau rentang tanggal
 }
 
+export type StatusUkuranFisik =
+  | "measured"
+  | "calibrated_scan"
+  | "calibrated_reference"
+  | "matched_publisher_spec"
+  | "estimated_template"
+  | "estimated"
+  | "unknown";
+
+export interface UkuranKertasFisikManual {
+  lebarMm: number;
+  tinggiMm: number;
+  sumber: StatusUkuranFisik;
+  catatan?: string;
+}
+
 export interface DataKhususKegiatan {
   kegiatanId?: string;
   jenisBukti?: JenisBukti;
+  subkategori?: string;
   namaPenjualPenyedia?: string;
   rincian?: RincianBarangJasa;
   keteranganLaporan?: string;
@@ -413,6 +430,10 @@ export interface DataKhususKegiatan {
   penerimaManfaat?: string[];
   /** Ukuran kotak tempel yang dipilih manual; kosong = otomatis menurut kategori dan jenis bukti. */
   kotakTempel?: UkuranKotakTempel;
+  /** Koreksi ukuran kertas fisik asli (mm) yang diinputkan pengguna atau terkalibrasi */
+  ukuranKertasFisik?: UkuranKertasFisikManual;
+  /** Preferensi posisi bukti digital dan kotak tempel fisik */
+  posisiPasanganManual?: "otomatis" | "samping" | "bawah";
 }
 
 export interface LaporanKegiatanFileContent {

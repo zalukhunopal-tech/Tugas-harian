@@ -1377,6 +1377,42 @@ export async function buatDokumenLaporanKegiatanDocx(
 
     for (const blok of kel.blok) {
       const trx = blok.transaksi;
+
+      // 1. Judul Subkategori (atau penanda lanjutan antarhalaman)
+      if (blok.mulaiSubkategori) {
+        childrenSections.push(
+          new Paragraph({
+            spacing: { before: 200, after: 60 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "64748b" } },
+            children: [
+              new TextRun({
+                text: `${blok.subkategoriNomor}. ${blok.subkategoriNama.toUpperCase()}`,
+                bold: true,
+                font: "Arial",
+                size: 23,
+                color: "1e293b",
+              }),
+            ],
+          })
+        );
+      } else if (blok.lanjutanSubkategori) {
+        childrenSections.push(
+          new Paragraph({
+            spacing: { before: 100, after: 40 },
+            children: [
+              new TextRun({
+                text: `(Lanjutan ${blok.subkategoriNomor}. ${blok.subkategoriNama})`,
+                italics: true,
+                font: "Arial",
+                size: 19,
+                color: "64748b",
+              }),
+            ],
+          })
+        );
+      }
+
+      // 2. Kepala transaksi
       childrenSections.push(
         new Paragraph({
           pageBreakBefore: blok.halamanBaru,
@@ -1390,7 +1426,20 @@ export async function buatDokumenLaporanKegiatanDocx(
         })
       );
 
-      // 1. Pasangan bukti asli dan foto bukti digital (satu kotak per foto bukan PDF)
+      // 3. KETERANGAN TRANSAKSI WAJIB SEBELUM BUKTI DIGITAL
+      blok.keterangan.forEach((b, i) => childrenSections.push(paragrafKeterangan(b, i === 0 ? 80 : 0)));
+
+      // 4. Lampiran PDF (ditulis sebagai tautan berkas asli)
+      for (const tautan of blok.lampiranPdf.map((b) => b.driveLink || b.nama)) {
+        childrenSections.push(
+          new Paragraph({
+            spacing: { before: 40, after: 30 },
+            children: [new TextRun({ text: `Lampiran bukti (lihat berkas asli): ${tautan}`, italics: true, font: "Arial", size: 17, color: "555555" })],
+          })
+        );
+      }
+
+      // 5. Pasangan bukti digital lalu ruang tempel fisik asli
       const duaKolom =
         blok.pasangan.length === 2 &&
         blok.pasangan.every((p) => p.tataLetak === "bawah" && p.kotak.lebarMm <= 90);
@@ -1412,8 +1461,8 @@ export async function buatDokumenLaporanKegiatanDocx(
       } else {
         for (const [idxPasangan, p] of blok.pasangan.entries()) {
           if (idxPasangan > 0) {
-            // Jarak antarpasangan minimal 4 mm
-            childrenSections.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
+            // Jarak antarpasangan minimal 5 mm
+            childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
           }
           let foto: GambarDokumen | null = null;
           if (p.foto) {
@@ -1432,25 +1481,12 @@ export async function buatDokumenLaporanKegiatanDocx(
         }
       }
 
-      // 2. Lampiran PDF (ditulis sebagai tautan berkas asli)
-      for (const tautan of blok.lampiranPdf.map((b) => b.driveLink || b.nama)) {
-        childrenSections.push(
-          new Paragraph({
-            spacing: { before: 40, after: 30 },
-            children: [new TextRun({ text: `Lampiran bukti (lihat berkas asli): ${tautan}`, italics: true, font: "Arial", size: 17, color: "555555" })],
-          })
-        );
-      }
-
-      // 3. Keterangan langsung di bawah kotak
-      blok.keterangan.forEach((b, i) => childrenSections.push(paragrafKeterangan(b, i === 0 ? 80 : 0)));
-
-      // 4. Kotak tempel tambahan sesuai kelompok (boarding pass, STNK, KTP, NPWP)
+      // 6. Kotak tempel tambahan sesuai kelompok (boarding pass, STNK, KTP, NPWP)
       for (const tambahan of blok.kotakTambahan) {
         childrenSections.push(new Paragraph({ spacing: { before: 80, after: 40 }, children: [] }), buatKotakTempel(tambahan.judul, tambahan.keterangan, tambahan.tinggiMm, mountStyle));
       }
 
-      // 5. Foto pendukung transaksi (lebar maks. 12 cm, keterangan miring)
+      // 7. Foto pendukung transaksi (lebar maks. 12 cm, keterangan miring)
       for (const foto of blok.fotoPendukung) {
         const gambar = await muatGambar(foto, googleToken);
         if (!gambar) continue;
