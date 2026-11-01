@@ -122,13 +122,27 @@ export function uraikanNominalRupiah(teks: string): number | null {
   // Buang sufiks ,- atau .-
   bersih = bersih.replace(/[,\.]\s*-+$/, "");
 
+  // Kasus Khusus Tiket/Struk Indonesia: Format desimal 2 digit dengan prefiks Rp (mis. "Rp. 280.01" atau "Rp. 280.00" atau "Rp. 145.00")
+  // Pada tiket speedboat/transportasi fisik, angka ribuan sering terpotong atau digit terakhir pudar (.00 / .01).
+  // Dalam Rupiah Indonesia tidak ada pecahan sen untuk transaksi fisik transportasi/retail.
+  if (adaPrefiksMataUang && /^\d{2,3}[\.,]0[0-9]$/.test(bersih)) {
+    const bagianUtama = parseInt(bersih.replace(/[\.,].*$/, ""), 10);
+    if (!isNaN(bagianUtama) && bagianUtama >= 20 && bagianUtama <= 999) {
+      return bagianUtama * 1000;
+    }
+  }
+
   // Pola desimal Indonesia: 150.000,00 -> buang ,00
   if (/,\d{2}$/.test(bersih)) {
     bersih = bersih.replace(/,\d{2}$/, "");
   } else if (/\.\d{2}$/.test(bersih) && (bersih.match(/\./g) || []).length === 1 && !bersih.includes(",")) {
-    // Pola desimal standar luar: 150.00 atau 1500.00 (hanya 1 titik dan 2 angka di akhir)
+    // Pola desimal standar: jika ada prefiks Rp dan 2 digit akhir
     const bagian = bersih.split(".");
     if (bagian[0].length <= 3) {
+      const bagian0Num = parseInt(bagian[0], 10);
+      if (adaPrefiksMataUang && bagian0Num >= 20 && bagian0Num <= 999 && bagian[1] === "00") {
+        return bagian0Num * 1000;
+      }
       bersih = bagian[0];
     }
   }
@@ -154,9 +168,12 @@ export function uraikanNominalRupiah(teks: string): number | null {
   const nilai = parseInt(hanyaDigit, 10);
   if (isNaN(nilai) || nilai <= 0) return null;
 
-  // 3b. Angka 4 digit tahun masehi (2020-2035) tanpa prefiks Rp / IDR
-  if (nilai >= 2020 && nilai <= 2035 && !adaPrefiksMataUang) {
-    return null;
+  // 3b. Angka 4 digit tanpa pemisah ribuan dan tanpa prefiks Rp / IDR:
+  // - Tahun masehi (2020-2035)
+  // - Waktu jam:menit tanpa titik (misal 1027 dari 10:27 AM, 0925 dari 09:25 AM)
+  if (!adaPrefiksMataUang && !adaPemisahRibuan && hanyaDigit.length === 4) {
+    if (nilai >= 2020 && nilai <= 2035) return null; // Tahun
+    if (nilai >= 100 && nilai <= 2359) return null; // Pola jam digital status bar
   }
 
   // 4. Jika nilai >= 5.000.000 tapi tidak ada pemisah ribuan dan tidak ada prefiks Rp
@@ -227,8 +244,19 @@ export function ekstrakKandidatNominal(
       continue;
     }
 
-    // Abaikan baris bilah status ponsel (jam, 4G, 5G, LTE, WiFi, baterai, ED, dsb.)
-    if (/^\d{1,4}\b.*(?:4G|5G|LTE|WIFI|\bED\b|\bAM\b|\bPM\b)/i.test(baris)) {
+    // Abaikan jika baris atau baris sebelumnya berkaitan dengan KTP / identitas kependudukan / tanggal lahir
+    if (
+      /\b(NIK|N\.I\.K|KTP|KABUPATEN|PROVINSI|KECAMATAN|KELURAHAN|DESA|RTRW|RT\/RW|LAHIR|AGAMA|KAWIN|GOL\.?\s*DARAH|KEWARGANEGARAAN|PEKERJAAN|BERLAKU\s*HINGGA)\b/i.test(barisAtas) ||
+      (barisSebelum && /\b(NIK|N\.I\.K|KTP|TEMPAT|LAHIR|RTRW|KECAMATAN|KEWARGANEGARAAN)\b/i.test(barisSebelum))
+    ) {
+      continue;
+    }
+
+    // Abaikan baris bilah status ponsel (jam, sinyal 4G/5G, LTE, WiFi, baterai, dsb.)
+    if (
+      (idx <= 2 && /^\d{1,4}\b.*(?:4G|5G|LTE|WIFI|\bED\b|\bAM\b|\bPM\b|N\d+|[\.:]\s*[A-Z])/i.test(baris)) ||
+      (idx <= 2 && /^(?:[01]?[0-9]|2[0-3])[\.:][0-5][0-9]\b/i.test(baris))
+    ) {
       continue;
     }
 
@@ -252,8 +280,9 @@ export function ekstrakKandidatNominal(
     }
 
     // Cari pola angka uang di dalam baris
-    // Hanya izinkan 4-7 digit jika tanpa pemisah, atau berapapun jika berformat pemisah ribuan
-    const matches = baris.match(/(?:Rp\.?|IDR)?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,7})/gi);
+    // Mendukung ribuan standar (mis. 50.000 / 125.000), 4-7 digit murni (mis. 50000),
+    // serta pola khusus tiket fisik/dot-matrix (mis. "Rp. 280.01" atau "Rp. 280.00" atau "Rp 145.00")
+    const matches = baris.match(/(?:Rp\.?|IDR)?\s*([0-9]{1,3}(?:[.,\s][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,7})|(?:Rp\.?|IDR)\s*[0-9]{2,3}[.,][0-9]{2}\b/gi);
     if (!matches) continue;
 
     for (const rawCocok of matches) {
@@ -269,6 +298,19 @@ export function ekstrakKandidatNominal(
 
       // Filter angka terlalu kecil yang biasanya adalah kuantitas barang, nomor antrean, atau nomor meja
       if (nominal < 500 && !/Rp|IDR/i.test(rawCocok)) {
+        continue;
+      }
+
+      // Filter angka 4 digit di bawah 10.000 (mis. 1027, 3710) yang tidak memiliki prefiks Rp,
+      // tidak memiliki pemisah ribuan, dan baris tidak memuat kata kunci total/harga/bayar
+      if (
+        nominal < 10000 &&
+        !/Rp|IDR/i.test(rawCocok) &&
+        !/Rp|IDR/i.test(baris) &&
+        !polaTotalUtama.test(barisAtas) &&
+        !polaTotalBiasa.test(barisAtas) &&
+        !/HARGA|TARIF|BIAYA/i.test(barisAtas)
+      ) {
         continue;
       }
 
@@ -560,7 +602,12 @@ function apakahBarisSampah(b: string): boolean {
   }
 
   // Label transaksi / header struk umum
-  if (/^(?:STRUK|NOTA|BUKTI|SELAMAT\s*DATANG|THANK\s*YOU|TERIMA\s*KASIH|INVOICE|FAKTUR|TAGIHAN|RECEIPT|BILL|DETAIL|RINCIAN|STATUS|INFORMASI|PACKAGE|BERHASIL|SUCCESS|SELESAI|ID\s*TRANSAKSI)/i.test(b)) {
+  if (/\b(?:STRUK|NOTA|BUKTI|SELAMAT\s*DATANG|THANK\s*YOU|TERIMA\s*KASIH|INVOICE|FAKTUR|TAGIHAN|RECEIPT|BILL|DETAIL\s*TRANSAKSI|RINCIAN\s*TRANSAKSI|PACKAGE\s*PURCHASE|STATUS|INFORMASI|BERHASIL|SUCCESS|SELESAI|ID\s*TRANSAKSI)\b/i.test(b)) {
+    return true;
+  }
+
+  // Header identitas KTP
+  if (/\b(?:PROVINSI|KABUPATEN|KOTA|KECAMATAN|KELURAHAN|DESA|RTRW|KARTU\s*TANDA\s*PENDUDUK|REPUBLIK\s*INDONESIA|NIK|GOL\.?\s*DARAH|JENIS\s*KELAMIN|TEMPAT|TGL\s*LAHIR|AGAMA|STATUS\s*PERKAWINAN|PEKERJAAN|KEWARGANEGARAAN|BERLAKU\s*HINGGA)\b/i.test(b)) {
     return true;
   }
 
@@ -596,6 +643,220 @@ function bersihkanNamaToko(nama: string): string {
     .replace(/[^a-zA-Z0-9\.\-]+$/, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/**
+ * Deteksi KTP / Identitas kependudukan untuk pelaporan SPJ administrasi honorarium/perdiem.
+ */
+export function deteksiDokumenKtp(teksMentah: string, barisDaftar: string[]): {
+  isKtp: boolean;
+  namaLengkap?: string;
+  nik?: string;
+  kabupatenKota?: string;
+  kecamatan?: string;
+} {
+  const t = teksMentah.toUpperCase();
+
+  const adaNik =
+    /\b(?:N[\.\s]*I[\.\s]*K|KTP|TANDA\s*PENDUDUK)\b/i.test(t) ||
+    /\b[0-9]{15,16}\b/.test(t) ||
+    /[A-Z0-9]{2}[0-9]{14}/.test(t);
+
+  const kataKunci = [
+    /\bPROVINSI\b/,
+    /\b(?:KABUPATEN|KOTA)\b/,
+    /\bKECAMATAN\b/,
+    /\b(?:KEL\/DESA|KELURAHAN|DESA)\b/,
+    /\b(?:TEMPAT|TGL\s*LAHIR|LAHIR)\b/,
+    /\b(?:JENIS\s*KELAMIN|PEREMPUAN|LAKI-LAKI)\b/,
+    /\b(?:GOL\.?\s*DARAH|DARAH)\b/,
+    /\b(?:AGAMA|KRISTEN|ISLAM|KATOLIK|HINDU|BUDDHA)\b/,
+    /\b(?:STATUS\s*PERKAWINAN|KAWIN|BELUM\s*KAWIN)\b/,
+    /\b(?:PEKERJAAN|RUMAH\s*TANGGA|PELAJAR|WIRASWASTA|PETANI|PEGAWAI)\b/,
+    /\b(?:KEWARGANEGARAAN|WNI)\b/,
+    /\b(?:BERLAKU\s*HINGGA|SEUMUR\s*HIDUP)\b/,
+    /\bRT[\s\/\.]*RW\b/,
+  ];
+
+  let skor = 0;
+  for (const p of kataKunci) {
+    if (p.test(t)) skor++;
+  }
+
+  const isKtp = (adaNik && skor >= 2) || skor >= 4;
+  if (!isKtp) return { isKtp: false };
+
+  // 1. Ekstrak Nama Warga / Kader
+  let namaLengkap: string | undefined;
+  const mNama = teksMentah.match(/(?:Nama|NAMA)\s*[:\s]*([^\r\n]{2,35})/i);
+  if (mNama && mNama[1].trim()) {
+    const barisPertamaNama = mNama[1].split(/[\r\n]/)[0].replace(/[\d\(\)]+/g, "").trim();
+    if (barisPertamaNama.length >= 2) {
+      namaLengkap = barisPertamaNama;
+    }
+  }
+
+  // Jika pola Nama belum dapat, cari baris tepat setelah NIK
+  if (!namaLengkap) {
+    const idxNik = barisDaftar.findIndex((b) => /\b(NIK|N\.I\.K)\b/i.test(b));
+    if (idxNik >= 0 && idxNik + 1 < barisDaftar.length) {
+      for (let j = idxNik + 1; j <= Math.min(idxNik + 3, barisDaftar.length - 1); j++) {
+        const kandidat = barisDaftar[j].replace(/^[-=:\s]+/, "").trim();
+        if (
+          kandidat.length >= 3 &&
+          !/^(?:TEMPAT|TGL|JENIS|PEREMPUAN|LAKI|ALAMAT|RT|KEL|KEC|AGAMA|STATUS|PEKERJAAN|NIK)/i.test(kandidat)
+        ) {
+          namaLengkap = kandidat.replace(/[\d\(\)]+/g, "").trim();
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Ekstrak NIK jika tertera
+  let nik: string | undefined;
+  const mNik = teksMentah.match(/(?:NIK|N\.I\.K)?\s*[:\s]*([A-Za-z0-9]{15,18})/i);
+  if (mNik) {
+    nik = mNik[1].replace(/[^0-9]/g, "");
+  }
+
+  // 3. Ekstrak Kecamatan / Kabupaten
+  let kecamatan: string | undefined;
+  const mKec = teksMentah.match(/Kecamatan\s*[:\s]*([A-Za-z\s]{3,25})/i);
+  if (mKec) kecamatan = mKec[1].trim();
+
+  let kabupatenKota: string | undefined;
+  const mKab = teksMentah.match(/(?:KABUPATEN|KOTA)\s*([A-Za-z\s]{3,25})/i);
+  if (mKab) kabupatenKota = mKab[1].trim();
+
+  return {
+    isKtp: true,
+    namaLengkap: namaLengkap || "Warga / Kader",
+    nik,
+    kabupatenKota,
+    kecamatan,
+  };
+}
+
+/**
+ * Deteksi Tiket Speedboat / Angkutan Air (Kalimantan Utara & Nasional).
+ */
+export function deteksiTiketTransportAir(teksMentah: string, barisDaftar: string[]): {
+  isTiketAir: boolean;
+  armada?: string;
+  rute?: string;
+  nominalTarif?: number;
+} {
+  const t = teksMentah.toUpperCase();
+
+  const polaArmada = /\b(RA\s*NIKLAS|NIKLAS\s*EXPRESS|MENARA\s*AS|MENARA\s*NIKLAS|MENARA\s*STHOL|SB\.?\s*MENARA|MERANA|TRISNA\s*EXPRESS|GULA-GULA|MALINAU\s*EXPRESS|SADADEWA|INDAH\s*JAYA|KALTARA\s*EXPRESS|NONI\s*EXPRESS|HARAPAN\s*BARU|TRI\s*PUTRI|SPEEDBOAT|SPEED\s*BOAT)\b/i;
+  const polaRute = /\b(TARAKAN|TANJUNG\s*SELOR|TG\.?\s*SELOR|NUNUKAN|MALINAU|SEBATIK|BUNYU|SUNGAI\s*NYAMUK|TIDENG\s*PALE)\b/i;
+  const polaTiket = /\b(PENUMPANG\s*LOKET|PASSENGER\s*TICKET|HARGA\s*TIKET|HARGATIKET|TIKET\s*SUDAH|JASA\s*RAHARJA|CARTERAN|KEBERANGKATAN|KEDATANGAN|KEDATA|ARRIVA|ARRIVAL|DEPARTURE|DERMAGA|PELABUHAN)\b/i;
+  const polaPrefixSb = /^\s*\(?[Ss][Bb]\.\s*/;
+
+  const adaPrefixSb = barisDaftar.some((b) => polaPrefixSb.test(b));
+  const adaArmada = polaArmada.test(t);
+  const adaRute = polaRute.test(t);
+  const adaTiket = polaTiket.test(t);
+
+  const isTiketAir = adaArmada || (adaPrefixSb && (adaRute || adaTiket)) || (adaRute && adaTiket) || (/KEBERANGKATAN|KEDATANGAN|KEDATA/i.test(t) && /MERANA|MENARA|DERMAGA/i.test(t));
+  if (!isTiketAir) return { isTiketAir: false };
+
+  // Identifikasi Armada
+  let armada: string | undefined;
+  if (/RA\s*NIKLAS/i.test(t)) {
+    armada = "RA NIKLAS EXPRESS";
+  } else if (/MENARA\s*AS/i.test(t)) {
+    armada = "SB. MENARA AS EXPRESS";
+  } else if (/MENARA\s*NIKLAS|MENARA\s*STHOL/i.test(t)) {
+    armada = "SB. MENARA NIKLAS";
+  } else if (/MERANA/i.test(t)) {
+    armada = "SB. MENARA EXPRESS";
+  } else if (/TRISNA/i.test(t)) {
+    armada = "SB. TRISNA EXPRESS";
+  } else if (/MALINAU\s*EXPRESS/i.test(t)) {
+    armada = "SB. MALINAU EXPRESS";
+  } else if (/GULA-GULA/i.test(t)) {
+    armada = "SB. GULA-GULA";
+  } else if (adaPrefixSb) {
+    const bSb = barisDaftar.find((b) => polaPrefixSb.test(b));
+    if (bSb) armada = bersihkanNamaToko(bSb);
+  } else {
+    for (let i = 0; i < Math.min(3, barisDaftar.length); i++) {
+      if (!apakahBarisSampah(barisDaftar[i])) {
+        armada = bersihkanNamaToko(barisDaftar[i]);
+        break;
+      }
+    }
+  }
+
+  // Identifikasi Rute
+  let rute: string | undefined;
+  const mTujuan = teksMentah.match(/(?:TUJUAN|RUTE|DARI|KE)[:\s]*([^\r\n]{4,35})/i);
+  if (mTujuan && mTujuan[1].trim()) {
+    rute = bersihkanNamaToko(mTujuan[1]);
+  } else {
+    // Cari kota asal - tujuan
+    const kota = ["TARAKAN", "TANJUNG SELOR", "TG. SELOR", "NUNUKAN", "MALINAU", "SEBATIK"];
+    const kotaDitemukan = kota.filter((k) => t.includes(k));
+    if (kotaDitemukan.length >= 2) {
+      rute = `${kotaDitemukan[0]} - ${kotaDitemukan[1]}`;
+    } else if (kotaDitemukan.length === 1) {
+      rute = kotaDitemukan[0];
+    }
+  }
+
+  return {
+    isTiketAir: true,
+    armada: armada || "Speedboat Express",
+    rute,
+  };
+}
+
+/**
+ * Deteksi Tiket Pesawat / Boarding Pass (Penerbangan Perintis / Komersial).
+ */
+export function deteksiTiketPesawat(teksMentah: string, barisDaftar: string[]): {
+  isPesawat: boolean;
+  maskapai?: string;
+  penumpang?: string;
+} {
+  const t = teksMentah.toUpperCase();
+
+  const polaBoarding = /\b(BOARDING\s*PASS|BOARDING\s*P-|BOARDING|PASSENGER\s*TICKET|E-TICKET)\b/i;
+  const polaWaktuFlight = /\b(?:DEPART\s*TIME|ARRIVE\s*TIME|FLIGHT\s*NO|FLIGHT|SEAT|GATE)\b/i;
+  const polaMaskapai = /\b(SUSI\s*AIR|SMART\s*AVIATION|SAM\s*AIR|LION\s*AIR|BATIK\s*AIR|WINGS\s*AIR|GARUDA|CITILINK|SUPER\s*AIR\s*JET|PELITA\s*AIR)\b/i;
+
+  const isPesawat = polaBoarding.test(t) || (polaWaktuFlight.test(t) && /AIR|FLIGHT|BANDARA|AIRPORT/i.test(t)) || polaMaskapai.test(t);
+  if (!isPesawat) return { isPesawat: false };
+
+  // Identifikasi Maskapai
+  let maskapai: string | undefined;
+  if (/SUSI\s*AIR/i.test(t)) maskapai = "Susi Air";
+  else if (/SMART\s*AVIATION/i.test(t)) maskapai = "Smart Aviation";
+  else if (/SAM\s*AIR/i.test(t)) maskapai = "SAM Air";
+  else if (/WINGS\s*AIR/i.test(t)) maskapai = "Wings Air";
+  else if (/BATIK\s*AIR/i.test(t)) maskapai = "Batik Air";
+  else if (/LION\s*AIR/i.test(t)) maskapai = "Lion Air";
+  else if (/GARUDA/i.test(t)) maskapai = "Garuda Indonesia";
+  else if (/CITILINK/i.test(t)) maskapai = "Citilink";
+  else if (/SUPER\s*AIR\s*JET/i.test(t)) maskapai = "Super Air Jet";
+
+  // Identifikasi Penumpang
+  let penumpang: string | undefined;
+  const mName = teksMentah.match(/(?:Name|Passenger\s*Name|Nama)[:\s\d]*([^\r\n]{3,30})/i);
+  if (mName && mName[1].trim()) {
+    const rawName = mName[1].split(/[\r\n]/)[0].trim();
+    if (!/^(?:DEPART|ARRIVE|FLIGHT|DATE|TIME|BOARDING|ATI\b|M\/F)/i.test(rawName)) {
+      penumpang = bersihkanNamaToko(rawName);
+    }
+  }
+
+  return {
+    isPesawat: true,
+    maskapai: maskapai || "Penerbangan",
+    penumpang,
+  };
 }
 
 /**
@@ -638,8 +899,45 @@ export function uraiTeksOcrTransaksi(
   let spbuTerdeteksi = false;
   let jenisBBM = "";
 
+  // Deteksi dokumen khusus lapangan
+  const ktp = deteksiDokumenKtp(teksMentah, baris);
+  const tiketAir = !ktp.isKtp ? deteksiTiketTransportAir(teksMentah, baris) : { isTiketAir: false };
+  const tiketPesawat = !ktp.isKtp && !tiketAir.isTiketAir ? deteksiTiketPesawat(teksMentah, baris) : { isPesawat: false };
+
+  // KASUS 0: Dokumen KTP / Identitas Warga (Lampiran SPJ Honorarium/Perdiem/Fasilitasi)
+  if (ktp.isKtp) {
+    jenisBukti = "Bukti tidak lengkap";
+    kategoriPribadi = "Lain-lain";
+    kategoriKegiatan = "Honorarium & Ganti Hari";
+    namaPenjualPenyedia = ktp.namaLengkap || "Warga / Kader";
+    kataKunciDeskripsi = "Identitas Penerima";
+    deskripsiKustom = `KTP - ${ktp.namaLengkap || "Warga/Kader"} (Identitas Penerima)`;
+    keteranganLaporanKustom = `Lampiran identitas KTP penerima (${ktp.namaLengkap || "Warga/Kader"}${ktp.kecamatan ? ` - Kec. ${ktp.kecamatan}` : ""}) untuk kelengkapan administrasi kegiatan.`;
+  }
+  // KASUS 0B: Tiket Speedboat / Angkutan Air (Kaltara & Nasional)
+  else if (tiketAir.isTiketAir) {
+    jenisBukti = "Tiket";
+    kategoriPribadi = "Transportasi";
+    kategoriKegiatan = "Transportasi";
+    namaPenjualPenyedia = tiketAir.armada || "Speedboat Express";
+    kataKunciDeskripsi = "Tiket Speedboat";
+    const ruteTeks = tiketAir.rute ? ` (${tiketAir.rute})` : "";
+    deskripsiKustom = `${tiketAir.armada || "Speedboat"} - Tiket Transportasi Air${ruteTeks}`;
+    keteranganLaporanKustom = `Biaya transportasi perjalanan speedboat dengan ${tiketAir.armada || "Speedboat"}${tiketAir.rute ? ` rute ${tiketAir.rute}` : ""} untuk operasional kegiatan.`;
+  }
+  // KASUS 0C: Tiket Pesawat / Boarding Pass
+  else if (tiketPesawat.isPesawat) {
+    jenisBukti = "Tiket pesawat/e-ticket";
+    kategoriPribadi = "Transportasi";
+    kategoriKegiatan = "Transportasi";
+    namaPenjualPenyedia = tiketPesawat.maskapai || (tiketPesawat.penumpang ? `Penerbangan (${tiketPesawat.penumpang})` : "Maskapai Penerbangan");
+    kataKunciDeskripsi = "Tiket Pesawat";
+    deskripsiKustom = `Tiket Pesawat / Boarding Pass${tiketPesawat.penumpang ? ` - ${tiketPesawat.penumpang}` : ""}`;
+    keteranganLaporanKustom = `Biaya tiket pesawat / boarding pass untuk transportasi dinas kegiatan${tiketPesawat.penumpang ? ` atas nama ${tiketPesawat.penumpang}` : ""}.`;
+  }
+
   // A. Operator Telekomunikasi & Paket Data / Internet / Pulsa
-  if (
+  else if (
     teksBesar.includes("PACKAGE PURCHASE") ||
     teksBesar.includes("PAKET DATA") ||
     teksBesar.includes("NAMA PAKET") ||
@@ -1073,15 +1371,24 @@ export function uraiTeksOcrTransaksi(
   }
 
   // 2. Ekstraksi Nominal
-  const { utama: nominalUtama, kandidat } = ekstrakKandidatNominal(baris, opsi.nominalQrisTerverifikasi);
+  let nominalUtama: number | null = null;
+  let kandidat: KandidatNominal[] = [];
 
-  // Jika QRIS terverifikasi mendeteksi merchant dan belum ada nama penjual:
-  if (!namaPenjualPenyedia && opsi.merchantQrisTerverifikasi) {
-    namaPenjualPenyedia = opsi.merchantQrisTerverifikasi;
-  }
+  if (ktp.isKtp) {
+    // Pada KTP, angka adalah NIK / tahun / RT RW dan BUKAN nominal transaksi!
+    nominalUtama = null;
+    kandidat = [];
+    peringatan.push(
+      `Dokumen terdeteksi sebagai KTP/Identitas kependudukan (${ktp.namaLengkap || "Warga/Kader"}). Nominal transaksi tidak tertera pada KTP, silakan masukkan jumlah pembayaran/honorarium secara manual sesuai kuitansi/tanda terima.`
+    );
+  } else {
+    const hasilNominal = ekstrakKandidatNominal(baris, opsi.nominalQrisTerverifikasi);
+    nominalUtama = hasilNominal.utama;
+    kandidat = hasilNominal.kandidat;
 
-  if (!nominalUtama) {
-    peringatan.push("Nominal transaksi tidak terdeteksi otomatis. Harap isi jumlah pada formulir secara manual.");
+    if (!nominalUtama) {
+      peringatan.push("Nominal transaksi tidak terdeteksi otomatis. Harap isi jumlah pada formulir secara manual.");
+    }
   }
 
   // 3. Ekstraksi Tanggal
