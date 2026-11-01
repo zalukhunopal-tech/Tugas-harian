@@ -1211,6 +1211,36 @@ export const TambahView: React.FC<TambahViewProps> = ({
           onChange={(e) => setJumlah(e.target.value)}
           required
         />
+        {/* Pilihan nominal alternatif hasil deteksi OCR langsung di bawah input Jumlah */}
+        {hasilScan?.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
+          <div style={{ marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            <span style={{ fontSize: "0.72rem", color: "var(--muted)", width: "100%" }}>
+              Angka lain terdeteksi pada struk (klik untuk ganti):
+            </span>
+            {hasilScan.kandidatJumlah.map((k, idx) => {
+              const isActive = jumlah === String(k.nominal);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setJumlah(String(k.nominal))}
+                  style={{
+                    fontSize: "0.72rem",
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    border: isActive ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    background: isActive ? "var(--highlight)" : "var(--surface)",
+                    color: isActive ? "var(--accent)" : "var(--text)",
+                    cursor: "pointer",
+                    fontWeight: isActive ? 700 : 500,
+                  }}
+                >
+                  {formatRupiah(k.nominal)} ({k.label})
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );
@@ -1790,219 +1820,72 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </button>
         </div>
 
-      {/* Bagian Status & Hasil Scan Struk Belanja dengan OCR Lokal (Hanya muncul saat proses / ada hasil scan) */}
-      {!editTransaksi && (memuatScan || hasilScan || errorScan) && (
-        <section className="card-struk-scanner" aria-label="Hasil Scan Struk Belanja">
-          {/* Animasi Preview & Laser Scanning */}
-          {memuatScan && previewFoto && (
-            <div className="struk-preview-box">
-              <img src={previewFoto} alt="Pratinjau Struk" className="struk-preview-img" />
-              <div className="struk-scan-laser" />
-            </div>
-          )}
+      {/* Indikator Status Scan Struk OCR yang Ringkas & Minimalis (Tanpa card tebal agar wallpaper tetap bersih) */}
+      {!editTransaksi && memuatScan && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            padding: "8px 16px",
+            borderRadius: "20px",
+            background: "rgba(15, 23, 42, 0.85)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid var(--accent)",
+            color: "var(--accent)",
+            fontSize: "0.82rem",
+            fontWeight: 600,
+            margin: "0 auto 12px auto",
+            width: "fit-content",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span style={{ fontSize: "1rem" }}>⚡</span>
+          <span>{statusProgressScan || "OCR lokal sedang membaca dan menganalisis struk belanja…"}</span>
+        </div>
+      )}
 
-          {memuatScan && (
-            <div className="struk-scan-loading-text">
-              <span>⚡</span>
-              <span>{statusProgressScan || "OCR lokal sedang membaca dan menganalisis struk belanja Anda…"}</span>
-            </div>
-          )}
-
-          {/* Hasil Sukses */}
-          {hasilScan && !memuatScan && (
-            <div className="struk-hasil-sukses">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                <strong style={{ color: "var(--masuk)", fontSize: "0.88rem", display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span>✓</span> Struk Berhasil Dibaca (OCR Lokal)!
-                </strong>
-                <button
-                  type="button"
-                  className="btn-small"
-                  onClick={handleResetScan}
-                  style={{ fontSize: "0.75rem", padding: "2px 8px" }}
-                >
-                  Ganti Foto
-                </button>
-              </div>
-              {hasilScan.ringkasan && (
-                <p style={{ margin: "6px 0 4px", fontSize: "0.84rem", color: "var(--text)" }}>
-                  {hasilScan.ringkasan}
-                </p>
-              )}
-              <div className="struk-hasil-rincian">
-                <span>🏬 {hasilScan.deskripsi}</span>
-                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
-                <span style={{ fontWeight: 700, color: "var(--keluar)" }}>
-                  💰 {formatRupiah(hasilScan.jumlah || 0)}
-                </span>
-                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
-                <span>📅 {hasilScan.tanggal}</span>
-                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
-                <span>🏷️ {labelKategori(hasilScan.kategori)}</span>
-                <span className="struk-hasil-pemisah" aria-hidden="true">·</span>
-                <span>💳 {hasilScan.metode}</span>
-              </div>
-
-              {/* Kandidat Pilihan Nominal jika terdeteksi angka lain */}
-              {hasilScan.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
-                <div style={{ marginTop: "10px", padding: "8px 10px", background: "var(--bg)", borderRadius: "8px", border: "1px dashed var(--border)" }}>
-                  <div style={{ fontSize: "0.76rem", color: "var(--muted)", marginBottom: "6px", fontWeight: 600 }}>
-                    Angka lain terdeteksi pada struk (klik untuk ganti nominal):
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                    {hasilScan.kandidatJumlah.map((k, idx) => {
-                      const isActive = jumlah === String(k.nominal);
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            setJumlah(String(k.nominal));
-                            setHasilScan((prev) => (prev ? { ...prev, jumlah: k.nominal } : null));
-                          }}
-                          style={{
-                            fontSize: "0.74rem",
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            border: isActive ? "1px solid var(--accent)" : "1px solid var(--border)",
-                            background: isActive ? "var(--highlight)" : "var(--surface)",
-                            color: isActive ? "var(--accent)" : "var(--text)",
-                            cursor: "pointer",
-                            fontWeight: isActive ? 700 : 500,
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          {formatRupiah(k.nominal)} ({k.label})
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Peringatan faktual */}
-              {hasilScan.peringatan && hasilScan.peringatan.length > 0 && (
-                <div style={{ marginTop: "8px", fontSize: "0.75rem", color: "var(--warning, #e67e22)" }}>
-                  {hasilScan.peringatan.map((p, pIdx) => (
-                    <div key={pIdx}>ℹ️ {p}</div>
-                  ))}
-                </div>
-              )}
-
-              <p style={{ margin: "6px 0 0", fontSize: "0.75rem", color: "var(--accent)" }}>
-                ↓ Silakan periksa detail pada formulir di bawah sebelum menyimpan.
-              </p>
-            </div>
-          )}
-
-          {/* Notifikasi Error */}
-          {errorScan && !memuatScan && (
-            <div
-              className="struk-hasil-error"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                padding: "14px 16px",
-                borderRadius: "12px",
-                background: "color-mix(in srgb, var(--keluar) 12%, var(--surface))",
-                border: "1.5px solid var(--keluar)",
-                marginTop: "14px",
-                width: "100%",
-                boxSizing: "border-box",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "8px",
-                  borderBottom: "1px solid color-mix(in srgb, var(--keluar) 25%, transparent)",
-                  paddingBottom: "8px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "1.1rem" }}>⚠️</span>
-                  <strong style={{ color: "var(--keluar)", fontSize: "0.88rem", fontWeight: 700 }}>
-                    Struk Belum Berhasil Dianalisis
-                  </strong>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleResetScan}
-                  style={{
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "50%",
-                    background: "rgba(255, 255, 255, 0.15)",
-                    border: "none",
-                    color: "#ffffff",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.95rem",
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    padding: 0,
-                  }}
-                  aria-label="Tutup notifikasi"
-                  title="Tutup notifikasi"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div
-                style={{
-                  fontSize: "0.82rem",
-                  color: "var(--text)",
-                  lineHeight: 1.5,
-                  margin: 0,
-                  wordBreak: "break-word",
-                }}
-              >
-                {errorScan}
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: "10px",
-                  marginTop: "4px",
-                  paddingTop: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.76rem",
-                    color: "var(--muted)",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Anda tetap dapat mengisi formulir secara manual di bawah.
-                </span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleResetScan}
-                  style={{
-                    fontSize: "0.8rem",
-                    padding: "6px 16px",
-                    borderRadius: "8px",
-                    fontWeight: 600,
-                  }}
-                >
-                  Tutup Notifikasi
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
+      {!editTransaksi && errorScan && !memuatScan && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "color-mix(in srgb, var(--keluar) 15%, var(--surface))",
+            border: "1px solid var(--keluar)",
+            color: "var(--keluar)",
+            fontSize: "0.82rem",
+            margin: "0 0 12px 0",
+          }}
+          role="alert"
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>⚠️</span>
+            <span>{errorScan}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetScan}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "0.95rem",
+              padding: "0 4px",
+            }}
+            aria-label="Tutup notifikasi error"
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       <section className="card" id="kartu-form">
