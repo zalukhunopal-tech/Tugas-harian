@@ -299,10 +299,39 @@ cek("Abaikan 17348007 (bare 8 digit)", uraikanNominalRupiah("17348007") === null
 cek("Terima Rp 53.500 (format rupiah titik)", uraikanNominalRupiah("Rp 53.500") === 53500);
 cek("Terima 41.000 (format titik ribuan)", uraikanNominalRupiah("41.000") === 41000);
 
+console.log("\n== 18. Bukti Digital Paket Data / Pulsa (myIM3 Tangkapan Layar)");
+const teksMyIm3 = `
+1027 20: N42. ED
+Ka Detail Transaksi
+PACKAGE PURCHASE
+Internet 100GB
+27 Okt 2026 - 09:25 AM
+Rp125.000
+BERHASIL
+ID Transaksi SUP9157951793067922704301
+Nomor IM3 085813999447
+Metode Pembayaran mma ORIS
+Nama Paket Internet 100GB
+Total Rp125.000
+Il Oo <
+`;
+const hIm3 = uraiTeksOcrTransaksi(teksMyIm3);
+cek("myIM3: sukses", hIm3.sukses === true);
+cek("myIM3: penyedia IM3 (Indosat)", hIm3.namaPenjualPenyedia === "IM3 (Indosat)");
+cek("myIM3: deskripsi memuat paket dan nomor HP", hIm3.deskripsi === "IM3 (Indosat) - Internet 100GB (085813999447)");
+cek("myIM3: jumlah 125.000", hIm3.jumlah === 125000);
+cek("myIM3: tanggal 2026-10-27", hIm3.tanggal === "2026-10-27");
+cek("myIM3: kategori pribadi Pulsa & Internet", hIm3.kategori === "Pulsa & Internet");
+cek("myIM3: kategori kegiatan Komunikasi, Listrik & Kurir", hIm3.kategoriDanaKegiatan === "Komunikasi, Listrik & Kurir");
+cek("myIM3: metode pembayaran QRIS (terdeteksi dari 'mma ORIS')", hIm3.metode === "QRIS");
+cek("myIM3: tidak ada jam 1027 di kandidat", !hIm3.kandidatJumlah.some((k) => k.nominal === 1027));
+cek("myIM3: tidak ada tahun 2026 di kandidat", !hIm3.kandidatJumlah.some((k) => k.nominal === 2026));
+cek("myIM3: kandidat hanya 1 yaitu 125.000", hIm3.kandidatJumlah.length === 1 && hIm3.kandidatJumlah[0].nominal === 125000, hIm3.kandidatJumlah);
+
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 17 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 18 pengujian parser OCR transaksi lolos dengan sempurna!");
 }
 
