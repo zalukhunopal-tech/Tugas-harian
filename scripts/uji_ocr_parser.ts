@@ -5,6 +5,7 @@
 
 import {
   uraiTeksOcrTransaksi,
+  uraiStrukturOcrTransaksi,
   uraikanNominalRupiah,
   uraikanTerbilangRupiah,
   ekstrakMetodePembayaran,
@@ -434,10 +435,85 @@ cek("Kwitansi Tangan: tanggal 2026-11-01", hKwitansiTangan.tanggal === "2026-11-
 cek("Kwitansi Tangan: metode Tunai", hKwitansiTangan.metode === "Tunai", hKwitansiTangan.metode);
 cek("Kwitansi Tangan: terbilang masuk kandidat", hKwitansiTangan.kandidatJumlah.some(k => k.nominal === 2750000));
 
+console.log("\n== 26. Uji Regresi Temuan A: Koreksi Karakter OCR Tersambung ke Ekstraksi");
+const teksTemuanA = "TOKO CONTOH\nTOTAL Rp 15O.OOO";
+const hTemuanA = uraiTeksOcrTransaksi(teksTemuanA);
+cek("Temuan A: nominal 15O.OOO terbaca tepat 150000", hTemuanA.jumlah === 150000, hTemuanA.jumlah);
+cek("Temuan A: jejak koreksi karakter tersimpan", hTemuanA.kandidatJumlah.some(k => k.jejakKoreksi !== undefined));
+
+console.log("\n== 27. Uji Regresi Temuan B: Penjumlahan Rincian Hanya Menghitung Barang");
+const teksTemuanB = `TOKO CONTOH
+Barang A 10.000
+Barang B 20.000
+SUBTOTAL 30.000
+TUNAI 50.000
+KEMBALIAN 20.000`;
+const hTemuanB = uraiTeksOcrTransaksi(teksTemuanB);
+cek("Temuan B: nominal belanja adalah 30.000 (bukan 110.000 akumulasi non-barang)", hTemuanB.jumlah === 30000, hTemuanB.jumlah);
+cek("Temuan B: rincian dihitung sebagai hasil hitung", hTemuanB.kandidatJumlah.some(k => k.asal === "hasil_hitung"));
+
+console.log("\n== 28. Uji Regresi Temuan C: Format Desimal Sen Sah Tidak Dikalikan Seribu");
+const teksTemuanC = "TOTAL Rp 100,00";
+const hTemuanC = uraiTeksOcrTransaksi(teksTemuanC);
+cek("Temuan C: Rp 100,00 terbaca 100 rupiah (bukan 100000)", hTemuanC.jumlah === 100, hTemuanC.jumlah);
+
+console.log("\n== 29. Uji Regresi Temuan D: Penyaringan Angka Tidak Membuang Nominal Kecil Sah");
+const teksTemuanD = "TOKO CONTOH\nTOTAL 1500";
+const hTemuanD = uraiTeksOcrTransaksi(teksTemuanD);
+cek("Temuan D: TOTAL 1500 terbaca 1500", hTemuanD.jumlah === 1500, hTemuanD.jumlah);
+
+console.log("\n== 30. Uji Regresi Temuan E: Pengecualian Satu Baris Mempertahankan Nilai Valid");
+const teksTemuanE = "TOKO CONTOH\nTOTAL Rp 75.000 TELP 081234567890";
+const hTemuanE = uraiTeksOcrTransaksi(teksTemuanE);
+cek("Temuan E: TOTAL Rp 75.000 tetap terbaca meski ada TELP di baris yang sama", hTemuanE.jumlah === 75000, hTemuanE.jumlah);
+
+console.log("\n== 31. Uji Regresi Temuan F: Label Nominal Pesanan vs Kuantitas");
+const teksTemuanF = "TOKO CONTOH\nTOTAL PESANAN Rp 75.000";
+const hTemuanF = uraiTeksOcrTransaksi(teksTemuanF);
+cek("Temuan F: TOTAL PESANAN Rp 75.000 terbaca sebagai nilai uang pesanan", hTemuanF.jumlah === 75000, hTemuanF.jumlah);
+
+console.log("\n== 32. Rekonsiliasi m-Transfer BCA: Nilai Transfer, Admin, dan Total Debit");
+const teksMTransfer = `
+m-Transfer BCA
+TRANSFER BERHASIL
+26/10/2026 11:20:15 WIB
+NO. REFERENSI 2026102600881239
+DARI REKENING 1234567890 - YULIUS ZALUKHU
+REKENING TUJUAN 9876543210 (MANDIRI)
+JOKO SUSANTO
+JENIS TRANSFER BI-FAST
+JUMLAH TRANSFER Rp 750.000
+BIAYA ADMIN Rp 2.500
+TOTAL DEBET Rp 752.500
+`;
+const hMTransfer = uraiTeksOcrTransaksi(teksMTransfer);
+cek("m-Transfer: nilai transfer pokok Rp 750.000 terdeteksi", hMTransfer.rincianTransfer?.nilaiTransfer === 750000, hMTransfer.rincianTransfer?.nilaiTransfer);
+cek("m-Transfer: biaya admin Rp 2.500 terdeteksi", hMTransfer.rincianTransfer?.biayaAdmin === 2500, hMTransfer.rincianTransfer?.biayaAdmin);
+cek("m-Transfer: total debit rekening Rp 752.500 terdeteksi", hMTransfer.rincianTransfer?.totalDebit === 752500, hMTransfer.rincianTransfer?.totalDebit);
+cek("m-Transfer: aritmetika transfer + admin = debet valid", hMTransfer.pemeriksaanAritmetika?.konsisten === true);
+cek("m-Transfer: nominal utama mencerminkan total debet kas keluar", hMTransfer.jumlah === 752500, hMTransfer.jumlah);
+const hMTransferPokok = uraiTeksOcrTransaksi(teksMTransfer, { kebijakanNominalTransfer: "nilai_transfer" });
+cek("m-Transfer: opsi kebijakan nilai transfer memilih Rp 750.000", hMTransferPokok.jumlah === 750000, hMTransferPokok.jumlah);
+
+console.log("\n== 33. Koordinat Bounding Box & Struktur Geometris Teks OCR");
+const strukturOcrMock = {
+  teks: "TOKO MAJU JAYA\nTOTAL BELANJA\n54.000\nTERIMA KASIH",
+  words: [
+    { teks: "TOKO", confidence: 95, bbox: { x0: 20, y0: 10, x1: 70, y1: 30 } },
+    { teks: "TOTAL", confidence: 94, bbox: { x0: 20, y0: 80, x1: 80, y1: 100 } },
+    { teks: "BELANJA", confidence: 92, bbox: { x0: 85, y0: 80, x1: 160, y1: 100 } },
+    { teks: "54.000", confidence: 96, bbox: { x0: 250, y0: 80, x1: 320, y1: 100 } },
+  ],
+};
+const hStruktur = uraiStrukturOcrTransaksi(strukturOcrMock);
+cek("Struktur Geometris: nominal 54.000 terbaca dari koordinat sejajar", hStruktur.jumlah === 54000, hStruktur.jumlah);
+cek("Struktur Geometris: kandidat diperkuat konfirmasi posisi", hStruktur.kandidatJumlah.some(k => k.statusKeyakinan === "terbaca"));
+cek("Struktur Geometris: status keyakinan jumlah terisi 'terbaca'", hStruktur.statusKeyakinan?.jumlah === "terbaca");
+
 if (gagal > 0) {
   console.error(`\nTerdapat ${gagal} pengujian gagal!`);
   process.exit(1);
 } else {
-  console.log("\nSemua 25 pengujian parser OCR transaksi lolos dengan sempurna!");
+  console.log("\nSemua 33 pengujian komprehensif & regresi parser OCR transaksi lolos dengan sempurna!");
 }
 
