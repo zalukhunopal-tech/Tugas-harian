@@ -249,6 +249,44 @@ console.log("== Kepala halaman dan identitas");
 cek("kepala halaman: Laporan Keuangan Kegiatan · nama · periode", s.kepalaHalaman === "Laporan Keuangan Kegiatan · Budi Santoso · 20 Oktober 2026 s.d. 26 Oktober 2026", s.kepalaHalaman);
 cek("penerimaan dana P1", s.penerimaan.length === 1 && s.penerimaan[0].nomor === "P1" && s.totalPenerimaan === 5000000);
 
+console.log("== Uji Struktur Subkategori, Orientasi & Urutan Isi");
+const kegAkomodasi = susunLaporanKegiatan({
+  transaksi: [
+    trx({ kategori: "Akomodasi", deskripsi: "Hotel Permata", jumlah: 800000, detailKegiatan: { subkategori: "Hotel Permata" }, bukti: [foto(10)] }),
+    trx({ kategori: "Transportasi", deskripsi: "Speedboat Pagi", jumlah: 300000, detailKegiatan: { subkategori: "Perjalanan Speedboat" }, bukti: [foto(11)] }),
+    trx({ kategori: "Transportasi", deskripsi: "Ojek Siang", jumlah: 50000, detailKegiatan: { subkategori: "Perjalanan Ojek" }, bukti: [foto(12)] }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+});
+
+const kelTrx = kegAkomodasi.kelompok.find((k) => k.kategori === "Transportasi")!;
+cek("subkategori transportasi terbagi 2: Speedboat dan Ojek", kelTrx.subkategori.length === 2);
+cek("urutan subkategori: 1. Speedboat, 2. Ojek", kelTrx.subkategori[0].nama === "Perjalanan Speedboat" && kelTrx.subkategori[1].nama === "Perjalanan Ojek");
+cek("blok transaksi memuat subkategoriNomor dan subkategoriNama", kelTrx.blok[0].subkategoriNomor === 1 && kelTrx.blok[1].subkategoriNomor === 2);
+cek("blok transaksi pertama mulai subkategori", kelTrx.blok[0].mulaiSubkategori === true);
+
+const kelAkm = kegAkomodasi.kelompok.find((k) => k.kategori === "Akomodasi")!;
+cek("akomodasi memiliki subkategori", kelAkm.subkategori.length === 1 && kelAkm.subkategori[0].nama === "Hotel Permata");
+cek("pilihan template A/B/C berstatus estimated_template (bukan measured)", bManual[0].pasangan[0].statusUkuran === "estimated_template");
+
+// Uji koreksi fisik manual pengguna berstatus measured
+const sKoreksi = susunLaporanKegiatan({
+  transaksi: [
+    trx({
+      kategori: "Transportasi",
+      deskripsi: "Tiket terukur manual",
+      detailKegiatan: {
+        ukuranKertasFisik: { lebarMm: 155, tinggiMm: 90, sumber: "measured", catatan: "Diukur penggaris" },
+      },
+    }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+});
+const pasKoreksi = sKoreksi.kelompok[0].blok[0].pasangan[0];
+cek("koreksi fisik manual pengguna menghasilkan status measured", pasKoreksi.statusUkuran === "measured" && pasKoreksi.lebarKertasMm === 155 && pasKoreksi.tinggiKertasMm === 90);
+
 if (gagal) {
   console.log(`\n${gagal} uji gagal`);
   process.exit(1);

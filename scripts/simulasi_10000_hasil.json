@@ -1,0 +1,17 @@
+{
+  "totalDijalankan": 10000,
+  "totalLolos": 10000,
+  "totalGagal": 0,
+  "distribusiKasus": {
+    "strukPanjang": 9970,
+    "kuitansiLebar": 43311,
+    "banyakBukti": 10090,
+    "keteranganPanjang": 0,
+    "ukuranBelumDiketahui": 8543,
+    "ukuranBatasHalaman": 11695,
+    "buktiTidakMuat": 43145,
+    "akomodasiLanskap": 4613,
+    "transportasiPotret": 27729
+  },
+  "kegagalan": []
+}

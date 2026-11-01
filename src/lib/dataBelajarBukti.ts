@@ -9,7 +9,9 @@
  * 4. Status ukuran jelas: "measured" (terukur fisik), "matched_publisher_spec" (cocok spesifikasi), "estimated" (estimasi).
  */
 
-import { Transaksi, BuktiItem, UkuranKotakTempel } from "../types";
+import { Transaksi, BuktiItem, UkuranKotakTempel, StatusUkuranFisik, UkuranKertasFisikManual } from "../types";
+
+export type { StatusUkuranFisik, UkuranKertasFisikManual };
 
 export type JenisMediaBukti =
   | "thermal_receipt"
@@ -25,26 +27,21 @@ export type JenisMediaBukti =
   | "ktp_fotokopi"
   | "lainnya";
 
-export type StatusUkuranFisik =
-  | "measured"
-  | "calibrated_scan"
-  | "calibrated_reference"
-  | "matched_publisher_spec"
-  | "estimated"
-  | "unknown";
-
 export interface HasilTaksiranBukti {
   lebarMm: number;
   tinggiMm: number;
   lebarKertasMm: number;
   tinggiKertasMm: number;
   paddingMm: number;
+  jarakPasanganMm?: number;
   tataLetak: "samping" | "bawah";
   bentuk: "lebar" | "struk";
   status: StatusUkuranFisik;
   jenisMedia: JenisMediaBukti;
   catatan?: string;
   sumberReferensi?: string;
+  memerlukanKeputusanPengguna?: boolean;
+  alasanKeputusan?: string;
 }
 
 export interface PolaBelajarBukti {
@@ -87,14 +84,18 @@ export interface ManifesPasanganBukti {
   pair: {
     same_page_required: true;
     split_allowed: false;
-    internal_gap_mm: 0;
+    internal_gap_mm: number;
     layout: "samping" | "bawah";
   };
+  memerlukan_keputusan_pengguna?: boolean;
+  alasan_keputusan?: string;
   print_internal_checks?: boolean;
 }
 
 const KUNCI_STORAGE_BELAJAR = "antigravity_data_belajar_bukti_v2";
-const PADDING_DEFAULT_MM = 5;
+export const PADDING_DEFAULT_MM = 3;
+export const JARAK_PASANGAN_DEFAULT_MM = 5;
+export const JARAK_ANTAR_BLOK_DEFAULT_MM = 6;
 
 /**
  * Katalog Pengetahuan Awal (Seed Knowledge) berdasarkan spesifikasi teknis dan analisis ChatGPT v2:
@@ -382,68 +383,129 @@ export interface ParamTaksirBukti {
   penyedia?: string;
   jenisBukti?: string;
   manual?: UkuranKotakTempel;
+  ukuranKertasFisik?: UkuranKertasFisikManual;
+  posisiPasanganManual?: "otomatis" | "samping" | "bawah";
   paddingMm?: number;
+  jarakPasanganMm?: number;
+  lanskapArea?: boolean;
 }
 
 /**
  * Menaksir ukuran kotak tempel dan tata letak secara adaptif,
- * mengintegrasikan pengetahuan preset ChatGPT v2, memori belajar historis, dan rasio foto nyata.
+ * mengintegrasikan pengetahuan preset ChatGPT v2, memori belajar historis, koreksi fisik manual, dan rasio foto nyata.
  */
 export function taksirUkuranBuktiAdaptif(param: ParamTaksirBukti): HasilTaksiranBukti {
   const pad = param.paddingMm ?? PADDING_DEFAULT_MM;
   const paddingDuaSisi = pad * 2;
-  const { rasio, deskripsi = "", kategori = "", penyedia = "", jenisBukti = "Kuitansi", manual } = param;
+  const jarakPasanganMm = param.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
+  const lanskapArea = Boolean(param.lanskapArea || param.kategori === "Akomodasi");
+  const batasCetakLebar = lanskapArea ? 257 : 170;
+  const batasCetakTinggi = lanskapArea ? 170 : 257;
 
-  // 1. Prioritas Utama: Pilihan manual kotakTempel dari pengguna selalu dihormati (status: "measured")
-  if (manual === "A") {
+  const {
+    rasio,
+    deskripsi = "",
+    kategori = "",
+    penyedia = "",
+    jenisBukti = "Kuitansi",
+    manual,
+    ukuranKertasFisik,
+    posisiPasanganManual,
+  } = param;
+
+  const cekBatasDanKembalikan = (hasil: Omit<HasilTaksiranBukti, "paddingMm" | "jarakPasanganMm" | "memerlukanKeputusanPengguna" | "alasanKeputusan">): HasilTaksiranBukti => {
+    let tataLetakFinal = hasil.tataLetak;
+    if (posisiPasanganManual === "samping" || posisiPasanganManual === "bawah") {
+      tataLetakFinal = posisiPasanganManual;
+    }
+
+    let memerlukanKeputusan = false;
+    let alasanKeputusan: string | undefined;
+
+    if (hasil.lebarMm > batasCetakLebar || hasil.tinggiMm > batasCetakTinggi) {
+      memerlukanKeputusan = true;
+      alasanKeputusan = `Ukuran fisik (${hasil.lebarMm} × ${hasil.tinggiMm} mm) melebihi batas area cetak ${lanskapArea ? "lanskap (maks 257×170 mm)" : "potret (maks 170×257 mm)"}. Memerlukan keputusan pengguna.`;
+    }
+
     return {
+      ...hasil,
+      paddingMm: pad,
+      jarakPasanganMm,
+      tataLetak: tataLetakFinal,
+      memerlukanKeputusanPengguna: memerlukanKeputusan,
+      alasanKeputusan,
+    };
+  };
+
+  // 1. Prioritas Tertinggi: Koreksi ukuran kertas fisik manual oleh pengguna (status sesuai sumber: measured / calibrated_scan / dll)
+  if (ukuranKertasFisik && ukuranKertasFisik.lebarMm > 0 && ukuranKertasFisik.tinggiMm > 0) {
+    const lebarKertasMm = ukuranKertasFisik.lebarMm;
+    const tinggiKertasMm = ukuranKertasFisik.tinggiMm;
+    const lebarMm = lebarKertasMm + paddingDuaSisi;
+    const tinggiMm = tinggiKertasMm + paddingDuaSisi;
+    const bentuk: "struk" | "lebar" = lebarMm <= 105 ? "struk" : "lebar";
+    const tataLetak: "samping" | "bawah" =
+      posisiPasanganManual === "bawah" ? "bawah" : posisiPasanganManual === "samping" ? "samping" : bentuk === "struk" ? "samping" : "bawah";
+
+    return cekBatasDanKembalikan({
+      lebarMm,
+      tinggiMm,
+      lebarKertasMm,
+      tinggiKertasMm,
+      tataLetak,
+      bentuk,
+      status: ukuranKertasFisik.sumber || "measured",
+      jenisMedia: bentuk === "struk" ? "thermal_receipt" : "kuitansi_buku",
+      catatan: ukuranKertasFisik.catatan || "Ukuran fisik terukur manual",
+      sumberReferensi: `Pengukuran fisik manual (${ukuranKertasFisik.sumber || "measured"})`,
+    });
+  }
+
+  // 2. Pilihan template A/B/C: status harus "estimated_template" (bukan measured)
+  if (manual === "A") {
+    return cekBatasDanKembalikan({
       lebarMm: 85,
       tinggiMm: 120,
-      lebarKertasMm: 85 - paddingDuaSisi,
-      tinggiKertasMm: 120 - paddingDuaSisi,
-      paddingMm: pad,
+      lebarKertasMm: Math.max(10, 85 - paddingDuaSisi),
+      tinggiKertasMm: Math.max(10, 120 - paddingDuaSisi),
       tataLetak: "samping",
       bentuk: "struk",
-      status: "measured",
+      status: "estimated_template",
       jenisMedia: "thermal_receipt",
-      sumberReferensi: "Pilihan manual Tipe A (Struk/Vertikal)",
-    };
+      sumberReferensi: "Pilihan template manual Tipe A (Struk/Vertikal - estimasi)",
+    });
   }
   if (manual === "B") {
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: 170,
       tinggiMm: 65,
-      lebarKertasMm: 170 - paddingDuaSisi,
-      tinggiKertasMm: 65 - paddingDuaSisi,
-      paddingMm: pad,
+      lebarKertasMm: Math.max(10, 170 - paddingDuaSisi),
+      tinggiKertasMm: Math.max(10, 65 - paddingDuaSisi),
       tataLetak: "bawah",
       bentuk: "lebar",
-      status: "measured",
+      status: "estimated_template",
       jenisMedia: "kuitansi_buku",
-      sumberReferensi: "Pilihan manual Tipe B (Kuitansi/Tiket Lebar)",
-    };
+      sumberReferensi: "Pilihan template manual Tipe B (Kuitansi Lebar - estimasi)",
+    });
   }
   if (manual === "C") {
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: 170,
       tinggiMm: 130,
-      lebarKertasMm: 170 - paddingDuaSisi,
-      tinggiKertasMm: 130 - paddingDuaSisi,
-      paddingMm: pad,
+      lebarKertasMm: Math.max(10, 170 - paddingDuaSisi),
+      tinggiKertasMm: Math.max(10, 130 - paddingDuaSisi),
       tataLetak: "bawah",
       bentuk: "lebar",
-      status: "measured",
+      status: "estimated_template",
       jenisMedia: "kuitansi_buku",
-      sumberReferensi: "Pilihan manual Tipe C (Kuitansi Besar/Faktur)",
-    };
+      sumberReferensi: "Pilihan template manual Tipe C (Kuitansi Besar/Faktur - estimasi)",
+    });
   }
 
-  // 2. Pencocokan Memori Belajar & Spesifikasi Vendor (matched_publisher_spec / estimated)
-  // Periksa nama penyedia dan deskripsi transaksi (jangan campurkan jenisBukti agar tidak false positive seperti "SPBU")
+  // 3. Pencocokan Memori Belajar & Spesifikasi Vendor (matched_publisher_spec / estimated)
   const teksGabung = normalisasiKunci(`${penyedia} ${deskripsi}`);
   const memori = muatMemoriBelajar();
 
-  // Cari kecocokan kata kunci terpanjang/terakurat
   let polaCocok: PolaBelajarBukti | undefined;
   for (const p of memori) {
     if (teksGabung.includes(p.kunci)) {
@@ -457,10 +519,8 @@ export function taksirUkuranBuktiAdaptif(param: ParamTaksirBukti): HasilTaksiran
     let lebarKotak = polaCocok.lebarKertasMm + paddingDuaSisi;
     let tinggiKotak = polaCocok.tinggiKertasMm + paddingDuaSisi;
 
-    // Jika ada rasio nyata dari foto, sempurnakan tinggi struk secara dinamis (tinggi struk mengikuti isi & potong)
     if (typeof rasio === "number" && Number.isFinite(rasio) && rasio > 0) {
       if (polaCocok.jenisMedia === "thermal_receipt") {
-        // Roll 80 mm -> lebar kotak 90 mm; tinggi mengikuti rasio
         const tinggiDinamis = Math.round(lebarKotak * rasio);
         tinggiKotak = Math.min(230, Math.max(90, tinggiDinamis));
       } else if (polaCocok.jenisMedia === "boarding_pass") {
@@ -468,7 +528,6 @@ export function taksirUkuranBuktiAdaptif(param: ParamTaksirBukti): HasilTaksiran
       }
     }
 
-    // Pastikan batas aman media
     if (polaCocok.tataLetak === "samping") {
       lebarKotak = Math.min(105, Math.max(70, lebarKotak));
       tinggiKotak = Math.min(230, Math.max(80, tinggiKotak));
@@ -482,24 +541,22 @@ export function taksirUkuranBuktiAdaptif(param: ParamTaksirBukti): HasilTaksiran
         ? "Lipat struk bila lebih panjang dari kotak"
         : "Estimasi - ukur bukti sebelum ditempel";
 
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: lebarKotak,
       tinggiMm: tinggiKotak,
       lebarKertasMm: lebarKotak - paddingDuaSisi,
       tinggiKertasMm: tinggiKotak - paddingDuaSisi,
-      paddingMm: pad,
       tataLetak: polaCocok.tataLetak,
       bentuk: polaCocok.tataLetak === "samping" ? "struk" : "lebar",
       status: "matched_publisher_spec",
       jenisMedia: polaCocok.jenisMedia,
       catatan,
       sumberReferensi: `Cocok spesifikasi/pola belajar: ${polaCocok.kunci}`,
-    };
+    });
   }
 
-  // 3. Penaksiran Berdasarkan Rasio Foto Nyata (Geometri Foto Kamera)
+  // 4. Penaksiran Berdasarkan Rasio Foto Nyata (Geometri Foto Kamera)
   if (typeof rasio === "number" && Number.isFinite(rasio) && rasio > 0) {
-    // Rasio sangat potret/panjang (struk belanja ritel, tiket thermal kasir)
     if (rasio >= 1.6) {
       const tinggiHitung = Math.round(85 * rasio + 10);
       const tinggiMm = Math.min(230, Math.max(100, tinggiHitung));
@@ -507,119 +564,109 @@ export function taksirUkuranBuktiAdaptif(param: ParamTaksirBukti): HasilTaksiran
         tinggiHitung > 230
           ? "Lipat struk bila lebih panjang dari kotak"
           : "Estimasi - ukur bukti sebelum ditempel";
-      return {
+      return cekBatasDanKembalikan({
         lebarMm: 85,
         tinggiMm,
         lebarKertasMm: 85 - paddingDuaSisi,
         tinggiKertasMm: tinggiMm - paddingDuaSisi,
-        paddingMm: pad,
         tataLetak: "samping",
         bentuk: "struk",
         status: "estimated",
         jenisMedia: "thermal_receipt",
         catatan,
         sumberReferensi: `Geometri foto rasio ${rasio.toFixed(2)} (potret panjang)`,
-      };
+      });
     }
 
-    // Rasio potret sedang (nota kontan, boarding pass, kuitansi vertikal)
     if (rasio >= 1.15) {
       const tinggiMm = Math.min(200, Math.max(110, Math.round(100 * rasio + 10)));
-      return {
+      return cekBatasDanKembalikan({
         lebarMm: 100,
         tinggiMm,
         lebarKertasMm: 100 - paddingDuaSisi,
         tinggiKertasMm: tinggiMm - paddingDuaSisi,
-        paddingMm: pad,
         tataLetak: "samping",
         bentuk: "struk",
         status: "estimated",
         jenisMedia: "nota_kontan",
         catatan: "Estimasi - ukur bukti sebelum ditempel",
         sumberReferensi: `Geometri foto rasio ${rasio.toFixed(2)} (potret sedang)`,
-      };
+      });
     }
 
-    // Rasio hampir persegi (0.87 s.d. 1.15)
     if (rasio >= 0.87) {
-      return {
+      return cekBatasDanKembalikan({
         lebarMm: 100,
         tinggiMm: 100,
         lebarKertasMm: 100 - paddingDuaSisi,
         tinggiKertasMm: 100 - paddingDuaSisi,
-        paddingMm: pad,
         tataLetak: "samping",
         bentuk: "struk",
         status: "estimated",
         jenisMedia: "nota_kontan",
         catatan: "Estimasi - ukur bukti sebelum ditempel",
         sumberReferensi: `Geometri foto rasio ${rasio.toFixed(2)} (persegi)`,
-      };
+      });
     }
 
-    // Rasio lanskap lebar (< 0.87: tiket pesawat, tiket kapal, kuitansi memanjang)
     const tinggiMm = Math.min(125, Math.max(55, Math.round(170 * rasio + 10)));
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: 170,
       tinggiMm,
       lebarKertasMm: 170 - paddingDuaSisi,
       tinggiKertasMm: tinggiMm - paddingDuaSisi,
-      paddingMm: pad,
       tataLetak: "bawah",
       bentuk: "lebar",
       status: "estimated",
       jenisMedia: "kuitansi_buku",
       catatan: "Estimasi - ukur bukti sebelum ditempel",
       sumberReferensi: `Geometri foto rasio ${rasio.toFixed(2)} (lanskap lebar)`,
-    };
+    });
   }
 
-  // 4. Fallback Default jika Tanpa Foto & Tanpa Spesifikasi Khusus
+  // 5. Fallback Default jika Tanpa Foto & Tanpa Spesifikasi Khusus
   if (jenisBukti === "Struk thermal (minimarket/SPBU)") {
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: 85,
       tinggiMm: 120,
       lebarKertasMm: 85 - paddingDuaSisi,
       tinggiKertasMm: 120 - paddingDuaSisi,
-      paddingMm: pad,
       tataLetak: "samping",
       bentuk: "struk",
       status: "estimated",
       jenisMedia: "thermal_receipt",
       catatan: "Estimasi - ukur bukti sebelum ditempel",
       sumberReferensi: "Bawaan jenis bukti struk thermal",
-    };
+    });
   }
   if (jenisBukti === "Nota") {
-    return {
+    return cekBatasDanKembalikan({
       lebarMm: 100,
       tinggiMm: 130,
       lebarKertasMm: 100 - paddingDuaSisi,
       tinggiKertasMm: 130 - paddingDuaSisi,
-      paddingMm: pad,
       tataLetak: "samping",
       bentuk: "struk",
       status: "estimated",
       jenisMedia: "nota_kontan",
       catatan: "Estimasi - ukur bukti sebelum ditempel",
       sumberReferensi: "Bawaan jenis bukti nota",
-    };
+    });
   }
 
   // Default umum: Kuitansi lebar tata letak bawah
-  return {
+  return cekBatasDanKembalikan({
     lebarMm: 170,
     tinggiMm: 65,
     lebarKertasMm: 170 - paddingDuaSisi,
     tinggiKertasMm: 65 - paddingDuaSisi,
-    paddingMm: pad,
     tataLetak: "bawah",
     bentuk: "lebar",
     status: "estimated",
     jenisMedia: "kuitansi_buku",
     catatan: "Estimasi - ukur bukti sebelum ditempel",
     sumberReferensi: "Bawaan default kuitansi",
-  };
+  });
 }
 
 /**
@@ -665,9 +712,11 @@ export function susunManifesPasangan(
     pair: {
       same_page_required: true,
       split_allowed: false,
-      internal_gap_mm: 0,
+      internal_gap_mm: hasil.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM,
       layout: hasil.tataLetak,
     },
+    memerlukan_keputusan_pengguna: hasil.memerlukanKeputusanPengguna,
+    alasan_keputusan: hasil.alasanKeputusan,
     print_internal_checks: false,
   };
 }

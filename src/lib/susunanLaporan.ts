@@ -15,6 +15,8 @@ import {
   ManifesPasanganBukti,
   StatusUkuranFisik,
   JenisMediaBukti,
+  JARAK_PASANGAN_DEFAULT_MM,
+  JARAK_ANTAR_BLOK_DEFAULT_MM,
 } from "./dataBelajarBukti";
 
 /**
@@ -66,6 +68,8 @@ export interface KotakTempelLaporan {
   catatan?: string;
   dimensiLabel?: string;
   statusUkuran?: StatusUkuranFisik;
+  memerlukanKeputusanPengguna?: boolean;
+  alasanKeputusan?: string;
 }
 
 export interface PasanganBuktiLaporan {
@@ -80,12 +84,19 @@ export interface PasanganBuktiLaporan {
   lebarKertasMm?: number;
   tinggiKertasMm?: number;
   sumberReferensi?: string;
+  jarakPasanganMm?: number;
+  memerlukanKeputusanPengguna?: boolean;
+  alasanKeputusan?: string;
 }
 
 export interface BlokTransaksiLaporan {
   transaksi: Transaksi;
   nomor: number;
-  /** Mulai di halaman baru berdasarkan perkiraan tinggi dalam mm (area isi 257 mm). */
+  subkategoriNama: string;
+  subkategoriNomor: number;
+  mulaiSubkategori?: boolean;
+  lanjutanSubkategori?: boolean;
+  /** Mulai di halaman baru berdasarkan perkiraan tinggi dalam mm. */
   halamanBaru: boolean;
   pasangan: PasanganBuktiLaporan[];
   /** Turunan dari pasangan (untuk kompatibilitas dengan pemanggil lama): */
@@ -97,6 +108,14 @@ export interface BlokTransaksiLaporan {
   kotakTambahan: KotakTempelLaporan[];
   fotoPendukung: FotoPendukung[];
   perkiraanTinggiMm: number;
+}
+
+export interface SubkategoriLaporan {
+  id: string;
+  nomor: number;
+  nama: string;
+  transaksi: Transaksi[];
+  blok: BlokTransaksiLaporan[];
 }
 
 export interface BarisTabelLaporan {
@@ -117,6 +136,7 @@ export interface KelompokLaporan {
   subtotal: number;
   /** null untuk uang harian yang sudah tampil sebagai timesheet. */
   tabel: BarisTabelLaporan[] | null;
+  subkategori: SubkategoriLaporan[];
   blok: BlokTransaksiLaporan[];
 }
 
@@ -489,6 +509,86 @@ export function rasioFotoBukti(
   return undefined;
 }
 
+export function tentukanSubkategori(t: Transaksi): string {
+  const d = t.detailKegiatan ?? {};
+  if (d.subkategori && d.subkategori.trim().length > 0) {
+    return d.subkategori.trim();
+  }
+  const kategori = t.kategori || "Lain-lain";
+  const desc = (t.deskripsi || "").toLowerCase();
+
+  if (kategori === "Transportasi") {
+    const moda = (d.transportasi?.moda || "").toLowerCase();
+    const gabung = `${moda} ${desc}`;
+    if (gabung.includes("speedboat") || gabung.includes("kapal") || gabung.includes("boat") || gabung.includes("penyeberangan")) {
+      return "Perjalanan Speedboat / Kapal";
+    }
+    if (gabung.includes("ojek") || gabung.includes("motor")) {
+      return "Perjalanan Ojek";
+    }
+    if (gabung.includes("pesawat") || gabung.includes("flight") || gabung.includes("tiket pesawat") || gabung.includes("boarding pass")) {
+      return "Perjalanan Pesawat";
+    }
+    if (gabung.includes("travel") || gabung.includes("antar kota")) {
+      return "Perjalanan Travel Antar Kota";
+    }
+    if (gabung.includes("bus") || gabung.includes("damri") || gabung.includes("angkot")) {
+      return "Perjalanan Bus / Angkutan Umum";
+    }
+    if (d.transportasi?.moda) {
+      return `Perjalanan ${d.transportasi.moda}`;
+    }
+    return "Transportasi Lapangan";
+  }
+
+  if (kategori === "Akomodasi") {
+    const penginapan = (d.akomodasi?.lokasi || d.akomodasi?.namaPemilik || "").toLowerCase();
+    const gabung = `${penginapan} ${desc}`;
+    if (gabung.includes("hotel")) {
+      return "Hotel";
+    }
+    if (gabung.includes("homestay") || gabung.includes("home stay") || gabung.includes("mess")) {
+      return "Homestay / Mess Lapangan";
+    }
+    if (gabung.includes("wisma") || gabung.includes("losmen") || gabung.includes("penginapan")) {
+      return "Wisma / Penginapan Lapangan";
+    }
+    if (gabung.includes("rumah") || gabung.includes("kades") || gabung.includes("warga")) {
+      return "Penginapan Rumah Warga / Tokoh";
+    }
+    return "Akomodasi Lapangan";
+  }
+
+  if (kategori === "Konsumsi") {
+    if (adalahKudapanPerjalanan(t.kategori, d, t.deskripsi)) {
+      return "Kudapan Perjalanan (Snack)";
+    }
+    return "Makan & Konsumsi Kegiatan";
+  }
+
+  if (kategori === "BBM") {
+    return "BBM Operasional Kendaraan";
+  }
+
+  if (kategori === "Rental Kendaraan") {
+    const rk = (d.rentalKendaraan?.jenisMerk || "").toLowerCase();
+    if (rk.includes("motor") || desc.includes("motor")) {
+      return "Rental Sepeda Motor";
+    }
+    return "Rental Mobil Operasional";
+  }
+
+  if (kategori === "Honorarium & Ganti Hari") {
+    return "Honorarium Lapangan";
+  }
+
+  if (kategori === KATEGORI_PERDIEM) {
+    return "Uang Harian (Perdiem)";
+  }
+
+  return `Operasional ${t.kategori}`;
+}
+
 function susunPasanganBukti(
   t: Transaksi,
   nomor: number,
@@ -523,6 +623,9 @@ function susunPasanganBukti(
       penyedia,
       jenisBukti,
       manual,
+      ukuranKertasFisik: d.ukuranKertasFisik,
+      posisiPasanganManual: d.posisiPasanganManual,
+      lanskapArea: t.kategori === "Akomodasi",
     });
     const keterangan = `No. ${nomor} · ${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
     return {
@@ -540,6 +643,8 @@ function susunPasanganBukti(
             catatan: ukuran.catatan,
             dimensiLabel: `${ukuran.lebarMm} × ${ukuran.tinggiMm} mm`,
             statusUkuran: ukuran.status,
+            memerlukanKeputusanPengguna: ukuran.memerlukanKeputusanPengguna,
+            alasanKeputusan: ukuran.alasanKeputusan,
           },
           tataLetak: ukuran.tataLetak,
           statusUkuran: ukuran.status,
@@ -547,6 +652,9 @@ function susunPasanganBukti(
           lebarKertasMm: ukuran.lebarKertasMm,
           tinggiKertasMm: ukuran.tinggiKertasMm,
           sumberReferensi: ukuran.sumberReferensi,
+          jarakPasanganMm: ukuran.jarakPasanganMm,
+          memerlukanKeputusanPengguna: ukuran.memerlukanKeputusanPengguna,
+          alasanKeputusan: ukuran.alasanKeputusan,
         },
       ],
       lampiranPdf,
@@ -565,6 +673,9 @@ function susunPasanganBukti(
       penyedia,
       jenisBukti,
       manual,
+      ukuranKertasFisik: d.ukuranKertasFisik,
+      posisiPasanganManual: d.posisiPasanganManual,
+      lanskapArea: t.kategori === "Akomodasi",
     });
     const labelBagian = total > 1 ? `Bukti ${urutan} dari ${total} · ` : "";
     const keterangan = `No. ${nomor} · ${labelBagian}${t.deskripsi}${diklaim ? ` · ${diklaim}` : ""}`;
@@ -582,6 +693,8 @@ function susunPasanganBukti(
         catatan: ukuran.catatan,
         dimensiLabel: `${ukuran.lebarMm} × ${ukuran.tinggiMm} mm`,
         statusUkuran: ukuran.status,
+        memerlukanKeputusanPengguna: ukuran.memerlukanKeputusanPengguna,
+        alasanKeputusan: ukuran.alasanKeputusan,
       },
       tataLetak: ukuran.tataLetak,
       statusUkuran: ukuran.status,
@@ -589,6 +702,9 @@ function susunPasanganBukti(
       lebarKertasMm: ukuran.lebarKertasMm,
       tinggiKertasMm: ukuran.tinggiKertasMm,
       sumberReferensi: ukuran.sumberReferensi,
+      jarakPasanganMm: ukuran.jarakPasanganMm,
+      memerlukanKeputusanPengguna: ukuran.memerlukanKeputusanPengguna,
+      alasanKeputusan: ukuran.alasanKeputusan,
     };
   });
 
@@ -602,28 +718,30 @@ function hitungTinggiBlokMm(
   fotoPendukung: FotoPendukung[],
   ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
 ): number {
-  let tinggi = 10; // kepala blok + padding
+  let tinggi = 12; // kepala blok + padding
+  // Keterangan diletakkan SEBELUM pasangan bukti
+  tinggi += keterangan.length * 4.5;
   for (let i = 0; i < pasangan.length; i++) {
     const p = pasangan[i];
-    if (i > 0) tinggi += 4;
+    const jarakPasangan = p.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
+    if (i > 0) tinggi += jarakPasangan;
     if (p.tataLetak === "samping") {
       tinggi += p.kotak.tinggiMm;
     } else {
       if (p.foto) {
         const rasio = rasioFotoBukti(p.foto, ukuranFoto) ?? 0.45;
         const tinggiFoto = Math.min(70, Math.max(30, Math.round(170 * rasio)));
-        tinggi += tinggiFoto + 4 + p.kotak.tinggiMm;
+        tinggi += tinggiFoto + jarakPasangan + p.kotak.tinggiMm;
       } else {
         tinggi += p.kotak.tinggiMm;
       }
     }
   }
-  tinggi += keterangan.length * 4.5;
   for (const kt of kotakTambahan) {
     tinggi += kt.tinggiMm + 4;
   }
   tinggi += fotoPendukung.length * 60;
-  tinggi += 6;
+  tinggi += JARAK_ANTAR_BLOK_DEFAULT_MM;
   return tinggi;
 }
 
@@ -671,54 +789,121 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
   return hasil;
 }
 
-function blokKelompok(
+export function susunKelompokDanSubkategori(
+  kategori: string,
   daftar: Transaksi[],
   nomorUrut: Map<string, number>,
   profil: ProfilPelapor,
   punyaTabel: boolean,
   jumlahBarisTabel: number,
   ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
-): BlokTransaksiLaporan[] {
-  const TINGGI_HALAMAN_MM = 257;
+): { subkategori: SubkategoriLaporan[]; blok: BlokTransaksiLaporan[] } {
+  const isAkomodasi = kategori === "Akomodasi";
+  const TINGGI_HALAMAN_MM = isAkomodasi ? 170 : 257;
   const tinggiHeader = 15 + (punyaTabel ? 22 + jumlahBarisTabel * 7 : 0);
   let sisaHalaman = TINGGI_HALAMAN_MM - tinggiHeader;
 
-  return daftar.map((t) => {
-    const nomor = nomorUrut.get(t.id) ?? 1;
-    const ket = keteranganTransaksi(t, profil);
-    const tambahan = kotakTambahan(t, nomor, profil);
-    const pendukung = t.detailKegiatan?.fotoPendukung ?? [];
-    const { pasangan, lampiranPdf } = susunPasanganBukti(t, nomor, profil, ukuranFoto);
-    const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung, ukuranFoto);
+  // Kelompokkan transaksi menurut subkategori (mempertahankan urutan kemunculan pertama)
+  const petaSubkategori = new Map<string, Transaksi[]>();
+  const urutanNamaSubkategori: string[] = [];
+  for (const t of daftar) {
+    const subNama = tentukanSubkategori(t);
+    if (!petaSubkategori.has(subNama)) {
+      petaSubkategori.set(subNama, []);
+      urutanNamaSubkategori.push(subNama);
+    }
+    petaSubkategori.get(subNama)!.push(t);
+  }
 
-    let halamanBaru = false;
-    if (sisaHalaman < tinggiBlok && sisaHalaman < TINGGI_HALAMAN_MM - 20) {
-      halamanBaru = true;
-      sisaHalaman = TINGGI_HALAMAN_MM - tinggiBlok;
-    } else {
-      halamanBaru = false;
-      sisaHalaman -= tinggiBlok;
+  const subkategoriHasil: SubkategoriLaporan[] = [];
+  const semuaBlok: BlokTransaksiLaporan[] = [];
+
+  let subIndex = 1;
+  for (const namaSub of urutanNamaSubkategori) {
+    const trxSub = petaSubkategori.get(namaSub)!;
+    const blokSub: BlokTransaksiLaporan[] = [];
+    const idSub = `sub-${kategori.toLowerCase()}-${subIndex}`;
+
+    const TINGGI_HEADER_SUBKATEGORI = 10;
+    // Ambang batas agar judul subkategori tidak tertinggal sendirian di dasar halaman (orphan)
+    const BATAS_MINIMAL_SUBKATEGORI = 55;
+
+    let subkategoriMulai = true;
+
+    for (let i = 0; i < trxSub.length; i++) {
+      const t = trxSub[i];
+      const nomor = nomorUrut.get(t.id) ?? 1;
+      const ket = keteranganTransaksi(t, profil);
+      const tambahan = kotakTambahan(t, nomor, profil);
+      const pendukung = t.detailKegiatan?.fotoPendukung ?? [];
+      const { pasangan, lampiranPdf } = susunPasanganBukti(t, nomor, profil, ukuranFoto);
+      const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung, ukuranFoto);
+
+      let halamanBaru = false;
+      let mulaiSub = false;
+      let lanjutanSub = false;
+
+      if (subkategoriMulai) {
+        const tinggiDibutuhkan = TINGGI_HEADER_SUBKATEGORI + tinggiBlok;
+        if ((sisaHalaman < tinggiDibutuhkan || sisaHalaman < BATAS_MINIMAL_SUBKATEGORI) && sisaHalaman < TINGGI_HALAMAN_MM - 20) {
+          halamanBaru = true;
+          sisaHalaman = TINGGI_HALAMAN_MM - tinggiDibutuhkan;
+        } else {
+          halamanBaru = false;
+          sisaHalaman -= tinggiDibutuhkan;
+        }
+        mulaiSub = true;
+        subkategoriMulai = false;
+      } else {
+        if (sisaHalaman < tinggiBlok && sisaHalaman < TINGGI_HALAMAN_MM - 20) {
+          halamanBaru = true;
+          lanjutanSub = true;
+          sisaHalaman = TINGGI_HALAMAN_MM - tinggiBlok;
+        } else {
+          halamanBaru = false;
+          sisaHalaman -= tinggiBlok;
+        }
+      }
+
+      const utama = pasangan[0].kotak;
+      const fotoDiKotak = pasangan.find((p) => p.tataLetak === "samping")?.foto;
+      const fotoBukti = pasangan.map((p) => p.foto).filter((f): f is BuktiItem => Boolean(f));
+
+      const blokItem: BlokTransaksiLaporan = {
+        transaksi: t,
+        nomor,
+        subkategoriNama: namaSub,
+        subkategoriNomor: subIndex,
+        mulaiSubkategori: mulaiSub,
+        lanjutanSubkategori: lanjutanSub,
+        halamanBaru,
+        pasangan,
+        kotakUtama: utama,
+        fotoDiKotak,
+        fotoBukti: fotoDiKotak ? fotoBukti.filter((f) => f.id !== fotoDiKotak.id) : fotoBukti,
+        lampiranPdf,
+        keterangan: ket,
+        kotakTambahan: tambahan,
+        fotoPendukung: pendukung,
+        perkiraanTinggiMm: tinggiBlok,
+      };
+
+      blokSub.push(blokItem);
+      semuaBlok.push(blokItem);
     }
 
-    const utama = pasangan[0].kotak;
-    const fotoDiKotak = pasangan.find((p) => p.tataLetak === "samping")?.foto;
-    const fotoBukti = pasangan.map((p) => p.foto).filter((f): f is BuktiItem => Boolean(f));
+    subkategoriHasil.push({
+      id: idSub,
+      nomor: subIndex,
+      nama: namaSub,
+      transaksi: trxSub,
+      blok: blokSub,
+    });
 
-    return {
-      transaksi: t,
-      nomor,
-      halamanBaru,
-      pasangan,
-      kotakUtama: utama,
-      fotoDiKotak,
-      fotoBukti: fotoDiKotak ? fotoBukti.filter((f) => f.id !== fotoDiKotak.id) : fotoBukti,
-      lampiranPdf,
-      keterangan: ket,
-      kotakTambahan: tambahan,
-      fotoPendukung: pendukung,
-      perkiraanTinggiMm: tinggiBlok,
-    };
-  });
+    subIndex++;
+  }
+
+  return { subkategori: subkategoriHasil, blok: semuaBlok };
 }
 
 export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
@@ -751,6 +936,15 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
     const timesheet = kategori === KATEGORI_PERDIEM && daftarPerdiem;
     const untukBlok = timesheet ? daftar.filter(adaFoto) : daftar;
     if (timesheet && untukBlok.length === 0) continue;
+    const { subkategori, blok } = susunKelompokDanSubkategori(
+      kategori,
+      untukBlok,
+      nomorUrut,
+      profil,
+      !timesheet,
+      daftar.length,
+      o.ukuranFoto
+    );
     kelompok.push({
       nomor: kelompok.length + 1,
       kategori,
@@ -758,7 +952,8 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
       transaksi: daftar,
       subtotal: daftar.reduce((s, t) => s + t.jumlah, 0),
       tabel: timesheet ? null : daftar.map((t) => barisTabel(t, String(nomorUrut.get(t.id) ?? ""), profil.nama, kegiatan.nama)),
-      blok: blokKelompok(untukBlok, nomorUrut, profil, !timesheet, untukBlok.length, o.ukuranFoto),
+      subkategori,
+      blok,
     });
   }
 
@@ -853,6 +1048,9 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
             penyedia,
             jenisBukti: detail.jenisBukti,
             manual: detail.kotakTempel,
+            ukuranKertasFisik: detail.ukuranKertasFisik,
+            posisiPasanganManual: detail.posisiPasanganManual,
+            lanskapArea: b.transaksi.kategori === "Akomodasi",
           });
           manifesBukti.push(
             susunManifesPasangan(b.transaksi, b.nomor, p.foto, p.urutan, p.total, hasilTaksir)
