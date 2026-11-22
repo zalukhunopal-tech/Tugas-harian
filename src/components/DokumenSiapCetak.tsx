@@ -139,65 +139,71 @@ interface LampiranBuktiProps {
   googleToken?: string;
   onStatus: (id: string, memuat: boolean) => void;
   onUkuran?: (id: string, lebar: number, tinggi: number) => void;
+  tanpaFotoDigital?: boolean;
 }
 
 /**
  * Lampiran bukti satu kategori pengeluaran di kertas A4 potret (area cetak bersih 190 × 277 mm), langsung sesudah tabel kategorinya.
- * Foto bukti digital dan kotak kosong tempat nota/struk/tiket asli ditempel berada di kartu yang sama dan tidak terbelah antarhalaman:
- *   Tipe A  foto di kiri, area tempel di kanan (dua kartu per halaman);
- *   Tipe B/C foto di atas, area tempel di bawah (satu kartu per halaman).
- * Pengeluaran tanpa foto tetap mendapat kotak tempel ringkas (Tipe A berpasangan, B dan C satu baris penuh).
- * Kepala tiap kartu memuat uraian, "Diklaim untuk: ..." dan kelengkapan kategori (rute, kendaraan, penyedia, dan seterusnya).
- * Ukuran dalam milimeter lewat --mm: di layar 1 mm = lebar kertas / 210 (pratinjau mengecil bersama kolom), saat cetak 1 mm sebenarnya.
+ * Untuk Laporan Keuangan Kegiatan (`tanpaFotoDigital`), foto bukti digital dihilangkan dan cukup disediakan ruang tempel bukti fisik
+ * (nota, struk, kuitansi, dll.). Untuk laporan lain tetap menyertakan foto bukti digital.
  */
-const LampiranBukti: React.FC<LampiranBuktiProps> = ({ judul, kotak, googleToken, onStatus, onUkuran }) => (
-  <section className="dsc-tempel dsc-bagian-potret" aria-label={`Lampiran bukti ${judul}`} data-testid="lembar-tempel">
-    <p className="dsc-tempel__ket no-print">
-      <strong>Lampiran Bukti · {judul}</strong> · {kotak.length} lembar, sekitar {perkirakanHalamanTempel(kotak)} halaman A4 potret. Foto bukti
-      digital dan area tempel nota asli berada di lembar yang sama
-      {ringkasKotak(kotak) ? ` (kotak: ${ringkasKotak(kotak)})` : ""}. Tempel bukti asli tepat di dalam kotak bergaris putus-putus.
-    </p>
-    <div className="dsc-tempel__kertas">
-      <div className="dsc-tempel__kisi">
-        {kotak.map((k) => (
-          <div
-            key={k.id}
-            className={`dsc-kotak dsc-kotak--${k.ukuran.kode} dsc-kotak--${k.varian}`}
-            data-ukuran={k.ukuran.kode}
-            data-varian={k.varian}
-            data-nomor={k.nomor}
-          >
-            <div className="dsc-kotak__kepala">
-              <div className="dsc-kotak__kepala-utama">{k.kepala}</div>
-              {k.rincian.map((r, i) => (
-                <div className="dsc-kotak__kepala-rinci" key={i}>
-                  {r}
+const LampiranBukti: React.FC<LampiranBuktiProps> = ({ judul, kotak, googleToken, onStatus, onUkuran, tanpaFotoDigital = false }) => {
+  const kotakTampil = tanpaFotoDigital ? kotak.filter((k) => k.varian !== "foto") : kotak;
+  if (kotakTampil.length === 0) return null;
+  return (
+    <section className="dsc-tempel dsc-bagian-potret" aria-label={`Lampiran bukti ${judul}`} data-testid="lembar-tempel">
+      <p className="dsc-tempel__ket no-print">
+        <strong>Lampiran Bukti · {judul}</strong> · {kotakTampil.length} lembar, sekitar {perkirakanHalamanTempel(kotakTampil)} halaman A4 potret.{" "}
+        {tanpaFotoDigital
+          ? "Ruang tempel bukti fisik (nota, struk, kuitansi, dll.) tanpa struk digital"
+          : "Foto bukti digital dan area tempel nota asli berada di lembar yang sama"}
+        {ringkasKotak(kotakTampil) ? ` (kotak: ${ringkasKotak(kotakTampil)})` : ""}. Tempel bukti asli tepat di dalam kotak bergaris putus-putus.
+      </p>
+      <div className="dsc-tempel__kertas">
+        <div className="dsc-tempel__kisi">
+          {kotakTampil.map((k) => {
+            const varianTampil = tanpaFotoDigital ? "ringkas" : k.varian;
+            return (
+              <div
+                key={k.id}
+                className={`dsc-kotak dsc-kotak--${k.ukuran.kode} dsc-kotak--${varianTampil}`}
+                data-ukuran={k.ukuran.kode}
+                data-varian={varianTampil}
+                data-nomor={k.nomor}
+              >
+                <div className="dsc-kotak__kepala">
+                  <div className="dsc-kotak__kepala-utama">{k.kepala}</div>
+                  {k.rincian.map((r, i) => (
+                    <div className="dsc-kotak__kepala-rinci" key={i}>
+                      {r}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="dsc-kotak__isi">
-              {k.bukti.length > 0 && (
-                <div className="dsc-kotak__foto" data-testid="foto-bukti">
-                  <span className="dsc-kotak__label">Foto bukti digital{k.bukti.length > 1 ? ` (${k.bukti.length})` : ""}</span>
-                  <div className={`dsc-kotak__foto-isi${k.bukti.length > 1 ? " dsc-kotak__foto-isi--banyak" : ""}`}>
-                    {k.bukti.map((b) => (
-                      <GambarLampiran key={b.id} bukti={b} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
-                    ))}
-                  </div>
+                <div className="dsc-kotak__isi">
+                  {!tanpaFotoDigital && k.bukti.length > 0 && (
+                    <div className="dsc-kotak__foto" data-testid="foto-bukti">
+                      <span className="dsc-kotak__label">Foto bukti digital{k.bukti.length > 1 ? ` (${k.bukti.length})` : ""}</span>
+                      <div className={`dsc-kotak__foto-isi${k.bukti.length > 1 ? " dsc-kotak__foto-isi--banyak" : ""}`}>
+                        {k.bukti.map((b) => (
+                          <GambarLampiran key={b.id} bukti={b} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {varianTampil !== "foto" && (
+                    <div className="dsc-kotak__area">
+                      <span>Area Tempel Bukti / Nota Asli ({k.ukuran.nama})</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {k.varian !== "foto" && (
-                <div className="dsc-kotak__area">
-                  <span>Area Tempel Bukti / Nota Asli ({k.ukuran.nama})</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 /* ---------- komponen utama ---------- */
 
@@ -356,7 +362,16 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
   const kopDiTabel = kelompok.length > 0;
   const tampilLampiran = (k: Kelompok) => {
     const kotak = lampiranPerKelompok.get(k.kunci) ?? [];
-    return kotak.length > 0 ? <LampiranBukti judul={k.judul} kotak={kotak} googleToken={googleToken} onStatus={ubahStatusMuat} onUkuran={onUkuran} /> : null;
+    return kotak.length > 0 ? (
+      <LampiranBukti
+        judul={k.judul}
+        kotak={kotak}
+        googleToken={googleToken}
+        onStatus={ubahStatusMuat}
+        onUkuran={onUkuran}
+        tanpaFotoDigital={adalahKegiatan}
+      />
+    ) : null;
   };
   const kop = (
     <header className="dsc-kop">
@@ -375,16 +390,17 @@ export const DokumenSiapCetak: React.FC<DokumenSiapCetakProps> = ({
           <h3 className="dsc-toolbar__judul">Dokumen Laporan Siap Cetak</h3>
           {susunan ? (
             <p className="dsc-toolbar__ket">
-              {susunan.kelompok.length} kelompok pengeluaran · {susunan.totalBukti} bukti · {jumlahLampiran} foto bukti
+              {susunan.kelompok.length} kelompok pengeluaran · {susunan.totalBukti} bukti
               {tanpaBukti > 0 ? ` · ${tanpaBukti} pengeluaran belum punya foto bukti` : ""}. Susunan sama dengan dokumen Word:{" "}
               {susunan.daftarPerdiem ? "timesheet uang harian (lanskap), " : ""}identitas dan penerimaan dana, tiap kelompok dengan
-              kotak tempel bukti asli dan semua foto buktinya, rekapitulasi dan ringkasan penyelesaian dana.
+              ruang tempel bukti fisik (nota, struk, kuitansi, dll.), rekapitulasi dan ringkasan penyelesaian dana.
             </p>
           ) : (
             <p className="dsc-toolbar__ket">
               {kelompok.length} bagian per kategori · {jumlahLampiran} lampiran bukti
-              {tanpaBukti > 0 ? ` · ${tanpaBukti} pengeluaran belum punya bukti` : ""}. Urutan: tiap kategori diikuti foto nota dan
-              kotak tempel buktinya (potret), ditutup rekapitulasi.
+              {tanpaBukti > 0 ? ` · ${tanpaBukti} pengeluaran belum punya bukti` : ""}. Urutan: tiap kategori diikuti{" "}
+              {adalahKegiatan ? "ruang tempel bukti fisik (nota, struk, kuitansi, dll.)" : "foto nota dan kotak tempel buktinya"} (potret),
+              ditutup rekapitulasi.
             </p>
           )}
         </div>

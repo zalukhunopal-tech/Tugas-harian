@@ -232,7 +232,7 @@ const KotakTempel: React.FC<{
   kotak: KotakTempelLaporan;
   catatan?: string;
   mountStyle?: { label?: boolean; border?: boolean; fill?: boolean };
-}> = ({ kotak, catatan, mountStyle = { label: false, border: false, fill: false } }) => {
+}> = ({ kotak, catatan, mountStyle = { label: true, border: true, fill: true } }) => {
   if (!mountStyle.label && !mountStyle.border && !mountStyle.fill) {
     return (
       <div
@@ -240,7 +240,7 @@ const KotakTempel: React.FC<{
         style={{
           "--tinggi": kotak.tinggiMm,
           minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
-          width: kotak.lebarMm ? `calc(${kotak.lebarMm} * var(--mm))` : undefined,
+          width: kotak.lebarMm ? `min(calc(${kotak.lebarMm} * var(--mm)), 100%)` : "100%",
           border: "none",
           background: "transparent",
         } as CSSProperties}
@@ -256,7 +256,7 @@ const KotakTempel: React.FC<{
       style={{
         "--tinggi": kotak.tinggiMm,
         minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
-        width: kotak.lebarMm ? `calc(${kotak.lebarMm} * var(--mm))` : undefined,
+        width: kotak.lebarMm ? `min(calc(${kotak.lebarMm} * var(--mm)), 100%)` : "100%",
       } as CSSProperties}
       data-testid="kotak-tempel"
       data-bentuk={kotak.bentuk}
@@ -277,12 +277,8 @@ const KotakTempel: React.FC<{
 
 const PasanganBukti: React.FC<{
   pasangan: PasanganBuktiLaporan;
-  googleToken?: string;
-  onStatus: UbahStatusMuat;
-  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
-}> = ({ pasangan, googleToken, onStatus, onUkuran }) => {
-  const { kotak, foto, tataLetak, urutan, total, label, memerlukanKeputusanPengguna, alasanKeputusan, jarakPasanganMm = 5 } = pasangan;
-  const judulFoto = `FOTO BUKTI DIGITAL${total > 1 ? ` (${urutan} DARI ${total})` : ""}`;
+}> = ({ pasangan }) => {
+  const { kotak, urutan, total, memerlukanKeputusanPengguna, alasanKeputusan } = pasangan;
 
   const renderPeringatan = () => {
     if (!memerlukanKeputusanPengguna) return null;
@@ -293,69 +289,18 @@ const PasanganBukti: React.FC<{
     );
   };
 
-  if (tataLetak === "samping") {
-    return (
-      <div className="dlk-pasangan-wadah">
-        {renderPeringatan()}
-        <div
-          className="dlk-struk dlk-pasangan--samping"
-          data-testid="pasangan-bukti"
-          data-urutan={urutan}
-          data-total={total}
-          data-tataletak="samping"
-          style={{
-            "--tinggi": kotak.tinggiMm,
-            "--lebar-kotak": kotak.lebarMm,
-            gridTemplateColumns: `minmax(0, 1fr) calc(${kotak.lebarMm} * var(--mm))`,
-            gap: `calc(${jarakPasanganMm} * var(--mm))`,
-            minHeight: `calc(${kotak.tinggiMm} * var(--mm))`,
-          } as CSSProperties}
-        >
-          <div className="dlk-struk__foto">
-            <div className="dlk-struk__judul-foto">{judulFoto}</div>
-            {foto ? (
-              <figure className="dlk-foto dlk-foto--struk" data-testid="foto-bukti">
-                <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
-                {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
-              </figure>
-            ) : (
-              <p className="dlk-struk__kosong">Belum ada foto bukti digital. Tempel fotokopi bukti di sini (wajib untuk struk thermal yang cepat pudar).</p>
-            )}
-          </div>
-          <KotakTempel kotak={kotak} catatan={kotak.catatan} />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="dlk-pasangan-wadah">
       {renderPeringatan()}
       <div
-        className="dlk-pasangan dlk-pasangan--bawah"
+        className="dlk-pasangan dlk-pasangan--tempel-saja"
         data-testid="pasangan-bukti"
         data-urutan={urutan}
         data-total={total}
-        data-tataletak="bawah"
-        style={{
-          "--tinggi": kotak.tinggiMm,
-          display: "flex",
-          flexDirection: "column",
-          gap: `calc(${jarakPasanganMm} * var(--mm))`,
-        } as CSSProperties}
+        data-tataletak="tempel-saja"
+        style={{ "--tinggi": kotak.tinggiMm } as CSSProperties}
       >
-        {foto && (
-          <div className="dlk-foto--atas" style={{ marginBottom: 0 }}>
-            <div className="dlk-foto-judul">{judulFoto}</div>
-            <figure className="dlk-foto" data-testid="foto-bukti">
-              <GambarLampiran bukti={foto} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
-              {label && <figcaption className="dlk-foto__label">{label}</figcaption>}
-            </figure>
-          </div>
-        )}
-        <div className="dlk-kotak--bawah">
-          <KotakTempel kotak={kotak} catatan={kotak.catatan} />
-        </div>
+        <KotakTempel kotak={kotak} catatan={kotak.catatan} />
       </div>
     </div>
   );
@@ -392,8 +337,8 @@ const BlokTransaksi: React.FC<{
 }> = ({ blok, googleToken, onStatus, onUkuran }) => {
   const t = blok.transaksi;
   const duaKolom =
-    blok.pasangan.length === 2 &&
-    blok.pasangan.every((p) => p.tataLetak === "bawah" && p.kotak.lebarMm <= 90);
+    blok.pasangan.length >= 2 &&
+    blok.pasangan.every((p) => p.kotak.lebarMm <= 90);
 
   return (
     <section className="dlk-blok" data-testid="blok-transaksi" data-nomor={blok.nomor}>
@@ -423,7 +368,7 @@ const BlokTransaksi: React.FC<{
         <span className="dsc-jumlah">{formatRupiah(t.jumlah)}</span>
       </div>
 
-      {/* 3. Keterangan transaksi WAJIB sebelum bukti digital */}
+      {/* 3. Keterangan transaksi sebelum ruang tempel bukti fisik */}
       <div className="dlk-keterangan">
         {blok.keterangan.map((b, i) => (
           <BarisKet key={i} baris={b} />
@@ -437,7 +382,7 @@ const BlokTransaksi: React.FC<{
         </p>
       ))}
 
-      {/* 5. Pasangan bukti digital lalu ruang tempel fisik */}
+      {/* 5. Ruang tempel bukti fisik asli (nota, struk, kuitansi, dll.) tanpa struk digital */}
       <div
         className={`dlk-daftar-pasangan${duaKolom ? " dlk-daftar-pasangan--dua-kolom" : ""}`}
         style={
@@ -447,13 +392,7 @@ const BlokTransaksi: React.FC<{
         }
       >
         {blok.pasangan.map((p, idx) => (
-          <PasanganBukti
-            key={`${t.id}-p-${idx}`}
-            pasangan={p}
-            googleToken={googleToken}
-            onStatus={onStatus}
-            onUkuran={onUkuran}
-          />
+          <PasanganBukti key={`${t.id}-p-${idx}`} pasangan={p} />
         ))}
       </div>
 

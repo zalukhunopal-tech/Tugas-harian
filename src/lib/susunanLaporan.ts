@@ -715,26 +715,26 @@ function hitungTinggiBlokMm(
   pasangan: PasanganBuktiLaporan[],
   keterangan: BarisKeterangan[],
   kotakTambahan: KotakTempelLaporan[],
-  fotoPendukung: FotoPendukung[],
-  ukuranFoto?: Map<string, { lebar: number; tinggi: number }>
+  fotoPendukung: FotoPendukung[]
 ): number {
   let tinggi = 12; // kepala blok + padding
-  // Keterangan diletakkan SEBELUM pasangan bukti
+  // Keterangan diletakkan SEBELUM ruang tempel bukti fisik
   tinggi += keterangan.length * 4.5;
-  for (let i = 0; i < pasangan.length; i++) {
-    const p = pasangan[i];
-    const jarakPasangan = p.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
-    if (i > 0) tinggi += jarakPasangan;
-    if (p.tataLetak === "samping") {
+  const duaKolom = pasangan.length >= 2 && pasangan.every((p) => p.kotak.lebarMm <= 90);
+  if (duaKolom) {
+    for (let i = 0; i < pasangan.length; i += 2) {
+      const p1 = pasangan[i];
+      const p2 = pasangan[i + 1];
+      const jarakBaris = p1.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
+      if (i > 0) tinggi += jarakBaris;
+      tinggi += Math.max(p1.kotak.tinggiMm, p2?.kotak.tinggiMm ?? 0);
+    }
+  } else {
+    for (let i = 0; i < pasangan.length; i++) {
+      const p = pasangan[i];
+      const jarakPasangan = p.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
+      if (i > 0) tinggi += jarakPasangan;
       tinggi += p.kotak.tinggiMm;
-    } else {
-      if (p.foto) {
-        const rasio = rasioFotoBukti(p.foto, ukuranFoto) ?? 0.45;
-        const tinggiFoto = Math.min(70, Math.max(30, Math.round(170 * rasio)));
-        tinggi += tinggiFoto + jarakPasangan + p.kotak.tinggiMm;
-      } else {
-        tinggi += p.kotak.tinggiMm;
-      }
     }
   }
   for (const kt of kotakTambahan) {
@@ -837,7 +837,7 @@ export function susunKelompokDanSubkategori(
       const tambahan = kotakTambahan(t, nomor, profil);
       const pendukung = t.detailKegiatan?.fotoPendukung ?? [];
       const { pasangan, lampiranPdf } = susunPasanganBukti(t, nomor, profil, ukuranFoto);
-      const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung, ukuranFoto);
+      const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung);
 
       let halamanBaru = false;
       let mulaiSub = false;

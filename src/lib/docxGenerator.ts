@@ -193,13 +193,14 @@ function buatRingkasanPenyelesaian(p: RingkasanPenyelesaian): Table {
 }
 
 /**
- * Membuat tabel kotak tempel dengan garis putus-putus abu-abu
+ * Membuat tabel kotak tempel bukti fisik (nota, struk, kuitansi, dll.) dengan garis putus-putus abu-abu.
  */
 function buatKotakTempel(
   teksUtama: string,
   subTeks: string,
   tinggiMm: number = 65,
-  mountStyle?: MountStyleOptions
+  mountStyle?: MountStyleOptions,
+  opsiTambahan?: { catatan?: string; lebarMm?: number; lebarAreaMm?: number; dimensiLabel?: string }
 ): Table {
   const tinggiTwip = convertMillimetersToTwip(tinggiMm);
   const dashedBorder = {
@@ -227,14 +228,15 @@ function buatKotakTempel(
         right: tanpaBorder,
       };
 
-  const children = mountStyle?.label
+  const judulLengkap = opsiTambahan?.dimensiLabel ? `${teksUtama} | ${opsiTambahan.dimensiLabel}` : teksUtama;
+  const children: Paragraph[] = mountStyle?.label
     ? [
         new Paragraph({
           alignment: AlignmentType.CENTER,
           spacing: { before: 80, after: 40 },
           children: [
             new TextRun({
-              text: teksUtama,
+              text: judulLengkap,
               bold: true,
               font: "Arial",
               size: 20, // 10pt
@@ -244,7 +246,7 @@ function buatKotakTempel(
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 80 },
+          spacing: { after: opsiTambahan?.catatan ? 40 : 80 },
           children: [
             new TextRun({
               text: subTeks,
@@ -254,11 +256,34 @@ function buatKotakTempel(
             }),
           ],
         }),
+        ...(opsiTambahan?.catatan
+          ? [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 80 },
+                children: [
+                  new TextRun({
+                    text: `(${opsiTambahan.catatan})`,
+                    italics: true,
+                    font: "Arial",
+                    size: 16, // 8pt
+                    color: "AAAAAA",
+                  }),
+                ],
+              }),
+            ]
+          : []),
       ]
     : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })];
 
+  const areaMm = opsiTambahan?.lebarAreaMm ?? 170;
+  const lebarPersen =
+    opsiTambahan?.lebarMm && opsiTambahan.lebarMm < areaMm
+      ? Math.min(100, Math.max(45, Math.round((opsiTambahan.lebarMm / areaMm) * 100)))
+      : 100;
+
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    width: { size: lebarPersen, type: WidthType.PERCENTAGE },
     rows: [
       new TableRow({
         cantSplit: true,
@@ -270,6 +295,84 @@ function buatKotakTempel(
             shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
             children,
           }),
+        ],
+      }),
+    ],
+  });
+}
+
+/**
+ * Dua ruang tempel bukti fisik berukuran sempit (mis. dua struk thermal) disusun berdampingan dalam satu baris tabel.
+ */
+function buatKotakTempelDuaKolom(
+  p1: PasanganBuktiLaporan,
+  p2: PasanganBuktiLaporan | undefined,
+  mountStyle?: MountStyleOptions
+): Table {
+  const tinggiTwip = convertMillimetersToTwip(Math.max(p1.kotak.tinggiMm, p2?.kotak.tinggiMm ?? 0));
+  const dashedBorder = { style: BorderStyle.DASHED, size: 6, color: "888888" };
+  const tanpaBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const bordersKotak = mountStyle?.border
+    ? { top: dashedBorder, bottom: dashedBorder, left: dashedBorder, right: dashedBorder }
+    : { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder };
+  const bordersKosong = { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder };
+
+  const buatSel = (p?: PasanganBuktiLaporan) => {
+    if (!p) {
+      return new TableCell({
+        width: { size: 48, type: WidthType.PERCENTAGE },
+        borders: bordersKosong,
+        children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
+      });
+    }
+    const judulLengkap = p.kotak.dimensiLabel ? `${p.kotak.judul} | ${p.kotak.dimensiLabel}` : p.kotak.judul;
+    const isi: Paragraph[] = mountStyle?.label
+      ? [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 60, after: 30 },
+            children: [new TextRun({ text: judulLengkap, bold: true, font: "Arial", size: 18, color: "777777" })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: p.kotak.catatan ? 30 : 60 },
+            children: [new TextRun({ text: p.kotak.keterangan, font: "Arial", size: 16, color: "999999" })],
+          }),
+          ...(p.kotak.catatan
+            ? [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 60 },
+                  children: [new TextRun({ text: `(${p.kotak.catatan})`, italics: true, font: "Arial", size: 15, color: "AAAAAA" })],
+                }),
+              ]
+            : []),
+        ]
+      : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })];
+
+    return new TableCell({
+      width: { size: 48, type: WidthType.PERCENTAGE },
+      verticalAlign: VerticalAlign.CENTER,
+      borders: bordersKotak,
+      shading: mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+      children: isi,
+    });
+  };
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        height: { value: tinggiTwip, rule: HeightRule.ATLEAST },
+        children: [
+          buatSel(p1),
+          new TableCell({
+            width: { size: 4, type: WidthType.PERCENTAGE },
+            borders: bordersKosong,
+            children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
+          }),
+          buatSel(p2),
         ],
       }),
     ],
@@ -1104,7 +1207,7 @@ export async function buatDokumenLaporanKegiatanDocx(
   // tidak berhimpit, bagian lain tetap potret. `childrenSections` selalu menunjuk isi bagian yang sedang diisi.
   // Urutan dokumen: timesheet uang harian (lanskap) paling depan, lalu identitas, penerimaan dana, dan tiap kategori (tabel lalu
   // bukti dan kotak tempelnya, potret), ditutup rekapitulasi penyelesaian dana.
-  const mountStyle: MountStyleOptions = opsi.mountStyle ?? { label: false, border: false, fill: false };
+  const mountStyle: MountStyleOptions = opsi.mountStyle ?? { label: true, border: true, fill: true };
   const daftarPerdiemUtama = susunan.daftarPerdiem;
   const bagianWord: { lanskap: boolean; marginKhususMm?: number; isi: (Paragraph | Table)[] }[] = daftarPerdiemUtama
     ? [
@@ -1439,45 +1542,32 @@ export async function buatDokumenLaporanKegiatanDocx(
         );
       }
 
-      // 5. Pasangan bukti digital lalu ruang tempel fisik asli
+      // 5. Ruang tempel bukti fisik asli (nota, struk, kuitansi, dll.) tanpa struk digital
       const duaKolom =
-        blok.pasangan.length === 2 &&
-        blok.pasangan.every((p) => p.tataLetak === "bawah" && p.kotak.lebarMm <= 90);
+        blok.pasangan.length >= 2 &&
+        blok.pasangan.every((p) => p.kotak.lebarMm <= 90);
+      const lebarAreaMm = lanskapAkomodasi ? 257 : 170;
 
       if (duaKolom) {
-        const p1 = blok.pasangan[0];
-        const p2 = blok.pasangan[1];
-        let foto1: GambarDokumen | null = null;
-        let foto2: GambarDokumen | null = null;
-        if (p1.foto) {
-          foto1 = gambarCache.get(p1.foto.id) ?? (await muatGambar(p1.foto, googleToken));
-          if (foto1) gambarCache.set(p1.foto.id, foto1);
+        for (let idxBaris = 0; idxBaris < blok.pasangan.length; idxBaris += 2) {
+          if (idxBaris > 0) {
+            childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
+          }
+          childrenSections.push(buatKotakTempelDuaKolom(blok.pasangan[idxBaris], blok.pasangan[idxBaris + 1], mountStyle));
         }
-        if (p2.foto) {
-          foto2 = gambarCache.get(p2.foto.id) ?? (await muatGambar(p2.foto, googleToken));
-          if (foto2) gambarCache.set(p2.foto.id, foto2);
-        }
-        childrenSections.push(buatTabelPasanganDuaKolom(p1, foto1, p2, foto2, mountStyle));
       } else {
         for (const [idxPasangan, p] of blok.pasangan.entries()) {
           if (idxPasangan > 0) {
-            // Jarak antarpasangan minimal 5 mm
             childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
           }
-          let foto: GambarDokumen | null = null;
-          if (p.foto) {
-            if (gambarCache.has(p.foto.id)) {
-              foto = gambarCache.get(p.foto.id) ?? null;
-            } else {
-              foto = await muatGambar(p.foto, googleToken);
-              gambarCache.set(p.foto.id, foto);
-            }
-          }
-          if (p.tataLetak === "samping") {
-            childrenSections.push(buatTabelPasanganSamping(p, foto, mountStyle));
-          } else {
-            childrenSections.push(buatTabelPasanganBawah(p, foto, mountStyle));
-          }
+          childrenSections.push(
+            buatKotakTempel(p.kotak.judul, p.kotak.keterangan, p.kotak.tinggiMm, mountStyle, {
+              catatan: p.kotak.catatan,
+              lebarMm: p.kotak.lebarMm,
+              lebarAreaMm,
+              dimensiLabel: p.kotak.dimensiLabel,
+            })
+          );
         }
       }
 

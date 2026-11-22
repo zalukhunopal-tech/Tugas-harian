@@ -721,19 +721,29 @@ async function jalankanUjiVisualPlaywright() {
         if (!isPotret) throw new Error("Halaman non-Akomodasi secara salah diberi kelas lanskap");
       }
 
-      // d. Verifikasi Urutan: Subkategori -> Keterangan -> Pasangan Bukti
+      // d. Verifikasi Urutan: Subkategori -> Keterangan -> Ruang Tempel Bukti Fisik (tanpa struk digital)
+      const fotoBuktiDigital = await page.$$('[data-testid="foto-bukti"]');
+      if (fotoBuktiDigital.length > 0) {
+        throw new Error(`Ditemukan ${fotoBuktiDigital.length} elemen struk digital ([data-testid="foto-bukti"]) yang seharusnya dihilangkan!`);
+      }
       const blokTransaksiList = await page.$$('[data-testid="blok-transaksi"]');
       for (const blok of blokTransaksiList) {
-        const urutanElemen = await page.evaluate((b) => {
+        const hasilBlok = await page.evaluate((b) => {
           const keteranganEl = b.querySelector(".dlk-keterangan");
           const pasanganEl = b.querySelector(".dlk-daftar-pasangan");
-          if (!keteranganEl || !pasanganEl) return true;
-          // Keterangan harus berada sebelum pasangan bukti dalam urutan DOM
-          return Boolean(keteranganEl.compareDocumentPosition(pasanganEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+          const kotakEl = b.querySelector('[data-testid="kotak-tempel"]');
+          const urutanBenar =
+            !keteranganEl ||
+            !pasanganEl ||
+            Boolean(keteranganEl.compareDocumentPosition(pasanganEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+          return { urutanBenar, adaKotak: Boolean(kotakEl) };
         }, blok);
 
-        if (!urutanElemen) {
-          throw new Error("Urutan terbalik: Pasangan bukti dirender sebelum keterangan!");
+        if (!hasilBlok.urutanBenar) {
+          throw new Error("Urutan terbalik: Ruang tempel bukti dirender sebelum keterangan!");
+        }
+        if (!hasilBlok.adaKotak) {
+          throw new Error("Blok transaksi tidak menyediakan ruang tempel bukti fisik ([data-testid='kotak-tempel'])!");
         }
       }
 

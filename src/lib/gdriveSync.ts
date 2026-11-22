@@ -228,19 +228,30 @@ export async function ambilIsiFolderKeuangan(
   folderId: string
 ): Promise<KeuanganDriveContents> {
   const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`);
-  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,mimeType,webViewLink,modifiedTime)&pageSize=100`;
+  const files: GDriveFileInfo[] = [];
+  let pageToken: string | undefined;
 
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  for (let halaman = 0; halaman < 20; halaman++) {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=nextPageToken,files(id,name,mimeType,webViewLink,modifiedTime)&pageSize=200${tokenParam}`;
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gagal membaca isi folder Keuangan: ${err}`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gagal membaca isi folder Keuangan: ${err}`);
+    }
+
+    const data = await res.json();
+    if (Array.isArray(data.files)) {
+      files.push(...data.files);
+    }
+    pageToken = typeof data.nextPageToken === "string" && data.nextPageToken ? data.nextPageToken : undefined;
+    if (!pageToken) break;
   }
 
-  const data = await res.json();
-  const files: GDriveFileInfo[] = data.files || [];
   const spreadsheets: GDriveFileInfo[] = [];
   const timesheets: GDriveFileInfo[] = [];
 

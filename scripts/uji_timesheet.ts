@@ -3,7 +3,7 @@
  * Data uji meniru file nyata "FORM LAPORAN TIMESHEET KEGIATAN BATCH 4 (SEPTEMBER - OKTOBER 2026)", termasuk
  * tanggal 1-12 Oktober yang di Google Sheets berupa tanggal sungguhan berformat hari/bulan (tampil "10/1/2026").
  */
-import { Transaksi } from "../src/types";
+import { DataKegiatan, Transaksi } from "../src/types";
 import {
   adalahFileTimesheet,
   barisPerdiemKegiatan,
@@ -18,6 +18,7 @@ import {
   formatTanggalTimesheet,
   judulUntukTimesheet,
   labelBulan,
+  namaFileBeririsan,
   namaFileTimesheet,
   rentangMengikutiTimesheet,
   sarankanBatch,
@@ -28,6 +29,8 @@ import {
   uraikanJumlahTimesheet,
   uraikanTanggalTimesheet,
 } from "../src/lib/timesheet";
+import { pilihTimesheetBaruUntukOtomatis, tarikTimesheetSemuaKegiatan } from "../src/lib/timesheetDrive";
+import type { KeuanganDriveContents } from "../src/lib/gdriveSync";
 
 let gagal = 0;
 function cek(nama: string, kondisi: boolean, rincian?: unknown) {
@@ -301,6 +304,111 @@ const mencurigakan = cariCatatanMencurigakan([
   trx({ id: "ok6", deskripsi: "Pribadi", dana: "Dana Pribadi", jenis: "pemasukan", kategori: "Pemasukan Gaji" }),
 ]).map((t) => t.id).join();
 cek("hanya pemasukan Dana Kegiatan polos berkategori tidak resmi yang ditandai", mencurigakan === "m1,m2", mencurigakan);
+
+console.log("Otomatisasi penemuan dan pembacaan timesheet Batch 5 di Drive");
+cek("batchDariJudul mendukung tanpa kurung", batchDariJudul("Kegiatan Lapangan Batch 5") === 5);
+cek("namaFileBeririsan mendukung singkatan bulan", namaFileBeririsan("FORM TIMESHEET BATCH 5 (NOV 2026)", "2026-11-17", "2026-11-21"));
+
+const MIME_SHEET = "application/vnd.google-apps.spreadsheet";
+const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const berkasDriveNyata = [
+  { id: "id-b4", name: NAMA_BATCH4, mimeType: MIME_SHEET, modifiedTime: "2026-10-31T01:29:21.393Z" },
+  { id: "id-b4-xlsx", name: `${NAMA_BATCH4}.xlsx`, mimeType: MIME_XLSX, modifiedTime: "2026-10-24T10:53:02.376Z" },
+  { id: "id-b4-bak", name: `${NAMA_BATCH4}_backup`, mimeType: MIME_SHEET, modifiedTime: "2026-10-31T01:31:07.778Z" },
+  { id: "id-b5", name: "FORM LAPORAN TIMESHEET KEGIATAN BATCH 5 (NOVEMBER 2026)", mimeType: MIME_SHEET, modifiedTime: "2026-11-21T12:14:46.259Z" },
+];
+const daftarSudahAda: DataKegiatan[] = [
+  {
+    id: "kg_b4",
+    nama: JUDUL,
+    lokasi: "Proyek Contoh",
+    tanggalMulai: "2026-09-20",
+    tanggalSelesai: "2026-10-27",
+    batch: 4,
+    timesheetId: "id-b4",
+    timesheetNama: NAMA_BATCH4,
+    timesheetBaris: [{ tanggal: "2026-09-20", keterangan: "Hari 1", lokasi: "Kota" }],
+    timesheetSinkron: "2026-11-01T14:56:51.031Z",
+    dibuat: "2026-10-25T05:29:51.107Z",
+  },
+];
+
+const kandidatBaru = pilihTimesheetBaruUntukOtomatis(berkasDriveNyata, daftarSudahAda);
+cek(
+  "hanya file utama Batch 5 yang dipilih sebagai timesheet baru (abaikan Batch 4, _backup, dan .xlsx)",
+  kandidatBaru.length === 1 && kandidatBaru[0].id === "id-b5",
+  kandidatBaru
+);
+
+async function ujiTarikOtomatisBatch5() {
+  const fetchAsli = globalThis.fetch;
+  const valuesBatch5: string[][] = [
+    [],
+    ["", "", "Detail Keuangan"],
+    ["", "", "Perdiem Kegiatan Lapangan"],
+    [],
+    ["Proyek", ": Proyek Contoh"],
+    ["Judul Kegiatan", ": Kegiatan Asistensi Kader Lokal (Batch 5)"],
+    ["Nama", ": Budi Santoso"],
+    ["Bulan", ": November 2026"],
+    [],
+    ["No", "Tanggal", "Keterangan", "Lokasi", "Jumlah (Rp.)"],
+    ["1", "11/17/2026", "Perjalanan menuju lokasi lapangan", "Kabupaten Contoh", "200.000"],
+    ["2", "11/18/2026", "Koordinasi dan pengenalan aplikasi", "Kecamatan Contoh", "200.000"],
+    ["3", "11/19/2026", "Penggalian tata kelola wilayah", "Kecamatan Contoh", "200.000"],
+    ["4", "11/20/2026", "Konsultasi publik dan diskusi desa", "Kecamatan Contoh", "200.000"],
+    ["5", "11/21/2026", "Diskusi kelompok dan pemetaan", "Kecamatan Contoh", "200.000"],
+    ["", "", "Total", "", "1.000.000"],
+    [],
+    ["", "Dilaporkan Oleh :", "", "Disetujui Oleh :"],
+    [],
+    [],
+    [],
+    ["", "Budi Santoso", "", "Sari Wulandari"],
+  ];
+
+  (globalThis as any).fetch = async (url: string) => {
+    const u = String(url);
+    if (u.includes("id-b5") && u.includes("fields=sheets")) {
+      return { ok: true, status: 200, json: async () => ({ sheets: [{ properties: { title: "Timesheet Batch 5", sheetId: 0 } }] }) };
+    }
+    if (u.includes("id-b5") && u.includes("/values/")) {
+      return { ok: true, status: 200, json: async () => ({ values: valuesBatch5 }) };
+    }
+    return { ok: false, status: 404, text: async () => `unexpected url: ${u}` };
+  };
+
+  try {
+    const contents: KeuanganDriveContents = {
+      folder: { id: "f1", name: "Keuangan" },
+      spreadsheets: [],
+      timesheets: berkasDriveNyata,
+      allFiles: berkasDriveNyata,
+    };
+    const res = await tarikTimesheetSemuaKegiatan("tok", contents, daftarSudahAda);
+    const b5 = res.daftar.find((k) => k.batch === 5);
+    cek("tarikTimesheetSemuaKegiatan otomatis menambahkan kegiatan Batch 5", res.berubah && res.ditambahkan.length === 1 && res.daftar.length === 2, res.galat);
+    cek(
+      "isi Batch 5 terbaca lengkap (5 hari, rentang 17-21 Nov 2026, kop terisi)",
+      Boolean(
+        b5 &&
+          b5.timesheetId === "id-b5" &&
+          b5.tanggalMulai === "2026-11-17" &&
+          b5.tanggalSelesai === "2026-11-21" &&
+          b5.timesheetBaris?.length === 5 &&
+          b5.timesheetKop?.penyetuju === "Sari Wulandari"
+      ),
+      b5
+    );
+    // Pemanggilan kedua tidak boleh membuat duplikat Batch 5
+    const res2 = await tarikTimesheetSemuaKegiatan("tok", contents, res.daftar);
+    cek("sinkronisasi ulang tidak menduplikasi Batch 5", res2.daftar.length === 2 && res2.ditambahkan.length === 0 && !res2.berubah, res2.daftar.length);
+  } finally {
+    (globalThis as any).fetch = fetchAsli;
+  }
+}
+
+await ujiTarikOtomatisBatch5();
 
 if (gagal) {
   console.log(`\n${gagal} uji gagal`);
