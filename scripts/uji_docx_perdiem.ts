@@ -227,6 +227,83 @@ async function main() {
   );
   cek("satu bagian potret saja", tanpa.length === 1 && !tanpa[0].lanskap, tanpa.map((b) => [b.lebar, b.tinggi]));
 
+  console.log("Dokumen Word dengan KTP bersebelahan, Tiket Pesawat satu lembar, dan Kontrak Sewa Motor (> 7 hari)");
+  const pngStruk = pngDataUrl(160, 100, [10, 10, 10]);
+  const pngKtpAkm = pngDataUrl(160, 100, [20, 100, 180]);
+  const pngKtpR = pngDataUrl(160, 100, [40, 120, 180]);
+  const pngStnkR = pngDataUrl(160, 100, [60, 140, 180]);
+  const pngSimR = pngDataUrl(160, 100, [80, 160, 180]);
+  const pngEticket = pngDataUrl(160, 100, [100, 180, 180]);
+  const pngBoarding = pngDataUrl(160, 100, [120, 200, 180]);
+  const blobDokSpj = await buatDokumenLaporanKegiatanDocx({
+    transaksi: [
+      trx({
+        id: "w-akm-ktp",
+        kategori: "Akomodasi",
+        deskripsi: "Penginapan Rumah Warga",
+        jumlah: 400000,
+        bukti: [{ id: "b-akm", nama: "struk_akm.png", tipe: "image/png", dataUrl: pngStruk }],
+        detailKegiatan: {
+          akomodasi: { lokasi: "Rumah Pak RT", diRumahWarga: true, namaPemilik: "Pak Ahmad", jumlahMalam: 2 },
+          dokumenPendukung: [
+            { id: "d-ktp-akm", jenis: "ktp", label: "KTP Pemilik Rumah Warga", nama: "ktp.png", tipe: "image/png", dataUrl: pngKtpAkm, lebarPx: 856, tinggiPx: 540 },
+          ],
+        },
+      }),
+      trx({
+        id: "w-rental-10h",
+        kategori: "Rental Kendaraan",
+        deskripsi: "Rental Motor Lapangan 10 Hari",
+        jumlah: 1500000,
+        detailKegiatan: {
+          rentalKendaraan: {
+            jenisMerk: "Honda KLX 150 (Motor)",
+            tahun: "2024",
+            noPolisi: "KU 7711 AB",
+            namaPemilik: "Pak Budi",
+            pekerjaanPemilik: "Wiraswasta",
+            alamatKtpPemilik: "Jl. Pelabuhan No. 5",
+            tanggalMulai: "2026-09-21",
+            tanggalSelesai: "2026-09-30",
+            jumlahHari: 10,
+            tarifPerHari: 150000,
+          },
+          dokumenPendukung: [
+            { id: "d-ktp-r", jenis: "ktp", label: "KTP Pemilik Rental", nama: "ktp_r.png", tipe: "image/png", dataUrl: pngKtpR },
+            { id: "d-stnk-r", jenis: "stnk", label: "STNK Motor", nama: "stnk_r.png", tipe: "image/png", dataUrl: pngStnkR },
+            { id: "d-sim-r", jenis: "sim", label: "SIM Penyewa", nama: "sim_r.png", tipe: "image/png", dataUrl: pngSimR },
+          ],
+        },
+      }),
+      trx({
+        id: "w-pesawat",
+        kategori: "Transportasi",
+        deskripsi: "Tiket Pesawat Krayan - Tarakan",
+        jumlah: 1850000,
+        detailKegiatan: {
+          jenisBukti: "Tiket pesawat/e-ticket",
+          transportasi: { moda: "Pesawat", dari: "Krayan", ke: "Tarakan" },
+          dokumenPendukung: [
+            { id: "d-eticket", jenis: "eticket", label: "E-Ticket Pesawat", nama: "eticket.png", tipe: "image/png", dataUrl: pngEticket },
+            { id: "d-bp", jenis: "boarding_pass", label: "Boarding Pass Pesawat", nama: "bp.png", tipe: "image/png", dataUrl: pngBoarding },
+          ],
+        },
+      }),
+    ],
+    kegiatan,
+    profilPelapor: profil,
+  });
+  const zipDokSpj = await JSZip.loadAsync(await blobDokSpj.arrayBuffer());
+  const xmlDokSpj = await zipDokSpj.file("word/document.xml")!.async("string");
+  const teksDokSpj = xmlDokSpj.replace(/<[^>]+>/g, " ");
+  const mediaDokSpj = Object.keys(zipDokSpj.files).filter((n) => n.startsWith("word/media/") && !n.endsWith("/"));
+  const jumlahDrawing = (xmlDokSpj.match(/<w:drawing>/g) || []).length;
+  // Total 6 dokumen pendukung tersemat (1 KTP Akomodasi + 3 KTP/STNK/SIM Rental + 2 E-Ticket/Boarding Pass Pesawat), struk digital b-akm TIDAK tersemat!
+  cek("Word menyematkan 6 gambar dokumen pendukung SPJ tanpa menyematkan struk digital", mediaDokSpj.length === 6 && jumlahDrawing === 6, { media: mediaDokSpj.length, drawing: jumlahDrawing });
+  cek("Word memuat label KTP Pemilik Rumah Warga, STNK Motor, SIM Penyewa", teksDokSpj.includes("KTP Pemilik Rumah Warga") && teksDokSpj.includes("STNK Motor") && teksDokSpj.includes("SIM Penyewa"));
+  cek("Word memuat E-Ticket Pesawat dan Boarding Pass Pesawat", teksDokSpj.includes("E-Ticket Pesawat") && teksDokSpj.includes("Boarding Pass Pesawat"));
+  cek("Word memuat halaman SURAT PERJANJIAN SEWA KENDARAAN BERMOTOR untuk rental > 7 hari", teksDokSpj.includes("SURAT PERJANJIAN SEWA KENDARAAN BERMOTOR") && teksDokSpj.includes("Pak Budi") && teksDokSpj.includes("Force Majeure"));
+
   if (gagal) {
     console.log(`\n${gagal} uji gagal`);
     process.exit(1);

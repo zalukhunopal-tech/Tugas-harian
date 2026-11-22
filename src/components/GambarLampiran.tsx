@@ -18,10 +18,17 @@ interface GambarLampiranProps {
  * dimuat lewat muatPratinjauBukti; selama memuat, onStatus memberi tahu supaya tombol cetak menunggu.
  */
 export const GambarLampiran: React.FC<GambarLampiranProps> = ({ bukti, googleToken, onStatus, onUkuran }) => {
-  const [status, setStatus] = useState<StatusFoto>("memuat");
-  const [url, setUrl] = useState<string | undefined>();
+  const inlineImage = Boolean(bukti.dataUrl && bukti.dataUrl.startsWith("data:image/"));
+  const [status, setStatus] = useState<StatusFoto>(inlineImage ? "ok" : "memuat");
+  const [url, setUrl] = useState<string | undefined>(inlineImage ? bukti.dataUrl : undefined);
 
   useEffect(() => {
+    if (inlineImage) {
+      setUrl(bukti.dataUrl);
+      setStatus("ok");
+      onStatus(bukti.id, false);
+      return;
+    }
     let batal = false;
     onStatus(bukti.id, true);
     muatPratinjauBukti(bukti, googleToken)

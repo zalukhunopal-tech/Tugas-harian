@@ -1,4 +1,4 @@
-import type { BuktiItem, DataKegiatan, FotoPendukung, ProfilPelapor, Transaksi, UkuranKotakTempel } from "../types";
+import type { BuktiItem, DataKegiatan, DokumenPendukungItem, FotoPendukung, ProfilPelapor, Transaksi, UkuranKotakTempel } from "../types";
 import { formatAngka, formatRupiah, hariIni, KELOMPOK_DANA_KEGIATAN, labelKategori } from "./constants";
 import { KETENTUAN_DANA_KEGIATAN } from "./ketentuanKegiatan";
 import { hitungPenyelesaian, KATEGORI_PERDIEM, RingkasanPenyelesaian, transaksiKegiatan } from "./penyelesaianDana";
@@ -8,6 +8,11 @@ import { DaftarPerdiemDokumen, susunDaftarPerdiem } from "./timesheet";
 import { profilUntukDokumen } from "./profilPelapor";
 import { buktiPdf, kenaliGambar } from "./gambarDokumen";
 import { TABEL_KELENGKAPAN_LEMBAGA } from "./tabelLembagaSPJ";
+import {
+  adalahRentalLebih7Hari,
+  hitungUkuranCetakDokumenMm,
+  pisahkanDokumenPendukung,
+} from "./dokumenPendukung";
 import {
   pelajariTransaksi,
   taksirUkuranBuktiAdaptif,
@@ -32,6 +37,17 @@ import {
  */
 
 const NAMA_BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+/** "2026-05-09" -> "Sabtu, 9 Mei 2026" tanpa bergantung zona waktu perangkat. */
+export function formatHariTanggalIndo(iso?: string): string {
+  if (!iso) return "-";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return formatTanggalIndo(iso);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  const hari = NAMA_HARI[d.getUTCDay()] || "";
+  return hari ? `${hari}, ${formatTanggalIndo(iso)}` : formatTanggalIndo(iso);
+}
 
 /** "2026-10-27" -> "27 Oktober 2026" tanpa bergantung zona waktu perangkat. */
 export function formatTanggalIndo(iso?: string): string {
@@ -105,6 +121,10 @@ export interface BlokTransaksiLaporan {
   fotoBukti: BuktiItem[];
   lampiranPdf: BuktiItem[];
   keterangan: BarisKeterangan[];
+  /** Dokumen pendukung berukuran kartu/ringkas (KTP, NPWP, STNK, SIM, dll.) yang dicetak BERSEBELAHAN space tempel bukti fisik */
+  dokumenSamping: DokumenPendukungItem[];
+  /** Dokumen pendukung lebar (E-Ticket, Boarding Pass, Kontrak, Absensi, 3 Penawaran, dll.) yang dicetak SATU LEMBAR bersama bukti bayar */
+  dokumenBawah: DokumenPendukungItem[];
   kotakTambahan: KotakTempelLaporan[];
   fotoPendukung: FotoPendukung[];
   perkiraanTinggiMm: number;
@@ -191,6 +211,20 @@ export interface ButirDaftarPeriksa {
   butir: string[];
 }
 
+export interface KontrakRentalLaporan {
+  transaksi: Transaksi;
+  nomor: number;
+  hariTanggal: string; // mis. "Sabtu, 9 Mei 2026"
+  tanggalMulaiIndo: string;
+  tanggalSelesaiIndo: string;
+  jumlahHari: number;
+  pihakPertama: { nama: string; pekerjaan: string; alamatKtp: string };
+  pihakKedua: { nama: string; pekerjaan: string; alamat: string };
+  kendaraan: { merkJenis: string; tahun: string; noPolisi: string };
+  hargaPerHari: number;
+  klausul: string[];
+}
+
 export interface SusunanLaporan {
   kegiatan: DataKegiatan;
   /** Profil Pelapor dengan isian kosong dilengkapi dari kop timesheet (lihat profilUntukDokumen). */
@@ -204,6 +238,8 @@ export interface SusunanLaporan {
   daftarPerdiem: DaftarPerdiemDokumen | null;
   kelompok: KelompokLaporan[];
   rental: RentalTimesheetLaporan[];
+  /** Surat Perjanjian Sewa Kendaraan Bermotor otomatis untuk rental > 7 hari */
+  kontrakRental: KontrakRentalLaporan[];
   justifikasi: JustifikasiLaporan[];
   rekap: BarisRekapLaporan[];
   totalBukti: number;
@@ -358,6 +394,12 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
       { teks: `Nilai gross-up pajak ${persen}%: `, tebal: true },
       { teks: `${formatRupiah(grossUp)} (Pajak PPh 23: ${formatRupiah(grossUp - t.jumlah)}, Netto dibayarkan: ${formatRupiah(t.jumlah)})` },
     ]);
+    if (adalahRentalLebih7Hari(t.kategori, d)) {
+      baris.push([
+        { teks: "Sewa > 7 Hari: ", tebal: true, kecil: true },
+        { teks: "Surat Perjanjian Sewa Kendaraan Bermotor (Kontrak) dan Timesheet Penggunaan dilampirkan di bagian Dokumen Pendukung.", kecil: true, miring: true },
+      ]);
+    }
   }
   if (t.kategori === "Honorarium & Ganti Hari" && d.honorarium) {
     const h = d.honorarium;
@@ -390,9 +432,10 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
   }
   if (t.kategori === "Akomodasi" && d.akomodasi) {
     const a = d.akomodasi;
+    const jenisTempat = a.diRumahWarga ? " (Rumah Warga)" : "";
     baris.push([
       {
-        teks: `Penginapan: ${a.lokasi || "-"} | Check-in: ${formatTanggalIndo(a.tanggalMasuk)} | Check-out: ${formatTanggalIndo(a.tanggalKeluar)} (${a.jumlahMalam || 1} malam) | Pemilik: ${a.namaPemilik || "-"} (Telp: ${a.noTelp || "-"})`,
+        teks: `Penginapan: ${a.lokasi || "-"}${jenisTempat} | Check-in: ${formatTanggalIndo(a.tanggalMasuk)} | Check-out: ${formatTanggalIndo(a.tanggalKeluar)} (${a.jumlahMalam || 1} malam) | Pemilik: ${a.namaPemilik || "-"} (Telp: ${a.noTelp || "-"})`,
         kecil: true,
       },
     ]);
@@ -427,6 +470,18 @@ function keteranganTransaksi(t: Transaksi, profil: ProfilPelapor): BarisKeterang
   }
   const diklaim = barisDiklaimUntuk(t, profil.nama);
   if (diklaim) baris.push([{ teks: diklaim, tebal: true, kecil: true }]);
+  if (t.jumlah >= 5_000_000) {
+    baris.push([
+      { teks: "Ketentuan ≥ Rp5.000.000: ", tebal: true, kecil: true },
+      { teks: "Wajib bermaterai Rp10.000 pada bukti asli dan melampirkan 3 penawaran harga / daftar pengadaan.", kecil: true, warna: "abu" },
+    ]);
+  }
+  if (d.catatanOverBudget && d.catatanOverBudget.trim()) {
+    baris.push([
+      { teks: "Catatan Over Budget / Variansi: ", tebal: true, warna: "merah", kecil: true },
+      { teks: d.catatanOverBudget.trim(), kecil: true },
+    ]);
+  }
   if (d.perluSuratJustifikasi) {
     baris.push([
       { teks: "Surat Justifikasi: ", tebal: true, warna: "merah" },
@@ -715,28 +770,68 @@ function hitungTinggiBlokMm(
   pasangan: PasanganBuktiLaporan[],
   keterangan: BarisKeterangan[],
   kotakTambahan: KotakTempelLaporan[],
-  fotoPendukung: FotoPendukung[]
+  fotoPendukung: FotoPendukung[],
+  dokumenSamping: DokumenPendukungItem[] = [],
+  dokumenBawah: DokumenPendukungItem[] = [],
+  isAkomodasi = false
 ): number {
   let tinggi = 12; // kepala blok + padding
   // Keterangan diletakkan SEBELUM ruang tempel bukti fisik
   tinggi += keterangan.length * 4.5;
-  const duaKolom = pasangan.length >= 2 && pasangan.every((p) => p.kotak.lebarMm <= 90);
+
+  let tinggiPasangan = 0;
+  const duaKolom = pasangan.length >= 2 && pasangan.every((p) => p.kotak.lebarMm <= 90) && dokumenSamping.length === 0;
   if (duaKolom) {
     for (let i = 0; i < pasangan.length; i += 2) {
       const p1 = pasangan[i];
       const p2 = pasangan[i + 1];
       const jarakBaris = p1.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
-      if (i > 0) tinggi += jarakBaris;
-      tinggi += Math.max(p1.kotak.tinggiMm, p2?.kotak.tinggiMm ?? 0);
+      if (i > 0) tinggiPasangan += jarakBaris;
+      tinggiPasangan += Math.max(p1.kotak.tinggiMm, p2?.kotak.tinggiMm ?? 0);
     }
   } else {
     for (let i = 0; i < pasangan.length; i++) {
       const p = pasangan[i];
       const jarakPasangan = p.jarakPasanganMm ?? JARAK_PASANGAN_DEFAULT_MM;
-      if (i > 0) tinggi += jarakPasangan;
-      tinggi += p.kotak.tinggiMm;
+      if (i > 0) tinggiPasangan += jarakPasangan;
+      tinggiPasangan += p.kotak.tinggiMm;
     }
   }
+
+  // Dokumen pendukung ringkas/kartu (KTP, STNK, SIM, NPWP) tampil BERSEBELAHAN dengan space tempel bukti fisik
+  if (dokumenSamping.length > 0) {
+    const lebarSampingMm = isAkomodasi ? 115 : 86;
+    let tinggiSamping = 0;
+    for (let i = 0; i < dokumenSamping.length; i++) {
+      const uk = hitungUkuranCetakDokumenMm(dokumenSamping[i], { lebarMaksMm: lebarSampingMm, tinggiMaksMm: 92 });
+      tinggiSamping += uk.tinggiMm + 8 + (i > 0 ? 4 : 0);
+    }
+    tinggi += Math.max(tinggiPasangan, tinggiSamping);
+  } else {
+    tinggi += tinggiPasangan;
+  }
+
+  // Dokumen pendukung lebar (E-Ticket, Boarding Pass, Absensi, 3 Penawaran, dll.) berada SATU LEMBAR di bawah bukti bayar
+  if (dokumenBawah.length > 0) {
+    const lebarAreaMm = isAkomodasi ? 255 : 168;
+    const tinggiMaksBawah = dokumenBawah.length >= 2 ? (isAkomodasi ? 66 : 64) : isAkomodasi ? 82 : 95;
+    if (isAkomodasi && dokumenBawah.length >= 2) {
+      // Pada lanskap Akomodasi, 2 dokumen bawah bisa berdampingan
+      for (let i = 0; i < dokumenBawah.length; i += 2) {
+        const u1 = hitungUkuranCetakDokumenMm(dokumenBawah[i], { lebarMaksMm: 124, tinggiMaksMm: tinggiMaksBawah });
+        const u2 = dokumenBawah[i + 1]
+          ? hitungUkuranCetakDokumenMm(dokumenBawah[i + 1], { lebarMaksMm: 124, tinggiMaksMm: tinggiMaksBawah })
+          : null;
+        tinggi += Math.max(u1.tinggiMm, u2?.tinggiMm ?? 0) + 10;
+      }
+    } else {
+      for (const doc of dokumenBawah) {
+        const uk = hitungUkuranCetakDokumenMm(doc, { lebarMaksMm: lebarAreaMm, tinggiMaksMm: tinggiMaksBawah });
+        tinggi += uk.tinggiMm + 10;
+      }
+    }
+  }
+
   for (const kt of kotakTambahan) {
     tinggi += kt.tinggiMm + 4;
   }
@@ -749,6 +844,7 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
   const d = t.detailKegiatan ?? {};
   const jenisBukti = (d.jenisBukti || "Kuitansi").toLowerCase();
   const moda = (d.transportasi?.moda || "").toLowerCase();
+  const jenisAda = new Set((d.dokumenPendukung ?? []).map((item) => item.jenis));
   const hasil: KotakTempelLaporan[] = [];
   const lebar = (judul: string, keterangan: string, tinggiMm: number): KotakTempelLaporan => ({
     judul,
@@ -757,10 +853,10 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
     lebarMm: 170,
     bentuk: "lebar",
   });
-  if (moda.includes("pesawat") || jenisBukti.includes("pesawat")) {
+  if ((moda.includes("pesawat") || jenisBukti.includes("pesawat")) && !jenisAda.has("boarding_pass")) {
     hasil.push(lebar("TEMPEL BOARDING PASS ASLI / TIKET TRAVEL ASLI DI SINI", `No. ${nomor} · Boarding Pass / Tiket Pesawat Asli · ${profil.nama}`, 55));
   }
-  if (moda.includes("travel") || moda.includes("ojek") || d.transportasi?.namaSopir) {
+  if ((moda.includes("travel") || moda.includes("ojek") || d.transportasi?.namaSopir) && !jenisAda.has("stnk")) {
     hasil.push(
       lebar(
         "TEMPEL FOTOKOPI STNK KENDARAAN TRAVEL / OJEK DI SINI",
@@ -770,21 +866,48 @@ function kotakTambahan(t: Transaksi, nomor: number, profil: ProfilPelapor): Kota
     );
   }
   if (t.kategori === "Rental Kendaraan") {
-    hasil.push(
-      lebar(
-        "TEMPEL FOTOKOPI STNK, KTP PEMILIK/PENERIMA UANG, DAN SIM PENYEWA DI SINI",
-        `No. ${nomor} · Dokumen Legalitas Rental: STNK Plat ${d.rentalKendaraan?.noPolisi || "-"} · KTP Pemilik: ${d.rentalKendaraan?.namaPemilik || "-"} · SIM Pengemudi`,
-        60
-      )
-    );
+    const kurang: string[] = [];
+    if (!jenisAda.has("stnk")) kurang.push("STNK");
+    if (!jenisAda.has("ktp")) kurang.push("KTP PEMILIK/PENERIMA UANG");
+    if (!jenisAda.has("sim")) kurang.push("SIM PENYEWA");
+    if (kurang.length === 3) {
+      hasil.push(
+        lebar(
+          "TEMPEL FOTOKOPI STNK, KTP PEMILIK/PENERIMA UANG, DAN SIM PENYEWA DI SINI",
+          `No. ${nomor} · Dokumen Legalitas Rental: STNK Plat ${d.rentalKendaraan?.noPolisi || "-"} · KTP Pemilik: ${d.rentalKendaraan?.namaPemilik || "-"} · SIM Pengemudi`,
+          60
+        )
+      );
+    } else if (kurang.length > 0) {
+      hasil.push(
+        lebar(
+          `TEMPEL FOTOKOPI ${kurang.join(" DAN ")} DI SINI`,
+          `No. ${nomor} · Kelengkapan Legalitas Rental (${kurang.join(", ")}) · Plat ${d.rentalKendaraan?.noPolisi || "-"}`,
+          50
+        )
+      );
+    }
   }
-  if (t.kategori === "Akomodasi") {
+  if (t.kategori === "Akomodasi" && !jenisAda.has("ktp")) {
     hasil.push(lebar("TEMPEL FOTOKOPI KTP PEMILIK PENGINAPAN DI SINI", `No. ${nomor} · KTP Pemilik Penginapan: ${d.akomodasi?.namaPemilik || "-"}`, 50));
   }
   if (t.kategori === "Honorarium & Ganti Hari") {
-    hasil.push(
-      lebar("TEMPEL FOTOKOPI KTP DAN NPWP PENERIMA HONOR / GANTI HARI DI SINI", `No. ${nomor} · Dokumen Pajak Penerima Honor: ${d.honorarium?.namaPenerima || "-"}`, 60)
-    );
+    const butuhNpwp = d.honorarium?.hasNPWP !== false;
+    const kurangKtp = !jenisAda.has("ktp");
+    const kurangNpwp = butuhNpwp && !jenisAda.has("npwp");
+    if (kurangKtp && kurangNpwp) {
+      hasil.push(
+        lebar("TEMPEL FOTOKOPI KTP DAN NPWP PENERIMA HONOR / GANTI HARI DI SINI", `No. ${nomor} · Dokumen Pajak Penerima Honor: ${d.honorarium?.namaPenerima || "-"}`, 60)
+      );
+    } else if (kurangKtp) {
+      hasil.push(
+        lebar("TEMPEL FOTOKOPI KTP PENERIMA HONOR / GANTI HARI DI SINI", `No. ${nomor} · KTP Penerima Honor: ${d.honorarium?.namaPenerima || "-"}`, 50)
+      );
+    } else if (kurangNpwp) {
+      hasil.push(
+        lebar("TEMPEL FOTOKOPI NPWP PENERIMA HONOR / GANTI HARI DI SINI", `No. ${nomor} · NPWP Penerima Honor: ${d.honorarium?.namaPenerima || "-"}`, 50)
+      );
+    }
   }
   return hasil;
 }
@@ -834,10 +957,11 @@ export function susunKelompokDanSubkategori(
       const t = trxSub[i];
       const nomor = nomorUrut.get(t.id) ?? 1;
       const ket = keteranganTransaksi(t, profil);
+      const { samping: dokumenSamping, bawah: dokumenBawah } = pisahkanDokumenPendukung(t.detailKegiatan?.dokumenPendukung ?? []);
       const tambahan = kotakTambahan(t, nomor, profil);
       const pendukung = t.detailKegiatan?.fotoPendukung ?? [];
       const { pasangan, lampiranPdf } = susunPasanganBukti(t, nomor, profil, ukuranFoto);
-      const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung);
+      const tinggiBlok = hitungTinggiBlokMm(pasangan, ket, tambahan, pendukung, dokumenSamping, dokumenBawah, isAkomodasi);
 
       let halamanBaru = false;
       let mulaiSub = false;
@@ -883,6 +1007,8 @@ export function susunKelompokDanSubkategori(
         fotoBukti: fotoDiKotak ? fotoBukti.filter((f) => f.id !== fotoDiKotak.id) : fotoBukti,
         lampiranPdf,
         keterangan: ket,
+        dokumenSamping,
+        dokumenBawah,
         kotakTambahan: tambahan,
         fotoPendukung: pendukung,
         perkiraanTinggiMm: tinggiBlok,
@@ -976,6 +1102,57 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
         totalKm: baris.reduce((s, r) => s + r.jarakKm, 0),
         namaPemilik: rk.namaPemilik || "Pengemudi",
         tanggalTtd: `${kegiatan.lokasi || "Lokasi"}, ${formatTanggalIndo(rk.tanggalSelesai || hariIni())}`,
+      };
+    });
+
+  const kontrakRental: KontrakRentalLaporan[] = pengeluaran
+    .filter((t) => adalahRentalLebih7Hari(t.kategori, t.detailKegiatan))
+    .map((t) => {
+      const rk = t.detailKegiatan?.rentalKendaraan;
+      const jumlahHari = Math.max(1, rk?.jumlahHari || 1);
+      const hargaPerHari = rk?.tarifPerHari && rk.tarifPerHari > 0 ? rk.tarifPerHari : Math.round(t.jumlah / jumlahHari);
+      const tglMulaiIso = rk?.tanggalMulai || t.tanggal;
+      const tglSelesaiIso = rk?.tanggalSelesai || t.tanggal;
+      const tanggalMulaiIndo = formatTanggalIndo(tglMulaiIso);
+      const tanggalSelesaiIndo = formatTanggalIndo(tglSelesaiIso);
+      const masaSewaTeks = rk?.tanggalSelesai
+        ? `Masa sewa adalah terhitung sejak tanggal ${tanggalMulaiIndo} sampai dengan ${tanggalSelesaiIndo} (${jumlahHari} hari).`
+        : `Masa sewa adalah terhitung sejak tanggal ${tanggalMulaiIndo}.`;
+      return {
+        transaksi: t,
+        nomor: nomorUrut.get(t.id) ?? 1,
+        hariTanggal: formatHariTanggalIndo(tglMulaiIso),
+        tanggalMulaiIndo,
+        tanggalSelesaiIndo,
+        jumlahHari,
+        pihakPertama: {
+          nama: rk?.namaPemilik || "-",
+          pekerjaan: rk?.pekerjaanPemilik || "-",
+          alamatKtp: rk?.alamatKtpPemilik || "-",
+        },
+        pihakKedua: {
+          nama: profil.nama || "-",
+          pekerjaan: profil.jabatan || "-",
+          alamat: rk?.alamatPenyewa || kegiatan.lokasi || "-",
+        },
+        kendaraan: {
+          merkJenis: rk?.jenisMerk || "Sepeda Motor",
+          tahun: rk?.tahun ? String(rk.tahun) : "-",
+          noPolisi: rk?.noPolisi || "-",
+        },
+        hargaPerHari,
+        klausul: [
+          `Harga sewa Rp. ${formatAngka(hargaPerHari)},- perhari, harga tersebut harus dibayar tiap hari sewa oleh Pihak Kedua.`,
+          "Harga sewa merupakan harga tetap yang tidak akan berubah selama perjanjian sewa ini berlangsung.",
+          masaSewaTeks,
+          "Bahan bakar, oli motor, dan service tiap bulannya ditanggung oleh Pihak Kedua.",
+          "Kerusakan kecil seperti busi, ban dalam, helm ditanggung kedua belah pihak.",
+          "Kerusakan besar yang mengakibatkan biaya di atas seratus ribu rupiah ditanggung oleh kedua belah pihak, seperti penggantian ban luar, dan lain-lain.",
+          "Kehilangan atau kerusakan yang diakibatkan oleh kecelakaan ditanggung oleh asuransi kendaraan Pihak Pertama dan biaya administrasi yang timbul ditanggung Pihak Kedua.",
+          "Kedua belah pihak dibebaskan dari segala macam tuntutan ganti rugi atau tanggung jawab jika terjadi Force Majeure (Bencana Alam).",
+          "Pihak Pertama tidak diperkenankan menyewakan atau memindahtangankan ke pihak ketiga selama perjanjian masih berlaku.",
+          "Bila Pihak Pertama atau Pihak Kedua bermaksud memutuskan kontrak sewa-menyewa, maka kedua belah pihak harus memberitahukan selambat-lambatnya 3 hari sebelumnya.",
+        ],
       };
     });
 
@@ -1077,6 +1254,7 @@ export function susunLaporanKegiatan(o: OpsiSusunanLaporan): SusunanLaporan {
     daftarPerdiem,
     kelompok,
     rental,
+    kontrakRental,
     justifikasi,
     rekap,
     totalBukti: pengeluaran.length,

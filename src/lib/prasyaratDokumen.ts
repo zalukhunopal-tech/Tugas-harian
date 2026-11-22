@@ -209,6 +209,22 @@ export function daftarPrasyarat(isian: IsianBertahap): Prasyarat[] {
     if (kategori === "Konsumsi") tambah("foto-kegiatan", "Foto dokumentasi kegiatan", fotoKategori("kegiatan"), "dianjurkan", "bukti");
     if (kategori === "Pengadaan Barang & Perlengkapan") tambah("foto-barang", "Foto barang", fotoKategori("barang"), "dianjurkan", "bukti");
     if (kategori === "Rental Kendaraan") tambah("foto-kendaraan", "Foto kendaraan", fotoKategori("kendaraan"), "dianjurkan", "bukti");
+    const dok = d.dokumenPendukung ?? [];
+    const punyaDok = (j: string) => dok.some((x) => x.jenis === j);
+    if (kategori === "Akomodasi") tambah("dok-ktp", "Upload KTP pemilik penginapan/rumah", punyaDok("ktp"), "dianjurkan", "bukti");
+    if (kategori === "Rental Kendaraan") {
+      tambah("dok-ktp", "Upload KTP pemilik/penerima rental", punyaDok("ktp"), "dianjurkan", "bukti");
+      tambah("dok-stnk", "Upload STNK kendaraan", punyaDok("stnk"), "dianjurkan", "bukti");
+      tambah("dok-sim", "Upload SIM penyewa/pengemudi", punyaDok("sim"), "dianjurkan", "bukti");
+    }
+    if (kategori === "Honorarium & Ganti Hari") {
+      tambah("dok-ktp", "Upload KTP penerima honor/ganti hari", punyaDok("ktp"), "dianjurkan", "bukti");
+      if (d.honorarium?.hasNPWP) tambah("dok-npwp", "Upload NPWP penerima", punyaDok("npwp"), "dianjurkan", "bukti");
+    }
+    if (kategori === "Transportasi" && (/pesawat/i.test(d.transportasi?.moda || "") || d.jenisBukti === "Tiket pesawat/e-ticket")) {
+      tambah("dok-eticket", "Upload E-Ticket / dokumen tiket pesawat", punyaDok("eticket"), "dianjurkan", "bukti");
+      tambah("dok-boarding", "Upload Boarding Pass pesawat", punyaDok("boarding_pass"), "dianjurkan", "bukti");
+    }
   }
 
   return hasil;

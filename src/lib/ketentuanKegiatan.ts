@@ -191,12 +191,25 @@ export function cekKetentuanTransaksi(
   }
 
   // 4. Cek Tiket Pesawat
-  if (jenisBukti === "Tiket pesawat/e-ticket") {
-    hasil.push({
-      tipe: "info",
-      pesan: "Pertanggungjawaban tiket pesawat wajib melampirkan e-ticket/kuitansi agen DAN seluruh boarding pass fisik asli.",
-      rekomendasi: "Pastikan boarding pass tidak dibuang setelah mendarat.",
-    });
+  const dok = detail?.dokumenPendukung ?? [];
+  const punyaDok = (j: string) => dok.some((d) => d.jenis === j);
+
+  if (jenisBukti === "Tiket pesawat/e-ticket" || (kategori === "Transportasi" && /pesawat/i.test(detail?.transportasi?.moda || ""))) {
+    const kurangPesawat: string[] = [];
+    if (!punyaDok("eticket")) kurangPesawat.push("E-Ticket / Dokumen Tiket");
+    if (!punyaDok("boarding_pass")) kurangPesawat.push("Boarding Pass");
+    if (kurangPesawat.length > 0) {
+      hasil.push({
+        tipe: "peringatan",
+        pesan: `Tiket pesawat memerlukan: ${kurangPesawat.join(" & ")} serta bukti bayar/kuitansi asli dalam satu lembar.`,
+        rekomendasi: "Unggah E-Ticket dan Boarding Pass di bagian Dokumen Pendukung agar langsung tersusun satu lembar dengan bukti bayar.",
+      });
+    } else {
+      hasil.push({
+        tipe: "info",
+        pesan: "E-Ticket dan Boarding Pass sudah diunggah. Siapkan bukti bayar/kuitansi asli untuk ditempel satu lembar.",
+      });
+    }
   }
 
   // 5. Cek Kategori Spesifik
@@ -210,20 +223,46 @@ export function cekKetentuanTransaksi(
           rekomendasi: "Lengkapi data nomor polisi dan kontak sopir.",
         });
       }
+      if (!punyaDok("stnk")) {
+        hasil.push({
+          tipe: "info",
+          pesan: "STNK kendaraan travel/ojek belum diunggah. Unggah agar tampil satu lembar bersama bukti bayar.",
+        });
+      }
     }
   }
 
   if (kategori === "Rental Kendaraan") {
     const r = detail?.rentalKendaraan;
+    const hariSewa = Number(r?.jumlahHari || 0);
     if (!r?.noPolisi || !r?.namaPemilik) {
       hasil.push({
         tipe: "peringatan",
         pesan: "Rental kendaraan wajib melampirkan nomor polisi, identitas pemilik, fotokopi STNK, SIM & KTP penerima sewa.",
       });
     }
+    const kurangDokRental = [
+      !punyaDok("ktp") && "KTP Pemilik/Penerima",
+      !punyaDok("stnk") && "STNK",
+      !punyaDok("sim") && "SIM Penyewa",
+    ].filter(Boolean) as string[];
+    if (kurangDokRental.length > 0) {
+      hasil.push({
+        tipe: "peringatan",
+        pesan: `Dokumen rental belum diunggah: ${kurangDokRental.join(", ")}.`,
+        rekomendasi: "Unggah KTP, STNK, dan SIM agar tercetak bersebelahan/satu lembar bersama space bukti bayar.",
+      });
+    }
+    if (hariSewa > 7 || r?.perluKontrakSewa) {
+      hasil.push({
+        tipe: "perhatian",
+        pesan: `Masa sewa ${hariSewa || ">7"} hari (melebihi 7 hari): wajib melampirkan Surat Perjanjian Sewa Kendaraan Bermotor (Kontrak) dan Timesheet penggunaan harian.`,
+        rekomendasi: "Lengkapi pekerjaan & alamat KTP pemilik agar Surat Perjanjian Sewa otomatis tersusun di laporan, serta isi Timesheet harian.",
+      });
+    }
     if (!r?.timesheet || r.timesheet.length === 0) {
       hasil.push({
-        tipe: "info",
+        tipe: hariSewa > 7 ? "peringatan" : "info",
         pesan: "SPJ rental kendaraan wajib dilengkapi lembar timesheet harian aktivitas & rute lapangan.",
       });
     }
@@ -248,27 +287,49 @@ export function cekKetentuanTransaksi(
         pesan: "Kuitansi akomodasi/rumah singgah wajib mencantumkan lokasi, tanggal masuk-keluar, nama pemilik & nomor kontak.",
       });
     }
+    if (!punyaDok("ktp")) {
+      hasil.push({
+        tipe: "peringatan",
+        pesan: a?.diRumahWarga
+          ? "Akomodasi di rumah warga wajib melampirkan KTP pemilik rumah."
+          : "KTP pemilik penginapan/rumah belum diunggah (wajib untuk rumah warga/penginapan lokal).",
+        rekomendasi: "Unggah KTP di bagian Dokumen Pendukung agar langsung tampil bersebelahan dengan space tempel kuitansi.",
+      });
+    }
   }
 
   if (kategori === "Konsumsi") {
     const k = detail?.konsumsi;
-    hasil.push({
-      tipe: "info",
-      pesan: "Konsumsi kegiatan wajib dilampirkan notulensi rapat, daftar hadir bertanda tangan asli, dan foto dokumentasi (bukan minuman energi/vitamin).",
-    });
-    if (!k?.jumlahPeserta) {
+    if (!k?.kudapanPerjalanan) {
       hasil.push({
-        tipe: "peringatan",
-        pesan: "Jumlah peserta konsumsi sebaiknya diisi agar sesuai dengan daftar absensi kehadiran.",
+        tipe: "info",
+        pesan: "Konsumsi kegiatan wajib dilampirkan notulensi rapat, daftar hadir bertanda tangan asli, dan foto dokumentasi (bukan minuman energi/vitamin).",
       });
+      if (!k?.jumlahPeserta) {
+        hasil.push({
+          tipe: "peringatan",
+          pesan: "Jumlah peserta konsumsi sebaiknya diisi agar sesuai dengan daftar absensi kehadiran.",
+        });
+      }
     }
   }
 
   if (kategori === "Honorarium & Ganti Hari") {
     const h = detail?.honorarium;
+    const kurangHonor = [
+      !punyaDok("ktp") && "KTP Penerima",
+      h?.hasNPWP && !punyaDok("npwp") && "NPWP",
+    ].filter(Boolean) as string[];
+    if (kurangHonor.length > 0) {
+      hasil.push({
+        tipe: "peringatan",
+        pesan: `Lampiran perpajakan honor/ganti hari belum diunggah: ${kurangHonor.join(" & ")}.`,
+        rekomendasi: "Unggah KTP/NPWP agar tercetak bersebelahan dengan space tempel kuitansi honor.",
+      });
+    }
     hasil.push({
       tipe: "info",
-      pesan: "Honorarium/ganti hari wajib melampirkan surat penunjukan/kontrak, CV/biodata singkat, timesheet, fotokopi KTP & NPWP, serta nomor urut absensi.",
+      pesan: "Honorarium/ganti hari wajib melampirkan surat penunjukan/kontrak, CV/biodata singkat, timesheet, fotokopi KTP & NPWP, serta nomor urut absensi (tanda tangan konsisten).",
     });
     if (h && !h.namaPenerima) {
       hasil.push({
@@ -276,6 +337,27 @@ export function cekKetentuanTransaksi(
         pesan: "Nama penerima honor belum dicantumkan.",
       });
     }
+  }
+
+  if (kategori === "Pengadaan Barang & Perlengkapan" && !punyaDok("persetujuan_adm")) {
+    hasil.push({
+      tipe: "info",
+      pesan: "Pengadaan barang oleh staf wajib melampirkan persetujuan ADM/Koordinator serta tanda terima penyerahan barang.",
+    });
+  }
+
+  if (kategori === "Komunikasi, Listrik & Kurir" && !punyaDok("billing_resi")) {
+    hasil.push({
+      tipe: "info",
+      pesan: "Sertakan bukti billing/pemakaian telpon, tagihan PLN, atau resi kurir bersama kuitansi asli.",
+    });
+  }
+
+  if (jumlah >= 5000000 && !punyaDok("penawaran_3")) {
+    hasil.push({
+      tipe: "perhatian",
+      pesan: "Dokumen 3 penawaran pembanding belum diunggah (wajib untuk transaksi ≥ Rp5.000.000).",
+    });
   }
 
   return hasil;
