@@ -973,15 +973,20 @@ export default function App() {
         perbaruiTransaksi(muatTransaksi());
       }
 
-      // Tarik Keterangan/Lokasi dari file timesheet tiap kegiatan (hanya baca; kegagalan tidak membatalkan sinkron lain).
+      // Tarik Keterangan/Lokasi dari file timesheet tiap kegiatan & otomatis baca file timesheet baru di Drive (mis. Batch 5).
+      let timesheetBaruNama: string[] = [];
       try {
         const daftarSekarang = res.laporanKegiatan?.daftarKegiatan ?? daftarKegiatanRef.current;
         const ts = await tarikTimesheetSemuaKegiatan(token, res.contents, daftarSekarang);
         if (ts.berubah) {
+          daftarKegiatanRef.current = ts.daftar;
           setDaftarKegiatan(ts.daftar);
           simpanDaftarKegiatan(ts.daftar);
           jadwalkanAutoSync();
           jadwalkanAutoSyncDocx(ts.daftar.map((k) => k.id));
+        }
+        if (ts.ditambahkan.length > 0) {
+          timesheetBaruNama = ts.ditambahkan.map((k) => (k.batch ? `Batch ${k.batch}` : k.nama));
         }
         if (ts.galat.length) console.warn("Sebagian timesheet gagal ditarik:", ts.galat);
         simpanIndeksTimesheet((res.contents.timesheets ?? []).map((f) => f.name));
@@ -1003,9 +1008,13 @@ export default function App() {
         }
       }
 
-      const pesanSukses = `Sinkronisasi berhasil: ${res.totalTrxDitarik} transaksi, ${res.totalAsetDitarik} aset, dan pengaturan ditarik dari folder 'Keuangan' Google Drive.`;
+      const infoTimesheetBaru = timesheetBaruNama.length > 0 ? ` Timesheet baru otomatis dibaca: ${timesheetBaruNama.join(", ")}.` : "";
+      const pesanSukses = `Sinkronisasi berhasil: ${res.totalTrxDitarik} transaksi, ${res.totalAsetDitarik} aset, dan pengaturan ditarik dari folder 'Keuangan' Google Drive.${infoTimesheetBaru}`;
       setSyncPesan(pesanSukses);
-      setSyncStatus({ pesan: "Data tersinkron dari Google Drive", status: "sukses" });
+      setSyncStatus({
+        pesan: timesheetBaruNama.length > 0 ? `Tersinkron · Timesheet ${timesheetBaruNama.join(", ")} terbaca` : "Data tersinkron dari Google Drive",
+        status: "sukses",
+      });
       setTimeout(() => {
         setSyncStatus((prev) => (prev.status === "sukses" ? { pesan: "", status: "idle" } : prev));
       }, 4000);

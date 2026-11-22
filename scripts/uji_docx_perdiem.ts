@@ -168,12 +168,12 @@ async function main() {
   cek("daftar perdiem lanskap di depan, halaman bukti sesudahnya potret", berbukti.map((b) => (b.lanskap ? "L" : "P")).join("") === "LP", berbukti.map((b) => [b.lebar, b.tinggi]));
   cek("tanpa pemisah halaman tambahan", berbukti.slice(1).every((b) => !b.awalPisahHalaman));
 
-  console.log("Semua foto bukti tersisip dan ringkasan penyelesaian bertabel");
+  console.log("Struk digital dihilangkan, ruang tempel bukti fisik tersedia, dan ringkasan penyelesaian bertabel");
   const fotoBukti = (i: number, warna: [number, number, number]) => ({ id: `fb${i}`, nama: `tiket${i}.png`, tipe: "image/png", dataUrl: pngDataUrl(120, 80, warna) });
   const blobFoto = await buatDokumenLaporanKegiatanDocx({
     transaksi: [
       trx({ jenis: "pemasukan", kategori: "Penerimaan Dana", deskripsi: "Penerimaan Dana Kegiatan", jumlah: 3000000, tanggal: "2026-09-20" }),
-      // Tiga orang ikut klaim tiket speedboat: tiga foto tiket
+      // Tiga orang ikut klaim tiket speedboat: tiga ruang tempel tiket tanpa gambar struk digital
       trx({
         deskripsi: "Tiket speedboat",
         kategori: "Transportasi",
@@ -181,7 +181,7 @@ async function main() {
         bukti: [fotoBukti(1, [200, 120, 100]), fotoBukti(2, [100, 160, 200]), fotoBukti(3, [120, 190, 120])],
         detailKegiatan: { jenisBukti: "Tiket", transportasi: { moda: "Speedboat / Kapal" }, penerimaManfaat: ["Andi", "Rina"] },
       }),
-      // Struk snack perjalanan: foto pertama di sebelah kotak struk, foto kedua di bawahnya
+      // Struk snack perjalanan: dua ruang tempel struk asli tanpa foto struk digital
       trx({ deskripsi: "Snack perjalanan", jumlah: 120000, bukti: [fotoBukti(4, [210, 190, 120]), fotoBukti(5, [160, 130, 200])], detailKegiatan: { jenisBukti: "Struk thermal (minimarket/SPBU)" } }),
     ],
     kegiatan,
@@ -190,12 +190,12 @@ async function main() {
   });
   const zipFoto = await JSZip.loadAsync(await blobFoto.arrayBuffer());
   const media = Object.keys(zipFoto.files).filter((n) => n.startsWith("word/media/") && !zipFoto.files[n].dir);
-  cek("kelima foto bukti tersisip (tiga tiket dan dua foto struk)", media.length === 5, media);
+  cek("bagian foto struk digital dihilangkan (tidak menyisipkan media struk digital)", media.length === 0, media);
   const xmlFoto = await zipFoto.file("word/document.xml")!.async("string");
   const teksFoto = xmlFoto.replace(/<[^>]+>/g, "");
   const jumlahKotakPutus = (xmlFoto.match(/w:val="dashed"/g) ?? []).length;
-  cek("kotak tempel v06 bersih tanpa garis putus-putus atau label (ruang asli dicadangkan secara geometri)", jumlahKotakPutus === 0 && !teksFoto.includes("TEMPEL"), jumlahKotakPutus);
-  cek("tiap foto berpasangan dengan label Bukti n dari N", /Bukti 3 dari 3/.test(teksFoto) && /Bukti 2 dari 2/.test(teksFoto));
+  cek("ruang tempel bukti fisik tampil jelas dengan garis putus-putus dan label TEMPEL", jumlahKotakPutus > 0 && teksFoto.includes("TEMPEL") && !teksFoto.includes("FOTO BUKTI DIGITAL"), jumlahKotakPutus);
+  cek("tiap ruang tempel berlabel Bukti n dari N", /Bukti 3 dari 3/.test(teksFoto) && /Bukti 2 dari 2/.test(teksFoto));
   cek("ringkasan penyelesaian: pita judul, total diakui, status, dan rumus", /RINGKASAN PENYELESAIAN DANA KEGIATAN/.test(teksFoto) && /Total pengeluaran yang diakui/.test(teksFoto) && /SISA DANA YANG HARUS DIKEMBALIKAN/i.test(teksFoto) && /Dana awal Rp\s?3\.000\.000 − total pengeluaran yang diakui/.test(teksFoto));
   cek("ringkasan tanpa garis titik-titik", !/\.{6,}/.test(teksFoto));
 

@@ -3,7 +3,10 @@ import type { GDriveFileInfo, KeuanganDriveContents } from "./gdriveSync";
 import { buatId } from "./storage";
 import { adalahPerdiemKegiatan, daftarTanggalRentang } from "./perdiemOtomatis";
 import { transaksiKegiatan } from "./penyelesaianDana";
+import { kegiatanSama } from "./kegiatanSama";
 import {
+  adalahFileTimesheet,
+  adalahTimesheetCadangan,
   barisUntukSimpan,
   batchDariJudul,
   batchDariNama,
@@ -18,6 +21,8 @@ import {
   rentangBersih,
   rentangMengikutiTimesheet,
   susunIsiTimesheet,
+  tahunDariNama,
+  tahunKegiatan,
   uraikanIsiTimesheet,
 } from "./timesheet";
 
@@ -189,15 +194,66 @@ export async function kumpulkanKeteranganTimesheet(token: string, contents: Keua
   return [...hasil];
 }
 
-/** Tarik timesheet untuk banyak kegiatan; satu kegiatan yang gagal tidak menggagalkan yang lain. */
+const MIME_GOOGLE_SHEET = "application/vnd.google-apps.spreadsheet";
+
+/**
+ * Pilih file timesheet utama (Google Sheets, bukan backup/salinan/.xlsx) di folder Keuangan yang belum
+ * terhubung ke kegiatan mana pun. Bila ada lebih dari satu file utama untuk batch & tahun yang sama,
+ * hanya yang paling baru diubah yang dipilih.
+ */
+export function pilihTimesheetBaruUntukOtomatis(
+  berkas: GDriveFileInfo[],
+  daftarKegiatan: DataKegiatan[]
+): GDriveFileInfo[] {
+  const kandidat = [...berkas]
+    .filter((f) => {
+      if (!adalahFileTimesheet(f.name) || adalahTimesheetCadangan(f.name)) return false;
+      // Hanya Google Sheets asli yang dapat dibaca lewat Google Sheets API (bukan .xlsx unggahan).
+      if (f.mimeType && f.mimeType !== MIME_GOOGLE_SHEET) return false;
+      return true;
+    })
+    .sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""));
+
+  const batchTahunTerpakai = new Set<string>();
+  const hasil: GDriveFileInfo[] = [];
+
+  for (const f of kandidat) {
+    if (daftarKegiatan.some((k) => k.timesheetId === f.id)) continue;
+    const bf = batchDariNama(f.name);
+    const tf = tahunDariNama(f.name);
+    if (bf && tf) {
+      const kunci = `${tf}#${bf}`;
+      if (batchTahunTerpakai.has(kunci)) continue;
+      if (daftarKegiatan.some((k) => batchKegiatan(k) === bf && tahunKegiatan(k) === tf)) {
+        batchTahunTerpakai.add(kunci);
+        continue;
+      }
+      batchTahunTerpakai.add(kunci);
+    }
+    const berkasTs = berkasDariDrive(f);
+    if (daftarKegiatan.some((k) => cocokkanFileTimesheet(k, [berkasTs])?.id === f.id)) continue;
+    hasil.push(f);
+  }
+
+  return hasil;
+}
+
+/**
+ * Tarik timesheet untuk semua kegiatan yang sudah ada, sekaligus otomatis menemukan dan membaca
+ * file timesheet baru (mis. Batch 5, Batch 6, dst.) di folder Keuangan yang belum memiliki catatan kegiatan.
+ * Satu file/kegiatan yang gagal tidak menggagalkan yang lain.
+ */
 export async function tarikTimesheetSemuaKegiatan(
   token: string,
   contents: KeuanganDriveContents,
   daftar: DataKegiatan[]
-): Promise<{ daftar: DataKegiatan[]; berubah: boolean; galat: string[] }> {
+): Promise<{ daftar: DataKegiatan[]; berubah: boolean; galat: string[]; ditambahkan: DataKegiatan[] }> {
   const galat: string[] = [];
+  const ditambahkan: DataKegiatan[] = [];
   let berubah = false;
   const hasil: DataKegiatan[] = [];
+
+  // 1. Perbarui timesheet untuk semua kegiatan yang sudah tercatat
   for (const k of daftar) {
     try {
       const h = await tarikTimesheetKegiatan(token, contents, k);
@@ -208,7 +264,76 @@ export async function tarikTimesheetSemuaKegiatan(
       hasil.push(k);
     }
   }
-  return { daftar: hasil, berubah, galat };
+
+  // 2. Temukan otomatis file timesheet baru di Drive yang belum memiliki kegiatan (mis. Batch 5)
+  const berkasBaru = pilihTimesheetBaruUntukOtomatis(contents.timesheets ?? [], hasil);
+  for (const f of berkasBaru) {
+    try {
+      const isi = await bacaIsiFileTimesheet(token, f.id);
+      const tanggal = isi.baris.map((b) => b.tanggal).sort();
+      // File templat kosong tanpa baris tanggal dilewati secara tenang tanpa error.
+      if (tanggal.length === 0) continue;
+
+      const batch = batchDariNama(f.name) ?? batchDariJudul(isi.judulKegiatan);
+      const baris = barisUntukSimpan(isi.baris);
+      const kop = kopDariIsi(isi);
+      cacheKeterangan.set(f.id, {
+        diubah: f.modifiedTime,
+        keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean),
+      });
+
+      const calonBaru: DataKegiatan = {
+        id: "kg_" + buatId(),
+        nama: isi.judulKegiatan || f.name,
+        lokasi: isi.proyek,
+        tanggalMulai: tanggal[0],
+        tanggalSelesai: tanggal[tanggal.length - 1],
+        ...(batch ? { batch } : {}),
+        timesheetId: f.id,
+        timesheetNama: f.name,
+        timesheetBaris: baris,
+        timesheetKop: kop,
+        timesheetSinkron: new Date().toISOString(),
+        dibuat: new Date().toISOString(),
+      };
+
+      // Cegah duplikasi bila sudah ada kegiatan ber-batch & tahun sama atau kegiatan kembar yang belum terhubung ke file.
+      const tahunBaru = tahunKegiatan(calonBaru);
+      const indeksCocok = hasil.findIndex(
+        (k) =>
+          (!k.timesheetId && batch && batchKegiatan(k) === batch && tahunKegiatan(k) === tahunBaru) ||
+          (!k.timesheetId && kegiatanSama(k, calonBaru))
+      );
+
+      if (indeksCocok >= 0) {
+        const lama = hasil[indeksCocok];
+        const rentang = rentangMengikutiTimesheet(lama, isi.baris);
+        hasil[indeksCocok] = {
+          ...lama,
+          ...rentang,
+          batch: lama.batch ?? batch,
+          lokasi: lama.lokasi || isi.proyek,
+          timesheetId: f.id,
+          timesheetNama: f.name,
+          timesheetBaris: baris,
+          timesheetKop: kop,
+          timesheetSinkron: new Date().toISOString(),
+        };
+        berubah = true;
+      } else if (batch && hasil.some((k) => batchKegiatan(k) === batch && tahunKegiatan(k) === tahunBaru)) {
+        // Sudah ada kegiatan lain dengan batch & tahun sama yang sudah terhubung ke timesheet lain
+        continue;
+      } else {
+        hasil.push(calonBaru);
+        ditambahkan.push(calonBaru);
+        berubah = true;
+      }
+    } catch (err: any) {
+      galat.push(`${f.name}: ${err?.message ?? err}`);
+    }
+  }
+
+  return { daftar: hasil, berubah, galat, ditambahkan };
 }
 
 /* ---------- membuat dan memperbarui file milik aplikasi ---------- */
@@ -390,6 +515,7 @@ export async function buatKegiatanDariTimesheet(token: string, berkas: GDriveFil
   const tanggal = isi.baris.map((b) => b.tanggal).sort();
   if (tanggal.length === 0) throw new Error(`File "${berkas.name}" belum berisi tanggal uang harian.`);
   const batch = batchDariNama(berkas.name) ?? batchDariJudul(isi.judulKegiatan);
+  const kop = kopDariIsi(isi);
   cacheKeterangan.set(berkas.id, { diubah: berkas.modifiedTime, keterangan: isi.baris.map((b) => b.keterangan.trim()).filter(Boolean) });
   return {
     id: "kg_" + buatId(),
@@ -401,6 +527,7 @@ export async function buatKegiatanDariTimesheet(token: string, berkas: GDriveFil
     timesheetId: berkas.id,
     timesheetNama: berkas.name,
     timesheetBaris: barisUntukSimpan(isi.baris),
+    timesheetKop: kop,
     timesheetSinkron: new Date().toISOString(),
     dibuat: new Date().toISOString(),
   };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Transaksi, NamaDana, ProfilPelapor, DataKegiatan } from "../types";
 import {
   formatRupiah,
@@ -22,10 +22,13 @@ import { CATATAN_SPJ_FISIK } from "../lib/ketentuanKegiatan";
 import { satukanKegiatanKembar } from "../lib/kegiatanSama";
 import { buatDokumenLaporanKegiatanDocx, unduhFileBlob } from "../lib/docxGenerator";
 import {
+  ambilIsiFolderKeuangan,
   cariFolderKeuangan,
   dapatkanFolderLaporanKegiatan,
   simpanDocxLaporanKeDrive,
 } from "../lib/gdriveSync";
+import { getAccessToken } from "../lib/googleAuth";
+import { tarikTimesheetSemuaKegiatan } from "../lib/timesheetDrive";
 
 interface LaporanViewProps {
   transaksi: Transaksi[];
@@ -54,6 +57,71 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
   const [sedangProsesDocx, setSedangProsesDocx] = useState<boolean>(false);
   const [pesanStatusDocx, setPesanStatusDocx] = useState<{ teks: string; tipe: "sukses" | "error" | "info" } | null>(null);
   const [panelWiMISBuka, setPanelWiMISBuka] = useState<boolean>(true);
+  const [sedangCekTimesheet, setSedangCekTimesheet] = useState<boolean>(false);
+  const [pesanCekTimesheet, setPesanCekTimesheet] = useState<string>("");
+  const sudahCekTimesheetOtomatisRef = useRef<boolean>(false);
+  const daftarKegiatanRef = useRef(daftarKegiatan);
+  daftarKegiatanRef.current = daftarKegiatan;
+
+  const sinkronTimesheetDrive = useCallback(
+    async (otomatis: boolean) => {
+      if (sedangCekTimesheet) return;
+      if (otomatis && typeof navigator !== "undefined" && !navigator.onLine) return;
+      setSedangCekTimesheet(true);
+      if (!otomatis) setPesanCekTimesheet("");
+      try {
+        const token = googleToken || (await getAccessToken({ interactive: !otomatis }));
+        if (!token) {
+          if (!otomatis) setPesanCekTimesheet("Masuk ke akun Google dulu di tab Saya.");
+          return;
+        }
+        const folder = await cariFolderKeuangan(token);
+        if (!folder) {
+          if (!otomatis) setPesanCekTimesheet("Folder 'Keuangan' belum ditemukan di Google Drive.");
+          return;
+        }
+        const contents = await ambilIsiFolderKeuangan(token, folder.id);
+        const sebelum = daftarKegiatanRef.current;
+        const ts = await tarikTimesheetSemuaKegiatan(token, contents, sebelum);
+        if (ts.berubah) {
+          const petaLama = new Map(sebelum.map((k) => [k.id, k]));
+          for (const k of ts.daftar) {
+            const lama = petaLama.get(k.id);
+            if (!lama) {
+              onTambahKegiatan?.(k);
+            } else if (lama !== k) {
+              onUpdateKegiatan?.(k);
+            }
+          }
+          if (ts.ditambahkan.length > 0) {
+            const daftarNama = ts.ditambahkan.map((k) => (k.batch ? `Batch ${k.batch}` : k.nama)).join(", ");
+            setPesanCekTimesheet(`Timesheet baru otomatis dibaca dari Drive: ${daftarNama}.`);
+          } else if (!otomatis) {
+            setPesanCekTimesheet("Timesheet kegiatan berhasil diperbarui dari Drive.");
+          }
+        } else if (!otomatis) {
+          setPesanCekTimesheet("Semua file timesheet di folder Keuangan sudah terbaca.");
+        }
+      } catch (err: any) {
+        if (!otomatis) {
+          setPesanCekTimesheet(`Gagal memeriksa timesheet Drive: ${err?.message ?? err}`);
+        } else {
+          console.warn("Cek otomatis timesheet Drive dilewati:", err);
+        }
+      } finally {
+        setSedangCekTimesheet(false);
+      }
+    },
+    [googleToken, onTambahKegiatan, onUpdateKegiatan, sedangCekTimesheet]
+  );
+
+  useEffect(() => {
+    if (dana !== "Dana Kegiatan") return;
+    if (!isLoggedInGoogle && !googleToken) return;
+    if (sudahCekTimesheetOtomatisRef.current) return;
+    sudahCekTimesheetOtomatisRef.current = true;
+    void sinkronTimesheetDrive(true);
+  }, [dana, isLoggedInGoogle, googleToken, sinkronTimesheetDrive]);
   
   // Default rentang tanggal: awal bulan ini sampai hari ini
   const tglSekarang = hariIni();
@@ -598,9 +666,22 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", marginBottom: "6px" }}>
           {dana === "Dana Kegiatan" && daftarKegiatan.length > 0 && (
             <div>
-              <label htmlFor="lap-kegiatan-select" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "4px" }}>
-                Pilih Kegiatan Lapangan
-              </label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
+                <label htmlFor="lap-kegiatan-select" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, margin: 0 }}>
+                  Pilih Kegiatan Lapangan
+                </label>
+                {(isLoggedInGoogle || googleToken) && (
+                  <button
+                    type="button"
+                    className="btn-small"
+                    disabled={sedangCekTimesheet}
+                    onClick={() => void sinkronTimesheetDrive(false)}
+                    title="Periksa file timesheet baru (mis. Batch 5) atau pembaruan di folder Keuangan Google Drive"
+                  >
+                    {sedangCekTimesheet ? "⏳ Membaca Timesheet…" : "🔄 Sinkron Timesheet Drive"}
+                  </button>
+                )}
+              </div>
               <select
                 id="lap-kegiatan-select"
                 value={pilihKegiatanId}
@@ -622,6 +703,11 @@ export const LaporanView: React.FC<LaporanViewProps> = ({
                   </option>
                 ))}
               </select>
+              {pesanCekTimesheet && (
+                <p style={{ fontSize: "0.78rem", color: "var(--muted)", margin: "6px 0 0" }} role="status">
+                  {pesanCekTimesheet}
+                </p>
+              )}
             </div>
           )}
 

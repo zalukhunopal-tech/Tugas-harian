@@ -127,9 +127,9 @@ export function tahunDariNama(nama: string): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
-/** Judul kegiatan di file pengguna diakhiri "(Batch 4)"; angka itu juga dianggap batch kegiatan. */
+/** Judul kegiatan di file pengguna sering memuat "(Batch 4)" atau "Batch 5"; angka itu juga dianggap batch kegiatan. */
 export function batchDariJudul(judul: string): number | undefined {
-  const m = /\(\s*batch\s*(\d+)\s*\)\s*$/i.exec(judul.trim());
+  const m = /\bbatch\s*(\d+)\b/i.exec(judul.trim());
   return m ? Number(m[1]) : undefined;
 }
 
@@ -232,13 +232,32 @@ function urutkanTerbaru(files: BerkasTimesheet[]): BerkasTimesheet[] {
   return [...files].sort((a, b) => (b.modifiedTime ?? "").localeCompare(a.modifiedTime ?? ""));
 }
 
-/** Periode di dalam kurung nama file, mis. "(SEPTEMBER - OKTOBER 2026)" -> 2026-09-01 s.d. 2026-10-31. */
+const ALIAS_BULAN: Array<[RegExp, number]> = [
+  [/\b(januari|jan)\b/i, 1],
+  [/\b(februari|feb)\b/i, 2],
+  [/\b(maret|mar)\b/i, 3],
+  [/\b(april|apr)\b/i, 4],
+  [/\b(mei|may)\b/i, 5],
+  [/\b(juni|jun)\b/i, 6],
+  [/\b(juli|jul)\b/i, 7],
+  [/\b(agustus|agu|agt|aug)\b/i, 8],
+  [/\b(september|sep|sept)\b/i, 9],
+  [/\b(oktober|okt|oct)\b/i, 10],
+  [/\b(november|nov)\b/i, 11],
+  [/\b(desember|des|dec)\b/i, 12],
+];
+
+/** Periode di dalam kurung nama file, mis. "(SEPTEMBER - OKTOBER 2026)" atau "(NOVEMBER 2026)" -> 2026-09-01 s.d. 2026-10-31. */
 function periodeDariNama(nama: string): { dari: string; sampai: string } | null {
   const kurung = /\(([^)]*)\)\s*$/.exec(nama);
   if (!kurung) return null;
-  const sisi = kurung[1].split(/\s+-\s+/).map((bagian) => {
+  const sisi = kurung[1].split(/\s*[-–—]\s*/).map((bagian) => {
     const teks = bagian.toLowerCase();
-    const bulan = NAMA_BULAN.findIndex((b) => teks.includes(b.toLowerCase())) + 1;
+    let bulan = NAMA_BULAN.findIndex((b) => teks.includes(b.toLowerCase())) + 1;
+    if (!bulan) {
+      const cocokAlias = ALIAS_BULAN.find(([re]) => re.test(teks));
+      bulan = cocokAlias ? cocokAlias[1] : 0;
+    }
     const tahun = /\b(20\d\d)\b/.exec(bagian);
     return { bulan, tahun: tahun ? Number(tahun[1]) : undefined };
   });
