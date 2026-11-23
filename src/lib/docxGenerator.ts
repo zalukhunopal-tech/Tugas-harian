@@ -19,11 +19,12 @@ import {
   ShadingType,
   PageOrientation,
 } from "docx";
-import { Transaksi, ProfilPelapor, DataKegiatan } from "../types";
+import { Transaksi, ProfilPelapor, DataKegiatan, DokumenPendukungItem } from "../types";
 import { formatRupiah, formatAngka } from "./constants";
 import { RingkasanPenyelesaian } from "./penyelesaianDana";
 import { DaftarPerdiemDokumen } from "./timesheet";
-import { ambilByteBukti, GambarDokumen, pasDalamKotak, siapkanGambarDokumen, SumberGambar } from "./gambarDokumen";
+import { ambilByteBukti, buktiPdf, GambarDokumen, pasDalamKotak, siapkanGambarDokumen, SumberGambar } from "./gambarDokumen";
+import { hitungUkuranCetakDokumenMm, SPEC_DOKUMEN_PENDUKUNG } from "./dokumenPendukung";
 import {
   BarisKeterangan,
   BarisTabelLaporan,
@@ -377,6 +378,253 @@ function buatKotakTempelDuaKolom(
       }),
     ],
   });
+}
+
+/**
+ * Ruang tempel bukti fisik (kiri) bersebelahan dengan dokumen pendukung berukuran kartu/ringkas
+ * seperti KTP, STNK, SIM, NPWP (kanan) dalam satu lembar kertas.
+ */
+function buatTabelBuktiDanDokumenSamping(
+  pasangan: PasanganBuktiLaporan[],
+  dokumenSamping: Array<{ doc: DokumenPendukungItem; gambar: GambarDokumen | null }>,
+  lebarAreaMm: number,
+  lebarSampingMm: number,
+  mountStyle?: MountStyleOptions
+): Table {
+  const dashedBorder = { style: BorderStyle.DASHED, size: 6, color: "888888" };
+  const solidBorder = { style: BorderStyle.SINGLE, size: 4, color: "CBD5E1" };
+  const tanpaBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const bordersKotak = mountStyle?.border
+    ? { top: dashedBorder, bottom: dashedBorder, left: dashedBorder, right: dashedBorder }
+    : { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder };
+  const bordersKosong = { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder };
+  const bordersDok = { top: solidBorder, bottom: solidBorder, left: solidBorder, right: solidBorder };
+
+  const persenSamping = Math.min(52, Math.max(38, Math.round((lebarSampingMm / lebarAreaMm) * 100)));
+  const persenSpacer = 3;
+  const persenKiri = 100 - persenSamping - persenSpacer;
+
+  // Isi kolom kiri (kotak tempel bukti fisik)
+  const pUtama = pasangan[0];
+  let anakKiri: (Paragraph | Table)[];
+  if (pasangan.length === 1 && pUtama) {
+    const judulLengkap = pUtama.kotak.dimensiLabel ? `${pUtama.kotak.judul} | ${pUtama.kotak.dimensiLabel}` : pUtama.kotak.judul;
+    anakKiri = mountStyle?.label
+      ? [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 80, after: 40 },
+            children: [new TextRun({ text: judulLengkap, bold: true, font: "Arial", size: 19, color: "666666" })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: pUtama.kotak.catatan ? 40 : 80 },
+            children: [new TextRun({ text: pUtama.kotak.keterangan, font: "Arial", size: 17, color: "888888" })],
+          }),
+          ...(pUtama.kotak.catatan
+            ? [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 80 },
+                  children: [new TextRun({ text: `(${pUtama.kotak.catatan})`, italics: true, font: "Arial", size: 15, color: "999999" })],
+                }),
+              ]
+            : []),
+        ]
+      : [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })];
+  } else {
+    anakKiri = [];
+    for (const [idx, p] of pasangan.entries()) {
+      if (idx > 0) anakKiri.push(new Paragraph({ spacing: { before: 60, after: 0 }, children: [] }));
+      anakKiri.push(
+        buatKotakTempel(p.kotak.judul, p.kotak.keterangan, p.kotak.tinggiMm, mountStyle, {
+          catatan: p.kotak.catatan,
+          dimensiLabel: p.kotak.dimensiLabel,
+        })
+      );
+    }
+  }
+
+  // Isi kolom kanan (dokumen pendukung kartu seperti KTP, STNK, SIM, NPWP)
+  const anakKanan: (Paragraph | Table)[] = [];
+  let perkiraanTinggiKananMm = 0;
+  for (const [idx, item] of dokumenSamping.entries()) {
+    const spec = SPEC_DOKUMEN_PENDUKUNG[item.doc.jenis] ?? SPEC_DOKUMEN_PENDUKUNG.lainnya;
+    const label = item.doc.label || spec.labelBaku;
+    const uk = hitungUkuranCetakDokumenMm(item.doc, { lebarMaksMm: lebarSampingMm, tinggiMaksMm: 92 });
+    perkiraanTinggiKananMm += uk.tinggiMm + 10;
+    if (idx > 0) {
+      anakKanan.push(new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }));
+    }
+    if (item.gambar) {
+      const maksLebarPx = Math.max(120, Math.round(uk.lebarMm * 3.78));
+      const maksTinggiPx = Math.max(90, Math.round(uk.tinggiMm * 3.78));
+      anakKanan.push(paragrafGambar(item.gambar, maksLebarPx, maksTinggiPx));
+      anakKanan.push(teksKecilMiring(label));
+    } else {
+      anakKanan.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 60, after: 40 },
+          children: [new TextRun({ text: label, bold: true, font: "Arial", size: 17, color: "334155" })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
+          children: [
+            new TextRun({
+              text: `Lampiran: ${item.doc.driveLink || item.doc.nama}`,
+              italics: true,
+              font: "Arial",
+              size: 16,
+              color: "64748B",
+            }),
+          ],
+        })
+      );
+    }
+  }
+
+  const tinggiKiriMm = pasangan.reduce((s, p) => s + p.kotak.tinggiMm, 0);
+  const tinggiTwip = convertMillimetersToTwip(Math.max(tinggiKiriMm, perkiraanTinggiKananMm, 58));
+
+  const selKiri = new TableCell({
+    width: { size: persenKiri, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: pasangan.length === 1 ? bordersKotak : bordersKosong,
+    shading: pasangan.length === 1 && mountStyle?.fill ? { type: ShadingType.CLEAR, fill: "FAFAFA" } : undefined,
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children: anakKiri,
+  });
+
+  const selSpacer = new TableCell({
+    width: { size: persenSpacer, type: WidthType.PERCENTAGE },
+    borders: bordersKosong,
+    children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
+  });
+
+  const selKanan = new TableCell({
+    width: { size: persenSamping, type: WidthType.PERCENTAGE },
+    verticalAlign: VerticalAlign.CENTER,
+    borders: bordersDok,
+    shading: { type: ShadingType.CLEAR, fill: "FFFFFF" },
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children: anakKanan,
+  });
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder, insideHorizontal: tanpaBorder, insideVertical: tanpaBorder },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        height: { value: tinggiTwip, rule: HeightRule.ATLEAST },
+        children: [selKiri, selSpacer, selKanan],
+      }),
+    ],
+  });
+}
+
+/**
+ * Dokumen pendukung lebar (E-Ticket, Boarding Pass, Kontrak, Absensi, Notulensi, 3 Penawaran, dll.)
+ * yang disisipkan satu lembar bersama bukti bayar.
+ */
+function buatBagianDokumenBawah(
+  dokumenBawah: Array<{ doc: DokumenPendukungItem; gambar: GambarDokumen | null }>,
+  lanskapAkomodasi: boolean
+): (Paragraph | Table)[] {
+  if (dokumenBawah.length === 0) return [];
+  const hasil: (Paragraph | Table)[] = [];
+  const solidBorder = { style: BorderStyle.SINGLE, size: 4, color: "CBD5E1" };
+  const tanpaBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  const bordersKartu = { top: solidBorder, bottom: solidBorder, left: solidBorder, right: solidBorder };
+  const tinggiMaksMm = dokumenBawah.length >= 2 ? (lanskapAkomodasi ? 66 : 64) : lanskapAkomodasi ? 82 : 95;
+  const lebarMaksMm = lanskapAkomodasi ? (dokumenBawah.length >= 2 ? 124 : 255) : 168;
+
+  const buatIsiDok = (item: { doc: DokumenPendukungItem; gambar: GambarDokumen | null }, lMm: number): Paragraph[] => {
+    const spec = SPEC_DOKUMEN_PENDUKUNG[item.doc.jenis] ?? SPEC_DOKUMEN_PENDUKUNG.lainnya;
+    const label = item.doc.label || spec.labelBaku;
+    const uk = hitungUkuranCetakDokumenMm(item.doc, { lebarMaksMm: lMm, tinggiMaksMm });
+    if (item.gambar) {
+      const wPx = Math.max(160, Math.round(uk.lebarMm * 3.78));
+      const hPx = Math.max(90, Math.round(uk.tinggiMm * 3.78));
+      return [paragrafGambar(item.gambar, wPx, hPx), teksKecilMiring(label)];
+    }
+    return [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 40, after: 20 },
+        children: [new TextRun({ text: label, bold: true, font: "Arial", size: 18, color: "334155" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 40 },
+        children: [new TextRun({ text: `Berkas PDF / Lampiran: ${item.doc.driveLink || item.doc.nama}`, italics: true, font: "Arial", size: 17, color: "64748B" })],
+      }),
+    ];
+  };
+
+  if (lanskapAkomodasi && dokumenBawah.length >= 2) {
+    const baris: TableRow[] = [];
+    for (let i = 0; i < dokumenBawah.length; i += 2) {
+      const d1 = dokumenBawah[i];
+      const d2 = dokumenBawah[i + 1];
+      baris.push(
+        new TableRow({
+          cantSplit: true,
+          children: [
+            new TableCell({
+              width: { size: 49, type: WidthType.PERCENTAGE },
+              borders: bordersKartu,
+              verticalAlign: VerticalAlign.CENTER,
+              margins: { top: 60, bottom: 40, left: 60, right: 60 },
+              children: buatIsiDok(d1, lebarMaksMm),
+            }),
+            new TableCell({
+              width: { size: 2, type: WidthType.PERCENTAGE },
+              borders: { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder },
+              children: [new Paragraph({ children: [] })],
+            }),
+            new TableCell({
+              width: { size: 49, type: WidthType.PERCENTAGE },
+              borders: d2 ? bordersKartu : { top: tanpaBorder, bottom: tanpaBorder, left: tanpaBorder, right: tanpaBorder },
+              verticalAlign: VerticalAlign.CENTER,
+              margins: { top: 60, bottom: 40, left: 60, right: 60 },
+              children: d2 ? buatIsiDok(d2, lebarMaksMm) : [new Paragraph({ children: [] })],
+            }),
+          ],
+        })
+      );
+    }
+    hasil.push(
+      new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }),
+      new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: baris })
+    );
+  } else {
+    for (const item of dokumenBawah) {
+      hasil.push(
+        new Paragraph({ spacing: { before: 80, after: 0 }, children: [] }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              cantSplit: true,
+              children: [
+                new TableCell({
+                  width: { size: 100, type: WidthType.PERCENTAGE },
+                  borders: bordersKartu,
+                  verticalAlign: VerticalAlign.CENTER,
+                  margins: { top: 60, bottom: 40, left: 80, right: 80 },
+                  children: buatIsiDok(item, lebarMaksMm),
+                }),
+              ],
+            }),
+          ],
+        })
+      );
+    }
+  }
+  return hasil;
 }
 
 /**
@@ -1542,33 +1790,63 @@ export async function buatDokumenLaporanKegiatanDocx(
         );
       }
 
-      // 5. Ruang tempel bukti fisik asli (nota, struk, kuitansi, dll.) tanpa struk digital
-      const duaKolom =
-        blok.pasangan.length >= 2 &&
-        blok.pasangan.every((p) => p.kotak.lebarMm <= 90);
+      // 5. Ruang tempel bukti fisik asli (+ dokumen pendukung kartu seperti KTP/STNK/SIM/NPWP bersebelahan)
       const lebarAreaMm = lanskapAkomodasi ? 257 : 170;
+      const lebarSampingMm = lanskapAkomodasi ? 115 : 86;
 
-      if (duaKolom) {
-        for (let idxBaris = 0; idxBaris < blok.pasangan.length; idxBaris += 2) {
-          if (idxBaris > 0) {
-            childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
-          }
-          childrenSections.push(buatKotakTempelDuaKolom(blok.pasangan[idxBaris], blok.pasangan[idxBaris + 1], mountStyle));
-        }
+      const muatDokumen = async (daftar: DokumenPendukungItem[]) =>
+        Promise.all(
+          daftar.map(async (doc) => {
+            const sumber: SumberGambar = {
+              id: doc.id,
+              dataUrl: doc.dataUrl,
+              driveId: doc.driveId,
+              driveLink: doc.driveLink,
+            };
+            const gambar = buktiPdf(doc) ? null : await muatGambar(sumber, googleToken);
+            return { doc, gambar };
+          })
+        );
+
+      const dokSampingTermuat = await muatDokumen(blok.dokumenSamping ?? []);
+      const dokBawahTermuat = await muatDokumen(blok.dokumenBawah ?? []);
+
+      if (dokSampingTermuat.length > 0) {
+        childrenSections.push(
+          buatTabelBuktiDanDokumenSamping(blok.pasangan, dokSampingTermuat, lebarAreaMm, lebarSampingMm, mountStyle)
+        );
       } else {
-        for (const [idxPasangan, p] of blok.pasangan.entries()) {
-          if (idxPasangan > 0) {
-            childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
+        const duaKolom =
+          blok.pasangan.length >= 2 &&
+          blok.pasangan.every((p) => p.kotak.lebarMm <= 90);
+
+        if (duaKolom) {
+          for (let idxBaris = 0; idxBaris < blok.pasangan.length; idxBaris += 2) {
+            if (idxBaris > 0) {
+              childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
+            }
+            childrenSections.push(buatKotakTempelDuaKolom(blok.pasangan[idxBaris], blok.pasangan[idxBaris + 1], mountStyle));
           }
-          childrenSections.push(
-            buatKotakTempel(p.kotak.judul, p.kotak.keterangan, p.kotak.tinggiMm, mountStyle, {
-              catatan: p.kotak.catatan,
-              lebarMm: p.kotak.lebarMm,
-              lebarAreaMm,
-              dimensiLabel: p.kotak.dimensiLabel,
-            })
-          );
+        } else {
+          for (const [idxPasangan, p] of blok.pasangan.entries()) {
+            if (idxPasangan > 0) {
+              childrenSections.push(new Paragraph({ spacing: { before: 100, after: 0 }, children: [] }));
+            }
+            childrenSections.push(
+              buatKotakTempel(p.kotak.judul, p.kotak.keterangan, p.kotak.tinggiMm, mountStyle, {
+                catatan: p.kotak.catatan,
+                lebarMm: p.kotak.lebarMm,
+                lebarAreaMm,
+                dimensiLabel: p.kotak.dimensiLabel,
+              })
+            );
+          }
         }
+      }
+
+      // 5b. Dokumen pendukung lebar satu lembar bersama bukti bayar (E-Ticket, Boarding Pass, Kontrak, Absensi, 3 Penawaran, dll.)
+      if (dokBawahTermuat.length > 0) {
+        childrenSections.push(...buatBagianDokumenBawah(dokBawahTermuat, lanskapAkomodasi));
       }
 
       // 6. Kotak tempel tambahan sesuai kelompok (boarding pass, STNK, KTP, NPWP)
@@ -1595,8 +1873,11 @@ export async function buatDokumenLaporanKegiatanDocx(
   }
 
   // =========================================================
-  // BAGIAN 3E: "DOKUMEN PENDUKUNG" (HALAMAN BARU): timesheet rental kendaraan dan surat justifikasi
+  // BAGIAN 3E: "DOKUMEN PENDUKUNG" (HALAMAN BARU): kontrak sewa motor (>7 hari), timesheet rental, dan surat justifikasi
   // =========================================================
+  if (susunan.kontrakRental.length > 0 || susunan.rental.length > 0 || susunan.justifikasi.length > 0) {
+    pindahOrientasi(false);
+  }
   const teksArial = (isi: string, o: { tebal?: boolean; ukuran?: number; warna?: string; garisBawah?: boolean } = {}) =>
     new TextRun({ text: isi, bold: o.tebal, underline: o.garisBawah ? {} : undefined, font: "Arial", size: o.ukuran ?? 21, color: o.warna });
   const selTs = (isi: string, lebar: number | undefined, o: { kepala?: boolean; total?: boolean; rata?: (typeof AlignmentType)[keyof typeof AlignmentType]; span?: number } = {}) =>
@@ -1608,6 +1889,128 @@ export async function buatDokumenLaporanKegiatanDocx(
       verticalAlign: VerticalAlign.CENTER,
       children: [new Paragraph({ alignment: o.rata, children: [teksArial(isi, { tebal: o.kepala || o.total, ukuran: o.total ? 20 : 19 })] })],
     });
+
+  const buatTabelIdentitasKontrak = (baris: Array<[string, string]>) =>
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      borders: tableBordersNone,
+      rows: baris.map(
+        ([label, nilai]) =>
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 24, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(label, { ukuran: 20 })] })],
+              }),
+              new TableCell({
+                width: { size: 4, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(":", { ukuran: 20 })] })],
+              }),
+              new TableCell({
+                width: { size: 72, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [new Paragraph({ spacing: { before: 20, after: 20 }, children: [teksArial(nilai || "-", { ukuran: 20 })] })],
+              }),
+            ],
+          })
+      ),
+    });
+
+  for (const k of susunan.kontrakRental) {
+    childrenSections.push(
+      new Paragraph({
+        pageBreakBefore: true,
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 60, after: 180 },
+        children: [teksArial("SURAT PERJANJIAN SEWA KENDARAAN BERMOTOR", { tebal: true, ukuran: 24, garisBawah: true })],
+      }),
+      new Paragraph({
+        spacing: { after: 100 },
+        children: [teksArial(`Pada hari ${k.hariTanggal}, kami yang bertanda tangan di bawah ini:`, { ukuran: 20 })],
+      }),
+      new Paragraph({
+        spacing: { before: 60, after: 40 },
+        children: [teksArial("Pihak Pertama (Pemilik Kendaraan):", { tebal: true, ukuran: 20 })],
+      }),
+      buatTabelIdentitasKontrak([
+        ["Nama", k.pihakPertama.nama],
+        ["Pekerjaan", k.pihakPertama.pekerjaan],
+        ["Alamat KTP", k.pihakPertama.alamatKtp],
+      ]),
+      new Paragraph({
+        spacing: { before: 100, after: 40 },
+        children: [teksArial("Pihak Kedua (Penyewa):", { tebal: true, ukuran: 20 })],
+      }),
+      buatTabelIdentitasKontrak([
+        ["Nama", k.pihakKedua.nama],
+        ["Pekerjaan", k.pihakKedua.pekerjaan],
+        ["Alamat", k.pihakKedua.alamat],
+      ]),
+      new Paragraph({
+        spacing: { before: 120, after: 40 },
+        children: [teksArial("Dengan ini Pihak Pertama menyewakan kendaraan bermotor kepada Pihak Kedua dengan spesifikasi:", { ukuran: 20 })],
+      }),
+      buatTabelIdentitasKontrak([
+        ["Merk / Jenis", k.kendaraan.merkJenis],
+        ["Tahun", k.kendaraan.tahun],
+        ["No. Polisi", k.kendaraan.noPolisi],
+      ]),
+      new Paragraph({
+        spacing: { before: 120, after: 60 },
+        children: [teksArial("Adapun syarat dan ketentuan dalam perjanjian sewa menyewa ini sebagai berikut:", { ukuran: 20 })],
+      }),
+      ...k.klausul.map(
+        (isi, idx) =>
+          new Paragraph({
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { before: 30, after: 40 },
+            indent: { left: 360, hanging: 360 },
+            children: [teksArial(`${idx + 1}.\t${isi}`, { ukuran: 19 })],
+          })
+      ),
+      new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 100, after: 200 },
+        children: [
+          teksArial(
+            "Demikian surat perjanjian sewa menyewa dibuat agar dapat dipergunakan sebagaimana mestinya dan dibuat rangkap dua dengan dilampirkan materai serta mempunyai kekuatan hukum yang sama.",
+            { ukuran: 20 }
+          ),
+        ],
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: tableBordersNone,
+        rows: [
+          new TableRow({
+            cantSplit: true,
+            children: [
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [
+                  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [teksArial("Pihak Pertama", { tebal: true, ukuran: 20 })] }),
+                  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 140 }, children: [teksArial("(Materai Rp10.000)", { ukuran: 17, warna: "777777" })] }),
+                  new Paragraph({ alignment: AlignmentType.CENTER, children: [teksArial(`( ${k.pihakPertama.nama} )`, { tebal: true, ukuran: 20 })] }),
+                ],
+              }),
+              new TableCell({
+                width: { size: 50, type: WidthType.PERCENTAGE },
+                borders: tableBordersNone,
+                children: [
+                  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 380 }, children: [teksArial("Pihak Kedua", { tebal: true, ukuran: 20 })] }),
+                  new Paragraph({ alignment: AlignmentType.CENTER, children: [teksArial(`( ${k.pihakKedua.nama} )`, { tebal: true, ukuran: 20 })] }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      })
+    );
+  }
 
   for (const r of susunan.rental) {
     childrenSections.push(

@@ -9,6 +9,7 @@ import {
   ItemPenyusutan,
   JenisBukti,
   FotoPendukung,
+  DokumenPendukungItem,
   DetailTransportasi,
   DetailRentalKendaraan,
   DetailBBM,
@@ -146,6 +147,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
   const [perluSuratJustifikasi, setPerluSuratJustifikasi] = useState<boolean>(false);
   const [alasanJustifikasi, setAlasanJustifikasi] = useState<string>("");
   const [fotoPendukung, setFotoPendukung] = useState<FotoPendukung[]>([]);
+  const [dokumenPendukung, setDokumenPendukung] = useState<DokumenPendukungItem[]>([]);
+  const [catatanOverBudget, setCatatanOverBudget] = useState<string>("");
 
   // Sub-kelompok states
   const [transportasi, setTransportasi] = useState<DetailTransportasi>({});
@@ -248,6 +251,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setPerluSuratJustifikasi(Boolean(dk.perluSuratJustifikasi));
           setAlasanJustifikasi(dk.alasanJustifikasi || "");
           setFotoPendukung(dk.fotoPendukung || []);
+          setDokumenPendukung(dk.dokumenPendukung || []);
+          setCatatanOverBudget(dk.catatanOverBudget || "");
           if (dk.transportasi) setTransportasi(dk.transportasi);
           if (dk.rentalKendaraan) setRentalKendaraan(dk.rentalKendaraan);
           if (dk.bbm) setBBM(dk.bbm);
@@ -258,9 +263,14 @@ export const TambahView: React.FC<TambahViewProps> = ({
           setPenerimaManfaat(dk.penerimaManfaat ?? []);
           setKotakTempel(dk.kotakTempel);
         } else {
+          setDokumenPendukung([]);
+          setCatatanOverBudget("");
           setPenerimaManfaat([]);
           setKotakTempel(undefined);
         }
+      } else {
+        setDokumenPendukung([]);
+        setCatatanOverBudget("");
       }
       // Perdiem yang sudah punya pemasukan pribadi otomatis: pilihan awalnya tetap terhubung.
       setPerdiemRentang(PERDIEM_RENTANG_AWAL);
@@ -304,6 +314,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setPerluSuratJustifikasi(false);
       setAlasanJustifikasi("");
       setFotoPendukung([]);
+      setDokumenPendukung([]);
+      setCatatanOverBudget("");
       setTransportasi({});
       setRentalKendaraan({ persenGrossUpPajak: 2, timesheet: [] });
       setBBM({});
@@ -736,6 +748,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
             ),
             alasanJustifikasi: alasanJustifikasi.trim() || undefined,
             fotoPendukung: o.denganLampiran && fotoPendukung.length > 0 ? fotoPendukung : undefined,
+            dokumenPendukung: o.denganLampiran && dokumenPendukung.length > 0 ? dokumenPendukung : undefined,
+            catatanOverBudget: catatanOverBudget.trim() || undefined,
             transportasi: kategori === "Transportasi" ? transportasi : undefined,
             rentalKendaraan: kategori === "Rental Kendaraan" ? rentalKendaraan : undefined,
             bbm: kategori === "BBM" ? bbm : undefined,
@@ -859,6 +873,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
       setPerluSuratJustifikasi(false);
       setAlasanJustifikasi("");
       setFotoPendukung([]);
+      setDokumenPendukung([]);
+      setCatatanOverBudget("");
       setTransportasi({});
       setRentalKendaraan({ persenGrossUpPajak: 2, timesheet: [] });
       setBBM({});
@@ -906,6 +922,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
     keteranganLaporan,
     perluSuratJustifikasi,
     alasanJustifikasi,
+    dokumenPendukung,
+    catatanOverBudget: catatanOverBudget.trim() || undefined,
     transportasi,
     rentalKendaraan,
     bbm,
@@ -992,6 +1010,10 @@ export const TambahView: React.FC<TambahViewProps> = ({
       onUpdateAlasanJustifikasi={setAlasanJustifikasi}
       fotoPendukung={fotoPendukung}
       onUpdateFotoPendukung={setFotoPendukung}
+      dokumenPendukung={dokumenPendukung}
+      onUpdateDokumenPendukung={setDokumenPendukung}
+      catatanOverBudget={catatanOverBudget}
+      onUpdateCatatanOverBudget={setCatatanOverBudget}
       transportasi={transportasi}
       onUpdateTransportasi={setTransportasi}
       rentalKendaraan={rentalKendaraan}
@@ -1150,8 +1172,11 @@ export const TambahView: React.FC<TambahViewProps> = ({
           </div>
           <select
             id="kategori"
+            className="tf-sr-select"
             value={kategori}
             onChange={(e) => setKategori(e.target.value)}
+            tabIndex={-1}
+            aria-hidden="true"
           >
             {daftarKategori.map((kat) => (
               <option key={kat} value={kat}>
@@ -1199,23 +1224,34 @@ export const TambahView: React.FC<TambahViewProps> = ({
   );
   const blokJumlah = (
     <>
-      <div className="field f-jumlah">
-        <label htmlFor="jumlah">Jumlah (Rp)</label>
-        <input
-          type="number"
-          id="jumlah"
-          min="1"
-          step="1"
-          placeholder="25000"
-          value={jumlah}
-          onChange={(e) => setJumlah(e.target.value)}
-          required
-        />
+      <div className="field f-jumlah tf-hero-amount">
+        <div className="tf-hero-amount__head">
+          <label htmlFor="jumlah">Nominal Transaksi</label>
+          {Number(jumlah) > 0 && (
+            <span className="tf-hero-amount__preview" aria-live="polite">
+              {formatRupiah(Number(jumlah))}
+            </span>
+          )}
+        </div>
+        <div className="tf-hero-amount__input-wrap">
+          <span className="tf-hero-amount__prefix" aria-hidden="true">Rp</span>
+          <input
+            type="number"
+            id="jumlah"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            placeholder="0"
+            value={jumlah}
+            onChange={(e) => setJumlah(e.target.value)}
+            required
+          />
+        </div>
         {/* Pilihan nominal alternatif hasil deteksi OCR langsung di bawah input Jumlah */}
         {hasilScan?.kandidatJumlah && hasilScan.kandidatJumlah.length > 1 && (
-          <div style={{ marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--muted)", width: "100%" }}>
-              Angka lain terdeteksi pada struk (klik untuk ganti):
+          <div className="tf-ocr-kandidat">
+            <span className="tf-ocr-kandidat__label">
+              Angka lain pada struk (klik untuk ganti):
             </span>
             {hasilScan.kandidatJumlah.map((k, idx) => {
               const isActive = jumlah === String(k.nominal);
@@ -1223,17 +1259,8 @@ export const TambahView: React.FC<TambahViewProps> = ({
                 <button
                   key={idx}
                   type="button"
+                  className={`tf-chip${isActive ? " tf-chip--active" : ""}`}
                   onClick={() => setJumlah(String(k.nominal))}
-                  style={{
-                    fontSize: "0.72rem",
-                    padding: "3px 8px",
-                    borderRadius: "6px",
-                    border: isActive ? "1px solid var(--accent)" : "1px solid var(--border)",
-                    background: isActive ? "var(--highlight)" : "var(--surface)",
-                    color: isActive ? "var(--accent)" : "var(--text)",
-                    cursor: "pointer",
-                    fontWeight: isActive ? 700 : 500,
-                  }}
                 >
                   {formatRupiah(k.nominal)} ({k.label})
                 </button>
@@ -1486,8 +1513,9 @@ export const TambahView: React.FC<TambahViewProps> = ({
         </div>
 
         <p className="lampiran-bukti__petunjuk" data-testid="petunjuk-banyak-foto">
-          Satu pengeluaran boleh punya beberapa foto bukti, mis. tiket pesawat atau speedboat tiap orang yang ikut diklaim, atau
-          beberapa struk snack perjalanan. Semua foto ikut tercetak di laporan dan dokumen Word.
+          {dana === "Dana Kegiatan"
+            ? "Foto nota/struk tersimpan sebagai arsip digital & otomatis menyesuaikan ukuran ruang tempel bukti fisik pada laporan cetak/Word."
+            : "Simpan foto struk/nota atau PDF sebagai arsip transaksi pribadi (opsional)."}
         </p>
 
         {memuatBukti && (
@@ -1654,7 +1682,7 @@ export const TambahView: React.FC<TambahViewProps> = ({
         nilai:
           kategori === "Perdiem"
             ? "Sesuai TOR, tanpa nota"
-            : `${jenisBukti}${bukti.length ? ` · ${bukti.length} lampiran` : " · belum ada foto"}`,
+            : `${jenisBukti}${bukti.length ? ` · ${bukti.length} nota` : ""}${dokumenPendukung.length ? ` · ${dokumenPendukung.length} dok. SPJ` : ""}`,
         langkah: "bukti" as const,
       },
     ];
@@ -2168,157 +2196,156 @@ export const TambahView: React.FC<TambahViewProps> = ({
         </div>
       )}
 
-      <section className="card" id="kartu-form">
+      <section className="card tf-shell" id="kartu-form">
         <h2 id="judul-form">{editTransaksi ? "Ubah Transaksi" : "Formulir Transaksi"}</h2>
-        <form id="form-transaksi" ref={formRef} onSubmit={handleSubmit} data-mode={modeTransaksi}>
+        <form
+          id="form-transaksi"
+          className="tf-form"
+          ref={formRef}
+          onSubmit={handleSubmit}
+          data-mode={modeTransaksi}
+          data-dana={dana}
+        >
           {dialihkanDariPerdiemPribadi && (
-            <p
-              id="info-dialihkan-perdiem"
-              style={{
-                margin: "0 0 12px",
-                padding: "8px 12px",
-                fontSize: "0.82rem",
-                borderRadius: "10px",
-                border: "1px solid var(--border)",
-                background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
-              }}
-            >
+            <p id="info-dialihkan-perdiem" className="tf-info-banner">
               Pemasukan ini dibuat otomatis dari uang harian di Dana Kegiatan, jadi yang dibuka adalah uang hariannya.
               Perubahan di sini ikut mengubah pemasukan pribadinya.
             </p>
           )}
-          <fieldset className="field segmented f-jenis">
-            <legend>Jenis Transaksi</legend>
-            <div className="segmented-options" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              <label style={{ flex: 1, minWidth: "100px" }}>
-                <input
-                  type="radio"
-                  name="modeTransaksi"
-                  value="pengeluaran"
-                  checked={modeTransaksi === "pengeluaran"}
-                  onChange={() => {
-                    setModeTransaksi("pengeluaran");
-                    setJenis("pengeluaran");
-                  }}
-                />
-                <span>Pengeluaran</span>
-              </label>
-              <label style={{ flex: 1, minWidth: "100px" }}>
-                <input
-                  type="radio"
-                  name="modeTransaksi"
-                  value="pemasukan"
-                  checked={modeTransaksi === "pemasukan"}
-                  onChange={() => {
-                    setModeTransaksi("pemasukan");
-                    setJenis("pemasukan");
-                  }}
-                />
-                <span>Pemasukan</span>
-              </label>
-              <label style={{ flex: 1, minWidth: "115px" }}>
-                <input
-                  type="radio"
-                  name="modeTransaksi"
-                  value="pindah_dana"
-                  checked={modeTransaksi === "pindah_dana"}
-                  onChange={() => setModeTransaksi("pindah_dana")}
-                />
-                <span>🔄 Pindah Dana</span>
-              </label>
-            </div>
-          </fieldset>
 
-          {modeTransaksi === "pindah_dana" ? (
-            <div
-              className="field wide"
-              style={{
-                background: "color-mix(in srgb, var(--accent) 8%, var(--surface))",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1.5px solid var(--accent)",
-                marginBottom: "8px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
-                <strong style={{ fontSize: "0.88rem", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span>🔄</span> Pindah Dana Antar Rekening / Kas
-                </strong>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Disimpan otomatis sebagai 2 transaksi berpasangan
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor="dana-asal" style={{ fontSize: "0.8rem", marginBottom: "4px", display: "block", fontWeight: 600 }}>
-                    Dari (Dana Asal - Keluar):
-                  </label>
-                  <select
-                    id="dana-asal"
-                    value={danaAsal}
-                    onChange={(e) => {
-                      const asal = e.target.value as NamaDana;
-                      setDanaAsal(asal);
-                      setDanaTujuan(asal === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+          {/* Switcher Utama: Jenis Transaksi & Sumber Dana */}
+          <div className="tf-top-controls">
+            <fieldset className="field segmented f-jenis tf-segmented">
+              <legend className="tf-sr-only">Jenis Transaksi</legend>
+              <div className="segmented-options tf-pill-group">
+                <label>
+                  <input
+                    type="radio"
+                    name="modeTransaksi"
+                    value="pengeluaran"
+                    checked={modeTransaksi === "pengeluaran"}
+                    onChange={() => {
+                      setModeTransaksi("pengeluaran");
+                      setJenis("pengeluaran");
                     }}
-                  >
-                    <option value="Dana Pribadi">Dana Pribadi</option>
-                    <option value="Dana Kegiatan">Dana Kegiatan</option>
-                  </select>
+                  />
+                  <span>Pengeluaran</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="modeTransaksi"
+                    value="pemasukan"
+                    checked={modeTransaksi === "pemasukan"}
+                    onChange={() => {
+                      setModeTransaksi("pemasukan");
+                      setJenis("pemasukan");
+                    }}
+                  />
+                  <span>Pemasukan</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="modeTransaksi"
+                    value="pindah_dana"
+                    checked={modeTransaksi === "pindah_dana"}
+                    onChange={() => setModeTransaksi("pindah_dana")}
+                  />
+                  <span>Pindah Dana</span>
+                </label>
+              </div>
+            </fieldset>
+
+            {modeTransaksi === "pindah_dana" ? (
+              <div className="field wide tf-pindah-card">
+                <div className="tf-pindah-card__head">
+                  <strong>🔄 Pindah Dana Antar Kas</strong>
+                  <span>Disimpan otomatis sebagai 2 transaksi berpasangan</span>
                 </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{
-                    alignSelf: "flex-end",
-                    height: "42px",
-                    padding: "0 14px",
-                    fontSize: "1.2rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  onClick={() => {
-                    const temp = danaAsal;
-                    setDanaAsal(danaTujuan);
-                    setDanaTujuan(temp);
-                  }}
-                  title="Tukar Arah Pindah Dana"
+                <div className="tf-pindah-card__row">
+                  <div className="tf-pindah-card__col">
+                    <label htmlFor="dana-asal">Dari (Keluar)</label>
+                    <select
+                      id="dana-asal"
+                      value={danaAsal}
+                      onChange={(e) => {
+                        const asal = e.target.value as NamaDana;
+                        setDanaAsal(asal);
+                        setDanaTujuan(asal === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+                      }}
+                    >
+                      <option value="Dana Pribadi">Dana Pribadi</option>
+                      <option value="Dana Kegiatan">Dana Kegiatan</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary tf-swap-btn"
+                    onClick={() => {
+                      const temp = danaAsal;
+                      setDanaAsal(danaTujuan);
+                      setDanaTujuan(temp);
+                    }}
+                    title="Tukar Arah Pindah Dana"
+                    aria-label="Tukar Arah Pindah Dana"
+                  >
+                    ⇄
+                  </button>
+                  <div className="tf-pindah-card__col">
+                    <label htmlFor="dana-tujuan">Ke (Masuk)</label>
+                    <select
+                      id="dana-tujuan"
+                      value={danaTujuan}
+                      onChange={(e) => {
+                        const tujuan = e.target.value as NamaDana;
+                        setDanaTujuan(tujuan);
+                        setDanaAsal(tujuan === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
+                      }}
+                    >
+                      <option value="Dana Pribadi">Dana Pribadi</option>
+                      <option value="Dana Kegiatan">Dana Kegiatan</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="field f-dana tf-dana-switch">
+                <span className="tf-dana-switch__label">Sumber Dana</span>
+                <div className="tf-dana-pills" role="group" aria-label="Sumber Dana">
+                  <button
+                    type="button"
+                    className={`tf-dana-pill${dana === "Dana Pribadi" ? " tf-dana-pill--active" : ""}`}
+                    aria-pressed={dana === "Dana Pribadi"}
+                    onClick={() => setDana("Dana Pribadi")}
+                  >
+                    <span>👤</span>
+                    <span>Dana Pribadi</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`tf-dana-pill${dana === "Dana Kegiatan" ? " tf-dana-pill--active" : ""}`}
+                    aria-pressed={dana === "Dana Kegiatan"}
+                    onClick={() => setDana("Dana Kegiatan")}
+                  >
+                    <span>📋</span>
+                    <span>Dana Kegiatan</span>
+                  </button>
+                </div>
+                <select
+                  id="dana"
+                  className="tf-sr-select"
+                  value={dana}
+                  onChange={(e) => setDana(e.target.value as NamaDana)}
+                  tabIndex={-1}
+                  aria-hidden="true"
                 >
-                  ⇄
-                </button>
-                <div style={{ flex: 1 }}>
-                  <label htmlFor="dana-tujuan" style={{ fontSize: "0.8rem", marginBottom: "4px", display: "block", fontWeight: 600 }}>
-                    Ke (Dana Tujuan - Masuk):
-                  </label>
-                  <select
-                    id="dana-tujuan"
-                    value={danaTujuan}
-                    onChange={(e) => {
-                      const tujuan = e.target.value as NamaDana;
-                      setDanaTujuan(tujuan);
-                      setDanaAsal(tujuan === "Dana Pribadi" ? "Dana Kegiatan" : "Dana Pribadi");
-                    }}
-                  >
-                    <option value="Dana Pribadi">Dana Pribadi</option>
-                    <option value="Dana Kegiatan">Dana Kegiatan</option>
-                  </select>
-                </div>
+                  <option value="Dana Pribadi">Dana Pribadi</option>
+                  <option value="Dana Kegiatan">Dana Kegiatan</option>
+                </select>
               </div>
-            </div>
-          ) : (
-            <div className="field f-dana">
-              <label htmlFor="dana">Dana</label>
-              <select
-                id="dana"
-                value={dana}
-                onChange={(e) => setDana(e.target.value as NamaDana)}
-              >
-                <option value="Dana Pribadi">Dana Pribadi</option>
-                <option value="Dana Kegiatan">Dana Kegiatan</option>
-              </select>
-            </div>
-          )}
+            )}
+          </div>
 
           {pakaiBertahap ? (
             renderPengisianBertahap()
@@ -2326,21 +2353,104 @@ export const TambahView: React.FC<TambahViewProps> = ({
             <>
               {layarKecil && modeTransaksi === "pengeluaran" && dana === "Dana Kegiatan" && (
                 <button type="button" className="btn-link bertahap-aktifkan" onClick={() => aturIsiBertahap(true)}>
-                  Isi bertahap, satu pertanyaan per langkah
+                  ✨ Mode bertahap (satu pertanyaan per langkah)
                 </button>
               )}
-              {blokTanggal}
-              {blokUraian}
-              {penerimaanKegiatan && blokJudulKegiatan}
-              {blokKategori}
-              {blokTargetTabungan}
+
+              {/* 1. Hero Nominal */}
               {blokJumlah}
-              {blokMetode}
-              {blokDepresiasi}
-              {blokDanaKegiatanAtauKaitan}
-              {blokCatatan}
-              {blokTalangan}
-              {blokBukti}
+
+              {/* 2. Inti Transaksi: Uraian / Judul Kegiatan, Tanggal & Metode, Kategori */}
+              <div className="tf-essentials">
+                {penerimaanKegiatan ? blokJudulKegiatan : blokUraian}
+                <div className="tf-row-two">
+                  {blokTanggal}
+                  {blokMetode}
+                </div>
+                {blokKategori}
+                {blokTargetTabungan}
+              </div>
+
+              {/* 3. Bagian Khusus Dana Kegiatan (SPJ, Detail Kategori, Upload Dokumen Pendukung) */}
+              {dana === "Dana Kegiatan" && !penerimaanKegiatan && modeTransaksi !== "pindah_dana" && (
+                <>
+                  {blokDanaKegiatanAtauKaitan}
+                  {blokBukti}
+                  <details
+                    className="tf-more"
+                    open={Boolean(catatan.trim() || isTalangan || penyusutan.aktif)}
+                  >
+                    <summary className="tf-more__summary">
+                      <span>Opsi Tambahan</span>
+                      <span className="tf-more__meta">
+                        {[
+                          catatan.trim() && "Catatan",
+                          isTalangan && "Talangan",
+                          penyusutan.aktif && "Depresiasi",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Catatan, talangan, depresiasi aset"}
+                      </span>
+                    </summary>
+                    <div className="tf-more__body">
+                      {blokCatatan}
+                      {blokTalangan}
+                      {blokDepresiasi}
+                    </div>
+                  </details>
+                </>
+              )}
+
+              {/* 3b. Penerimaan Dana Kegiatan: Catatan & Bukti dalam Opsi Tambahan ringkas */}
+              {penerimaanKegiatan && (
+                <details className="tf-more" open={Boolean(catatan.trim() || bukti.length > 0)}>
+                  <summary className="tf-more__summary">
+                    <span>Opsi Tambahan</span>
+                    <span className="tf-more__meta">
+                      {[catatan.trim() && "Catatan", bukti.length > 0 && `${bukti.length} bukti`]
+                        .filter(Boolean)
+                        .join(" · ") || "Catatan & bukti transfer"}
+                    </span>
+                  </summary>
+                  <div className="tf-more__body">
+                    {blokCatatan}
+                    {blokBukti}
+                  </div>
+                </details>
+              )}
+
+              {/* 3c. Dana Pribadi / Pindah Dana: Super Minimalis, opsi sekunder rapi dalam collapsible */}
+              {(dana === "Dana Pribadi" || modeTransaksi === "pindah_dana") && (
+                <details
+                  className="tf-more"
+                  open={Boolean(
+                    kaitan.trim() || catatan.trim() || isTalangan || penyusutan.aktif || bukti.length > 0
+                  )}
+                >
+                  <summary className="tf-more__summary">
+                    <span>Opsi Tambahan</span>
+                    <span className="tf-more__meta">
+                      {[
+                        kaitan.trim() && "Kaitan",
+                        catatan.trim() && "Catatan",
+                        isTalangan && "Talangan",
+                        penyusutan.aktif && "Depresiasi",
+                        bukti.length > 0 && `${bukti.length} lampiran`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Kaitan, catatan, talangan & lampiran"}
+                    </span>
+                  </summary>
+                  <div className="tf-more__body">
+                    {blokDanaKegiatanAtauKaitan}
+                    {blokCatatan}
+                    {blokTalangan}
+                    {blokDepresiasi}
+                    {blokBukti}
+                  </div>
+                </details>
+              )}
+
               {blokGalat}
               {blokAksi}
             </>

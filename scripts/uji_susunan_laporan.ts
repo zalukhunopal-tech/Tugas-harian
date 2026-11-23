@@ -287,6 +287,96 @@ const sKoreksi = susunLaporanKegiatan({
 const pasKoreksi = sKoreksi.kelompok[0].blok[0].pasangan[0];
 cek("koreksi fisik manual pengguna menghasilkan status measured", pasKoreksi.statusUkuran === "measured" && pasKoreksi.lebarKertasMm === 155 && pasKoreksi.tinggiKertasMm === 90);
 
+console.log("== Uji Dokumen Pendukung SPJ (KTP, STNK, SIM, Tiket Pesawat, Kontrak > 7 Hari)");
+const contohDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR42mP8z8BQzwAEjDAGACcBA/+4m6cAAAAASUVORK5CYII=";
+const sDok = susunLaporanKegiatan({
+  transaksi: [
+    trx({
+      id: "akm-rumah-warga",
+      kategori: "Akomodasi",
+      deskripsi: "Penginapan Rumah Pak Kades",
+      jumlah: 450000,
+      detailKegiatan: {
+        akomodasi: {
+          lokasi: "Rumah Pak Kades Long Belaka",
+          diRumahWarga: true,
+          tanggalMasuk: "2026-10-20",
+          tanggalKeluar: "2026-10-23",
+          jumlahMalam: 3,
+          namaPemilik: "Bapak Marthen",
+        },
+        dokumenPendukung: [
+          { id: "dok-ktp-akm", jenis: "ktp", label: "KTP Pemilik Rumah Warga", nama: "ktp_marthen.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 856, tinggiPx: 540 },
+        ],
+      },
+    }),
+    trx({
+      id: "rental-10-hari",
+      kategori: "Rental Kendaraan",
+      deskripsi: "Sewa Motor Honda CRF 150L (10 hari)",
+      jumlah: 1500000,
+      detailKegiatan: {
+        rentalKendaraan: {
+          jenisMerk: "Honda CRF 150L (Motor)",
+          tahun: "2023",
+          noPolisi: "KU 4455 XY",
+          namaPemilik: "Bapak Petrus",
+          pekerjaanPemilik: "Petani",
+          alamatKtpPemilik: "Desa Long Bawan RT 02",
+          alamatPenyewa: "Basecamp Krayan",
+          tanggalMulai: "2026-10-10",
+          tanggalSelesai: "2026-10-19",
+          jumlahHari: 10,
+          tarifPerHari: 150000,
+          timesheet: [
+            { id: "ts1", tanggal: "2026-10-10", lokasiBasecampRute: "Long Bawan - Pa' Nado", cakupanAktivitas: "Survei batas", jarakKm: 24 },
+          ],
+        },
+        dokumenPendukung: [
+          { id: "dok-ktp-r", jenis: "ktp", label: "KTP Pemilik Rental", nama: "ktp_petrus.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 856, tinggiPx: 540 },
+          { id: "dok-stnk-r", jenis: "stnk", label: "STNK Motor", nama: "stnk_crf.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 850, tinggiPx: 600 },
+          { id: "dok-sim-r", jenis: "sim", label: "SIM Penyewa", nama: "sim_c.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 856, tinggiPx: 540 },
+        ],
+      },
+    }),
+    trx({
+      id: "pesawat-lengkap",
+      kategori: "Transportasi",
+      deskripsi: "Tiket Pesawat Tarakan - Balikpapan",
+      jumlah: 5200000,
+      detailKegiatan: {
+        jenisBukti: "Tiket pesawat/e-ticket",
+        transportasi: { moda: "Pesawat", dari: "Tarakan", ke: "Balikpapan" },
+        catatanOverBudget: "Kenaikan tarif mendekati tanggal keberangkatan",
+        dokumenPendukung: [
+          { id: "dok-eticket", jenis: "eticket", label: "E-Ticket Pesawat", nama: "eticket.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 1200, tinggiPx: 600 },
+          { id: "dok-bp", jenis: "boarding_pass", label: "Boarding Pass", nama: "boarding.jpg", tipe: "image/jpeg", dataUrl: contohDataUrl, lebarPx: 1200, tinggiPx: 450 },
+        ],
+      },
+    }),
+  ],
+  kegiatan,
+  profilPelapor: profil,
+});
+
+const blokAkm = sDok.kelompok.find((k) => k.kategori === "Akomodasi")!.blok[0];
+cek("akomodasi rumah warga: KTP masuk dokumenSamping (bersebelahan space bukti)", blokAkm.dokumenSamping.length === 1 && blokAkm.dokumenSamping[0].jenis === "ktp");
+cek("akomodasi dengan KTP terunggah tidak menggandakan kotak tempel KTP kosong", blokAkm.kotakTambahan.length === 0);
+cek("keterangan akomodasi menyebut (Rumah Warga)", blokAkm.keterangan.some((b) => b.some((s) => s.teks.includes("(Rumah Warga)"))));
+
+const blokRental = sDok.kelompok.find((k) => k.kategori === "Rental Kendaraan")!.blok[0];
+cek("rental motor: KTP, STNK, SIM masuk dokumenSamping", blokRental.dokumenSamping.length === 3);
+cek("rental motor dengan KTP+STNK+SIM terunggah tidak menggandakan kotak kosong", blokRental.kotakTambahan.length === 0);
+cek("rental motor > 7 hari otomatis membuat kontrakRental dengan 10 klausul", sDok.kontrakRental.length === 1 && sDok.kontrakRental[0].klausul.length === 10);
+cek("kontrakRental memuat Pihak Pertama, Pihak Kedua, tarif/hari, dan plat", sDok.kontrakRental[0].pihakPertama.nama === "Bapak Petrus" && sDok.kontrakRental[0].pihakKedua.nama === profil.nama && sDok.kontrakRental[0].hargaPerHari === 150000 && sDok.kontrakRental[0].kendaraan.noPolisi === "KU 4455 XY");
+cek("rental motor > 7 hari juga memuat timesheet rental", sDok.rental.length === 1 && sDok.rental[0].judul === "TIMESHEET RENTAL MOTOR");
+
+const blokPesawat = sDok.kelompok.find((k) => k.kategori === "Transportasi")!.blok[0];
+cek("tiket pesawat: E-Ticket dan Boarding Pass masuk dokumenBawah (satu lembar)", blokPesawat.dokumenBawah.length === 2);
+cek("tiket pesawat dengan Boarding Pass terunggah tidak menggandakan kotak boarding pass kosong", blokPesawat.kotakTambahan.length === 0);
+cek("transaksi ≥ Rp5.000.000 memuat catatan materai & 3 penawaran", blokPesawat.keterangan.some((b) => b.some((s) => s.teks.includes("Rp5.000.000"))));
+cek("catatanOverBudget tampil pada keterangan transaksi", blokPesawat.keterangan.some((b) => b.some((s) => s.teks.includes("Kenaikan tarif mendekati tanggal keberangkatan"))));
+
 if (gagal) {
   console.log(`\n${gagal} uji gagal`);
   process.exit(1);

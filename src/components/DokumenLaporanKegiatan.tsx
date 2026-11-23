@@ -1,14 +1,17 @@
 import React, { CSSProperties, useEffect, useState } from "react";
-import { BuktiItem, FotoPendukung } from "../types";
+import { BuktiItem, DokumenPendukungItem, FotoPendukung } from "../types";
 import { formatAngka, formatRupiah } from "../lib/constants";
 import { RingkasanPenyelesaian } from "../lib/penyelesaianDana";
 import { DaftarPerdiemDokumen } from "../lib/timesheet";
+import { buktiPdf } from "../lib/gambarDokumen";
+import { hitungUkuranCetakDokumenMm, SPEC_DOKUMEN_PENDUKUNG } from "../lib/dokumenPendukung";
 import {
   BarisKeterangan,
   BarisTabelLaporan,
   BlokTransaksiLaporan,
   JustifikasiLaporan,
   KALIMAT_PENUTUP_JUSTIFIKASI,
+  KontrakRentalLaporan,
   KotakTempelLaporan,
   PasanganBuktiLaporan,
   RentalTimesheetLaporan,
@@ -329,6 +332,60 @@ const BarisKet: React.FC<{ baris: BarisKeterangan }> = ({ baris }) => (
 
 const sebagaiBukti = (f: FotoPendukung): BuktiItem => ({ ...f, tipe: f.tipe || "image/jpeg" });
 
+const dokumenSebagaiBukti = (doc: DokumenPendukungItem): BuktiItem => ({
+  id: doc.id,
+  nama: doc.nama || doc.label,
+  tipe: doc.tipe || "image/jpeg",
+  dataUrl: doc.dataUrl,
+  driveId: doc.driveId,
+  driveLink: doc.driveLink,
+  lebarPx: doc.lebarPx,
+  tinggiPx: doc.tinggiPx,
+});
+
+const KartuDokumenPendukung: React.FC<{
+  doc: DokumenPendukungItem;
+  lebarMaksMm: number;
+  tinggiMaksMm: number;
+  googleToken?: string;
+  onStatus: UbahStatusMuat;
+  onUkuran?: (id: string, lebar: number, tinggi: number) => void;
+}> = ({ doc, lebarMaksMm, tinggiMaksMm, googleToken, onStatus, onUkuran }) => {
+  const bukti = dokumenSebagaiBukti(doc);
+  const spec = SPEC_DOKUMEN_PENDUKUNG[doc.jenis] ?? SPEC_DOKUMEN_PENDUKUNG.lainnya;
+  const label = doc.label || spec.labelBaku;
+  const ukuran = hitungUkuranCetakDokumenMm(doc, { lebarMaksMm, tinggiMaksMm });
+
+  if (buktiPdf(bukti)) {
+    return (
+      <div className="dlk-dok-card dlk-dok-card--pdf" data-testid="dokumen-pendukung-cetak" data-jenis={doc.jenis}>
+        <div className="dlk-dok-card__label">{label}</div>
+        <div className="dlk-dok-card__pdf-info">Berkas PDF: {doc.driveLink || doc.nama}</div>
+      </div>
+    );
+  }
+
+  return (
+    <figure
+      className="dlk-dok-card"
+      data-testid="dokumen-pendukung-cetak"
+      data-jenis={doc.jenis}
+      style={{ maxWidth: `min(calc(${ukuran.lebarMm} * var(--mm)), 100%)` } as CSSProperties}
+    >
+      <div
+        className="dlk-dok-card__bingkai"
+        style={{
+          width: `min(calc(${ukuran.lebarMm} * var(--mm)), 100%)`,
+          maxHeight: `calc(${ukuran.tinggiMm} * var(--mm))`,
+        } as CSSProperties}
+      >
+        <GambarLampiran bukti={bukti} googleToken={googleToken} onStatus={onStatus} onUkuran={onUkuran} />
+      </div>
+      <figcaption className="dlk-dok-card__label">{label}</figcaption>
+    </figure>
+  );
+};
+
 const BlokTransaksi: React.FC<{
   blok: BlokTransaksiLaporan;
   googleToken?: string;
@@ -336,9 +393,17 @@ const BlokTransaksi: React.FC<{
   onUkuran?: (id: string, lebar: number, tinggi: number) => void;
 }> = ({ blok, googleToken, onStatus, onUkuran }) => {
   const t = blok.transaksi;
+  const isAkomodasi = t.kategori === "Akomodasi";
+  const punyaDokSamping = (blok.dokumenSamping?.length ?? 0) > 0;
+  const punyaDokBawah = (blok.dokumenBawah?.length ?? 0) > 0;
   const duaKolom =
+    !punyaDokSamping &&
     blok.pasangan.length >= 2 &&
     blok.pasangan.every((p) => p.kotak.lebarMm <= 90);
+
+  const lebarSampingMm = isAkomodasi ? 115 : 86;
+  const lebarBawahMm = isAkomodasi ? (blok.dokumenBawah.length >= 2 ? 124 : 255) : 168;
+  const tinggiBawahMaksMm = blok.dokumenBawah.length >= 2 ? (isAkomodasi ? 66 : 64) : isAkomodasi ? 82 : 95;
 
   return (
     <section className="dlk-blok" data-testid="blok-transaksi" data-nomor={blok.nomor}>
@@ -382,21 +447,70 @@ const BlokTransaksi: React.FC<{
         </p>
       ))}
 
-      {/* 5. Ruang tempel bukti fisik asli (nota, struk, kuitansi, dll.) tanpa struk digital */}
-      <div
-        className={`dlk-daftar-pasangan${duaKolom ? " dlk-daftar-pasangan--dua-kolom" : ""}`}
-        style={
-          duaKolom
-            ? { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "calc(5 * var(--mm))" }
-            : { display: "flex", flexDirection: "column", gap: "calc(5 * var(--mm))" }
-        }
-      >
-        {blok.pasangan.map((p, idx) => (
-          <PasanganBukti key={`${t.id}-p-${idx}`} pasangan={p} />
-        ))}
-      </div>
+      {/* 5. Ruang tempel bukti fisik asli (+ dokumen pendukung kartu seperti KTP/STNK/SIM/NPWP bersebelahan) */}
+      {punyaDokSamping ? (
+        <div
+          className="dlk-baris-bukti-dokumen"
+          data-testid="baris-bukti-dan-dokumen"
+          style={{
+            gridTemplateColumns: `minmax(0, 1fr) minmax(0, calc(${lebarSampingMm} * var(--mm)))`,
+          } as CSSProperties}
+        >
+          <div className="dlk-daftar-pasangan" style={{ display: "flex", flexDirection: "column", gap: "calc(4 * var(--mm))" }}>
+            {blok.pasangan.map((p, idx) => (
+              <PasanganBukti key={`${t.id}-p-${idx}`} pasangan={p} />
+            ))}
+          </div>
+          <div className="dlk-kolom-dokumen-samping" data-testid="kolom-dokumen-samping">
+            {blok.dokumenSamping.map((doc) => (
+              <KartuDokumenPendukung
+                key={doc.id}
+                doc={doc}
+                lebarMaksMm={lebarSampingMm}
+                tinggiMaksMm={92}
+                googleToken={googleToken}
+                onStatus={onStatus}
+                onUkuran={onUkuran}
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`dlk-daftar-pasangan${duaKolom ? " dlk-daftar-pasangan--dua-kolom" : ""}`}
+          style={
+            duaKolom
+              ? { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "calc(5 * var(--mm))" }
+              : { display: "flex", flexDirection: "column", gap: "calc(5 * var(--mm))" }
+          }
+        >
+          {blok.pasangan.map((p, idx) => (
+            <PasanganBukti key={`${t.id}-p-${idx}`} pasangan={p} />
+          ))}
+        </div>
+      )}
 
-      {/* 6. Kotak tempel tambahan jika ada */}
+      {/* 5b. Dokumen pendukung lebar satu lembar bersama bukti bayar (E-Ticket, Boarding Pass, Kontrak, Absensi, 3 Penawaran, dll.) */}
+      {punyaDokBawah && (
+        <div
+          className={`dlk-dokumen-bawah${isAkomodasi && blok.dokumenBawah.length >= 2 ? " dlk-dokumen-bawah--dua-kolom" : ""}`}
+          data-testid="dokumen-pendukung-bawah"
+        >
+          {blok.dokumenBawah.map((doc) => (
+            <KartuDokumenPendukung
+              key={doc.id}
+              doc={doc}
+              lebarMaksMm={lebarBawahMm}
+              tinggiMaksMm={tinggiBawahMaksMm}
+              googleToken={googleToken}
+              onStatus={onStatus}
+              onUkuran={onUkuran}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 6. Kotak tempel tambahan jika ada (hanya muncul bila dokumen pendukung belum diunggah) */}
       {blok.kotakTambahan.map((k, i) => (
         <div className="dlk-kotak-tambahan" key={i}>
           <KotakTempel kotak={k} />
@@ -427,6 +541,104 @@ function bagiPerHalaman(blok: BlokTransaksiLaporan[]): BlokTransaksiLaporan[][] 
 }
 
 /* ---------- dokumen pendukung ---------- */
+
+const LembarKontrakRental: React.FC<{ k: KontrakRentalLaporan; kepala: string }> = ({ k, kepala }) => (
+  <Lembar kepala={kepala} className="dlk-surat dlk-kontrak" data-testid="dlk-kontrak-rental">
+    <h3 className="dlk-judul-tengah dlk-kontrak__judul">SURAT PERJANJIAN SEWA KENDARAAN BERMOTOR</h3>
+    <p className="dlk-kontrak__pembuka">Pada hari {k.hariTanggal}, kami yang bertanda tangan di bawah ini:</p>
+
+    <p className="dlk-kontrak__pihak">Pihak Pertama (Pemilik Kendaraan):</p>
+    <table className="dlk-identitas dlk-identitas--surat dlk-kontrak__tabel">
+      <tbody>
+        <tr>
+          <td>Nama</td>
+          <td>:</td>
+          <td>{k.pihakPertama.nama}</td>
+        </tr>
+        <tr>
+          <td>Pekerjaan</td>
+          <td>:</td>
+          <td>{k.pihakPertama.pekerjaan}</td>
+        </tr>
+        <tr>
+          <td>Alamat KTP</td>
+          <td>:</td>
+          <td>{k.pihakPertama.alamatKtp}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p className="dlk-kontrak__pihak">Pihak Kedua (Penyewa):</p>
+    <table className="dlk-identitas dlk-identitas--surat dlk-kontrak__tabel">
+      <tbody>
+        <tr>
+          <td>Nama</td>
+          <td>:</td>
+          <td>{k.pihakKedua.nama}</td>
+        </tr>
+        <tr>
+          <td>Pekerjaan</td>
+          <td>:</td>
+          <td>{k.pihakKedua.pekerjaan}</td>
+        </tr>
+        <tr>
+          <td>Alamat</td>
+          <td>:</td>
+          <td>{k.pihakKedua.alamat}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p className="dlk-kontrak__pembuka">
+      Dengan ini Pihak Pertama menyewakan kendaraan bermotor kepada Pihak Kedua dengan spesifikasi:
+    </p>
+    <table className="dlk-identitas dlk-identitas--surat dlk-kontrak__tabel">
+      <tbody>
+        <tr>
+          <td>Merk / Jenis</td>
+          <td>:</td>
+          <td>{k.kendaraan.merkJenis}</td>
+        </tr>
+        <tr>
+          <td>Tahun</td>
+          <td>:</td>
+          <td>{k.kendaraan.tahun}</td>
+        </tr>
+        <tr>
+          <td>No. Polisi</td>
+          <td>:</td>
+          <td>{k.kendaraan.noPolisi}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p className="dlk-kontrak__pembuka">Adapun syarat dan ketentuan dalam perjanjian sewa menyewa ini sebagai berikut:</p>
+    <ol className="dlk-kontrak__klausul">
+      {k.klausul.map((isi, idx) => (
+        <li key={idx}>{isi}</li>
+      ))}
+    </ol>
+
+    <p className="dlk-surat__narasi dlk-surat__penutup">
+      Demikian surat perjanjian sewa menyewa dibuat agar dapat dipergunakan sebagaimana mestinya dan dibuat rangkap dua dengan dilampirkan materai serta mempunyai kekuatan hukum yang sama.
+    </p>
+
+    <div className="dlk-ttd-dua dlk-kontrak__ttd">
+      <div className="dlk-tengah">
+        <p className="dlk-seg--tebal">Pihak Pertama</p>
+        <div className="dlk-ttd-ruang dlk-kontrak__materai">
+          <span>Materai Rp10.000</span>
+        </div>
+        <p className="dlk-seg--tebal">( {k.pihakPertama.nama} )</p>
+      </div>
+      <div className="dlk-tengah">
+        <p className="dlk-seg--tebal">Pihak Kedua</p>
+        <div className="dlk-ttd-ruang" />
+        <p className="dlk-seg--tebal">( {k.pihakKedua.nama} )</p>
+      </div>
+    </div>
+  </Lembar>
+);
 
 const LembarRental: React.FC<{ r: RentalTimesheetLaporan; kepala: string; namaPelapor: string }> = ({ r, kepala, namaPelapor }) => (
   <Lembar kepala={kepala} data-testid="dlk-rental">
@@ -638,6 +850,9 @@ export const DokumenLaporanKegiatan: React.FC<DokumenLaporanKegiatanProps> = ({ 
       )}
 
       {/* 4. Dokumen pendukung */}
+      {susunan.kontrakRental.map((k) => (
+        <LembarKontrakRental key={`kontrak-${k.transaksi.id}`} k={k} kepala={kepala} />
+      ))}
       {susunan.rental.map((r) => (
         <LembarRental key={r.transaksi.id} r={r} kepala={kepala} namaPelapor={profil.nama} />
       ))}

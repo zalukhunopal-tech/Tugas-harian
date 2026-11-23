@@ -3,8 +3,9 @@ import {
   DataKegiatan,
   JenisBukti,
   UkuranKotakTempel,
-  RincianBarangJasa,
   FotoPendukung,
+  DokumenPendukungItem,
+  JenisDokumenPendukung,
   DetailTransportasi,
   DetailRentalKendaraan,
   DetailBBM,
@@ -26,6 +27,11 @@ import { kategoriBolehPenerima, PLAFON_KUDAPAN_PER_ORANG, plafonKudapan } from "
 import { pilihUkuranKotak } from "../lib/lembarTempel";
 import { PILIHAN_MODA, modaPerluDataSopir, saranJenisBukti } from "../lib/prasyaratDokumen";
 import { batchDariNama, namaFileTimesheet, sarankanBatch, tahunDariNama } from "../lib/timesheet";
+import {
+  adalahRentalLebih7Hari,
+  daftarSlotDokumenUntukTransaksi,
+  SPEC_DOKUMEN_PENDUKUNG,
+} from "../lib/dokumenPendukung";
 
 /**
  * Bagian form yang ditampilkan. "semua" = form lengkap (PC dan mode lengkap). Bagian lain dipakai pengisian
@@ -83,6 +89,13 @@ interface DanaKegiatanFormFieldsProps {
 
   fotoPendukung: FotoPendukung[];
   onUpdateFotoPendukung: (foto: FotoPendukung[]) => void;
+
+  /** Dokumen pendukung klaim SPJ (KTP, STNK, SIM, NPWP, E-Ticket, Boarding Pass, dll.) */
+  dokumenPendukung: DokumenPendukungItem[];
+  onUpdateDokumenPendukung: (dok: DokumenPendukungItem[]) => void;
+  /** Catatan penjelasan bila transaksi melebihi anggaran / over budget (aturan #16) */
+  catatanOverBudget: string;
+  onUpdateCatatanOverBudget: (val: string) => void;
 
   // Sub-kelompok
   transportasi: DetailTransportasi;
@@ -175,6 +188,10 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
 
   fotoPendukung,
   onUpdateFotoPendukung,
+  dokumenPendukung,
+  onUpdateDokumenPendukung,
+  catatanOverBudget,
+  onUpdateCatatanOverBudget,
 
   transportasi,
   onUpdateTransportasi,
@@ -230,6 +247,8 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   // Pengisian bertahap Transportasi: "Lainnya" dipilih dan moda diketik sendiri
   const [modaLainnya, setModaLainnya] = useState(() => Boolean(transportasi.moda) && !PILIHAN_MODA.includes(transportasi.moda || ""));
   const [bukaKetentuanModal, setBukaKetentuanModal] = useState(false);
+  const [memuatDokumenSlot, setMemuatDokumenSlot] = useState<string | null>(null);
+  const [labelDokumenLainnya, setLabelDokumenLainnya] = useState<string>("");
 
   // Kegiatan Terpilih
   const kegiatanTerpilih = daftarKegiatan.find((k) => k.id === kegiatanId);
@@ -448,34 +467,280 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
     onUpdateFotoPendukung(fotoPendukung.filter((f) => f.id !== id));
   };
 
+  // Unggah Dokumen Pendukung SPJ (KTP, STNK, SIM, NPWP, E-Ticket, Boarding Pass, dll.)
+  const handleUnggahDokumenPendukung = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    jenis: JenisDokumenPendukung,
+    labelDefault: string
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setMemuatDokumenSlot(jenis);
+    try {
+      const spec = SPEC_DOKUMEN_PENDUKUNG[jenis] ?? SPEC_DOKUMEN_PENDUKUNG.lainnya;
+      const tambahan: DokumenPendukungItem[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const kompres = await kompresBukti(f, f.name);
+        tambahan.push({
+          id: buatId(),
+          jenis,
+          label: labelDefault.trim() || spec.labelBaku,
+          nama: kompres.namaFile,
+          tipe: kompres.tipe,
+          dataUrl: kompres.dataUrl,
+          lebarPx: kompres.lebarPx,
+          tinggiPx: kompres.tinggiPx,
+          lebarCetakMm: spec.lebarMm,
+          tinggiCetakMm: spec.tinggiMm,
+          waktu: new Date().toISOString(),
+        });
+      }
+      if (tambahan.length > 0) {
+        onUpdateDokumenPendukung([...dokumenPendukung, ...tambahan]);
+        if (jenis === "lainnya") setLabelDokumenLainnya("");
+      }
+    } catch (err: any) {
+      console.warn("Gagal mengunggah dokumen pendukung:", err?.message);
+    } finally {
+      setMemuatDokumenSlot(null);
+      e.target.value = "";
+    }
+  };
+
+  const handleHapusDokumenPendukung = (id: string) => {
+    onUpdateDokumenPendukung(dokumenPendukung.filter((d) => d.id !== id));
+  };
+
   // Cek Ketentuan untuk menampilkan Peringatan Ramah (Bukan Larangan)
+  const detailSekarang: DataKhususKegiatan = {
+    jenisBukti,
+    namaPenjualPenyedia,
+    rincian: subtotalRincian > 0 ? {
+      banyaknya: Number(rincianBanyaknya),
+      satuan: rincianSatuan,
+      hargaSatuan: Number(rincianHargaSatuan),
+    } : undefined,
+    perluSuratJustifikasi,
+    alasanJustifikasi,
+    dokumenPendukung,
+    catatanOverBudget: catatanOverBudget.trim() || undefined,
+    transportasi,
+    rentalKendaraan,
+    bbm,
+    akomodasi,
+    konsumsi,
+    honorarium,
+    perdiem: kategori === "Perdiem" ? perdiem : undefined,
+    penerimaManfaat,
+  };
+
   const dataTransaksiDummy: Partial<Transaksi> = {
     dana: "Dana Kegiatan",
     jumlah: Number(jumlah) || 0,
     kategori,
     kaitan,
-    detailKegiatan: {
-      jenisBukti,
-      namaPenjualPenyedia,
-      rincian: subtotalRincian > 0 ? {
-        banyaknya: Number(rincianBanyaknya),
-        satuan: rincianSatuan,
-        hargaSatuan: Number(rincianHargaSatuan),
-      } : undefined,
-      perluSuratJustifikasi,
-      alasanJustifikasi,
-      transportasi,
-      rentalKendaraan,
-      bbm,
-      akomodasi,
-      konsumsi,
-      honorarium,
-      perdiem: kategori === "Perdiem" ? perdiem : undefined,
-      penerimaManfaat,
-    },
+    detailKegiatan: detailSekarang,
   };
 
   const daftarPeringatan = cekKetentuanTransaksi(dataTransaksiDummy, kegiatanTerpilih);
+  const slotDokumen = useMemo(
+    () => daftarSlotDokumenUntukTransaksi(kategori, detailSekarang, Number(jumlah) || 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      kategori,
+      jumlah,
+      jenisBukti,
+      transportasi.moda,
+      transportasi.namaSopir,
+      akomodasi.lokasi,
+      akomodasi.diRumahWarga,
+      rentalKendaraan.jenisMerk,
+      rentalKendaraan.jumlahHari,
+      rentalKendaraan.perluKontrakSewa,
+      konsumsi.kudapanPerjalanan,
+      honorarium.hasNPWP,
+    ]
+  );
+  const sewaLebih7Hari = adalahRentalLebih7Hari(kategori, detailSekarang);
+  const jenisDiSlot = useMemo(() => new Set(slotDokumen.map((s) => s.jenis)), [slotDokumen]);
+  const dokumenTambahanLuarSlot = useMemo(
+    () => dokumenPendukung.filter((d) => !jenisDiSlot.has(d.jenis)),
+    [dokumenPendukung, jenisDiSlot]
+  );
+  const wajibSlot = slotDokumen.filter((s) => s.wajib);
+  const wajibTerpenuhi = wajibSlot.filter((s) => dokumenPendukung.some((d) => d.jenis === s.jenis)).length;
+
+  const seksiDokumenPendukung = kategori !== "Perdiem" && (
+    <div className="dkf-section dkf-dok-panel" data-testid="dokumen-pendukung-upload">
+      <div className="dkf-section__head">
+        <div>
+          <span className="dkf-section__title">🪪 Dokumen Pendukung Klaim SPJ</span>
+          <p className="dkf-section__sub">
+            KTP/STNK/SIM/NPWP dicetak bersebelahan space bukti bayar; tiket/boarding pass/dokumen lainnya disusun satu lembar bersama bukti bayar.
+          </p>
+        </div>
+        {wajibSlot.length > 0 && (
+          <span
+            className={`dkf-pill ${wajibTerpenuhi === wajibSlot.length ? "dkf-pill--ok" : "dkf-pill--warn"}`}
+          >
+            {wajibTerpenuhi === wajibSlot.length
+              ? `✓ ${wajibTerpenuhi}/${wajibSlot.length} lengkap`
+              : `${wajibTerpenuhi}/${wajibSlot.length} wajib`}
+          </span>
+        )}
+      </div>
+
+      <div className="dkf-dok-list">
+        {slotDokumen.map((slot) => {
+          const terunggah = dokumenPendukung.filter((d) => d.jenis === slot.jenis);
+          const sedangMuat = memuatDokumenSlot === slot.jenis;
+          return (
+            <div
+              key={slot.jenis}
+              className={`dkf-dok-slot${terunggah.length > 0 ? " dkf-dok-slot--ada" : ""}`}
+              data-testid={`slot-dokumen-${slot.jenis}`}
+            >
+              <div className="dkf-dok-slot__top">
+                <div className="dkf-dok-slot__info">
+                  <div className="dkf-dok-slot__title-row">
+                    <span className="dkf-dok-slot__icon" aria-hidden="true">{slot.ikon}</span>
+                    <strong className="dkf-dok-slot__label">{slot.label}</strong>
+                    {terunggah.length > 0 ? (
+                      <span className="dkf-badge dkf-badge--ok">✓ {terunggah.length}</span>
+                    ) : slot.wajib ? (
+                      <span className="dkf-badge dkf-badge--req">Wajib</span>
+                    ) : (
+                      <span className="dkf-badge dkf-badge--opt">Opsional</span>
+                    )}
+                  </div>
+                  <span className="dkf-dok-slot__desc">{slot.keterangan}</span>
+                </div>
+
+                <div className="dkf-dok-slot__actions">
+                  <label className="dkf-upload-btn" title={`Ambil foto ${slot.label} dari kamera`}>
+                    <span>📷</span>
+                    <span>Kamera</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      style={{ display: "none" }}
+                      disabled={sedangMuat}
+                      onChange={(e) => void handleUnggahDokumenPendukung(e, slot.jenis, slot.label)}
+                    />
+                  </label>
+                  <label className="dkf-upload-btn dkf-upload-btn--primary" title={`Unggah file ${slot.label}`}>
+                    <span>📁</span>
+                    <span>{sedangMuat ? "Memproses…" : "Unggah"}</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      multiple
+                      style={{ display: "none" }}
+                      disabled={sedangMuat}
+                      onChange={(e) => void handleUnggahDokumenPendukung(e, slot.jenis, slot.label)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {terunggah.length > 0 && (
+                <div className="dkf-dok-thumbs">
+                  {terunggah.map((doc) => {
+                    const isPdf = doc.tipe === "application/pdf" || doc.nama.toLowerCase().endsWith(".pdf");
+                    return (
+                      <div key={doc.id} className="dkf-dok-thumb">
+                        {isPdf ? (
+                          <div className="dkf-dok-thumb__pdf">📄 PDF</div>
+                        ) : (
+                          <img src={doc.dataUrl || doc.driveLink} alt={doc.label} />
+                        )}
+                        <span className="dkf-dok-thumb__name" title={doc.nama}>{doc.nama}</span>
+                        <button
+                          type="button"
+                          className="dkf-dok-thumb__del"
+                          aria-label={`Hapus ${doc.label}`}
+                          onClick={() => handleHapusDokumenPendukung(doc.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Dokumen pendukung lainnya yang diunggah secara manual di luar slot standar */}
+        {dokumenTambahanLuarSlot.length > 0 && (
+          <div className="dkf-dok-slot dkf-dok-slot--ada">
+            <div className="dkf-dok-slot__title-row">
+              <span>📎</span>
+              <strong className="dkf-dok-slot__label">Dokumen Pendukung Tambahan</strong>
+              <span className="dkf-badge dkf-badge--ok">✓ {dokumenTambahanLuarSlot.length}</span>
+            </div>
+            <div className="dkf-dok-thumbs">
+              {dokumenTambahanLuarSlot.map((doc) => {
+                const isPdf = doc.tipe === "application/pdf" || doc.nama.toLowerCase().endsWith(".pdf");
+                return (
+                  <div key={doc.id} className="dkf-dok-thumb">
+                    {isPdf ? (
+                      <div className="dkf-dok-thumb__pdf">📄 PDF</div>
+                    ) : (
+                      <img src={doc.dataUrl || doc.driveLink} alt={doc.label} />
+                    )}
+                    <span className="dkf-dok-thumb__name" title={`${doc.label} — ${doc.nama}`}>
+                      {doc.label}
+                    </span>
+                    <button
+                      type="button"
+                      className="dkf-dok-thumb__del"
+                      aria-label={`Hapus ${doc.label}`}
+                      onClick={() => handleHapusDokumenPendukung(doc.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Unggah dokumen pendukung tambahan bebas */}
+        <div className="dkf-dok-extra">
+          <input
+            type="text"
+            className="dkf-dok-extra__input"
+            placeholder="Label dokumen lain (mis. Surat Tugas, Kuitansi Tambahan, Resi)…"
+            value={labelDokumenLainnya}
+            onChange={(e) => setLabelDokumenLainnya(e.target.value)}
+            maxLength={80}
+          />
+          <label className="dkf-upload-btn" title="Unggah dokumen pendukung lainnya">
+            <span>+ Dokumen Lain</span>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              multiple
+              style={{ display: "none" }}
+              disabled={memuatDokumenSlot === "lainnya"}
+              onChange={(e) =>
+                void handleUnggahDokumenPendukung(
+                  e,
+                  "lainnya",
+                  labelDokumenLainnya.trim() || "Dokumen Pendukung Lainnya"
+                )
+              }
+            />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
 
   // Rincian banyaknya × satuan × harga. Di pengisian bertahap tampil setelah isian khusus kategori, dan tidak
   // untuk Perdiem dan Honorarium yang punya hitungannya sendiri.
@@ -604,35 +869,22 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
   );
 
   return (
-    <div
-      style={
-        semua
-          ? {
-              marginTop: "16px",
-              marginBottom: "16px",
-              padding: "16px",
-              borderRadius: "14px",
-              background: "color-mix(in srgb, var(--accent) 5%, var(--surface))",
-              border: "1.5px solid var(--accent)",
-            }
-          : { marginBottom: "12px" }
-      }
-    >
+    <div className={semua ? "dkf-shell" : "dkf-shell dkf-shell--bertahap"}>
       {semua && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "1.2rem" }}>📋</span>
-            <strong style={{ fontSize: "0.95rem", color: "var(--accent)" }}>
-              Kelengkapan SPJ Dana Kegiatan &amp; Laporan
-            </strong>
+        <div className="dkf-shell__header">
+          <div className="dkf-shell__title-wrap">
+            <span className="dkf-shell__dot" aria-hidden="true" />
+            <div>
+              <strong className="dkf-shell__title">Detail SPJ Dana Kegiatan</strong>
+              <span className="dkf-shell__meta">{labelKategori(kategori) || "Umum"}</span>
+            </div>
           </div>
           <button
             type="button"
-            className="btn-link"
-            style={{ fontSize: "0.78rem", color: "var(--accent)", textDecoration: "underline", cursor: "pointer" }}
+            className="dkf-ketentuan-btn"
             onClick={() => setBukaKetentuanModal(true)}
           >
-            📖 Baca Ketentuan SPJ ({labelKategori(kategori) || "Umum"})
+            📖 Ketentuan SPJ
           </button>
         </div>
       )}
@@ -799,14 +1051,12 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
       {/* 3. Rincian: Banyaknya × Satuan × Harga Satuan */}
       {semua && seksiRincian}
 
-      {/* 4. Keterangan untuk Laporan (1–2 Kalimat Baku) */}
+      {/* 4. Keterangan untuk Laporan (1–2 Kalimat Baku) + Catatan Over Budget (opsional) */}
       {tampil("keterangan") && (
-        <div className="field wide" style={{ marginBottom: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-            <label htmlFor="ket-laporan" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-              Keterangan untuk Laporan SPJ (1–2 kalimat baku):
-            </label>
-            <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Bahasa baku formal</span>
+        <div className="field wide dkf-field-group">
+          <div className="dkf-label-row">
+            <label htmlFor="ket-laporan">Keterangan untuk Laporan SPJ</label>
+            <span className="dkf-hint">1–2 kalimat baku</span>
           </div>
           <textarea
             id="ket-laporan"
@@ -814,12 +1064,27 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             placeholder="Contoh: Perjalanan dari Kota A ke Kota B dengan speedboat reguler."
             value={keteranganLaporan}
             onChange={(e) => onUpdateKeteranganLaporan(e.target.value)}
-            style={{ width: "100%", padding: "8px", fontSize: "0.84rem", borderRadius: "8px" }}
           />
+          <details className="dkf-disclosure" open={Boolean(catatanOverBudget.trim())}>
+            <summary>Catatan Over Budget / Variansi Biaya (opsional)</summary>
+            <div className="dkf-disclosure__body">
+              <input
+                id="catatan-over-budget"
+                type="text"
+                placeholder="Isi bila nominal melebihi pagu/anggaran kegiatan, mis. kenaikan tarif speedboat di musim hujan"
+                value={catatanOverBudget}
+                onChange={(e) => onUpdateCatatanOverBudget(e.target.value)}
+                maxLength={250}
+              />
+            </div>
+          </details>
         </div>
       )}
 
-      {/* 5. Surat Justifikasi (Wajib bila jenis bukti = Bukti tidak lengkap) */}
+      {/* 5. Dokumen Pendukung Klaim SPJ (KTP, STNK, SIM, NPWP, E-Ticket, Boarding Pass, dll.) */}
+      {tampil("bukti") && seksiDokumenPendukung}
+
+      {/* 5b. Surat Justifikasi (Wajib bila jenis bukti = Bukti tidak lengkap) */}
       {tampil("bukti") && (
         <div
           style={{
@@ -1091,7 +1356,7 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
-          <div className="grid-sewa-rental kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 100px 100px", gap: "8px", marginBottom: "8px" }}>
+          <div className="grid-sewa-rental kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "8px", marginBottom: "8px" }}>
             <div>
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tanggal Mulai Sewa</label>
               <input
@@ -1116,7 +1381,19 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
                 type="number"
                 readOnly
                 value={rentalKendaraan.jumlahHari || 1}
-                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem", background: "rgba(0,0,0,0.1)" }}
+                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem", background: "rgba(0,0,0,0.06)" }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Tarif / Hari (Rp)</label>
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                placeholder="150000"
+                value={rentalKendaraan.tarifPerHari || ""}
+                onChange={(e) => onUpdateRentalKendaraan({ ...rentalKendaraan, tarifPerHari: Number(e.target.value) })}
+                style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
               />
             </div>
             <div>
@@ -1132,11 +1409,77 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
             </div>
           </div>
 
+          {/* Kontrak Sewa Kendaraan (> 7 hari otomatis aktif, atau opsional centang manual) */}
+          <div className={`dkf-kontrak-box${sewaLebih7Hari ? " dkf-kontrak-box--aktif" : ""}`}>
+            <div className="dkf-kontrak-box__head">
+              <label className="dkf-check-inline">
+                <input
+                  type="checkbox"
+                  checked={sewaLebih7Hari}
+                  disabled={(rentalKendaraan.jumlahHari ?? 0) > 7}
+                  onChange={(e) =>
+                    onUpdateRentalKendaraan({ ...rentalKendaraan, perluKontrakSewa: e.target.checked })
+                  }
+                />
+                <span>
+                  📜 Surat Perjanjian Sewa Kendaraan (Kontrak)
+                  {(rentalKendaraan.jumlahHari ?? 0) > 7 && (
+                    <span className="dkf-badge dkf-badge--req" style={{ marginLeft: "6px" }}>
+                      Wajib (&gt; 7 hari)
+                    </span>
+                  )}
+                </span>
+              </label>
+            </div>
+            {sewaLebih7Hari && (
+              <>
+                <p className="dkf-kontrak-box__note">
+                  Durasi sewa {rentalKendaraan.jumlahHari || 1} hari — Surat Perjanjian Sewa Kendaraan Bermotor otomatis dibuatkan pada laporan kegiatan, dan Timesheet penggunaan kendaraan wajib dilengkapi.
+                </p>
+                <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "8px" }}>
+                  <div>
+                    <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Pekerjaan Pemilik (Pihak I)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Wiraswasta / Petani"
+                      value={rentalKendaraan.pekerjaanPemilik || ""}
+                      onChange={(e) => onUpdateRentalKendaraan({ ...rentalKendaraan, pekerjaanPemilik: e.target.value })}
+                      style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Alamat KTP Pemilik (Pihak I)</label>
+                    <input
+                      type="text"
+                      placeholder="Alamat sesuai KTP pemilik"
+                      value={rentalKendaraan.alamatKtpPemilik || ""}
+                      onChange={(e) => onUpdateRentalKendaraan({ ...rentalKendaraan, alamatKtpPemilik: e.target.value })}
+                      style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+                    />
+                  </div>
+                  <div className="isi-penuh">
+                    <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Alamat Penyewa / Basecamp (Pihak II)</label>
+                    <input
+                      type="text"
+                      placeholder={kegiatanTerpilih?.lokasi || "Alamat penyewa di lokasi kegiatan"}
+                      value={rentalKendaraan.alamatPenyewa || ""}
+                      onChange={(e) => onUpdateRentalKendaraan({ ...rentalKendaraan, alamatPenyewa: e.target.value })}
+                      style={{ width: "100%", padding: "6px 8px", fontSize: "0.82rem" }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Timesheet Harian Toggle */}
           <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed var(--border)" }}>
-            <div className="kepala-timesheet-rental" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-                📅 Timesheet Harian Rental ({(rentalKendaraan.timesheet || []).length} rute)
+            <div className="kepala-timesheet-rental" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "0.8rem", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>📅 Timesheet Penggunaan Kendaraan ({(rentalKendaraan.timesheet || []).length} rute)</span>
+                {sewaLebih7Hari && (rentalKendaraan.timesheet || []).length === 0 && (
+                  <span className="dkf-badge dkf-badge--req">Wajib diisi</span>
+                )}
               </span>
               <button
                 type="button"
@@ -1308,6 +1651,14 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
           <strong style={{ fontSize: "0.85rem", color: "var(--accent)", display: "block", marginBottom: "8px" }}>
             🏨 Detail Khusus Akomodasi &amp; Penginapan
           </strong>
+          <label className="dkf-check-inline" style={{ marginBottom: "10px" }}>
+            <input
+              type="checkbox"
+              checked={Boolean(akomodasi.diRumahWarga)}
+              onChange={(e) => onUpdateAkomodasi({ ...akomodasi, diRumahWarga: e.target.checked })}
+            />
+            <span>🏠 Menginap di rumah warga (KTP pemilik rumah wajib &amp; dicetak bersebelahan kuitansi)</span>
+          </label>
           <div className="kartu-detail__grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", marginBottom: "8px" }}>
             <div className="isi-penuh">
               <label style={{ fontSize: "0.75rem", fontWeight: 600 }}>Nama Penginapan / Rumah Singgah</label>
@@ -1793,34 +2144,27 @@ export const DanaKegiatanFormFields: React.FC<DanaKegiatanFormFieldsProps> = ({
         </div>
       )}
 
-      {/* 8. Peringatan Ketentuan SPJ (Checklist Ramah & Edukatif) */}
-      {semua && daftarPeringatan.length > 0 && (
-        <div
-          style={{
-            marginTop: "12px",
-            padding: "10px 12px",
-            borderRadius: "10px",
-            background: "rgba(245, 158, 11, 0.1)",
-            border: "1px solid #f59e0b",
-            fontSize: "0.82rem",
-          }}
-        >
-          <strong style={{ color: "#d97706", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-            <span>⚠️</span> Catatan Kepatuhan Bukti Fisik SPJ ({daftarPeringatan.length} catatan):
-          </strong>
-          <ul style={{ margin: "0", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "4px" }}>
-            {daftarPeringatan.map((p, idx) => (
-              <li key={idx} style={{ color: "var(--text)" }}>
-                <span>{p.pesan}</span>
-                {p.rekomendasi && (
-                  <span style={{ display: "block", fontSize: "0.75rem", color: "var(--muted)", fontStyle: "italic" }}>
-                    ↳ {p.rekomendasi}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* 8. Peringatan Ketentuan SPJ (Checklist Ramah & Minimalis) */}
+      {semua && (
+        daftarPeringatan.length > 0 ? (
+          <details className="dkf-compliance dkf-compliance--warn" open={daftarPeringatan.length <= 3}>
+            <summary className="dkf-compliance__head">
+              <span>⚠️ Catatan Kepatuhan SPJ ({daftarPeringatan.length} hal perlu dicek)</span>
+            </summary>
+            <ul className="dkf-compliance__list">
+              {daftarPeringatan.map((p, idx) => (
+                <li key={idx}>
+                  <span>{p.pesan}</span>
+                  {p.rekomendasi && <span className="dkf-compliance__rec">↳ {p.rekomendasi}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          <div className="dkf-compliance dkf-compliance--ok">
+            ✓ Kelengkapan SPJ untuk {labelKategori(kategori) || "transaksi ini"} sudah memenuhi ketentuan.
+          </div>
+        )
       )}
 
       {/* Modal Buat Kegiatan Baru */}

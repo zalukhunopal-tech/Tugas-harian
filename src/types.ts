@@ -332,11 +332,54 @@ export interface TimesheetRentalItem {
   jarakKm: number;
 }
 
+export type JenisDokumenPendukung =
+  | "ktp"
+  | "npwp"
+  | "stnk"
+  | "sim"
+  | "eticket"
+  | "boarding_pass"
+  | "kontrak_sewa"
+  | "form_peminjaman_r4"
+  | "karcis_tol_parkir"
+  | "surat_penunjukan"
+  | "absensi"
+  | "notulensi"
+  | "persetujuan_adm"
+  | "tanda_terima_barang"
+  | "penawaran_3"
+  | "billing_resi"
+  | "hasil_pcr_antigen"
+  | "surat_penjelasan"
+  | "fotokopi_struk_thermal"
+  | "lainnya";
+
+export interface DokumenPendukungItem {
+  id: string;
+  jenis: JenisDokumenPendukung;
+  label: string;
+  nama: string;
+  tipe: string;
+  dataUrl?: string;
+  driveId?: string;
+  driveLink?: string;
+  lebarPx?: number;
+  tinggiPx?: number;
+  /** Ukuran cetak fisik dokumen pendukung dalam mm agar proporsional di laporan */
+  lebarCetakMm?: number;
+  tinggiCetakMm?: number;
+  waktu?: string;
+}
+
 export interface DetailRentalKendaraan {
   jenisMerk?: string;
   tahun?: string | number;
   noPolisi?: string;
   namaPemilik?: string;
+  pekerjaanPemilik?: string;
+  alamatKtpPemilik?: string;
+  alamatPenyewa?: string;
+  perluKontrakSewa?: boolean;
   tarifPerHari?: number;
   tanggalMulai?: string; // YYYY-MM-DD
   tanggalSelesai?: string; // YYYY-MM-DD
@@ -363,6 +406,8 @@ export interface DetailAkomodasi {
   jumlahMalam?: number;
   namaPemilik?: string;
   noTelp?: string;
+  /** Penanda akomodasi di rumah warga/penduduk lokal (KTP pemilik wajib dilampirkan) */
+  diRumahWarga?: boolean;
 }
 
 export interface DetailKonsumsi {
@@ -419,6 +464,10 @@ export interface DataKhususKegiatan {
   perluSuratJustifikasi?: boolean;
   alasanJustifikasi?: string;
   fotoPendukung?: FotoPendukung[];
+  /** Dokumen pendukung klaim SPJ terstruktur (KTP, STNK, SIM, NPWP, E-Ticket, Boarding Pass, 3 Penawaran, dll.) */
+  dokumenPendukung?: DokumenPendukungItem[];
+  /** Alasan variansi biaya bila pengeluaran melebihi anggaran / di luar ToR (aturan keuangan #16) */
+  catatanOverBudget?: string;
   transportasi?: DetailTransportasi;
   rentalKendaraan?: DetailRentalKendaraan;
   bbm?: DetailBBM;
